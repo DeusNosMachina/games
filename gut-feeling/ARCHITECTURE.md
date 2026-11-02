@@ -73,9 +73,24 @@ Framework-owned (read freely, do not repurpose):
 
 Game-owned: `limit` (set it in `init`; the HUD clock and default `timeUp` use it), `goal`, `phase`, `round`, `flash`/`flashText` (write when showing a banner), and any new field the game needs. Prefer distinctive names for new fields.
 
-## Sound vocabulary
+## Sound
 
-`sfx(name, opts)` maps names onto `tone()` beeps today: `ui`, `hit`, `swing`, `jump`, `dash`, `hurt`, `coin`, `pickup`, `eat`, `enemyDie`, `split`, `blob`, `throw`, `bounce`, `explode`, `shot`, `reload`, `slice`, `bomb`, `combo`, `fever`, `drip`, `catch`, `pump`, `wave`, `clear`, `win`, `lose`, `countdown`, `go`, `stun`, `shield`, `trap`, `miss`. `swing` and `slice` read `opts.combo`; `combo` and `drip` read `opts.count`. Existing game code still calls `tone()` directly; the audio pass will migrate it. `music(name)` is a no-op placeholder.
+`audio.js` synthesizes everything with the Web Audio API; there are no audio files. `audio.unlock()` runs on the first gesture (registered by both audio.js and input.js), `audio.toggle()` / `audio.setEnabled(bool)` / `audio.enabled` / `audio.volume` control it, and `state.sound` (default true) is the persisted preference.
+
+`sfx(name, opts)` names: `ui select back hit swing jump dash hurt coin pickup eat enemyDie split blob throw bounce explode shot reload slice bomb combo fever drip catch pump wave clear win lose countdown go stun shield trap miss headshot leap boss bossHit bossDie wallSplat organ squelch ricochet powerup lock unlock daily`. Unknown names play a generic blip. `opts.combo` and `opts.count` raise pitch for swing/slice/combo/drip; `opts.pan` (-1..1) and `opts.vol` work everywhere. Loud effects duck the music briefly.
+
+`music(name)` crossfades between looped tracks: `room:0` to `room:5`, `game:0` to `game:5`, `boss`, and the one-shot stings `result:win` and `result:lose`; `music(null)` stops. `loadRoom` plays the room track before `startEncounter` so a boss intro can take over, `launchMini` plays the game track, results play a sting, and `leaveMini` returns to the room.
+
+## Saved state
+
+`save()` persists: `hp coins name difficulty food medals records taken defeated upgrades cosmetics won wardClears evictions bestChain coinsEarned runs ralphReady ralph sound played briefed arcade daily`. Notes:
+
+- `wardClears[room]` is the grudge level; `wardLocked(id)` (combat.js) is true until the first clear. Rooms 0 and 5 have no combat.
+- `ralphReady` is set by `checkDischarge()` when the passport is complete; combat spawns Ralph in room 0 and sets `ralph` on defeat, then calls `checkDischarge()` again for the win dialog.
+- `briefed` holds `"<id>:<phase>"` keys; a game's full briefing shows once, then a 1.2 s GO card. Countdown is 1.5 s (3.2 s under reduced motion).
+- `daily` holds the Daily Dose record (date, best, streak, paid). During a daily run `mini.daily` is true and a date-seeded RNG replaces `Math.random` around the game hooks (`dailyScoped`).
+- `arcade` remembers fullscreen ("arcade mode", `body.arcade`), which phones enter on first start.
+- `cosmetics.worn` feeds `macyLook()` for `girl()`.
 
 ## Parallel work rules
 
@@ -99,7 +114,7 @@ node gut-feeling/tests/smoke.cjs        # one file (build first)
 | File | Covers | Owner |
 | --- | --- | --- |
 | `verify.cjs` | Saves, nutrients, run lifecycle, idle failure for all 54 combinations, frame-rate independence, discharge | framework |
-| `combat.cjs` | Ward weapons, enemies, jumping, damage, wave payout | combat |
+| `combat.cjs` | Ward rules, breeds, spawns, grudge, Ralph, and the masher-vs-kiter tuning check | combat |
 | `game-<name>.cjs` | That game's mechanics rules | that game |
 | `bots/<name>.cjs` | `{id, policy}`: input-only controller code run every play tick by `playthrough.cjs`, with a persistent `bot` object for its memory. It must win every tier and difficulty. | that game |
 | `playthrough.cjs` | Runs every bot through all 54 combinations | framework |

@@ -4,108 +4,104 @@ A hospital adventure for Macy: volleyball and softball phenom, gremlin wrangler,
 
 **[Play on phone or laptop](https://deusnosmachina.github.io/games/gut-feeling/)** · [Games catalog](../README.md)
 
-## v0.5 — actually cause some trouble
+## v0.6: the gremlins got organized
 
-Six arcade games, eighteen levels, and a ward adventure with three-wave fights. This release replaces four early room games with gesture and physics challenges, adds **Bedside Blaster**, and fixes the equipped-weapon bug.
+Six arcade games with three levels each, a ward that fights back properly, a boss named Ralph, music, fullscreen play, and a failure animation that finally earns its name. Level 1 of everything teaches you. Levels 2 and 3 are the real deal.
 
 | Place | Game | What you do |
 | --- | --- | --- |
-| Your room | **Drip or Die** | Three-stage recovery: precise timing, changing nutrient recipes, and a moving pressure target with momentum. |
-| MRI | **Polarity Panic** | Drag a magnet, switch pull/push polarity, and steer drifting nutrients into matching ports. Dispose of pink gunk in the bottom vent. Later shifts add currents. **105–135 seconds.** |
-| Family lounge | **Brick Rebellion** | Pull back to aim a volley or switch to velocity-based flick throws. Bank shots, explosive blocks, extra balls, and limited heavy/fan shots. Protect the red line through **12–18 volleys**, with a four-minute ceiling. |
-| CT | **Gurney Grand Prix** | Swipe to steer, jump crates, slide under scan bars, and throw softballs at gremlins. Meet both coin and stunt quotas across three continuous sectors. **105–135 seconds.** |
-| Ultrasound | **Gel Yeah!** | Slice airborne gremlins, bank multi-target strokes, dodge pink bombs, crack helmets with separate swipes, and chase splitting targets. Combos trigger slow-motion fever. **90–120 seconds.** |
-| Your room, after dark | **Bedside Blaster** | From bed, pan a flashlight and sighted blaster around a wide, dark room. Gremlins crawl over furniture, wind up, and leap at the camera. Manage seven-shot magazines, headshots, armor, reloads, and a limited stun. **105–135 seconds.** |
+| Your room | **Drip or Die** | Three phases: tap the sweep in the mint window, catch the recipe in three lanes, hold the pressure in a moving band. Later levels add double drips, decoy windows, echo sweeps, three-flavor mix orders, hopping skulls, coughs, split bands and three seconds of flipped controls. Gold-center chains multiply points. |
+| MRI | **Polarity Panic** | Drag a magnet, hold to pull or push, release to coast, sort mint circles left and gold diamonds right, flush pink gunk down the vent. Later levels add gremlin thieves, an overheating magnet, repulsor walls, a sweeping barrier, port swaps, surge pickups and chain sorting up to 5×. |
+| Family lounge | **Brick Rebellion** | Pull back from the softball (or flick it) and send a volley into the rack. Armored, rubber, sliding gremlin and nurse-call bricks join the pink chain-reaction and star blocks. Clear a row in one volley to earn it back, bank shots hit harder, the last ball slows time, and level 3 ends at Ralph's fortress. |
+| CT | **Gurney Grand Prix** | Swipe to steer, jump crates, slide under bars, throw softballs. Later levels add boost pads, nurse carts that hop lanes, rolling IV stands, curves that skid you sideways, ramps you can swerve off mid-air, gunk throwers, close-call bonuses, stunt chains and a donut tunnel. |
+| Ultrasound | **Gel Yeah!** | Slice gremlins in clean swipes. Formations spread across the screen, arrow gremlins only split along their arrow, numbered sets pay for order, a gold gremlin starts a five-second frenzy, helmets need two strokes, blue ones split, and lit bombs can be flicked away on level 3. |
+| Your room, after dark | **Bedside Blaster** | Tap to shoot, drag to look, hold to charge a piercing shot. Crawlers, bedpan helmets, bruisers and pouncers hide behind furniture and leap at your face. Active reloads reward timing, juice bottles refill charges, and level 3 ends with Ralph Jr. |
 
-Every run begins with a paused briefing and a 3.2-second countdown. Results settle over 2.2 seconds. The gesture games advance through their phases without stopping for another launch screen. IV recovery still explains each new phase before its clock begins. Reduced-motion settings preserve reading/preparation time.
+Every game shows its full briefing once. After that you get a 1.2-second GO card with the one-line rule and a 1.5-second countdown. Reduced-motion settings keep the longer reading time.
 
 ## The ward fights back
 
-Each combat department has three waves, a short breather between waves, and a 45-coin completion bonus. Cleared encounters can be replayed. Home base and the after-dark room are safe outside their arcade games.
+Four departments have gremlins. Each has three waves, and the first wave of your first visit is a teaching wave with hints. Clear a ward once to unlock its arcade. Clear it again and Ralph's grudge rises: more gremlins, faster, bigger payout. Fights persist if you leave mid-wave, and a cleared room stays calm when you come back.
 
-- **Green nibblers:** 3 HP, chase and telegraph bites.
-- **Purple spitters:** 4 HP, keep distance and aim blobs; later waves add spread shots.
-- **Orange bruisers:** 7 HP, telegraph a fast charge.
-- **Blue split peas:** split on the first hit into two faster 2-HP gremlins.
+Hitting a gremlin staggers it. Stuns come only from the third hit of a combo, the spin, a brick, a stomp or a trap, so mashing one button no longer works. Hit a gremlin twice in a row and it hops out of reach, angry.
 
-The equipped weapon now determines the primary attack:
+- **Nibblers** hunt in pairs, flank, crouch and lunge.
+- **Spitters** strafe, lead their shots, back off when you close in, and spread-shoot on wave 3. A pillow swing sends blobs back at them.
+- **Bruisers** charge. A charge into furniture or a wall leaves them dizzy, which is when you hit them. From the front they shrug off pillow pokes.
+- **Split peas** split on the first hit and re-merge if you leave the halves alone for four seconds.
+- **Hurlers** lob gunk bricks that leave sticky puddles. They show up from wave 2 in later rooms.
 
 | Weapon | Primary attack | Ability (E) |
 | --- | --- | --- |
-| Pillow | Directional three-hit combo, visible wind-up/follow-through, feather impacts, blob deflection | Wide spinning swing |
-| Barf bag | Aimed bouncing projectile | Temporary shield |
-| Brick | Aimed lob with area damage and a stun | Drop a trap |
+| Pillow | Three-hit combo, deflects blobs | Spin |
+| Barf bag | Ranged throw that bounces once | Shield |
+| Brick | Lob with an area burst, stuns bruisers | Trap |
 
-Jump over low attacks; attacking with the pillow during a landing can produce a stomp. Dashing, spacing, reflection, and stun timing provide alternatives to trading hits.
+Jump over low attacks; swing in the air to stomp on landing. Dash through a gremlin mid-wind-up to cancel its attack.
+
+**Ralph** waits in your room once your passport is complete. Phase 1 is a spit barrage you deflect back at him. Phase 2 is charges that leave him dizzy when he hits the bed, plus minions. Phase 3 is leaping slams that shake the room. Beat him to get discharged.
 
 ## Phone and desktop controls
 
-| Action | Phone / pointer | Keyboard |
+| Action | Phone | Keyboard |
 | --- | --- | --- |
 | Move | Left joystick | WASD / arrows |
-| Attack | Tap equipped attack; drag it to aim and release | Space |
+| Attack | Tap SWING / THROW / LOB; drag it to aim | Space |
 | Jump | JUMP | Shift / J |
 | Dash | DASH | Q |
 | Ability | SPIN / SHIELD / TRAP | E |
 | Equip | SWAP or inventory cards | 1 / 2 / 3 |
 | Nutrient | Drink / eat | F |
 | Map | Hospital map | M |
-| Nearby arcade | Play button | Enter |
-| Pause | Pause button; interruptions pause automatically | Escape |
+| Nearby arcade | Play button or the beacon | Enter |
+| Pause | Pause button | Escape |
+| Fullscreen | Fullscreen button | Fullscreen button |
 
-Arcade controls stay visible during play:
+Fullscreen ("arcade mode") pins the game to the screen. Phones enter it on the first start; the controls float over the canvas in landscape and sit below it in portrait. iPhones use a CSS fallback because Safari has no fullscreen API for pages.
 
-- **IV:** Space taps or pumps; A/S/D selects catch lanes.
-- **Magnet:** press and drag to apply force; release to coast; Space changes polarity.
-- **Bricks:** drag from the ball; choose PULL AIM or FLICK AIM. Keys 1/2/3 select normal/heavy/fan; Space recalls remaining balls.
-- **Race:** swipe or use A/D to steer, W to jump, S to slide, Space to throw.
-- **Gel:** press and swipe; lift to bank a combo. Helmets require a new stroke.
-- **Blaster:** drag to look, or use WASD/arrows; hold FIRE/Space; R reloads. A tap without a drag fires once. Two fingers can aim and fire independently.
+Arcade controls:
+
+- **IV:** Space taps or pumps; A/S/D pick lanes.
+- **Magnet:** press and drag; release to coast; Space flips polarity. Let go to cool an overheated magnet.
+- **Bricks:** drag back from the ball, or flick it. 1/2/3 pick normal, heavy or fan; Space recalls.
+- **Race:** swipe or A/D to steer, W jump, S slide, Space throw. Swipe down in the air to slam.
+- **Gel:** press and swipe; lift to bank a combo. Swipe along an arrow gremlin's arrow. Flick up through a lit bomb.
+- **Blaster:** tap to shoot, drag to look, hold and release to pierce. Mouse: the sight follows the pointer, click fires, right-drag looks. R reloads; tap R again in the green for an instant reload.
 - **All games:** E uses a limited assist; Escape pauses.
-
-Touch targets are at least 44 pixels for ward action buttons. On narrow screens, starting play collapses the title area so the room and controls fit more comfortably. Canvas art renders at device pixel density, with requestAnimationFrame rendering and small simulation steps. Performance still depends on the device.
 
 ## Progression and difficulty
 
-**Steady hands** supplies two assists for the whole run. **Show-off shift** removes assists and pays 25% more coins. Assists include stabilized magnetic fields, a brick push-back, race shields, gel freeze, and flashlight stuns.
+**Steady hands** gives two assists per run. **Show-off shift** removes them and pays 25% more. The prescriptions are **Pillow Fort**, **Questionable Decisions** and **Absolute Gutastrophe**; they change speed, counts, windows and payouts.
 
-The separate prescriptions are **Pillow Fort**, **Questionable Decisions**, and **Absolute Gutastrophe**. They affect enemy pressure, timing/speed, mistake allowances, volley ball count, and payouts. Difficulty changes do not refill health.
+Medals are bronze, silver and gold, worth 1, 2 and 3 discharge stars. Discharge needs 12 stars, a medal in all six games, any level 2 medal, and Ralph beaten.
 
-Successful games earn bronze/silver/gold based on performance, mistakes, precision, chains, and assists. Best medals contribute 1/2/3 discharge stars. Replays earn coins; only improved medals add stars. Discharge now requires **12 stars, a medal in all six games, and any level 2 medal**. Existing completed discharges remain completed. Coins buy permanent equipment upgrades.
+- **Daily Dose:** the date picks a game and a level. Same run for everyone, local best per day, a streak, and a bonus the first time each day.
+- **Gift shop:** eight permanent upgrades (grippy socks, pillow reach, longer shield, thick skin, pocket snacks, Ralph repellent, arcade pass, a lucky scrunchie for a sixth heart) and three wardrobe looks for Macy.
+- **Hall of Nonsense:** gremlins evicted, best chain, ward clears, lifetime coins, runs played, daily streak.
 
-Nutrients restore one heart and are capped at three carried. Pickups stay collected, with a few additional supplies unlocked at progression milestones. Zero hearts sends Macy to mandatory IV recovery. Failed recovery retains the exaggerated cartoon gore. All medical mechanics are fictional arcade jokes.
+Nutrients restore one heart. Zero hearts sends Macy to mandatory IV recovery, always at level 1. Failing that is where the organs come out. All medical mechanics are fictional arcade jokes.
+
+## Sound
+
+Everything is synthesized in the browser: a music track per room and per game, a boss theme, win and lose stings, and about fifty sound effects. Sound is on by default and the button in the header or the pause menu turns it off. The preference is saved.
 
 ## Build and verify
 
-No package installation, runtime dependencies, remote assets, or backend are required.
+No package installation, runtime dependencies, remote assets, or backend.
 
 ```sh
-python3 gut-feeling/build.py
-node gut-feeling/tests/verify.cjs
-node gut-feeling/tests/playthrough.cjs
+node gut-feeling/tests/run-all.cjs
 ```
 
-Run from the repository root. Commit the editable sources and generated `gut-feeling/index.html` together. The generated file contains all HTML, CSS, JavaScript, and canvas artwork.
+That builds `index.html` from `src/` and runs every test file. `python3 gut-feeling/build.py` builds on its own. Run from the repository root and commit `src/` and the generated `index.html` together.
 
-Source guide (details, hook reference, and parallel-work rules in [ARCHITECTURE.md](ARCHITECTURE.md)):
+Tests: `verify.cjs` (saves, run lifecycle, idle failure in all 54 combinations, discharge), `combat.cjs` (ward rules, Ralph, and a check that a button-masher dies while a dodging bot wins), `audio.cjs`, `smoke.cjs`, one `game-<name>.cjs` per arcade, and `playthrough.cjs`, which drives an input-only bot from `tests/bots/` through every game, level and prescription. They establish rules and solvability. Human playtesting still decides whether the quotas feel right.
 
-- `state.js`: helpers, room table, difficulties, saves, shared run state, and the arcade registry.
-- `art.js`: drawing primitives, characters, furniture, cached room backgrounds, and shared arcade art.
-- `audio.js`: WebAudio beeps and the named `sfx()` vocabulary.
-- `world.js`: ward navigation, pickups, health, effects, map, and the frame loop.
-- `combat.js`: equipped attacks, aiming, jumping, enemy behaviors, and wave encounters.
-- `minigames.js`, `transitions.js`: the arcade framework (lobby, scoring, rewards, results, shared gesture plumbing) plus briefings and countdowns.
-- `games/iv.js`, `magnet.js`, `bricks.js`, `race.js`, `slice.js`, `blaster.js`: one file per arcade game, each with its rules, art, copy, and controls.
-- `input.js`: keyboard, pointer capture, independent touch inputs, menus, and startup.
-- `template.html`, `dialogs.html`, `v2.css`: interface, instructions, and responsive layout.
-
-Regression checks cover weapon dispatch, wind-up damage, multi-hit/splitting enemies, jumping, health budgets, pause and transition clocks, reward idempotence, aim cancellation, magnetic force direction, swipe rules, race obstacle rules, and shooter sight/ammo/headshot/reload/leap behavior. Input-driven controllers complete **54 game/level/prescription combinations** through the actual simulation. Separate checks reject idle play in all 45 gesture-game combinations. These tests establish mechanics and solvability; they do not replace human difficulty tuning.
-
-Phone-sized and laptop browser layouts have been inspected, including drag aiming, equipment switching, jumping, throwing, and the blaster's fire control. Physical iOS/Android testing is still useful for touch feel, battery use, and device performance.
+The code layout, the game registry and the rules for editing are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Design references
 
-The implementations, characters, and artwork are specific to this game. Familiar mobile ideas informed the redesign:
+The implementations, characters, and artwork are specific to this game. Familiar mobile ideas informed it:
 
 - [Halfbrick's Fruit Ninja guide](https://www.halfbrick.com/blog/the-ultimate-beginners-guide-to-fruit-ninja): deliberate multi-target swipes, combos, and power-up windows.
 - [Halfbrick's Jetpack Joyride](https://www.halfbrick.com/games/jetpack-joyride-classic): continuous arcade runs and changing obstacles.
@@ -113,6 +109,6 @@ The implementations, characters, and artwork are specific to this game. Familiar
 
 ## Saves and hosting
 
-Progress uses localStorage in the current browser and origin. It does not sync between phones, laptops, local files, or hosted URLs. Existing saves retain Macy's name, medals, high scores, coins, and upgrades; v0.5 adds the sixth game's medal slots and ward-clear counters. A fresh-adventure reset clears progress only after a second deliberate click.
+Progress lives in localStorage for the current browser and origin. It does not sync between devices. Saves from v0.5 carry over; v0.6 adds the new counters, the daily record, the shop items and the Ralph flags. A fresh-adventure reset clears progress only after a second deliberate click.
 
-GitHub Pages serves `main` from the repository root. The game remains usable as a single local HTML file. There is no account, analytics, cloud save, service worker, or install requirement.
+GitHub Pages serves `main` from the repository root. The game also works as a single local HTML file. No account, analytics, cloud save, service worker, or install.
