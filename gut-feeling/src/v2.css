@@ -2750,3 +2750,7 @@ body.talking .ward-strip{display:none}
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* While Macy dreams, the HUD and toasts fade so the dream owns the frame. */
+.hud,.toast,.ward-strip{transition:opacity .5s}
+body.dreaming .hud,body.dreaming .toast,body.dreaming .ward-strip{opacity:0;pointer-events:none}

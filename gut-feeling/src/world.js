@@ -2012,7 +2012,10 @@ function drawWorld() {
   drawWeaponFlash(vw, vh);
   if (state.paused) rect(c, 0, 0, vw, vh, '#102734aa');
   if (wardIris > 0) drawRoomIris(vw, vh);
-  if (typeof dreamActive === 'function' && dreamActive()) drawDream(c, vw, vh);
+  const dreaming = typeof dreamActive === 'function' && dreamActive();
+  // DOM overlays (hearts, coins, toasts) step out of the way while she dreams.
+  if (document.body && document.body.classList) document.body.classList.toggle('dreaming', dreaming);
+  if (dreaming) drawDream(c, vw, vh);
 }
 
 // A 250 ms iris opens on Macy after each room change (skipped under reduced motion).
