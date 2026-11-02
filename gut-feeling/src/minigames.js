@@ -281,6 +281,7 @@ function openMini(id, forced = false) {
   const plan = forced && typeof ivRecoveryPlan === 'function' ? ivRecoveryPlan() : null;
   let next = state.medals[id].findIndex(m => !m),
     tier = forced ? (plan ? clamp(Math.floor(plan.level) || 0, 0, 2) : 0) : next < 0 ? 2 : next;
+  ceremonyStop();
   mini = {
     open: true,
     screen: 'lobby',
@@ -305,6 +306,7 @@ function showLobby() {
   mini.screen = 'lobby';
   mini.held = false;
   clearHeld();
+  ceremonyStop();
   $('miniDialog').dataset.screen = 'lobby';
   $('miniClose').disabled = false;
   $('miniLobby').classList.remove('hidden');
@@ -364,6 +366,7 @@ function startMini() {
   const { id, tier, forced, approach = 0, daily = false, dailyDate = '', dailySeed = 0 } = mini,
     def = games[id];
   clearHeld();
+  ceremonyStop();
   $('miniLivesLabel').textContent = 'OOPS ALLOWANCE';
   mini = {
     open: true,
@@ -514,6 +517,7 @@ function updateMini(dt) {
   syncMiniTip();
   if (updateTransition(dt)) return;
   if (mini.screen === 'result') {
+    ceremonyUpdate(dt);
     // Result splatter (spawned by a game's onLose) keeps falling on the result art.
     if (gore.length) {
       mini.resultT += dt;
@@ -628,6 +632,9 @@ function resolveMiniResult(win, reason) {
   $('miniPauseBtn').classList.add('hidden');
   $('miniBack').classList.toggle('hidden', mini.forced && !win);
   $('miniRetry').textContent = mini.daily ? 'Run it back' : win ? 'Improve / next level' : 'Reassemble. Try again.';
+  $('miniResult').dataset.medal = '0';
+  $('resultStamp').classList.add('hidden');
+  let tiles = null;
   if (win) {
     mini.qualityFinal = qualityScore();
     mini.grade = mini.qualityFinal >= 88 ? 3 : mini.qualityFinal >= 68 ? 2 : 1;
@@ -642,6 +649,7 @@ function resolveMiniResult(win, reason) {
       mini.score
     );
     mini.reward = reward;
+    stickerCountRun(mini);
     const winText = def.onWin ? def.onWin() : undefined;
     $('resultMedal').textContent = '★'.repeat(mini.grade);
     $('resultHeading').textContent = medalNames[mini.grade].toUpperCase() + '. LEGENDARY NONSENSE.';
@@ -653,15 +661,35 @@ function resolveMiniResult(win, reason) {
         'Excellent work. Terrible bedside manner.',
         'That pillow swat had a little volleyball energy.'
       ]);
-    $('resultNumbers').innerHTML =
-      `<div><strong>${mini.score}</strong>` +
-      `<small>ARCADE SCORE · BEST ${state.records[mini.id][mini.tier]}</small></div><div>` +
-      `<strong>${mini.qualityFinal}%</strong><small>PERFORMANCE</small></div><div>` +
-      `<strong>+${reward.pay}</strong><small>COINS EARNED</small></div><div>` +
-      `<strong>+${reward.delta} ★</strong><small>NEW DISCHARGE STARS</small></div>`;
+    // The ceremony counts these up from zero; NEW BEST and NEW STARS pop on their tiles.
+    tiles = [
+      {
+        to: mini.score,
+        pre: '',
+        post: '',
+        label: `ARCADE SCORE · BEST ${state.records[mini.id][mini.tier]}`,
+        pop: previousBest > 0 && mini.score > previousBest ? 'NEW BEST' : ''
+      },
+      { to: mini.qualityFinal, pre: '', post: '%', label: 'PERFORMANCE', pop: '' },
+      { to: reward.pay, pre: '+', post: '', label: 'COINS EARNED', pop: '' },
+      { to: reward.delta, pre: '+', post: ' ★', label: 'NEW DISCHARGE STARS', pop: reward.delta > 0 ? 'NEW STARS' : '' }
+    ];
+    $('resultNumbers').innerHTML = tiles
+      .map(
+        (t, i) =>
+          `<div><strong id="resultNum${i}">${t.pre}${t.to}${t.post}</strong><small>${t.label}</small>` +
+          (t.pop ? `<em class="tile-pop" id="resultPop${i}">${t.pop}</em>` : '') +
+          '</div>'
+      )
+      .join('');
+    $('resultStamp').classList.remove('hidden');
+    $('stampRoom').textContent = rooms[mini.id].name;
+    $('stampLevel').textContent = `Level ${mini.tier + 1} · ${tiers[mini.tier]}`;
+    $('stampStars').textContent = '★'.repeat(mini.grade) + '☆'.repeat(3 - mini.grade);
+    $('miniResult').dataset.medal = String(mini.grade);
     $('resultJourney').textContent =
       `${stars()}/12 stars · ${stamps()}/${ARCADE_COUNT} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins paid.'}`;
-    sfx('win');
+    // The ceremony plays the thud and the win sting when the medal lands.
     $('miniDialog').classList.remove('gory');
   } else {
     mini.grade = 0;
@@ -694,9 +722,11 @@ function resolveMiniResult(win, reason) {
   }
   save();
   music('result:' + (win ? 'win' : 'lose'));
+  if (win) ceremonyStart(mini.grade, tiles);
   drawResultArt();
   // Show the result art in full under the sticky header instead of scrolling it half out of view.
   $('miniDialog').scrollTop = 0;
+  stickerCheck();
 }
 
 function drawResultArt() {
@@ -712,14 +742,359 @@ function drawResultArt() {
   poster(g, 654, 12, 1);
   plant(g, 113, 201, 1.2);
   const def = games[mini.id];
-  // A game may paint its own foreground over the shared bedside scene.
-  if (def.resultArt && def.resultArt(g)) return;
-  if (mini.win) {
-    for (let i = 0; i < mini.grade; i++) spark(g, 353 + i * 42, 44, '#fff0ab', 1.15);
-    label(g, 'STATUS: STILL A TOTAL LEGEND', 400, 26, 11, '#426d62', 'center');
-  } else {
-    gremlin(g, 630, 190, 1.5, 1, time);
-    label(g, 'THE GREMLINS ARE BEING VERY SMUG.', 400, 29, 12, '#dfe2b9', 'center');
+  // A game may paint its own foreground over the shared bedside scene; the ceremony goes on top.
+  if (!(def.resultArt && def.resultArt(g))) {
+    if (mini.win) {
+      for (let i = 0; i < mini.grade; i++) spark(g, 353 + i * 42, 44, '#fff0ab', 1.15);
+      label(g, 'STATUS: STILL A TOTAL LEGEND', 400, 26, 11, '#426d62', 'center');
+    } else {
+      gremlin(g, 630, 190, 1.5, 1, time);
+      label(g, 'THE GREMLINS ARE BEING VERY SMUG.', 400, 29, 12, '#dfe2b9', 'center');
+    }
+  }
+  ceremonyArt(g);
+}
+
+// ---- Medal ceremony ----
+// After a win the medal drops onto the passport card (squash, thud, win sting), confetti bursts from
+// it over the result art, the number tiles count up, NEW BEST and NEW STARS pop on their tiles, and a
+// gold sends Rowdy galloping across the art to cheer. It all fits in CEREMONY_SECONDS. A tap skips to
+// the end; reduced motion starts there, with no confetti and Rowdy already cheering. updateMini moves
+// the clock, drawMini paints it, and #miniResult[data-medal] keeps the bronze, silver or gold wash.
+const CEREMONY_DROP = 0.36,
+  CEREMONY_WIN_SFX = 0.46,
+  CEREMONY_SQUASH = 0.62,
+  CEREMONY_COUNT = 1.5,
+  CEREMONY_POP_AT = [1.58, 1.8],
+  CEREMONY_RUN = [0.2, 1.85],
+  CEREMONY_ROWDY_X = 700,
+  CEREMONY_WASH = 0.8,
+  CEREMONY_SECONDS = 2.4;
+
+const CEREMONY_PHASES = [
+  ['drop', 0],
+  ['stamp', CEREMONY_DROP],
+  ['count', CEREMONY_SQUASH],
+  ['pop', CEREMONY_COUNT],
+  ['done', CEREMONY_SECONDS]
+];
+
+// Bronze, silver, gold: the disc's light, mid and deep tones, and the color of the wash.
+const CEREMONY_METALS = [
+  null,
+  { light: '#ffe0c2', mid: '#d38d55', deep: '#8a5230', wash: '#e59a5c' },
+  { light: '#ffffff', mid: '#c3cfd5', deep: '#6b7f88', wash: '#d9e6ea' },
+  { light: '#fff6bd', mid: '#f2c14e', deep: '#a8771f', wash: '#ffd760' }
+];
+
+const CEREMONY_CONFETTI = ['#b5e8c5', '#ffa48e', '#ffda79', '#f8efd9', '#8fd3c2', '#ef8f89'];
+
+let ceremony = null;
+
+// A medal with ribbon tails, centered on its disc at (x, y); r is the disc radius.
+function ceremonyMedal(g, x, y, r, grade) {
+  const m = CEREMONY_METALS[clamp(Math.round(grade) || 1, 1, 3)],
+    k = r / 40;
+  g.save();
+  g.translate(x, y);
+  g.scale(k, k);
+  for (const [side, col] of [
+    [-1, '#8fd3c2'],
+    [1, '#ffa48e']
+  ]) {
+    const tail = [
+      [side * 4, 20],
+      [side * 23, 12],
+      [side * 27, 52],
+      [side * 18, 45],
+      [side * 9, 55]
+    ];
+    poly(g, tail, col);
+    line(g, [...tail, tail[0]], '#17313a', 2.2);
+  }
+  ellipse(g, 0, 4, 41, 41, '#08192459');
+  path(g, p => p.arc(0, 0, 40, 0, Math.PI * 2), gradient(g, -30, -40, 50, 80, m.light, m.deep), '#17313a', 3);
+  path(g, p => p.arc(0, 0, 31, 0, Math.PI * 2), gradient(g, 25, 30, -45, -60, m.light, m.mid), m.deep, 2.5);
+  stickerStar(g, 0, 1, 20, m.light, m.deep, 2.4);
+  path(g, p => p.arc(0, 0, 35, Math.PI * 1.08, Math.PI * 1.42), null, '#ffffffb0', 4);
+  ellipse(g, -21, -25, 2.6, 2.6, '#ffffffd0');
+  g.restore();
+}
+
+function ceremonyRunning() {
+  return !!ceremony && ceremony.t < CEREMONY_SECONDS;
+}
+
+function ceremonyPhaseAt(t) {
+  let name = CEREMONY_PHASES[0][0];
+  for (const [n, at] of CEREMONY_PHASES) if (t >= at) name = n;
+  return name;
+}
+
+// The medal's drop, then a squash and stretch that settles to rest.
+function ceremonyStampAt(t) {
+  if (t >= CEREMONY_SQUASH) return { y: 0, sx: 1, sy: 1, rot: 0, o: 1 };
+  if (t < CEREMONY_DROP) {
+    const k = t / CEREMONY_DROP,
+      e = k * k,
+      s = 2.3 - 1.3 * e;
+    return { y: -110 * (1 - e), sx: s, sy: s, rot: -14 * (1 - k), o: Math.min(1, k * 3) };
+  }
+  const u = (t - CEREMONY_DROP) / (CEREMONY_SQUASH - CEREMONY_DROP),
+    w = (1 - u) * Math.cos(u * 7);
+  return { y: 0, sx: 1 + 0.32 * w, sy: 1 - 0.28 * w, rot: 0, o: 1 };
+}
+
+// 0 to 1 across the count-up, easing out.
+function ceremonyCountAt(t) {
+  const k = clamp((t - CEREMONY_SQUASH) / (CEREMONY_COUNT - CEREMONY_SQUASH), 0, 1);
+  return 1 - Math.pow(1 - k, 3);
+}
+
+// grade is 1 to 3; tiles are the result tiles {to, pre, post, pop}.
+function ceremonyStart(grade, tiles) {
+  const pops = [];
+  tiles.forEach((t, i) => {
+    if (t.pop) pops.push({ i, at: CEREMONY_POP_AT[pops.length], on: false });
+  });
+  ceremony = {
+    grade,
+    tiles,
+    pops,
+    t: 0,
+    clock: 0,
+    phase: CEREMONY_PHASES[0][0],
+    seen: [CEREMONY_PHASES[0][0]],
+    sounds: { hit: false, win: false, coin: false },
+    fx: [],
+    rng: dailyRandom((Math.imul(state.runs + 1, 2654435761) ^ grade) >>> 0),
+    fxW: 0,
+    fxH: 0,
+    ox: 0,
+    oy: 0,
+    shown: tiles.map(() => 0),
+    appliedT: -1,
+    artDirty: true,
+    fxDirty: false
+  };
+  // Drawn at the drop's peak scale, so the medal stays crisp while it is big.
+  const cv = $('resultMedalArt'),
+    hi = viewport.dpr * 2.3,
+    g = cv.getContext('2d');
+  cv.width = Math.ceil(88 * hi);
+  cv.height = Math.ceil(88 * hi);
+  g.setTransform(hi, 0, 0, hi, 0, 0);
+  g.clearRect(0, 0, 88, 88);
+  ceremonyMedal(g, 44, 37, 33, grade);
+  try {
+    if (typeof macyCelebrate === 'function') macyCelebrate(grade);
+  } catch {}
+  if (reduced) ceremonyFinish();
+  else ceremonyApply();
+}
+
+// Sizes the confetti canvas to the result hero and finds the medal's center on it.
+function ceremonyFit() {
+  const c = ceremony,
+    cv = $('ceremonyFx'),
+    medal = $('resultMedalArt'),
+    flight = medal.style.transform;
+  // Measure where the medal rests, not where its drop has it this frame.
+  medal.style.transform = '';
+  const r = cv.getBoundingClientRect(),
+    m = medal.getBoundingClientRect();
+  medal.style.transform = flight;
+  c.fxW = Math.max(1, Math.round(r.width));
+  c.fxH = Math.max(1, Math.round(r.height));
+  configureCanvas(cv, c.fxW, c.fxH);
+  c.ox = m.left + m.width / 2 - r.left;
+  c.oy = m.top + m.height / 2 - r.top;
+}
+
+// Confetti in the game palette with a few flecks of the medal's metal, from the medal outward.
+function ceremonyBurst() {
+  ceremonyFit();
+  const c = ceremony,
+    rng = c.rng,
+    n = 46 + c.grade * 14,
+    metal = CEREMONY_METALS[c.grade].wash;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (rng() - 0.5) * 2.6,
+      sp = 240 + rng() * 520;
+    c.fx.push({
+      x: c.ox,
+      y: c.oy,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp - 60,
+      rot: rng() * Math.PI * 2,
+      vr: (rng() - 0.5) * 16,
+      w: 5 + rng() * 6,
+      h: 3 + rng() * 4,
+      col: i % 4 === 3 ? metal : CEREMONY_CONFETTI[i % CEREMONY_CONFETTI.length],
+      life: 1.1 + rng() * 0.85,
+      round: i % 6 === 0
+    });
+  }
+}
+
+function ceremonyUpdate(dt) {
+  const c = ceremony;
+  if (!c) return;
+  c.clock += dt;
+  for (const p of c.fx) {
+    p.vy += 900 * dt;
+    p.vx *= 1 - Math.min(1, 1.6 * dt);
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.rot += p.vr * dt;
+    p.life -= dt;
+  }
+  if (c.fx.length) c.fx = c.fx.filter(p => p.life > 0);
+  if (c.t >= CEREMONY_SECONDS) return;
+  c.t = Math.min(CEREMONY_SECONDS, c.t + dt);
+  if (!c.sounds.hit && c.t >= CEREMONY_DROP) {
+    c.sounds.hit = true;
+    sfx('hit');
+    ceremonyBurst();
+  }
+  if (!c.sounds.win && c.t >= CEREMONY_WIN_SFX) {
+    c.sounds.win = true;
+    sfx('win');
+  }
+  if (!c.sounds.coin && c.t >= CEREMONY_COUNT) {
+    c.sounds.coin = true;
+    sfx('coin', { vol: 0.6 });
+  }
+  c.pops.forEach((pop, i) => {
+    if (pop.on || c.t < pop.at) return;
+    pop.on = true;
+    sfx('combo', { combo: 3 + i * 2 });
+  });
+  ceremonyPhase();
+}
+
+// Moves to the phase the clock is in; the last one shows the final state and readies the share card.
+function ceremonyPhase() {
+  const c = ceremony,
+    phase = ceremonyPhaseAt(c.t);
+  if (phase === c.phase) return;
+  c.phase = phase;
+  c.seen.push(phase);
+  ceremonyApply();
+  if (phase === 'done') sharePrepare(shareResultSpec());
+}
+
+// Jumps to the end: each sound not yet played plays once, the pops show, the confetti goes.
+function ceremonyFinish() {
+  const c = ceremony;
+  if (!c || c.t >= CEREMONY_SECONDS) return;
+  if (!c.sounds.hit) sfx('hit');
+  if (!c.sounds.win) sfx('win');
+  c.sounds = { hit: true, win: true, coin: true };
+  const late = c.pops.filter(p => !p.on);
+  late.forEach(p => (p.on = true));
+  if (late.length) sfx('combo', { combo: 3 });
+  c.fx = [];
+  c.t = CEREMONY_SECONDS;
+  c.clock = Math.max(c.clock, CEREMONY_SECONDS);
+  c.artDirty = true;
+  c.fxDirty = true;
+  ceremonyPhase();
+}
+
+// A tap or key on the result screen: true when it cut the ceremony short.
+function ceremonySkip() {
+  if (!ceremonyRunning()) return false;
+  ceremonyFinish();
+  ceremonyDraw();
+  return true;
+}
+
+function ceremonyStop() {
+  if (!ceremony) return;
+  ceremony = null;
+  const cv = $('ceremonyFx'),
+    medal = $('resultMedalArt');
+  cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+  medal.style.transform = '';
+  medal.style.opacity = '';
+  $('resultStamp').dataset.stamped = '';
+}
+
+// Writes the clock's moment into the DOM: the stamp, the tiles, the pops.
+function ceremonyApply() {
+  const c = ceremony;
+  if (!c || c.appliedT === c.t) return;
+  c.appliedT = c.t;
+  const s = ceremonyStampAt(c.t),
+    medal = $('resultMedalArt'),
+    k = ceremonyCountAt(c.t);
+  medal.style.transform =
+    c.t >= CEREMONY_SQUASH
+      ? ''
+      : `translateY(${s.y.toFixed(1)}px) rotate(${s.rot.toFixed(2)}deg) scale(${s.sx.toFixed(3)}, ${s.sy.toFixed(3)})`;
+  medal.style.opacity = s.o >= 1 ? '' : s.o.toFixed(2);
+  $('resultStamp').dataset.stamped = c.t >= CEREMONY_DROP ? '1' : '';
+  c.shown = c.tiles.map((tile, i) => {
+    const v = k >= 1 ? tile.to : Math.round(tile.to * k);
+    $('resultNum' + i).textContent = tile.pre + v + tile.post;
+    return v;
+  });
+  for (const pop of c.pops) $('resultPop' + pop.i).dataset.on = pop.on ? '1' : '';
+}
+
+// Gold only: Rowdy gallops in from the left, then turns to cheer at the foot of the bed.
+function ceremonyArt(g) {
+  const c = ceremony;
+  if (!c || c.grade !== 3) return;
+  const [a, b] = CEREMONY_RUN;
+  if (c.t < a) return;
+  if (c.t < b) {
+    const k = (c.t - a) / (b - a);
+    drawRowdy(g, -70 + (CEREMONY_ROWDY_X + 70) * k, 212, 1.5, 'gallop', c.t, { face: 1 });
+    return;
+  }
+  drawRowdy(g, CEREMONY_ROWDY_X, 212, 1.5, 'cheer', reduced ? 0.5 : c.clock - b, { face: -1 });
+}
+
+// Paints one frame: the DOM moment, the result art while anything on it moves, then the confetti.
+function ceremonyDraw() {
+  const c = ceremony;
+  if (!c) return;
+  ceremonyApply();
+  const live = c.t < CEREMONY_SECONDS || (c.grade === 3 && !reduced);
+  if ((live || c.artDirty) && !gore.length) {
+    c.artDirty = false;
+    drawResultArt();
+  }
+  ceremonyPaintFx();
+}
+
+function ceremonyPaintFx() {
+  const c = ceremony,
+    since = c.t - CEREMONY_DROP,
+    wash = !reduced && since >= 0 && since < CEREMONY_WASH ? 1 - since / CEREMONY_WASH : 0,
+    g = $('ceremonyFx').getContext('2d');
+  if (!c.fx.length && !wash) {
+    if (c.fxDirty) g.clearRect(0, 0, c.fxW, c.fxH);
+    c.fxDirty = false;
+    return;
+  }
+  c.fxDirty = true;
+  g.clearRect(0, 0, c.fxW, c.fxH);
+  if (wash) {
+    g.globalAlpha = 0.6 * wash;
+    glow(g, c.ox, c.oy, Math.max(c.fxW, c.fxH) * 0.85, CEREMONY_METALS[c.grade].wash);
+    g.globalAlpha = 1;
+  }
+  for (const p of c.fx) {
+    g.save();
+    g.globalAlpha = Math.min(1, p.life * 2.5);
+    g.translate(p.x, p.y);
+    g.rotate(p.rot);
+    if (p.round) ellipse(g, 0, 0, p.w * 0.45, p.w * 0.45, p.col);
+    else rect(g, -p.w / 2, -p.h / 2, p.w, p.h, p.col);
+    g.restore();
   }
 }
 
@@ -729,6 +1104,7 @@ function leaveMini() {
   let recovered = mini.forced;
   mini.open = false;
   clearHeld();
+  ceremonyStop();
   $('miniDialog').close();
   state.paused = false;
   if (recovered) {
@@ -764,6 +1140,10 @@ function checkDischarge() {
 
 // Paints the current game, then either its own overlay or the shared arcade overlays.
 function drawMini() {
+  if (mini.screen === 'result') {
+    ceremonyDraw();
+    return;
+  }
   if (!['briefing', 'intro', 'play', 'outro'].includes(mini.screen)) return;
   const def = games[mini.id],
     size = activeCanvas(),
