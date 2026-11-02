@@ -1,5 +1,6 @@
-// Drip or Die (your room). Three phases: tap the drip, mix the recipe, hold the pressure.
-// Level 1 teaches with hints on the canvas; levels 2 and 3 add decoys, mix orders, coughs and flipped controls.
+// Drip or Die (your room). Three phases: tap the drip, mix the recipe, hold the pressure, on three strikes total.
+// Every phase escalates within the run (IV_LEVELS): level 1 starts gentle with hints and ends where level 2
+// starts; levels 2 and 3 add decoys, mix orders, coughs and flipped controls on top.
 // It doubles as mandatory recovery at zero hearts (mini.forced), which always runs level 1. Canvas 800 × 450.
 // Losing ends in a staged cartoon explosion: the outro builds to a burst, the result screen shows the aftermath.
 
@@ -9,12 +10,90 @@ const IV_KINDS = [
   { name: 'BLUE RAZZ', short: 'R', col: '#8ec5ef', dark: '#3f78a6' }
 ];
 
-// Rules per level (index = mini.tier). Patterns and tempos are picked per sweep; events cycle in order.
+// Three strikes end the run on every level and prescription, recovery included. The third one pops.
+const IV_STRIKES = 3;
+
+// Rules per level (index = mini.tier). Every phase escalates inside the run: level 1 starts gentle and
+// ends about where level 2 starts. Widths are shares of the bar or gauge, times are seconds. Tune here.
+//
+// tap (prime the pump):
+//   width [lo, hi]  window width range for the first sweep; each landed drip multiplies it by `shrink`,
+//                   never below `floor`. Every sweep draws its own width from the current range.
+//   moveFrom        windows start sliding on this drip (1 = from the start)
+//   moveMax         slide speed on the last drip, as a share of the marker speed
+//   reverse         chance a sliding window changes its mind mid-sweep
+//   ramp            marker speed gain across the phase (0.25 = 25% faster by the end)
+//   minCross        fairness floor: a sliding window never passes the marker faster than this (seconds),
+//                   so fast-tempo sweeps slide less
+// catch (mix the recipe):
+//   gap [start, × per catch, floor]   seconds between waves
+//   fall [start, × per catch, cap]    fall speed in px/s; cap is a multiple of start
+//   pairFrom        from this many catches, each wave carries a wrong flavor beside the right one
+//   farFrom, far    from this many catches, the right one lands two lanes from the cup `far` of the time
+//   skullCup        chance the skull aims at the cup's lane, before and after `farFrom`
+//   cupRate, heavy  how fast the cup eases between lanes, and how much a full order slows it
+//   hint            level 1 shows the CATCH arrow for this many catches
+// press (hold the pressure):
+//   events, eventsFrom, power   event cycle, banked seconds before the first, and shove strength
+//   jump, jumpWarn, heights     the band jumps every jump[0] to jump[1] s after a warning, to a random height
+//   width [narrow, wide]        each segment between jumps gets its own band width from this range
+//   shrink                      the band also slims by this share as the time is banked
+//   wander                      [speed, amplitude] of the slow wander, per banked third
+//   counterStrike               failing to counter a cough, hiccup or spike is a strike
 const IV_LEVELS = [
   {
-    tap: { required: 8, limit: 48, patterns: ['single'], tempos: [1], drift: 0 },
-    catch: { need: 10, limit: 55, kinds: 2, distract: 0, hop: 0, scoop: 0, twoSkulls: 0, heavy: 0 },
-    press: { need: 14, limit: 65, events: [], gap: [0, 0], warn: 0.8 }
+    tap: {
+      required: 8,
+      limit: 48,
+      patterns: ['single'],
+      tempos: [1],
+      width: [0.16, 0.2],
+      shrink: 0.91,
+      floor: 0.075,
+      moveFrom: 4,
+      moveMax: 0.33,
+      reverse: 0,
+      ramp: 0.25,
+      minCross: 0.09
+    },
+    catch: {
+      need: 10,
+      limit: 55,
+      kinds: 2,
+      recipe: 3,
+      gap: [1.35, 0.94, 0.62],
+      fall: [110, 1.07, 2.2],
+      pairFrom: 3,
+      farFrom: 6,
+      far: 0.5,
+      skullCup: [0.4, 0.6],
+      cupRate: 13,
+      heavy: 0.35,
+      hint: 3,
+      hop: 0,
+      scoop: 0,
+      twoSkulls: 0
+    },
+    press: {
+      need: 14,
+      limit: 65,
+      events: ['cough'],
+      eventsFrom: 6,
+      power: 0.6,
+      gap: [3.5, 5],
+      warn: 0.9,
+      jump: [4, 7],
+      jumpWarn: 0.7,
+      heights: [0.2, 0.8],
+      width: [0.09, 0.19],
+      shrink: 0.2,
+      wander: [
+        [0.3, 0.06],
+        [0.42, 0.08],
+        [0.55, 0.1]
+      ],
+      counterStrike: false
+    }
   },
   {
     tap: {
@@ -22,10 +101,53 @@ const IV_LEVELS = [
       limit: 62,
       patterns: ['single', 'double', 'decoy', 'double', 'decoy'],
       tempos: [0.8, 1, 1.15],
-      drift: 0
+      width: [0.12, 0.15],
+      shrink: 0.91,
+      floor: 0.06,
+      moveFrom: 2,
+      moveMax: 0.5,
+      reverse: 0,
+      ramp: 0.25,
+      minCross: 0.07
     },
-    catch: { need: 12, limit: 64, kinds: 3, distract: 0.6, hop: 0.35, scoop: 0.16, twoSkulls: 0, heavy: 0.45 },
-    press: { need: 20, limit: 80, events: ['cough', 'split', 'hiccup', 'spike'], gap: [2.8, 4.2], warn: 0.8 }
+    catch: {
+      need: 12,
+      limit: 64,
+      kinds: 3,
+      recipe: 0,
+      gap: [1.05, 0.94, 0.62],
+      fall: [140, 1.07, 2.2],
+      pairFrom: 0,
+      farFrom: 3,
+      far: 0.5,
+      skullCup: [0.6, 0.6],
+      cupRate: 15,
+      heavy: 0.45,
+      hint: 0,
+      hop: 0.35,
+      scoop: 0.16,
+      twoSkulls: 0
+    },
+    press: {
+      need: 20,
+      limit: 80,
+      events: ['cough', 'split', 'hiccup', 'spike'],
+      eventsFrom: 0,
+      power: 1,
+      gap: [2.8, 4.2],
+      warn: 0.8,
+      jump: [4, 7],
+      jumpWarn: 0.7,
+      heights: [0.2, 0.8],
+      width: [0.07, 0.19],
+      shrink: 0.2,
+      wander: [
+        [0.5, 0.09],
+        [0.6, 0.11],
+        [0.7, 0.13]
+      ],
+      counterStrike: true
+    }
   },
   {
     tap: {
@@ -33,18 +155,63 @@ const IV_LEVELS = [
       limit: 72,
       patterns: ['double', 'decoy', 'echo', 'decoyDouble', 'single', 'echo'],
       tempos: [0.75, 1, 1.25],
-      drift: 0.03
+      width: [0.1, 0.13],
+      shrink: 0.91,
+      floor: 0.05,
+      moveFrom: 1,
+      moveMax: 0.66,
+      reverse: 0.35,
+      ramp: 0.25,
+      minCross: 0.06
     },
-    catch: { need: 14, limit: 72, kinds: 3, distract: 0.7, hop: 0.55, scoop: 0.2, twoSkulls: 0.3, heavy: 0.65 },
+    catch: {
+      need: 14,
+      limit: 72,
+      kinds: 3,
+      recipe: 0,
+      gap: [0.9, 0.94, 0.62],
+      fall: [165, 1.07, 2.2],
+      pairFrom: 0,
+      farFrom: 0,
+      far: 0.55,
+      skullCup: [0.6, 0.6],
+      cupRate: 15,
+      heavy: 0.65,
+      hint: 0,
+      hop: 0.55,
+      scoop: 0.2,
+      twoSkulls: 0.3
+    },
     press: {
       need: 24,
       limit: 90,
       events: ['cough', 'invert', 'split', 'hiccup', 'invert', 'spike'],
+      eventsFrom: 0,
+      power: 1,
       gap: [2.4, 3.4],
-      warn: 0.65
+      warn: 0.65,
+      jump: [4, 7],
+      jumpWarn: 0.7,
+      heights: [0.2, 0.8],
+      width: [0.055, 0.19],
+      shrink: 0.2,
+      wander: [
+        [0.6, 0.1],
+        [0.72, 0.12],
+        [0.85, 0.14]
+      ],
+      counterStrike: true
     }
   }
 ];
+
+// Shoves the player has to counter, and how long each one gets: out of the band for `limit` seconds
+// within `dur` seconds of the shove means the counter failed.
+const IV_COUNTERS = {
+  cough: { dur: 2, limit: 1 },
+  hiccup: { dur: 2, limit: 1 },
+  spike: { dur: 2.4, limit: 1.3 }
+};
 
 const IV_WORDS = ['SPLORT!', 'KABLORT!', 'SPLOOSH!', 'BLAMMO!', 'GLORP!', 'KERSPLAT!'];
 const IV_INK = '#3d0f1f';
@@ -73,15 +240,14 @@ const IV_SPINES = [
   { x: 350, y: 152, a0: 1.3, a1: 1.5, block: [] }
 ];
 
-const IV_ORGAN_SCALE = { heart: 1.5, lung: 1.4, stomach: 1.45, liver: 1.35, kidney: 1.25, spleen: 1.3, eye: 1.15 };
+const IV_ORGAN_SCALE = { heart: 1.5, lung: 1.4, stomach: 1.45, liver: 1.35, kidney: 1.25, spleen: 1.3 };
 const IV_STREAK = {
   heart: '#c8203fbb',
   lung: '#ee8aa2aa',
   stomach: '#f07a95aa',
   liver: '#7d1c34bb',
   kidney: '#a4233fbb',
-  spleen: '#7c2752bb',
-  eye: '#e6c7c0aa'
+  spleen: '#7c2752bb'
 };
 
 const IV_LOSS_COPY = [
@@ -104,16 +270,17 @@ const IV = registerGame({
     game: 'Drip or Die',
     genre: 'PRECISION · CATCHING · BALANCE',
     headline: 'A three-course IV.',
-    desc: 'Tap the drip, mix the recipe, hold the pressure. Level 1 shows you the ropes. Levels 2 and 3 add decoys, mix orders, hopping skulls, coughs and flipped controls. Fail it and things get anatomical.'
+    desc: 'Tap the drip, mix the recipe, hold the pressure. Every run starts kind and ends mean: windows shrink and slide, sips fall faster, the band jumps around. Levels 2 and 3 add decoys, mix orders, hopping skulls, coughs and flipped controls. Three strikes and things get anatomical.'
   },
   tierNotes: [
-    '8 drips · 10 catches · 14s steady · hints on',
-    '12 drips with decoys · mix orders · coughs and split bands',
-    '14 drips with echoes · hopping skulls · flipped controls'
+    '3 strikes. Windows shrink, then slide. Sips speed up. The band jumps.',
+    '3 strikes. Starts where level 1 ends. Decoys, mix orders, coughs that count.',
+    '3 strikes. Echoes, hoppers, flipped controls, windows with commitment issues.'
   ],
   init() {
-    // Mandatory recovery never punishes: it is always the teaching level.
+    // Mandatory recovery is always the teaching level, with the same three strikes.
     if (mini.forced) mini.tier = 0;
+    mini.rules.misses = IV_STRIKES;
     mini.good = 0;
     mini.precision = [];
     mini.ivChain = 0;
@@ -167,6 +334,7 @@ const IV = registerGame({
     }
     miniBackdrop(g, '#295d65', '#6ad6aa3d', IV.info.game.toUpperCase());
     drawIVMini(g);
+    ivDrawStrikes(g);
     g.restore();
   },
   overlay(g) {
@@ -175,7 +343,7 @@ const IV = registerGame({
     if (mini.flash > 0) {
       g.save();
       g.globalAlpha = Math.min(1, mini.flash * 3);
-      const good = !/MISS|AWAY|DECOY|GUNK|WRONG|CHAT/.test(mini.flashText);
+      const good = !/MISS|AWAY|DECOY|GUNK|WRONG|CHAT|STRIKE|WON|BEHIND/.test(mini.flashText);
       const fy = mini.phase === 1 ? 404 : 42;
       panel(g, 105, fy, 590, 34, good ? '#356e61' : '#75455b', '#d4b399');
       label(g, mini.flashText, 400, fy + 23, 14, '#ffedd0', 'center');
@@ -228,12 +396,12 @@ const IV = registerGame({
         control:
           'Tap TAP THE DRIP or Space while the line crosses a mint window. Gold centers in a row build a chain multiplier.',
         avoid: [
-          'Tapping outside mint, or letting a drip slip past, costs an oops. The sweep flips after every pass.',
-          'Some sweeps have two mint windows: tap both. Red windows are decoys and cost an oops. The tempo changes.',
-          'A ↩ flag means the line bounces back early. Echo windows (×2) need a tap going out and coming back. Red is still a decoy.'
+          'Tapping outside mint, or letting a drip slip past, is a strike. Three strikes and you pop. Windows shrink with every drip and start sliding at drip 4.',
+          'Two mint windows: tap both. Red is a decoy and a strike. Windows slide from drip 2, faster and thinner as you go.',
+          'A ↩ flag bounces the line early; ×2 echoes need a tap each way. Every window slides, and some change direction.'
         ][t],
         demo: 'timing',
-        cue: ['Tap on mint · gold center chains', 'Tap every mint · never red', 'Mint twice on echoes · ↩ bounces'][t]
+        cue: ['Tap on mint · 3 strikes', 'Every mint · never red · 3 strikes', 'Chase the slide · 3 strikes'][t]
       };
     if (mini.phase === 1)
       return {
@@ -241,24 +409,24 @@ const IV = registerGame({
         goal: 'Catch ' + mini.catchNeed + ' sips that match the order.',
         control: 'Pick a lane with LEFT / MIDDLE / RIGHT or A / S / D. The banner shows what goes in the cup next.',
         avoid: [
-          'Green skulls cost an oops. The wrong flavor wastes style. The recipe flips every 4 catches.',
-          'Orders mix flavors in sequence. Wrong flavor dumps the drink in the cup. Skulls with arrows hop lanes. A full cup moves slower.',
-          'Longer orders, three flavors, double skulls and more hoppers. Rainbow scoops make the next sip count twice.'
+          'A green skull is a strike. The wrong flavor only costs style. The recipe flips every 3 catches, and it all speeds up.',
+          'Orders mix flavors in sequence. The wrong flavor dumps the cup and is a strike. Arrow skulls hop lanes. A full cup is heavy.',
+          'Longer orders, three flavors, double skulls, more hoppers, no mercy on pace. Rainbow scoops count twice.'
         ][t],
         demo: 'catch',
-        cue: ['Match the recipe · dodge skulls', 'Follow the order · watch the hoppers', 'Mix it right · heavy cup, quick feet'][t]
+        cue: ['Match the recipe · dodge skulls', 'Follow the order · wrong flavor = strike', 'Mix it right · heavy cup, quick feet'][t]
       };
     return {
       title: '3 / Steady hands',
       goal: 'Bank ' + mini.need + ' seconds inside the mint band.',
       control: 'Hold PUMP or Space to raise pressure. Let go to lower it. Dead center banks time faster.',
       avoid: [
-        'Pressure has momentum, so make small corrections. Pinning it at the top or bottom costs an oops.',
-        'COUGH shoves pressure up, HICCUP shoves it down: counter them. Spikes move the band. Split bands: either half counts.',
+        'The band jumps to new heights (watch the arrow) and slims as you bank. Pinning the top or bottom is a strike. Late on, a cough: let go.',
+        'COUGH shoves up, HICCUP shoves down, a SPIKE moves the band. Counter them or take a strike. Split bands: either half counts.',
         'All of that, plus purple warnings: the controls flip for 3 seconds. Hold goes down, letting go goes up.'
       ][t],
       demo: 'balance',
-      cue: ['Hold = up · release = down', 'Counter coughs · either split band', 'Purple = flipped controls'][t]
+      cue: ['Hold = up · release = down', 'Counter every shove', 'Purple = flipped controls'][t]
     };
   },
   statLabel: () => ['PRIME THE PUMP', 'MIX THE RECIPE', 'HOLD THE PRESSURE'][mini.phase],
@@ -268,9 +436,12 @@ const IV = registerGame({
       : mini.phase === 1
         ? mini.caught + '/' + mini.catchNeed + ' sips'
         : mini.stable.toFixed(1) + '/' + mini.need + 's steady',
-  lives: () =>
-    '♥ '.repeat(Math.max(0, mini.rules.misses - mini.miss)) +
-    '· '.repeat(Math.min(mini.miss, mini.rules.misses)),
+  livesLabel: () => 'STRIKES',
+  // Three marks; a ✕ fills in for every strike.
+  lives: () => {
+    const used = Math.min(mini.miss, mini.rules.misses);
+    return ('✕ '.repeat(used) + '○ '.repeat(mini.rules.misses - used)).trim();
+  },
   tactics: () =>
     'SCORE ' +
     mini.score +
@@ -430,6 +601,11 @@ function ivUpdateFx(dt) {
 
 // ---------- Phases ----------
 
+// Every strike says how many are gone. The third one ends the run (miniOops calls finishMini).
+function ivStrike(message) {
+  miniOops(message + '  ·  STRIKE ' + (mini.miss + 1) + ' OF ' + mini.rules.misses);
+}
+
 function ivPhase(phase) {
   const L = ivRules();
   mini.phase = phase;
@@ -443,7 +619,7 @@ function ivPhase(phase) {
     mini.required = L.tap.required;
     mini.dir = 1;
     mini.pos = 0;
-    mini.band = Math.max(0.05, mini.rules.window - mini.tier * 0.012);
+    mini.band = L.tap.width[1];
     mini.beatLock = 0.3;
     mini.ivChain = 0;
     mini.ivFumble = 0;
@@ -451,9 +627,9 @@ function ivPhase(phase) {
     ivNewSweep('single');
     setInstructions(
       [
-        'Tap when the line crosses mint. Gold centers in a row build a chain. The sweep flips after each pass.',
-        'Tap every mint window in a sweep. Red ones are decoys. Watch the tempo tag.',
-        'Mint, never red. ↩ means the line bounces early; ×2 echo windows need a tap each way.'
+        'Tap when the line crosses mint. Windows shrink every drip and start sliding at drip 4. Three strikes and you pop.',
+        'Tap every mint window, never red. Windows slide from drip 2 and keep shrinking. Three strikes.',
+        'Mint, never red. ↩ bounces early; ×2 echoes need a tap each way. Everything slides. Three strikes.'
       ][mini.tier]
     );
   }
@@ -466,7 +642,7 @@ function ivPhase(phase) {
     mini.spawned = 0;
     mini.caught = 0;
     mini.catchNeed = L.catch.need;
-    mini.ivFall = (104 + mini.tier * 16) * mini.rules.mini;
+    mini.ivFall = ivFallSpeed();
     mini.ivOrderList = [];
     mini.ivOrderIdx = 0;
     mini.ivOrderStep = 0;
@@ -476,8 +652,8 @@ function ivPhase(phase) {
     mini.recipe = ivKindAt(0);
     setInstructions(
       [
-        'Catch the flavor on the banner. The recipe flips every 4 catches. Dodge the green skulls.',
-        'Fill the mix order in sequence. Wrong flavor dumps the cup. Arrow skulls hop lanes.',
+        'Catch the banner flavor, dodge the skulls. The recipe flips every 3 catches, and it keeps speeding up.',
+        'Fill the mix order in sequence. A wrong flavor dumps the cup and is a strike. Arrow skulls hop lanes.',
         'Long orders, double skulls, hoppers everywhere. A full cup is heavy. Rainbow scoops count double.'
       ][mini.tier]
     );
@@ -489,7 +665,17 @@ function ivPhase(phase) {
     mini.stable = 0;
     mini.need = L.press.need;
     mini.pressureTarget = 0.52;
-    mini.pressureBand = 0.15 - mini.tier * 0.018;
+    mini.ivHome = 0.52;
+    mini.ivHomeTo = 0.52;
+    mini.ivSegIdx = 0;
+    mini.ivSegW = ivSegmentWidth(0);
+    mini.ivSegWTo = mini.ivSegW;
+    mini.ivJumpIn = rand(L.press.jump[0], L.press.jump[1]);
+    mini.ivJumpNext = null;
+    mini.ivSinceJump = 9;
+    mini.ivWanderPhase = 0;
+    mini.ivWanderAmp = L.press.wander[0][1];
+    mini.ivCounter = null;
     mini.ivCentres = [0.52];
     mini.ivSplit = 0;
     mini.ivSpikeOff = 0;
@@ -501,9 +687,9 @@ function ivPhase(phase) {
     mini.ivMult = 1;
     setInstructions(
       [
-        'Follow the mint band. Hold to pump, let go to lower. Dead center banks time faster.',
-        'Follow the band. Counter coughs and hiccups. When it splits, either half counts.',
-        'Follow the band, counter the coughs, and watch for purple: the controls flip for 3 seconds.'
+        'Follow the mint band. When the arrow shows, it jumps. Dead center banks time faster.',
+        'Follow the band. Counter coughs, hiccups and spikes or take a strike. Either split half counts.',
+        'Follow the band, counter every shove, and watch for purple: the controls flip for 3 seconds.'
       ][mini.tier]
     );
   }
@@ -523,26 +709,51 @@ function ivBand() {
   return mini.band * (mini.helpTime > 0 ? 1.7 : 1);
 }
 
+// The width range for the next sweep. It shrinks with every landed drip, down to the floor.
+function ivWidthRange() {
+  const L = ivRules().tap;
+  const k = Math.pow(L.shrink, mini.good || 0);
+  return [Math.max(L.floor, L.width[0] * k), Math.max(L.floor, L.width[1] * k)];
+}
+
+// How fast windows slide on the drip being played, as a share of the marker speed. 0 before moveFrom.
+function ivDriftShare() {
+  const L = ivRules().tap;
+  const drip = (mini.good || 0) + 1;
+  if (drip < L.moveFrom) return 0;
+  const span = Math.max(1, (mini.required || L.required) - L.moveFrom);
+  return L.moveMax * (0.4 + 0.6 * Math.min(1, (drip - L.moveFrom) / span));
+}
+
+// Marker speed: prescription, level, a ramp across the phase, and the sweep's tempo.
 function ivSpeed() {
-  return (0.43 * mini.rules.mini + mini.tier * 0.035) * (mini.ivSweep ? mini.ivSweep.tempo : 1);
+  const L = ivRules().tap;
+  const ramp = 1 + L.ramp * Math.min(1, (mini.good || 0) / Math.max(1, (mini.required || L.required) - 1));
+  return (0.43 * mini.rules.mini + mini.tier * 0.035) * ramp * (mini.ivSweep ? mini.ivSweep.tempo : 1);
 }
 
 function ivChainMult() {
   return 1 + 0.5 * Math.min(4, Math.max(0, (mini.ivChain || 0) - 1));
 }
 
-// One pass of the marker. Windows are placed in sweep order (u from the start edge), then mirrored by direction.
+// Sweep coordinates (u from the start edge) to bar position for the current direction.
+function ivSweepPos(u) {
+  return mini.dir > 0 ? u : 1 - u;
+}
+
+// One pass of the marker. Each sweep draws its own window width; windows are placed in sweep order.
 function ivNewSweep(kind) {
   const L = ivRules().tap;
   if (!kind) kind = pick(L.patterns);
   mini.ivSweepCount++;
   const tempo = mini.ivSweepCount === 1 ? 1 : pick(L.tempos);
-  const band = mini.band;
+  const range = ivWidthRange();
+  const band = rand(range[0], range[1]);
+  mini.band = band;
   const gap = band + 0.06;
   const wins = [];
   let bounce = null;
-  const add = (u, decoy, need = 1) =>
-    wins.push({ u, base: 0, pos: 0, decoy, need, hits: 0, lastPass: -1, hitDecoy: false });
+  const add = (u, decoy, need = 1) => wins.push({ u, pos: 0, decoy, need, hits: 0, lastPass: -1, hitDecoy: false });
   if (kind === 'single') add(rand(0.3, 0.8), false);
   if (kind === 'double') {
     const a = rand(0.2, 0.4);
@@ -566,18 +777,70 @@ function ivNewSweep(kind) {
     add(rand(0.25, b - band / 2 - 0.12), false, 2);
     bounce = b;
   }
-  for (const w of wins) w.base = w.pos = mini.dir > 0 ? w.u : 1 - w.u;
+  for (const w of wins) w.pos = ivSweepPos(w.u);
   mini.ivSweep = {
     kind,
     wins,
     tempo,
-    bounce: bounce === null ? null : mini.dir > 0 ? bounce : 1 - bounce,
+    width: band,
+    bounce: bounce === null ? null : ivSweepPos(bounce),
     pass: 0,
-    oops: false
+    oops: false,
+    shift: 0,
+    shiftMin: 0,
+    shiftMax: 0,
+    drift: 0,
+    age: 0,
+    flipAt: null
   };
+  ivSetDrift(mini.ivSweep, bounce);
   mini.ivMove = mini.dir;
   mini.pos = mini.dir > 0 ? 0 : 1;
   ivSyncTarget();
+}
+
+// Sliding windows. The whole pattern drifts together, so windows never overlap. It bounces off the
+// ends of the bar (echo windows stay inside the bounce flag) and on level 3 sometimes turns around.
+function ivSetDrift(s, bounceU) {
+  const L = ivRules().tap;
+  const share = ivDriftShare();
+  if (!share) return;
+  const half = s.width / 2;
+  const us = s.wins.map(w => w.u);
+  const lo = Math.min(...us) - half;
+  const hi = Math.max(...us) + half;
+  s.shiftMin = Math.min(0, (bounceU === null ? 0.03 : 0.08) - lo);
+  s.shiftMax = Math.max(0, (bounceU === null ? 0.97 : bounceU - 0.03) - hi);
+  if (s.shiftMax - s.shiftMin < 0.04) return;
+  const speed = ivSpeed();
+  // Fairness: a window coming at the line never passes it in less than minCross seconds.
+  const fast = Math.min(share * speed, Math.max(0, s.width / L.minCross - speed));
+  if (fast < 0.01) return;
+  // Windows near the start run away from the line; the rest pick a side.
+  const along = Math.min(...us) < 0.42 || rand(0, 1) < 0.5;
+  s.drift = along ? fast : -fast;
+  if (L.reverse && rand(0, 1) < L.reverse) s.flipAt = rand(0.35, 0.75) / speed;
+}
+
+function ivDriftWindows(dt) {
+  const s = mini.ivSweep;
+  if (!s.drift) return;
+  s.age += dt;
+  if (s.flipAt !== null && s.age >= s.flipAt) {
+    s.drift = -s.drift;
+    s.flipAt = null;
+  }
+  s.shift += s.drift * dt;
+  if (s.shift > s.shiftMax) {
+    s.shift = 2 * s.shiftMax - s.shift;
+    s.drift = -Math.abs(s.drift);
+  }
+  if (s.shift < s.shiftMin) {
+    s.shift = 2 * s.shiftMin - s.shift;
+    s.drift = Math.abs(s.drift);
+  }
+  s.shift = clamp(s.shift, s.shiftMin, s.shiftMax);
+  for (const w of s.wins) w.pos = ivSweepPos(w.u + s.shift);
 }
 
 function ivSyncTarget() {
@@ -587,17 +850,15 @@ function ivSyncTarget() {
 }
 
 function ivUpdateTap(dt) {
-  const L = ivRules().tap;
   const s = mini.ivSweep;
   mini.beatLock = Math.max(0, mini.beatLock - dt);
   mini.ivFumble = Math.max(0, mini.ivFumble - dt);
-  if (L.drift)
-    s.wins.forEach((w, i) => {
-      if (!w.decoy) w.pos = clamp(w.base + Math.sin(mini.phaseTime * 1.6 + i * 1.7) * L.drift, 0.06, 0.94);
-    });
-  ivSyncTarget();
   mini.ivSpeed = ivSpeed();
-  if (mini.beatLock > 0) return;
+  if (mini.beatLock > 0) {
+    ivSyncTarget();
+    return;
+  }
+  ivDriftWindows(dt);
   mini.pos += mini.ivMove * mini.ivSpeed * dt;
   // The early bounce: the marker reverses at the flag and heads back to where it started.
   if (s.bounce !== null && s.pass === 0 && (mini.ivMove > 0 ? mini.pos >= s.bounce : mini.pos <= s.bounce)) {
@@ -606,6 +867,7 @@ function ivUpdateTap(dt) {
     s.pass = 1;
     sfx('bounce');
   }
+  ivSyncTarget();
   if (mini.pos > 1 || mini.pos < 0) ivEndSweep();
 }
 
@@ -622,7 +884,7 @@ function ivNextSweep() {
   ivNewSweep();
 }
 
-// Misses and escaped drips cost at most one oops per sweep; repeat offenses only cost style.
+// A wild tap and an escaped drip in the same sweep are one mistake: one strike, then only style.
 function ivSweepError(message) {
   const s = mini.ivSweep;
   mini.ivChain = 0;
@@ -636,7 +898,7 @@ function ivSweepError(message) {
     return;
   }
   s.oops = true;
-  miniOops(message);
+  ivStrike(message);
 }
 
 function ivTap() {
@@ -673,7 +935,7 @@ function ivTap() {
     mini.ivChain = 0;
     s.oops = true;
     ivMood('grimace', 1);
-    miniOops('RED MEANS NO. THAT WAS A DECOY.');
+    ivStrike('RED MEANS NO. THAT WAS A DECOY.');
     return;
   }
   const accuracy = 1 - bestOff / half;
@@ -707,14 +969,32 @@ function ivTap() {
 
 // ---------- Phase 2: mix the recipe ----------
 
-// Orders are generated on demand. Level 1 alternates four-of-a-kind recipes; later levels mix flavors.
+// Seconds between waves: shorter with every sip in the cup, down to the floor.
+function ivWaveGap() {
+  const L = ivRules().catch;
+  return Math.max(L.gap[2], L.gap[0] * Math.pow(L.gap[1], mini.caught || 0)) / mini.rules.mini;
+}
+
+// Fall speed in px/s: faster with every sip in the cup, up to the cap.
+function ivFallSpeed() {
+  const L = ivRules().catch;
+  return L.fall[0] * Math.min(L.fall[2], Math.pow(L.fall[1], mini.caught || 0)) * mini.rules.mini;
+}
+
+// How quickly the cup eases toward its lane. A fuller order is heavier.
+function ivCupRate() {
+  const L = ivRules().catch;
+  const fill = mini.ivOrderStep / ivOrder(mini.ivOrderIdx).length;
+  return L.cupRate * (1 - L.heavy * fill);
+}
+
+// Orders are generated on demand. Level 1 alternates one-flavor recipes; later levels mix flavors.
 function ivOrder(i) {
   const L = ivRules().catch;
   while (mini.ivOrderList.length <= i) {
     const n = mini.ivOrderList.length;
     if (L.kinds === 2) {
-      const k = n % 2;
-      mini.ivOrderList.push([k, k, k, k]);
+      mini.ivOrderList.push(Array(L.recipe).fill(n % 2));
       continue;
     }
     const a = Math.floor(rand(0, 3));
@@ -753,38 +1033,47 @@ function ivDrop(lane, y, extra) {
   return { lane, y, speed: mini.ivFall, bad: false, kind: -1, done: false, ...extra };
 }
 
-// A wave: the planned flavor, maybe a decoy flavor beside it, a skull that lands 0.45 s later, maybe a scoop.
+// A wave: the wanted flavor, a wrong flavor beside it once the run warms up, a skull that lands 0.45 s
+// later, maybe a hop or a scoop. Later on the wanted one lands far from the cup and the skull aims at it.
 function ivSpawnWave() {
   const L = ivRules().catch;
-  const fall = mini.ivFall;
+  const fall = (mini.ivFall = ivFallSpeed());
+  const y0 = 64;
+  const land = (352 - y0) / fall;
   const ahead = mini.drops.filter(d => !d.done && d.planned).length;
   const kind = ivKindAt(ahead);
-  const lanes = [0, 1, 2];
-  for (let i = 2; i > 0; i--) {
-    const j = Math.floor(rand(0, i + 1));
-    const t = lanes[i];
-    lanes[i] = lanes[j];
-    lanes[j] = t;
+  const late = mini.caught >= L.farFrom;
+  const here = mini.lane;
+  // Fairness: the wanted drop never lands within 0.35 s of a skull in the same lane.
+  const blocked = mini.drops
+    .filter(d => d.bad && !d.done && Math.abs((352 - d.y) / d.speed - land) < 0.35)
+    .map(d => d.hopTo ?? d.lane);
+  const open = [0, 1, 2].filter(l => !blocked.includes(l));
+  const lanes = open.length ? open : [0, 1, 2];
+  let lg = pick(lanes);
+  if (late && rand(0, 1) < L.far) {
+    const far = (here === 1 ? [0, 2] : [2 - here]).filter(l => lanes.includes(l));
+    if (far.length) lg = pick(far);
   }
-  const [lg, la, lb] = lanes;
-  const y0 = 64;
+  const free = [0, 1, 2].filter(l => l !== lg);
+  const lb = free.includes(here) && rand(0, 1) < L.skullCup[late ? 1 : 0] ? here : pick(free);
+  const la = free.find(l => l !== lb);
   mini.drops.push(ivDrop(lg, y0, { kind, planned: true }));
-  let laUsed = false;
-  // If the planned flavor drifted out of sync (a missed sip), the side drop carries what is needed now.
-  if (mini.recipe !== kind || (L.distract && rand(0, 1) < L.distract)) {
+  const skullY = y0 - 0.45 * fall;
+  const pair = mini.caught >= L.pairFrom;
+  const twin = pair && mini.recipe === kind && L.twoSkulls && rand(0, 1) < L.twoSkulls;
+  if (twin) mini.drops.push(ivDrop(la, skullY, { bad: true }));
+  else if (pair || mini.recipe !== kind) {
+    // If the planned flavor drifted out of sync (a missed sip), the side drop carries what is needed now.
     const other = mini.recipe !== kind ? mini.recipe : (kind + 1 + Math.floor(rand(0, L.kinds - 1))) % L.kinds;
     mini.drops.push(ivDrop(la, y0, { kind: other }));
-    laUsed = true;
   }
-  const skullY = y0 - 0.45 * fall;
-  const twin = !laUsed && L.twoSkulls && rand(0, 1) < L.twoSkulls;
   const skull = ivDrop(lb, skullY, { bad: true });
   if (!twin && L.hop && rand(0, 1) < L.hop) {
     skull.hopTo = pick([lb - 1, lb + 1].filter(l => l >= 0 && l <= 2));
     skull.hopY = 352 - 0.5 * fall;
   }
   mini.drops.push(skull);
-  if (twin) mini.drops.push(ivDrop(la, skullY, { bad: true }));
   if (!twin && L.scoop && rand(0, 1) < L.scoop) {
     const skullLane = skull.hopTo ?? skull.lane;
     const options = [lg - 1, lg + 1].filter(l => l >= 0 && l <= 2 && l !== skullLane);
@@ -798,15 +1087,12 @@ function ivCupLane() {
 }
 
 function ivUpdateCatch(dt) {
-  const L = ivRules().catch;
-  // A fuller cup is heavier and slides between lanes more slowly.
-  const fill = mini.ivOrderStep / ivOrder(mini.ivOrderIdx).length;
-  const rate = 17 * (1 - L.heavy * fill);
-  mini.cupX += (240 + mini.lane * 160 - mini.cupX) * (1 - Math.exp(-dt * rate));
+  // The cup eases into its lane instead of teleporting, and a fuller order makes it heavier.
+  mini.cupX += (240 + mini.lane * 160 - mini.cupX) * (1 - Math.exp(-dt * ivCupRate()));
   mini.spawn -= dt;
   if (mini.spawn <= 0) {
     ivSpawnWave();
-    mini.spawn = (1.45 - mini.tier * 0.13) / mini.rules.mini;
+    mini.spawn = ivWaveGap();
   }
   for (const d of mini.drops) {
     d.y += dt * d.speed;
@@ -835,7 +1121,7 @@ function ivCatch(d) {
       mini.flash = 0.6;
       mini.flashText = 'SKULL SHIELD. NICE TRY, GUNK.';
       sfx('shield');
-    } else miniOops('GREEN GUNK IS NOT LUNCH');
+    } else ivStrike('GREEN GUNK IS NOT LUNCH');
     return;
   }
   if (d.scoop) {
@@ -853,6 +1139,7 @@ function ivCatch(d) {
     mini.caught += gain;
     for (let i = 0; i < gain; i++) mini.ivCup.push(d.kind);
     mini.ivOrderStep++;
+    mini.ivFall = ivFallSpeed();
     praise(100 * gain);
     sfx('catch');
     ivMood('smile', 0.6);
@@ -877,31 +1164,88 @@ function ivCatch(d) {
     }
     return;
   }
-  // Wrong flavor: style points on level 1; from level 2 the drink in the cup is dumped.
-  mini.combo = 0;
-  mini.quality = Math.max(0, mini.quality - 2);
+  // Wrong flavor: style points on level 1. From level 2 the drink in the cup is dumped and it is a strike.
   mini.ivOrderClean = false;
   ivMood('grimace', 0.7);
   sfx('blob');
+  if (mini.tier > 0) {
+    const dumped = mini.ivCup.length > 0;
+    if (dumped) {
+      mini.caught = Math.max(0, mini.caught - mini.ivCup.length);
+      mini.ivCup = [];
+      mini.ivOrderStep = 0;
+      mini.recipe = ivKindAt(0);
+      mini.ivFall = ivFallSpeed();
+    }
+    ivStrike(dumped ? 'WRONG FLAVOR. DRINK DUMPED.' : 'WRONG FLAVOR. NOT ON THE ORDER.');
+    return;
+  }
+  mini.combo = 0;
+  mini.quality = Math.max(0, mini.quality - 2);
   mini.flash = 0.7;
-  if (mini.tier > 0 && mini.ivCup.length) {
-    mini.caught = Math.max(0, mini.caught - mini.ivCup.length);
-    mini.ivCup = [];
-    mini.ivOrderStep = 0;
-    mini.recipe = ivKindAt(0);
-    mini.flashText = 'WRONG FLAVOR. DRINK DUMPED. START THE ORDER OVER.';
-  } else mini.flashText = 'WRONG FLAVOR. CHECK THE RECIPE.';
+  mini.flashText = 'WRONG FLAVOR. CHECK THE RECIPE.';
 }
 
 // ---------- Phase 3: hold the pressure ----------
 
+// The band: this segment's width, slimmed as time is banked, narrower when split, wider with the assist.
 function ivBandWidth() {
-  return mini.pressureBand * (mini.ivSplit > 0.005 ? 0.85 : 1) * (mini.helpTime > 0 ? 1.3 : 1);
+  const L = ivRules().press;
+  const slim = 1 - L.shrink * Math.min(1, mini.stable / mini.need);
+  return mini.ivSegW * slim * (mini.ivSplit > 0.005 ? 0.85 : 1) * (mini.helpTime > 0 ? 1.3 : 1);
 }
 
 function ivNearestCentre() {
   const c = mini.ivCentres || [mini.pressureTarget];
   return c.reduce((a, b) => (Math.abs(b - mini.pressure) < Math.abs(a - mini.pressure) ? b : a), c[0]);
+}
+
+function ivInBand() {
+  return Math.abs(mini.pressure - ivNearestCentre()) < ivBandWidth() / 2;
+}
+
+// Segments alternate between the wide and the narrow half of the level's width range, wide first.
+function ivSegmentWidth(i) {
+  const [narrow, wide] = ivRules().press.width;
+  const mid = (narrow + wide) / 2;
+  return i % 2 ? rand(narrow, mid) : rand(mid, wide);
+}
+
+// A new height anywhere in the level's range, at least 0.18 away from the current one.
+function ivJumpHeight() {
+  const [lo, hi] = ivRules().press.heights;
+  const a = Math.max(lo, mini.ivHomeTo - 0.18);
+  const b = Math.min(hi, mini.ivHomeTo + 0.18);
+  let h = lo + rand(0, hi - lo - (b - a));
+  if (h > a) h += b - a;
+  return h;
+}
+
+// True while a cough, hiccup or spike is on its way or being countered.
+function ivShoveActive() {
+  const ev = mini.ivEvent;
+  return !!mini.ivCounter || !!(ev && IV_COUNTERS[ev.kind]);
+}
+
+// Every few seconds the band jumps to a new height and width, after a warning arrow.
+function ivUpdateJump(dt) {
+  const L = ivRules().press;
+  mini.ivSinceJump += dt;
+  // A jump waits while a shove is being countered, unless its warning is already up.
+  if (!mini.ivJumpNext && ivShoveActive()) return;
+  mini.ivJumpIn -= dt;
+  if (!mini.ivJumpNext && mini.ivJumpIn <= L.jumpWarn) {
+    mini.ivJumpNext = { home: ivJumpHeight(), width: ivSegmentWidth(mini.ivSegIdx + 1) };
+    sfx('lock');
+  }
+  if (mini.ivJumpIn > 0) return;
+  mini.ivSegIdx++;
+  mini.ivHomeTo = mini.ivJumpNext.home;
+  mini.ivSegWTo = mini.ivJumpNext.width;
+  mini.ivJumpNext = null;
+  mini.ivJumpIn = rand(L.jump[0], L.jump[1]);
+  mini.ivSinceJump = 0;
+  sfx('unlock');
 }
 
 // Coughs and hiccups shove, spikes move the band, splits make two, and level 3 flips the controls.
@@ -910,9 +1254,13 @@ function ivUpdateEvents(dt) {
   if (!L.events.length) return;
   let ev = mini.ivEvent;
   if (!ev) {
+    // Level 1 saves its gentle cough until some time is banked.
+    if (mini.stable < L.eventsFrom) return;
     mini.ivEventGap -= dt;
     if (mini.ivEventGap > 0) return;
     const kind = L.events[mini.ivEventIdx % L.events.length];
+    // Shoves never land on top of a band jump.
+    if (IV_COUNTERS[kind] && (mini.ivJumpNext || mini.ivSinceJump < 1.2)) return;
     mini.ivEventIdx++;
     ev = mini.ivEvent = {
       kind,
@@ -930,13 +1278,15 @@ function ivUpdateEvents(dt) {
   if (u >= 0 && !ev.fired) {
     ev.fired = true;
     if (ev.kind === 'cough' || ev.kind === 'hiccup') {
-      mini.velocity += ev.dir * 0.42 * mini.rules.mini;
+      mini.velocity += ev.dir * 0.42 * mini.rules.mini * L.power;
       ivMood(ev.kind, 0.7);
       sfx(ev.kind === 'cough' ? 'blob' : 'jump');
     }
     if (ev.kind === 'split') sfx('split');
     if (ev.kind === 'spike') sfx('trap');
     if (ev.kind === 'invert') sfx('wave');
+    // A shove that catches you in the band has to be countered.
+    if (IV_COUNTERS[ev.kind] && ivInBand()) mini.ivCounter = { kind: ev.kind, t: 0, out: 0, ...IV_COUNTERS[ev.kind] };
   }
   mini.ivInverted = ev.kind === 'invert' && u >= 0 && u < ev.dur;
   mini.ivSplit = ev.kind === 'split' && u >= 0 ? 0.14 * Math.sin(Math.PI * clamp(u / ev.dur, 0, 1)) : 0;
@@ -952,13 +1302,52 @@ function ivUpdateEvents(dt) {
   }
 }
 
+// A shove you never countered: out of the band for too long while it plays out.
+function ivUpdateCounter(dt, inBand) {
+  const c = mini.ivCounter;
+  if (!c) return;
+  c.t += dt;
+  if (!inBand) c.out += dt;
+  if (c.out >= c.limit) {
+    mini.ivCounter = null;
+    ivMood('grimace', 1);
+    const message = { cough: 'THE COUGH WON', hiccup: 'THE HICCUP WON', spike: 'THE SPIKE LEFT YOU BEHIND' }[c.kind];
+    if (ivRules().press.counterStrike) {
+      ivStrike(message);
+      return;
+    }
+    mini.combo = 0;
+    mini.quality = Math.max(0, mini.quality - 3);
+    mini.flash = 0.8;
+    mini.flashText = message + '. LET GO WHEN SHE COUGHS.';
+    sfx('miss');
+    return;
+  }
+  if (c.t >= c.dur) {
+    mini.ivCounter = null;
+    praise(80);
+    mini.flash = 0.5;
+    mini.flashText = 'COUNTERED. TEXTBOOK.';
+    sfx('pickup');
+  }
+}
+
 function ivUpdatePressure(dt) {
+  const L = ivRules().press;
+  ivUpdateJump(dt);
   ivUpdateEvents(dt);
-  const base = 0.52 + Math.sin(mini.phaseTime * (0.25 + mini.tier * 0.035)) * 0.16;
+  // The slow wander quickens and widens with each banked third.
+  const [speed, amp] = L.wander[Math.min(2, Math.floor((mini.stable / mini.need) * 3))];
+  mini.ivWanderPhase += dt * speed;
+  mini.ivWanderAmp += (amp - mini.ivWanderAmp) * (1 - Math.exp(-dt * 1.5));
+  const glide = 1 - Math.exp(-dt * 7);
+  mini.ivHome += (mini.ivHomeTo - mini.ivHome) * glide;
+  mini.ivSegW += (mini.ivSegWTo - mini.ivSegW) * glide;
+  const base = mini.ivHome + Math.sin(mini.ivWanderPhase) * mini.ivWanderAmp;
   mini.pressureTarget = clamp(base + mini.ivSpikeOff, 0.16, 0.84);
   mini.ivCentres =
     mini.ivSplit > 0.005
-      ? [clamp(mini.pressureTarget - mini.ivSplit, 0.08, 0.92), clamp(mini.pressureTarget + mini.ivSplit, 0.08, 0.92)]
+      ? [clamp(mini.pressureTarget - mini.ivSplit, 0.12, 0.88), clamp(mini.pressureTarget + mini.ivSplit, 0.12, 0.88)]
       : [mini.pressureTarget];
   // Inverted controls: holding pushes down, letting go pushes up.
   const up = mini.held !== mini.ivInverted;
@@ -982,13 +1371,14 @@ function ivUpdatePressure(dt) {
     } else mini.ivCentreRun = 0;
     mini.stable += dt * mini.ivMult;
   } else mini.ivCentreRun = 0;
+  ivUpdateCounter(dt, off < half);
   if (mini.pressure < 0.06 || mini.pressure > 0.94) {
     mini.outside += dt;
     if (mini.outside > 0.85) {
       mini.outside = 0;
       mini.pressure = 0.5;
       mini.velocity = 0;
-      miniOops('PRESSURE HAS LEFT THE CHAT');
+      ivStrike('PRESSURE HAS LEFT THE CHAT');
     }
   } else mini.outside = 0;
   if (mini.screen === 'play' && mini.stable >= mini.need) {
@@ -1287,6 +1677,23 @@ function drawIVMini(g) {
   else ivDrawPressureScene(g);
 }
 
+// Three strike marks beside the level tag: empty rings fill with red crosses.
+function ivDrawStrikes(g) {
+  const n = mini.rules ? mini.rules.misses : IV_STRIKES;
+  label(g, 'STRIKES', 668, 29, 11, '#a2cacb', 'right');
+  for (let i = 0; i < n; i++) {
+    const x = 682 + i * 18;
+    if (i < mini.miss) {
+      ellipse(g, x, 25, 7.5, 7.5, '#8a2a40');
+      line(g, [[x - 3.5, 21.5], [x + 3.5, 28.5]], '#ffd6dc', 2.2);
+      line(g, [[x + 3.5, 21.5], [x - 3.5, 28.5]], '#ffd6dc', 2.2);
+    } else {
+      ellipse(g, x, 25, 7.5, 7.5, '#a2cacb');
+      ellipse(g, x, 25, 5.5, 5.5, '#1f4a55');
+    }
+  }
+}
+
 function ivDrawTapScene(g) {
   const L = ivRules().tap;
   ivPatient(g, 222, 275, 1.15, ivLook());
@@ -1316,7 +1723,8 @@ function ivDrawTapScene(g) {
     );
   const s = mini.ivSweep;
   const tempoTag = s.tempo > 1.05 ? 'TEMPO ▲ FAST' : s.tempo < 0.95 ? 'TEMPO ▼ SLOW' : '';
-  const sweepTag = (mini.ivMove > 0 ? 'SWEEP →' : '← SWEEP') + (tempoTag ? '   ·   ' + tempoTag : '');
+  const sweepTag =
+    (mini.ivMove > 0 ? 'SWEEP →' : '← SWEEP') + (tempoTag ? '   ·   ' + tempoTag : '') + (s.drift ? '   ·   SLIDING' : '');
   label(g, sweepTag, 605, 274, 13, '#b4d9cb', 'center');
   ivDrawSweepBar(g, 85, 335, 630);
   label(
@@ -1361,6 +1769,29 @@ function ivDrawSweepBar(g, x, y, w) {
       label(g, '×2', x + win.pos * w, y - 9, 13, '#f4e6ad', 'center');
       for (let i = 0; i < win.need; i++)
         ellipse(g, x + win.pos * w - 5 + i * 10, y + 44, 3, 3, i < win.hits ? '#f4e6ad' : '#466f77');
+    }
+  }
+  // Sliding windows show which way they are heading. One about to turn around flickers first.
+  if (s.drift) {
+    const dir = Math.sign(mini.dir * s.drift);
+    const turning = s.flipAt !== null && s.flipAt - s.age < 0.3;
+    for (const win of s.wins) {
+      if (!win.decoy && win.hits >= win.need) continue;
+      const cx = x + win.pos * w;
+      const hot = Math.sin(mini.t * 40) > 0 ? '#ff9a6a' : '#fff1b8';
+      const col = turning ? hot : win.decoy ? '#ffb3bd' : '#c8f0d4';
+      for (const k of [0, 1]) {
+        const ax = cx + dir * (k * 9 - 4);
+        poly(
+          g,
+          [
+            [ax - dir * 4, y + 49],
+            [ax + dir * 4, y + 54],
+            [ax - dir * 4, y + 59]
+          ],
+          col
+        );
+      }
     }
   }
   if (s.bounce !== null && s.pass === 0) {
@@ -1515,7 +1946,10 @@ function ivDrawCatchScene(g) {
   ivPatient(g, 96, 424, 0.6, ivLook());
   label(g, mini.caught + ' / ' + mini.catchNeed, 705, 150, 26, '#ffe0a1', 'center');
   label(g, 'SIPS IN', 705, 172, 12, '#a8d1c3', 'center');
-  label(g, 'ORDERS SERVED: ' + mini.ivServed, 705, 210, 12, '#c4e0d4', 'center');
+  // Pace climbs with every sip in the cup.
+  const pace = Math.min(L.fall[2], Math.pow(L.fall[1], mini.caught));
+  label(g, 'PACE ×' + pace.toFixed(1), 705, 192, 12, pace > 1.6 ? '#f0a57c' : '#c4e0d4', 'center');
+  label(g, 'ORDERS SERVED: ' + mini.ivServed, 705, 214, 12, '#c4e0d4', 'center');
   if (L.heavy) {
     const fill = mini.ivOrderStep / order.length;
     label(g, 'CUP WEIGHT', 705, 246, 11, '#a8d1c3', 'center');
@@ -1530,7 +1964,8 @@ function ivDrawCatchScene(g) {
     const want = mini.drops
       .filter(d => !d.done && !d.bad && !d.scoop && d.kind === mini.recipe)
       .sort((a, b) => b.y - a.y)[0];
-    if (want && want.y > 120) label(g, '▼ CATCH', ivDropX(want), want.y - 30, 11, '#fff1b8', 'center');
+    if (want && want.y > 120 && mini.caught < L.hint)
+      label(g, '▼ CATCH', ivDropX(want), want.y - 30, 11, '#fff1b8', 'center');
   }
 }
 
@@ -1539,8 +1974,13 @@ function ivDrawPressureScene(g) {
   ivStand(g, 61, 309, 0.85);
   ivDrawDrips(g, 76.3, 238);
   ivMonitor(g, 228, 182, 0.8, { bpm: mini.ivBpm, t: mini.total, alarm: mini.ivBpm > 108 });
-  const title = mini.ivSplit > 0.005 ? 'TWO BANDS. EITHER COUNTS.' : 'FOLLOW THE MOVING BAND';
-  label(g, title, 400, 67, 22, '#dce9cd', 'center');
+  const jump = mini.ivJumpNext;
+  const title = jump
+    ? 'BAND JUMPING ' + (jump.home > mini.ivHomeTo ? '▲' : '▼')
+    : mini.ivSplit > 0.005
+      ? 'TWO BANDS. EITHER COUNTS.'
+      : 'FOLLOW THE MOVING BAND';
+  label(g, title, 400, 67, 22, jump ? '#ffe39a' : '#dce9cd', 'center');
   panel(g, 319, 92, 162, 272, '#173747', '#82a9ad');
   rr(g, 331, 105, 138, 246, 13, '#0b2839');
   const y = 351 - mini.pressure * 246;
@@ -1551,6 +1991,7 @@ function ivDrawPressureScene(g) {
     rr(g, 308, by, 185, bw * 246, 5, '#c3eaaa77', '#d8efb7', 2);
     line(g, [[316, 351 - c * 246], [485, 351 - c * 246]], '#f4e6ad88', 1.5);
   }
+  if (jump) ivDrawJumpWarning(g, jump);
   line(g, [[487, y], [509, y]], '#ffda8c', 3);
   label(g, Math.round(mini.pressure * 100) + '%', 555, y + 5, 20, '#ffe1a3');
   label(g, mini.stable.toFixed(1) + ' / ' + mini.need + 's', 685, 132, 25, '#ffe0a1', 'center');
@@ -1574,6 +2015,29 @@ function ivDrawPressureScene(g) {
     rect(g, 0, 0, 800, 450, 'rgba(150,70,220,' + pulse + ')');
     rr(g, 6, 6, 788, 438, 18, null, '#d9a6ff', 5);
   }
+}
+
+// The band is about to jump: a blinking outline where it lands and an arrow from here to there.
+function ivDrawJumpWarning(g, jump) {
+  const L = ivRules().press;
+  const slim = 1 - L.shrink * Math.min(1, mini.stable / mini.need);
+  const c = clamp(jump.home + Math.sin(mini.ivWanderPhase) * mini.ivWanderAmp, 0.16, 0.84);
+  const w = jump.width * slim;
+  const blink = Math.sin(mini.t * 26) > -0.3;
+  if (blink) rr(g, 308, 351 - (c + w / 2) * 246, 185, w * 246, 5, '#ffe39a22', '#ffe39a', 2);
+  const y0 = 351 - mini.pressureTarget * 246;
+  const y1 = 351 - c * 246;
+  const dir = y1 < y0 ? -1 : 1;
+  line(g, [[296, y0], [296, y1 - dir * 10]], '#ffe39a', 4);
+  poly(
+    g,
+    [
+      [287, y1 - dir * 12],
+      [305, y1 - dir * 12],
+      [296, y1]
+    ],
+    '#ffe39a'
+  );
 }
 
 function ivDrawEventCard(g) {
@@ -2201,7 +2665,8 @@ function ivBuildAftermath() {
     ivSplat(x, rand(30, 150), rand(8, 16), rand(0.1, 0.35));
   }
   ivSplat(400, 70, 30, 0.02, '#c8203f');
-  const organs = ['heart', 'lung', 'stomach', 'liver', 'kidney', 'spleen', 'kidney', 'eye'];
+  // Macy has two eyes and both end up in the pile, so none goes on the wall.
+  const organs = ['heart', 'lung', 'stomach', 'liver', 'kidney', 'spleen', 'kidney'];
   // The spleen and the second kidney always give up; one more organ sometimes joins them.
   const extra = Math.floor(rand(0, 5));
   organs.forEach((organ, i) => {
@@ -2230,9 +2695,7 @@ function ivBuildAftermath() {
       falls,
       floorY: rand(168, 175),
       drift: rand(-40, 40),
-      scale: IV_ORGAN_SCALE[organ],
-      look: rand(0, 6.28),
-      blink: rand(2.2, 3.4)
+      scale: IV_ORGAN_SCALE[organ]
     });
     if (i < 4) A.sounds.push([t0 + tf, 'wallSplat']);
     if (falls) {
@@ -2386,10 +2849,6 @@ function ivPose(p, t) {
     if (p.organ === 'heart') {
       const a = t * 7.2;
       p.beat = Math.pow(Math.max(0, Math.sin(a)), 6) + 0.6 * Math.pow(Math.max(0, Math.sin(a - 0.9)), 6);
-    }
-    if (p.organ === 'eye') {
-      p.lid = (t + p.look) % p.blink < 0.14 ? 1 : 0;
-      p.gaze = Math.sin(t * 0.8 + p.look) * 0.9;
     }
     return;
   }
@@ -2557,7 +3016,6 @@ function ivDrawOrgan(g, p, t) {
     if (p.organ === 'liver') ivOrganLiver(g);
     if (p.organ === 'kidney') ivOrganKidney(g);
     if (p.organ === 'spleen') ivOrganSpleen(g);
-    if (p.organ === 'eye') ivEyeball(g, 11, p.gaze || 0, p.lid || 0);
   });
 }
 
