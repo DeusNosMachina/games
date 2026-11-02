@@ -1,7 +1,8 @@
 // Drip or Die rules: three strikes and every strike source, the HOLD button, sweep windows (shrinking,
 // sliding, double, decoy, echo, chains), the recipe pace ramp, two-flavor waves and far lanes, mix orders,
 // hopping skulls, the heavy cup, band jumps and widths, coughs and their counters, the level 3 inversion,
-// level-to-level escalation, forced recovery, and the explosion aftermath.
+// level-to-level escalation, forced recovery, the explosion aftermath, the portrait (450 × 800) layout,
+// and touch on the canvas itself (tap, lane tap and drag, press-and-hold) in both canvas shapes.
 const { run, nodes, close, assert } = require('./harness.cjs');
 run('let ivSeed=4242;Math.random=()=>{ivSeed=(ivSeed*1664525+1013904223)>>>0;return ivSeed/4294967296}');
 
@@ -593,3 +594,256 @@ run('openMini(0);startMini();launchMini();updateMini(3.3);finishMini(true);updat
 assert.equal(run('games[0].resultArt(mc)'), false);
 close();
 console.log('PASS: IV explosion outro, aftermath animation, settling, two eyeballs, and a different second viewing.');
+
+// ---- Portrait ----
+// On an upright phone the framework sets mini.portrait and sizes the canvas 450 × 800; the game draws its
+// own tall layout and asks every frame, since a rotation can flip it mid-run. A recording context follows
+// translate/scale/rotate so every word drawn can be checked against the canvas that is up.
+close();
+run('openMini(0);startMini()');
+assert.equal(run('JSON.stringify(ivCanvas())'), '{"w":800,"h":450}', 'landscape until the framework says otherwise');
+assert.equal(run('JSON.stringify(games[0].portraitCanvas)'), '{"w":450,"h":800}');
+run('mini.portrait=true;configureCanvas($("miniCanvas"),450,800)');
+assert.equal(run('JSON.stringify(ivCanvas())'), '{"w":450,"h":800}', 'portrait size when upright');
+run('mini.portrait=false;configureCanvas($("miniCanvas"),800,450)');
+assert.equal(run('JSON.stringify(ivCanvas())'), '{"w":800,"h":450}', 'back to landscape when turned');
+run(`globalThis.ivRec = { on: false, texts: [], m: [1, 0, 0, 1, 0, 0], stack: [] };
+mc.save = () => ivRec.stack.push(ivRec.m.slice());
+mc.restore = () => {
+  if (ivRec.stack.length) ivRec.m = ivRec.stack.pop();
+};
+mc.translate = (x, y) => {
+  const m = ivRec.m;
+  m[4] += m[0] * x + m[2] * y;
+  m[5] += m[1] * x + m[3] * y;
+};
+mc.scale = (x, y) => {
+  const m = ivRec.m;
+  m[0] *= x;
+  m[1] *= x;
+  m[2] *= y;
+  m[3] *= y;
+};
+mc.rotate = a => {
+  const [a0, b0, c0, d0] = ivRec.m;
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  ivRec.m = [a0 * c + c0 * s, b0 * c + d0 * s, c0 * c - a0 * s, d0 * c - b0 * s, ivRec.m[4], ivRec.m[5]];
+};
+mc.setTransform = () => {
+  ivRec.m = [1, 0, 0, 1, 0, 0];
+  ivRec.stack = [];
+};
+mc.fillText = (t, x, y) => {
+  if (!ivRec.on) return;
+  const m = ivRec.m;
+  ivRec.texts.push([String(t), m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]);
+};`);
+// Draws one frame; returns every word and the ones anchored off the active canvas. Drops still entering
+// from above the landscape canvas may carry a label a little over the top edge.
+function frameTexts() {
+  run('ivRec.on=true;ivRec.texts=[];ivRec.m=[1,0,0,1,0,0];ivRec.stack=[];drawMini();ivRec.on=false');
+  const { w, h } = JSON.parse(run('JSON.stringify(ivCanvas())'));
+  const texts = JSON.parse(run('JSON.stringify(ivRec.texts)'));
+  return { texts, off: texts.filter(([, x, y]) => x < 0 || x > w || y < -40 || y > h) };
+}
+function upright(on) {
+  if (on) run('mini.portrait=true;configureCanvas($("miniCanvas"),450,800)');
+  else run('mini.portrait=false;configureCanvas($("miniCanvas"),800,450)');
+}
+function onCanvas(what) {
+  const { texts, off } = frameTexts();
+  assert.deepEqual(off, [], what + ': every word lands on the canvas');
+  return texts;
+}
+const ivBot = require('./bots/iv.cjs').policy;
+run(`globalThis.ivBotTick = function () {${ivBot}}`);
+// Every level and phase, briefing to play, with the bot playing and the phone turning every so often.
+for (let tier = 0; tier < 3; tier++)
+  for (let phase = 0; phase < 3; phase++) {
+    close();
+    run(`state.difficulty=1;openMini(0);mini.tier=${tier};startMini()`);
+    if (phase) run(`ivPhase(${phase})`);
+    upright(true);
+    onCanvas(`L${tier + 1} phase ${phase + 1} briefing`);
+    run('launchMini();updateMini(0.5)');
+    onCanvas(`L${tier + 1} phase ${phase + 1} intro`);
+    run('updateMini(3)');
+    let low = false;
+    for (let i = 0; i < 600 && run("mini.screen==='play'"); i++) {
+      run('ivBotTick();updateMini(1/60)');
+      if (i % 150 === 149) upright(!run('mini.portrait'));
+      if (i % 9) continue;
+      const tall = run('!!mini.portrait');
+      const texts = onCanvas(`L${tier + 1} phase ${phase + 1} ${tall ? 'portrait' : 'landscape'} frame ${i}`);
+      if (tall && texts.some(([, x, y]) => y > 600 && x < 450)) low = true;
+    }
+    assert.ok(low, `L${tier + 1} phase ${phase + 1}: the tall layout uses the bottom of the canvas`);
+  }
+// The busy moments: echoes and bounces, decoys and slides, flashes, hoppers and scoops, every shove.
+playAt(2, 0);
+upright(true);
+run("mini.dir=1;ivNewSweep('echo');mini.beatLock=0;mini.ivSweep.drift=0.12;mini.pos=0.3");
+run("mini.flash=0.5;mini.flashText='MISSED THE DRIP  ·  STRIKE 1 OF 3'");
+onCanvas('portrait echo, bounce, slide and flash');
+run("mini.dir=-1;ivNewSweep('decoyDouble');mini.beatLock=0;mini.ivSweep.drift=-0.1;mini.ivSweep.flipAt=mini.ivSweep.age+0.1");
+onCanvas('portrait decoys sliding');
+playAt(0, 0);
+upright(true);
+run('mini.beatLock=0;mini.pos=mini.ivSweep.wins[0].pos;mini.ivChain=2');
+assert.ok(onCanvas('portrait level 1 hint').some(([t]) => t === 'NOW!'), 'the level 1 hint shouts NOW! on the tall bar');
+playAt(1, 1);
+upright(true);
+run('mini.drops=[ivDrop(0,300,{kind:1}),ivDrop(1,180,{bad:true,hopTo:2,hopY:260}),ivDrop(2,120,{scoop:true}),ivDrop(0,-90,{bad:true})]');
+run("mini.ivDouble=true;mini.ivCup=[0,1];mini.ivOrderStep=2;mini.flash=0.6;mini.flashText='WRONG FLAVOR. DRINK DUMPED.  ·  STRIKE 2 OF 3'");
+onCanvas('portrait hopper, scoop and a heavy cup');
+playAt(0, 1);
+upright(true);
+run('mini.drops=[ivDrop(1,200,{kind:mini.recipe,planned:true})]');
+assert.ok(onCanvas('portrait catch hint').some(([t]) => t === '▼ CATCH'), 'the CATCH arrow shows in portrait');
+for (const kind of ['cough', 'hiccup', 'spike', 'split', 'invert']) {
+  playAt(2, 2);
+  upright(true);
+  run(`mini.ivEvent={kind:'${kind}',t:0.2,fired:false,warn:0.8,dur:3,dir:1};mini.ivJumpNext={home:0.75,width:0.15}`);
+  onCanvas('portrait ' + kind + ' warning with a jump');
+  run(`mini.ivEvent.t=1.2;mini.ivEvent.fired=true;mini.ivInverted=${kind === 'invert'};mini.ivSplit=${kind === 'split' ? 0.12 : 0}`);
+  run('mini.ivCentres=mini.ivSplit?[mini.pressureTarget-0.12,mini.pressureTarget+0.12]:[mini.pressureTarget]');
+  run("mini.flash=0.5;mini.flashText='THE SPIKE LEFT YOU BEHIND  ·  STRIKE 1 OF 3'");
+  onCanvas('portrait ' + kind);
+}
+playAt(0, 2);
+upright(true);
+run('mini.pressure=0.05');
+assert.ok(onCanvas('portrait pressure hint').some(([t]) => t === '▲ HOLD'), 'the level 1 hint rides with the marker');
+// The explosion has its own upright composition, from the build-up through the burst.
+for (const tall of [true, false]) {
+  close();
+  run('state.difficulty=1;openMini(0);startMini();launchMini();updateMini(3.3)');
+  upright(tall);
+  run('finishMini(false)');
+  const words = new Set();
+  for (let t = 0; t <= 2.2; t += 0.05) {
+    run(`mini.transition=${t}`);
+    for (const [word] of onCanvas(`${tall ? 'portrait' : 'landscape'} outro at ${t.toFixed(2)} s`)) words.add(word);
+  }
+  for (const word of ['MMMF!', 'STAND BACK!', run('mini.ivWord')]) assert.ok(words.has(word), `the outro says ${word}`);
+  assert.equal(run('ivBoomStage().w'), tall ? 450 : 800);
+}
+close();
+console.log('PASS: IV portrait: size helper, every phase and level, busy moments, rotation mid-run, and the explosion.');
+
+// ---- Touch: the finger is the button ----
+// The canvas takes canvas coordinates in whichever shape is up; the buttons and keys still work.
+function touchAt(tier, phase, tall) {
+  playAt(tier, phase);
+  upright(tall);
+}
+const down = (x, y) => run(`arcadeDown({x:${x},y:${y}})`);
+const move = (x, y) => run(`arcadeMove({x:${x},y:${y}})`);
+const up = cancel => run(`arcadeUp(${cancel})`);
+for (const tall of [false, true]) {
+  const [W, H] = tall ? [450, 800] : [800, 450];
+  const shape = tall ? 'portrait' : 'landscape';
+  // Phase 1: a tap anywhere is TAP THE DRIP, strike and all.
+  touchAt(0, 0, tall);
+  run('mini.beatLock=0;mini.pos=mini.ivSweep.wins[0].pos');
+  down(W * 0.1, H * 0.9);
+  assert.equal(run('mini.good'), 1, shape + ': a tap anywhere lands the drip');
+  assert.equal(run('mini.ivRipples.length'), 1, shape + ': a ripple marks the touch');
+  assert.equal(run('JSON.stringify(mini.ivRipples.map(r=>[r.x,r.y,r.tall]))'), JSON.stringify([[W * 0.1, H * 0.9, tall]]));
+  onCanvas(shape + ' ripple');
+  up(false);
+  assert.equal(run('mini.good'), 1, shape + ': lifting the finger does nothing');
+  run('mini.beatLock=0;mini.ivFumble=0;mini.pos=mini.ivSweep.wins[0].pos>0.5?0.02:0.98');
+  down(W / 2, H / 2);
+  assert.equal(run('mini.miss'), 1, shape + ': a bad tap is a strike, same as the button');
+  up(true);
+  assert.equal(run('mini.miss') + run('mini.good'), 2, shape + ': a cancelled touch never acts');
+  for (let i = 0; i < 30; i++) run('updateMini(1/60)');
+  assert.equal(run('mini.ivRipples.length'), 0, shape + ': ripples fade');
+  // The last drip moves on to the briefing, which cancels the finger still on the glass.
+  run('mini.good=mini.required-1;mini.beatLock=0;mini.ivFumble=0');
+  run('mini.pos=mini.ivSweep.wins.find(w=>!w.decoy&&w.hits<w.need).pos');
+  down(W / 2, H / 3);
+  assert.equal(run('mini.phase'), 1);
+  assert.equal(run('mini.screen'), 'briefing');
+  assert.equal(run('mini.pointer'), null, shape + ': the briefing cancels the touch');
+  assert.equal(run('mini.ivTouch'), null);
+
+  // Phase 2: tap on or above a lane, or drag the cup; release snaps to the nearest lane.
+  touchAt(1, 1, tall);
+  run('mini.spawn=99;mini.drops=[]');
+  const laneX = lane => (tall ? 225 + (lane - 1) * 140 : 240 + lane * 160);
+  down(laneX(2), tall ? 270 : 60);
+  up(false);
+  assert.equal(run('mini.lane'), 2, shape + ': tapping above the right lane picks it');
+  down(laneX(0), H * 0.75);
+  up(false);
+  assert.equal(run('mini.lane'), 0, shape + ': tapping on the left lane picks it');
+  down(tall ? 4 : 30, H / 2);
+  up(false);
+  assert.equal(run('mini.lane'), 0, shape + ': beside the lanes counts as the nearest one');
+  down(laneX(1), H / 2);
+  move(laneX(1) + 6, H / 2);
+  assert.equal(run('mini.ivDragX'), null, shape + ': a wobble is still a tap');
+  up(false);
+  assert.equal(run('mini.lane'), 1);
+  // Drag from the left lane to a spot between the middle and right lanes: the cup follows the finger.
+  for (let i = 0; i < 60; i++) run('updateMini(1/60)');
+  down(laneX(0), H / 2);
+  const between = tall ? 225 + 0.4 * 140 : 400 + 0.4 * 160;
+  move((laneX(0) + between) / 2, H / 2);
+  move(between, H / 2);
+  assert.ok(Math.abs(run('mini.ivDragX') - 464) < 1e-9, shape + ': the drag aims the cup at the finger');
+  assert.equal(run('mini.lane'), 1, shape + ': mid-drag the lane is the nearest one');
+  for (let i = 0; i < 60; i++) run('updateMini(1/60)');
+  assert.ok(Math.abs(run('mini.cupX') - 464) < 2, shape + ': the cup glides continuously, not lane by lane');
+  move(laneX(2) - 12, H / 2);
+  up(false);
+  assert.equal(run('mini.lane'), 2, shape + ': release snaps to the nearest lane');
+  assert.equal(run('mini.ivDragX'), null);
+  for (let i = 0; i < 90; i++) run('updateMini(1/60)');
+  assert.ok(Math.abs(run('mini.cupX') - 560) < 1, shape + ': and the cup settles in it');
+  // A dragged cup catches like any other.
+  down(laneX(2), H / 2);
+  move(laneX(0), H / 2);
+  for (let i = 0; i < 60; i++) run('updateMini(1/60)');
+  run('mini.drops=[ivDrop(0,351,{kind:mini.recipe,planned:true})]');
+  const caught = run('mini.caught');
+  run('updateMini(1/60)');
+  assert.equal(run('mini.caught'), caught + 1, shape + ': a dragged cup catches');
+  // A cancelled drag ends without snapping anywhere new.
+  move(laneX(1) + 34, H / 2);
+  const lane = run('mini.lane');
+  up(true);
+  assert.equal(run('mini.ivDragX'), null, shape + ': a cancelled drag lets go of the cup');
+  assert.equal(run('mini.lane'), lane, shape + ': and does not act');
+
+  // Phase 3: press and hold anywhere pumps; lifting or losing the finger stops.
+  touchAt(0, 2, tall);
+  run('mini.pressure=0.3;mini.velocity=0');
+  down(W * 0.9, H * 0.2);
+  assert.equal(run('mini.held'), true, shape + ': a finger anywhere pumps');
+  for (let i = 0; i < 30; i++) run('updateMini(1/60)');
+  assert.ok(run('mini.pressure') > 0.3, shape + ': pressure climbs while held');
+  up(false);
+  assert.equal(run('mini.held'), false, shape + ': lifting the finger lets go');
+  down(W / 2, H / 2);
+  up(true);
+  assert.equal(run('mini.held'), false, shape + ': a lost finger lets go too');
+  down(W / 2, H / 2);
+  run('pauseMini()');
+  assert.equal(run('mini.held'), false, shape + ': pausing lets go');
+  run('pauseMini()');
+}
+// The briefings and the in-play hints say the screen is the button, phase by phase.
+close();
+run('openMini(0);startMini()');
+for (let phase = 0; phase < 3; phase++) {
+  run(`ivPhase(${phase})`);
+  assert.match(run('games[0].lesson().control'), /screen|finger/, `phase ${phase + 1} briefing mentions touch`);
+  assert.match(nodes.miniInstruction.textContent, /screen|Tap a lane/, `phase ${phase + 1} hint mentions touch`);
+}
+close();
+for (const k of ['save', 'restore', 'translate', 'scale', 'rotate', 'setTransform', 'fillText']) run(`delete mc.${k}`);
+console.log('PASS: IV touch: tap anywhere, lane taps and drags, hold to pump, ripples, cancels never act.');

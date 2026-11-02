@@ -1,7 +1,9 @@
 // Drip or Die (your room). Three phases: tap the drip, mix the recipe, hold the pressure, on three strikes total.
 // Every phase escalates within the run (IV_LEVELS): level 1 starts gentle with hints and ends where level 2
 // starts; levels 2 and 3 add decoys, mix orders, coughs and flipped controls on top.
-// It doubles as mandatory recovery at zero hearts (mini.forced), which always runs level 1. Canvas 800 × 450.
+// It doubles as mandatory recovery at zero hearts (mini.forced), which always runs level 1. Canvas 800 × 450,
+// or 450 × 800 when the framework sets mini.portrait on an upright phone: a scene strip on top and the phase
+// below it. Rules never change with the shape; draw code branches on mini.portrait every frame.
 // Losing ends in a staged cartoon explosion: the outro builds to a burst, the result screen shows the aftermath.
 
 const IV_KINDS = [
@@ -213,6 +215,9 @@ const IV_COUNTERS = {
   spike: { dur: 2.4, limit: 1.3 }
 };
 
+// How long the ring at a touch point lasts, in seconds.
+const IV_RIPPLE_SECONDS = 0.4;
+
 const IV_WORDS = ['SPLORT!', 'KABLORT!', 'SPLOOSH!', 'BLAMMO!', 'GLORP!', 'KERSPLAT!'];
 const IV_INK = '#3d0f1f';
 const IV_CRATER = [400, 128];
@@ -265,6 +270,7 @@ let ivLastHeartSlot = -1;
 const IV = registerGame({
   id: 0,
   canvas: { w: 800, h: 450 },
+  portraitCanvas: { w: 450, h: 800 },
   layout: 'iv',
   info: {
     game: 'Drip or Die',
@@ -297,6 +303,9 @@ const IV = registerGame({
     mini.ivDripClock = 0.6;
     mini.ivBoomBeep = 0;
     mini.ivAfter = null;
+    mini.ivRipples = [];
+    mini.ivTouch = null;
+    mini.ivDragX = null;
     // The burst word never repeats back to back.
     const words = IV_WORDS.filter(w => w !== ivLastWord);
     mini.ivWord = pick(words);
@@ -324,17 +333,16 @@ const IV = registerGame({
       ivDrawBoom(g);
       return;
     }
+    const { w, h } = ivCanvas();
     g.save();
     // The intro zoom is motion only; reduced-motion keeps the frame still.
     if (mini.screen === 'intro' && !reduced) {
       let z = 0.97 + 0.03 * Math.min(1, mini.transition / INTRO_SECONDS);
-      g.translate(400, 225);
+      g.translate(w / 2, h / 2);
       g.scale(z, z);
-      g.translate(-400, -225);
+      g.translate(-w / 2, -h / 2);
     }
-    miniBackdrop(g, '#295d65', '#6ad6aa3d', IV.info.game.toUpperCase());
-    drawIVMini(g);
-    ivDrawStrikes(g);
+    ivDrawPlay(g);
     g.restore();
   },
   overlay(g) {
@@ -344,11 +352,20 @@ const IV = registerGame({
       g.save();
       g.globalAlpha = Math.min(1, mini.flash * 3);
       const good = !/MISS|AWAY|DECOY|GUNK|WRONG|CHAT|STRIKE|WON|BEHIND/.test(mini.flashText);
-      const fy = mini.phase === 1 ? 404 : 42;
-      panel(g, 105, fy, 590, 34, good ? '#356e61' : '#75455b', '#d4b399');
-      label(g, mini.flashText, 400, fy + 23, 14, '#ffedd0', 'center');
+      if (mini.portrait) {
+        // Portrait: under the timing bar, or over the readouts under the cup or the gauge.
+        const [fy, fh] = [[656, 36], [749, 48], [718, 52]][mini.phase] || [656, 36];
+        panel(g, 14, fy, 422, fh, good ? '#356e61' : '#75455b', '#d4b399');
+        ivFitLabel(g, mini.flashText, 225, fy + fh / 2 + 6, 14, '#ffedd0', 400);
+      } else {
+        const fy = mini.phase === 1 ? 404 : 42;
+        panel(g, 105, fy, 590, 34, good ? '#356e61' : '#75455b', '#d4b399');
+        label(g, mini.flashText, 400, fy + 23, 14, '#ffedd0', 'center');
+      }
       g.restore();
     }
+    // Ripples only age during play, so they only show during play.
+    if (mini.screen === 'play') ivDrawRipples(g);
     paintTransition(g);
   },
   action(a) {
@@ -387,6 +404,37 @@ const IV = registerGame({
     }
     return true;
   },
+  // The finger is the button: on a touch screen the canvas is the main control, the buttons the backup.
+  // Phase 1 taps anywhere, phase 2 picks a lane or drags the cup, phase 3 holds anywhere to pump.
+  // Points arrive in the active canvas size (450 × 800 when mini.portrait).
+  down(p) {
+    ivRipple(p);
+    mini.ivTouch = { phase: mini.phase, x0: p.x, drag: false };
+    if (mini.phase === 0) miniAction('tap');
+    else if (mini.phase === 1) mini.lane = ivLaneAt(ivTouchGameX(p.x));
+    else mini.held = true;
+  },
+  move(p) {
+    const touch = mini.ivTouch;
+    if (!touch || touch.phase !== 1 || mini.phase !== 1) return;
+    // A drag starts once the finger has moved a little; until then it is a tap on a lane.
+    if (!touch.drag && Math.abs(p.x - touch.x0) < 10) return;
+    touch.drag = true;
+    mini.ivDragX = clamp(ivTouchGameX(p.x), 240, 560);
+    mini.lane = ivLaneAt(mini.ivDragX);
+  },
+  // up(true) means the pointer was lost or the run interrupted: end the gesture, never act on it.
+  up(cancel) {
+    const touch = mini.ivTouch;
+    mini.ivTouch = null;
+    if (!touch) return;
+    if (touch.phase === 1) {
+      // Release snaps the cup to the lane nearest the finger. The last move already picked it.
+      if (!cancel && mini.ivDragX !== null && mini.ivDragX !== undefined) mini.lane = ivLaneAt(mini.ivDragX);
+      mini.ivDragX = null;
+    }
+    if (touch.phase === 2) mini.held = false;
+  },
   lesson() {
     const t = mini.tier;
     if (mini.phase === 0)
@@ -394,7 +442,7 @@ const IV = registerGame({
         title: '1 / Prime the pump',
         goal: 'Land ' + mini.required + ' drips.',
         control:
-          'Tap TAP THE DRIP or Space while the line crosses a mint window. Gold centers in a row build a chain multiplier.',
+          'Tap the screen (or TAP THE DRIP, or Space) while the line crosses a mint window. Gold centers in a row build a chain multiplier.',
         avoid: [
           'Tapping outside mint, or letting a drip slip past, is a strike. Three strikes and you pop. Windows shrink with every drip and start sliding at drip 4.',
           'Two mint windows: tap both. Red is a decoy and a strike. Windows slide from drip 2, faster and thinner as you go.',
@@ -407,7 +455,8 @@ const IV = registerGame({
       return {
         title: '2 / Mix the recipe',
         goal: 'Catch ' + mini.catchNeed + ' sips that match the order.',
-        control: 'Pick a lane with LEFT / MIDDLE / RIGHT or A / S / D. The banner shows what goes in the cup next.',
+        control:
+          'Tap a lane or drag the cup with your finger. LEFT / MIDDLE / RIGHT and A / S / D work too. The banner shows what goes in the cup next.',
         avoid: [
           'A green skull is a strike. The wrong flavor only costs style. The recipe flips every 3 catches, and it all speeds up.',
           'Orders mix flavors in sequence. The wrong flavor dumps the cup and is a strike. Arrow skulls hop lanes. A full cup is heavy.',
@@ -419,7 +468,8 @@ const IV = registerGame({
     return {
       title: '3 / Steady hands',
       goal: 'Bank ' + mini.need + ' seconds inside the mint band.',
-      control: 'Hold PUMP or Space to raise pressure. Let go to lower it. Dead center banks time faster.',
+      control:
+        'Press and hold anywhere on the screen (or HOLD TO PUMP, or Space) to raise pressure. Let go to lower it. Dead center banks time faster.',
       avoid: [
         'The band jumps to new heights (watch the arrow) and slims as you bank. Pinning the top or bottom is a strike. Late on, a cough: let go.',
         'COUGH shoves up, HICCUP shoves down, a SPIKE moves the band. Counter them or take a strike. Split bands: either half counts.',
@@ -510,6 +560,12 @@ function ivRules() {
   return IV_LEVELS[clamp(mini.tier || 0, 0, 2)];
 }
 
+// The canvas this frame draws on. The framework may flip mini.portrait mid-run, so ask every frame.
+function ivCanvas() {
+  const c = mini.portrait ? IV.portraitCanvas : IV.canvas;
+  return { w: c.w, h: c.h };
+}
+
 function ivHash(n) {
   const v = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return v - Math.floor(v);
@@ -568,6 +624,15 @@ function ivShout(g, text, x, y, size, fill, stroke, rot = 0) {
   g.restore();
 }
 
+// A centered label that shrinks until it fits maxW. Portrait lines are narrow; the copy is not.
+function ivFitLabel(g, text, x, y, size, color, maxW) {
+  g.font = '700 ' + size + 'px "Trebuchet MS", Arial, sans-serif';
+  const m = g.measureText ? g.measureText(text) : null;
+  const w = m && m.width ? m.width : 0;
+  const fit = w > maxW ? Math.max(9, Math.floor((size * maxW) / w)) : size;
+  label(g, text, x, y, fit, color, 'center');
+}
+
 function ivMood(kind, time = 0.8) {
   mini.ivMoodKind = kind;
   mini.ivMoodT = time;
@@ -597,6 +662,37 @@ function ivUpdateFx(dt) {
     d.life -= dt;
   }
   mini.ivDripFx = mini.ivDripFx.filter(d => d.life > 0 && d.dy < 30);
+  for (const r of mini.ivRipples || []) r.t += dt;
+  mini.ivRipples = (mini.ivRipples || []).filter(r => r.t < IV_RIPPLE_SECONDS);
+}
+
+// ---------- Touch ----------
+
+// A brief ring where the finger landed, in the canvas shape it landed on.
+function ivRipple(p) {
+  mini.ivRipples = mini.ivRipples || [];
+  mini.ivRipples.push({ x: p.x, y: p.y, t: 0, tall: !!mini.portrait });
+}
+
+function ivDrawRipples(g) {
+  for (const r of mini.ivRipples || []) {
+    if (r.tall !== !!mini.portrait) continue;
+    const u = r.t / IV_RIPPLE_SECONDS;
+    g.save();
+    g.globalAlpha = Math.max(0, 1 - u);
+    path(g, p => p.arc(r.x, r.y, 12 + u * 34, 0, Math.PI * 2), null, '#fff1b8', 3);
+    ellipse(g, r.x, r.y, 7 * (1 - u), 7 * (1 - u), '#fff1b8');
+    g.restore();
+  }
+}
+
+// A canvas x to the recipe game's own x (lanes at 240, 400 and 560), in either canvas shape.
+function ivTouchGameX(x) {
+  return mini.portrait ? 400 + (x - 225) / 0.875 : x;
+}
+
+function ivLaneAt(gameX) {
+  return clamp(Math.round((gameX - 240) / 160), 0, 2);
 }
 
 // ---------- Phases ----------
@@ -614,6 +710,8 @@ function ivPhase(phase) {
   mini.helpTime = 0;
   mini.outside = 0;
   mini.inputLock = 0;
+  mini.ivDragX = null;
+  mini.ivRipples = [];
   if (phase === 0) {
     mini.limit = L.tap.limit;
     mini.required = L.tap.required;
@@ -627,9 +725,9 @@ function ivPhase(phase) {
     ivNewSweep('single');
     setInstructions(
       [
-        'Tap when the line crosses mint. Windows shrink every drip and start sliding at drip 4. Three strikes and you pop.',
-        'Tap every mint window, never red. Windows slide from drip 2 and keep shrinking. Three strikes.',
-        'Mint, never red. ↩ bounces early; ×2 echoes need a tap each way. Everything slides. Three strikes.'
+        'Tap the screen when the line crosses mint. Windows shrink every drip and slide from drip 4. Three strikes and you pop.',
+        'Tap the screen on every mint window, never red. Windows slide from drip 2 and keep shrinking. Three strikes.',
+        'Tap the screen on mint, never red. ↩ bounces early; ×2 echoes need a tap each way. Everything slides. Three strikes.'
       ][mini.tier]
     );
   }
@@ -652,9 +750,9 @@ function ivPhase(phase) {
     mini.recipe = ivKindAt(0);
     setInstructions(
       [
-        'Catch the banner flavor, dodge the skulls. The recipe flips every 3 catches, and it keeps speeding up.',
-        'Fill the mix order in sequence. A wrong flavor dumps the cup and is a strike. Arrow skulls hop lanes.',
-        'Long orders, double skulls, hoppers everywhere. A full cup is heavy. Rainbow scoops count double.'
+        'Tap a lane or drag the cup. Catch the banner flavor, dodge the skulls. The recipe flips every 3 catches.',
+        'Tap a lane or drag the cup. Fill the order in sequence; a wrong flavor dumps it and is a strike.',
+        'Tap a lane or drag the cup. Long orders, double skulls, hoppers. A full cup is heavy. Rainbow scoops count double.'
       ][mini.tier]
     );
   }
@@ -687,9 +785,9 @@ function ivPhase(phase) {
     mini.ivMult = 1;
     setInstructions(
       [
-        'Follow the mint band. When the arrow shows, it jumps. Dead center banks time faster.',
-        'Follow the band. Counter coughs, hiccups and spikes or take a strike. Either split half counts.',
-        'Follow the band, counter every shove, and watch for purple: the controls flip for 3 seconds.'
+        'Hold anywhere on the screen to pump. Follow the mint band; when the arrow shows, it jumps. Dead center banks faster.',
+        'Hold anywhere on the screen to pump. Counter coughs, hiccups and spikes or take a strike. Either split half counts.',
+        'Hold anywhere on the screen to pump. Counter every shove, and watch for purple: the controls flip for 3 seconds.'
       ][mini.tier]
     );
   }
@@ -1087,8 +1185,10 @@ function ivCupLane() {
 }
 
 function ivUpdateCatch(dt) {
-  // The cup eases into its lane instead of teleporting, and a fuller order makes it heavier.
-  mini.cupX += (240 + mini.lane * 160 - mini.cupX) * (1 - Math.exp(-dt * ivCupRate()));
+  // The cup eases into its lane (or after a dragging finger) instead of teleporting, and a fuller order
+  // makes it heavier.
+  const aim = mini.ivDragX ?? 240 + mini.lane * 160;
+  mini.cupX += (aim - mini.cupX) * (1 - Math.exp(-dt * ivCupRate()));
   mini.spawn -= dt;
   if (mini.spawn <= 0) {
     ivSpawnWave();
@@ -1671,26 +1771,244 @@ function ivLook() {
   return { mood, puff, green: 0, t: mini.total };
 }
 
+// Backdrop, the current phase and the strike marks, on whichever canvas shape is up.
+function ivDrawPlay(g) {
+  if (mini.portrait) {
+    ivBackdropTall(g);
+    ivDrawStrip(g);
+    ivDrawStrikes(g);
+    drawIVMini(g);
+    return;
+  }
+  miniBackdrop(g, '#295d65', '#6ad6aa3d', IV.info.game.toUpperCase());
+  drawIVMini(g);
+  ivDrawStrikes(g);
+}
+
 function drawIVMini(g) {
+  if (mini.portrait) {
+    if (mini.phase === 0) ivDrawTapTall(g);
+    else if (mini.phase === 1) ivDrawCatchTall(g);
+    else ivDrawPressureTall(g);
+    return;
+  }
   if (mini.phase === 0) ivDrawTapScene(g);
   else if (mini.phase === 1) ivDrawCatchScene(g);
   else ivDrawPressureScene(g);
 }
 
-// Three strike marks beside the level tag: empty rings fill with red crosses.
+// Three strike marks beside the level tag: empty rings fill with red crosses. Portrait makes them a bit bigger.
 function ivDrawStrikes(g) {
   const n = mini.rules ? mini.rules.misses : IV_STRIKES;
-  label(g, 'STRIKES', 668, 29, 11, '#a2cacb', 'right');
+  const o = mini.portrait
+    ? { lx: 300, ly: 28, size: 12, x0: 316, dx: 22, y: 23, k: 1.2 }
+    : { lx: 668, ly: 29, size: 11, x0: 682, dx: 18, y: 25, k: 1 };
+  const k = o.k;
+  label(g, 'STRIKES', o.lx, o.ly, o.size, '#a2cacb', 'right');
   for (let i = 0; i < n; i++) {
-    const x = 682 + i * 18;
+    const x = o.x0 + i * o.dx;
+    const y = o.y;
     if (i < mini.miss) {
-      ellipse(g, x, 25, 7.5, 7.5, '#8a2a40');
-      line(g, [[x - 3.5, 21.5], [x + 3.5, 28.5]], '#ffd6dc', 2.2);
-      line(g, [[x + 3.5, 21.5], [x - 3.5, 28.5]], '#ffd6dc', 2.2);
+      ellipse(g, x, y, 7.5 * k, 7.5 * k, '#8a2a40');
+      line(g, [[x - 3.5 * k, y - 3.5 * k], [x + 3.5 * k, y + 3.5 * k]], '#ffd6dc', 2.2 * k);
+      line(g, [[x + 3.5 * k, y - 3.5 * k], [x - 3.5 * k, y + 3.5 * k]], '#ffd6dc', 2.2 * k);
     } else {
-      ellipse(g, x, 25, 7.5, 7.5, '#a2cacb');
-      ellipse(g, x, 25, 5.5, 5.5, '#1f4a55');
+      ellipse(g, x, y, 7.5 * k, 7.5 * k, '#a2cacb');
+      ellipse(g, x, y, 5.5 * k, 5.5 * k, '#1f4a55');
     }
+  }
+}
+
+// ---------- Portrait (450 × 800): a scene strip on top, the phase below ----------
+
+// The same teal room as miniBackdrop, stood upright, with the title and level tag on one header row.
+function ivBackdropTall(g) {
+  rect(g, 0, 0, 450, 800, gradient(g, 0, 0, 450, 800, '#295d65', '#142e46'));
+  glow(g, 225, 470, 400, '#6ad6aa3d');
+  for (let i = 0; i < 8; i++) {
+    const x = 60 + (i % 3) * 165;
+    const y = 300 + i * 62;
+    ellipse(g, x, y, 43, 43, '#d5ede306');
+  }
+  label(g, IV.info.game.toUpperCase(), 18, 28, 13, '#a2cacb');
+  label(g, 'LEVEL ' + (mini.tier + 1), 432, 28, 13, '#b8d8cf', 'right');
+}
+
+// The top 30% of the portrait canvas, shared by every phase: the IV stand dripping, Macy in bed with
+// her reactions, and the monitor on the cabinet.
+function ivDrawStrip(g) {
+  rr(g, 10, 40, 430, 198, 16, gradient(g, 0, 40, 0, 198, '#2f6a70', '#1d4655'), '#6c969a66', 1.2);
+  g.save();
+  g.beginPath();
+  g.roundRect(10, 40, 430, 198, 16);
+  g.clip();
+  rect(g, 10, 200, 430, 38, '#24505a');
+  for (let x = 30; x < 440; x += 40) rect(g, x, 200, 1, 38, '#ffffff10');
+  glow(g, 364, 92, 96, mini.ivBpm > 108 ? 'rgba(255,70,100,0.2)' : 'rgba(120,220,200,0.08)');
+  ivStand(g, 64, 222, 1.05);
+  ivDrawDrips(g, 64 + 18 * 1.05, 222 - 82.5 * 1.05);
+  ivPatient(g, 198, 212, 1.2, ivLook());
+  cabinet(g, 318, 224, 92);
+  ivMonitor(g, 364, 137, 1.15, { bpm: mini.ivBpm, t: mini.total, alarm: mini.ivBpm > 108 });
+  g.restore();
+}
+
+// Portrait phase 1: drip counter and chain up top, a big timing bar in the lower third, the legend below.
+function ivDrawTapTall(g) {
+  const L = ivRules().tap;
+  label(g, 'PRIME THE PUMP', 225, 284, 24, '#d8e8cc', 'center');
+  const per = 7;
+  for (let i = 0; i < mini.required; i++) {
+    const x = 225 - ((Math.min(per, mini.required) - 1) / 2) * 40 + (i % per) * 40;
+    const y = 322 + Math.floor(i / per) * 36;
+    ellipse(g, x, y, 13, 13, i < mini.good ? '#c4e8b5' : '#365563');
+    if (i < mini.good) spark(g, x, y, '#fff0b6', 0.65);
+  }
+  label(g, mini.good + ' / ' + mini.required + ' drips', 225, 404, 20, '#e7d49c', 'center');
+  const mult = ivChainMult();
+  if (mini.ivChain >= 1)
+    label(
+      g,
+      mini.ivChain >= 2 ? 'GOLD CHAIN ×' + mult : 'GOLD! ONE MORE FOR A CHAIN',
+      225,
+      434,
+      mini.ivChain >= 2 ? 19 : 14,
+      '#ffe39a',
+      'center'
+    );
+  const s = mini.ivSweep;
+  const tempoTag = s.tempo > 1.05 ? 'TEMPO ▲ FAST' : s.tempo < 0.95 ? 'TEMPO ▼ SLOW' : '';
+  const sweepTag =
+    (mini.ivMove > 0 ? 'SWEEP →' : '← SWEEP') + (tempoTag ? '  ·  ' + tempoTag : '') + (s.drift ? '  ·  SLIDING' : '');
+  ivFitLabel(g, sweepTag, 225, 464, 14, '#b4d9cb', 410);
+  ivDrawSweepBar(g, 22, 548, 406, 70);
+  const legend = [
+    ['MINT = TAP', 'GOLD CENTER = CHAIN BONUS'],
+    ['MINT = TAP  ·  TWO MINTS = TAP BOTH', 'RED = DECOY'],
+    ['RED = DECOY  ·  ↩ = BOUNCE', '×2 ECHO = TAP BOTH WAYS']
+  ][mini.tier];
+  legend.forEach((text, i) => ivFitLabel(g, text, 225, 728 + i * 24, 15, '#dce8ca', 410));
+  if (L.patterns.length === 1 && mini.screen !== 'outro') ivTapHint(g, 22, 548, 406, 1.4);
+}
+
+// Portrait lanes: the landscape lanes (x 240 to 560) and fall (y 64 to the cup at 352) mapped onto tall lanes.
+function ivTallX(x) {
+  return 225 + (x - 400) * 0.875;
+}
+
+function ivTallY(y) {
+  return 296 + (y - 64) * 1.27;
+}
+
+// Draws landscape art at its portrait spot, bigger. The art itself is the landscape code.
+function ivTallAt(g, x, y, s, fn) {
+  g.save();
+  g.translate(ivTallX(x), ivTallY(y));
+  g.scale(s, s);
+  g.translate(-x, -y);
+  fn();
+  g.restore();
+}
+
+// Portrait phase 2: the order banner across the top, three tall lanes, a big cup, readouts along the bottom.
+function ivDrawCatchTall(g) {
+  const L = ivRules().catch;
+  for (let lane = 0; lane < 3; lane++) {
+    const x = ivTallX(240 + lane * 160);
+    panel(g, x - 63, 300, 126, 444, '#153641', '#456b75');
+    line(g, [[x - 49, 330], [x - 49, 676]], '#b7d8cb33', 3);
+    label(g, ['LEFT', 'MIDDLE', 'RIGHT'][lane], x, 763, 13, '#bddbce', 'center');
+  }
+  // Drops above the banner (skulls spawn high) stay out of the scene strip.
+  g.save();
+  g.beginPath();
+  g.rect(0, 248, 450, 552);
+  g.clip();
+  for (const d of mini.drops) if (!d.done) ivTallAt(g, ivDropX(d), ivDropY(d), 1.25, () => ivDrawDrop(g, d));
+  g.restore();
+  ivTallAt(g, mini.cupX, 344, 1.3, () => ivDrawCup(g));
+  // The order banner sits on top so new drops slide out from behind it.
+  const order = ivOrder(mini.ivOrderIdx);
+  rr(g, 16, 246, 418, 66, 14, '#f7efd9', '#c9b48c', 2);
+  label(g, mini.tier ? 'MIX ORDER #' + (mini.ivServed + 1) : 'RECIPE', 32, 268, 12, '#7a6650');
+  if (mini.ivDouble) label(g, '×2 SCOOP READY', 140, 268, 12, '#8a4fb0');
+  label(g, 'NEXT: ' + IV_KINDS[mini.recipe].name, 32, 297, 18, '#294657');
+  for (let i = 0; i < order.length; i++) {
+    const cx = 400 - (order.length - 1) * 36 + i * 36;
+    const now = i === mini.ivOrderStep;
+    const cy = 279 + (now ? Math.sin(mini.t * 7) * 2 : 0);
+    if (now) ellipse(g, cx, cy, 17.5, 17.5, '#294657');
+    ellipse(g, cx, cy, 14, 14, i < mini.ivOrderStep ? '#d9d2c0' : IV_KINDS[order[i]].col);
+    label(g, i < mini.ivOrderStep ? '✓' : IV_KINDS[order[i]].short, cx, cy + 5, 14, '#4e3a4f', 'center');
+  }
+  if (!mini.tier) {
+    const want = mini.drops
+      .filter(d => !d.done && !d.bad && !d.scoop && d.kind === mini.recipe)
+      .sort((a, b) => b.y - a.y)[0];
+    if (want && want.y > 120 && mini.caught < L.hint)
+      label(g, '▼ CATCH', ivTallX(ivDropX(want)), ivTallY(want.y) - 40, 14, '#fff1b8', 'center');
+  }
+  // Readouts: sips in, pace, orders served, cup weight.
+  label(g, mini.caught + ' / ' + mini.catchNeed + ' SIPS', 22, 790, 17, '#ffe0a1');
+  const pace = Math.min(L.fall[2], Math.pow(L.fall[1], mini.caught));
+  label(g, 'PACE ×' + pace.toFixed(1), 158, 789, 12, pace > 1.6 ? '#f0a57c' : '#c4e0d4');
+  label(g, 'ORDERS ' + mini.ivServed, 242, 789, 12, '#c4e0d4');
+  if (L.heavy) {
+    const fill = mini.ivOrderStep / order.length;
+    label(g, 'CUP', 318, 789, 11, '#a8d1c3');
+    rr(g, 348, 780, 80, 10, 5, '#234959');
+    rr(g, 348, 780, 80 * fill, 10, 5, fill > 0.6 ? '#f0a57c' : '#bde5b5');
+  }
+}
+
+// Portrait gauge: inner bottom at y 701, 374 tall. Pressure 0..1 to canvas y.
+function ivGaugeTallY(p) {
+  return 701 - p * 374;
+}
+
+// Portrait phase 3: the callout slot on top, a tall centered gauge, banked time and progress at the bottom.
+function ivDrawPressureTall(g) {
+  const jump = mini.ivJumpNext;
+  if (mini.ivEvent) ivDrawEventCard(g);
+  else {
+    const title = jump
+      ? 'BAND JUMPING ' + (jump.home > mini.ivHomeTo ? '▲' : '▼')
+      : mini.ivSplit > 0.005
+        ? 'TWO BANDS. EITHER COUNTS.'
+        : 'FOLLOW THE MOVING BAND';
+    label(g, title, 225, 287, 21, jump ? '#ffe39a' : '#dce9cd', 'center');
+  }
+  panel(g, 135, 314, 180, 400, '#173747', '#82a9ad');
+  rr(g, 147, 327, 156, 374, 13, '#0b2839');
+  const y = ivGaugeTallY(mini.pressure);
+  rr(g, 148, y, 154, Math.max(1, 701 - y), 8, gradient(g, 146, y, 0, 701 - y, '#9fd7c0', '#4f9aa9'));
+  const bw = ivBandWidth();
+  for (const c of mini.ivCentres) {
+    rr(g, 120, ivGaugeTallY(c + bw / 2), 210, bw * 374, 5, '#c3eaaa77', '#d8efb7', 2);
+    line(g, [[128, ivGaugeTallY(c)], [322, ivGaugeTallY(c)]], '#f4e6ad88', 1.5);
+  }
+  if (jump) ivDrawJumpWarning(g, jump);
+  line(g, [[333, y], [355, y]], '#ffda8c', 3);
+  label(g, Math.round(mini.pressure * 100) + '%', 361, y + 7, 20, '#ffe1a3');
+  // Level 1 hint rides with the pressure marker: which way to go.
+  if (!mini.tier && mini.screen === 'play') {
+    const c = ivNearestCentre();
+    if (mini.pressure < c - bw / 2) label(g, '▲ HOLD', 361, y + 29, 15, '#fff1b8');
+    if (mini.pressure > c + bw / 2) label(g, '▼ LET GO', 361, y + 29, 15, '#fff1b8');
+  }
+  label(g, mini.stable.toFixed(1) + ' / ' + mini.need + 's', 22, 746, 24, '#ffe0a1');
+  label(g, 'TIME IN THE BAND', 22, 764, 11, '#a8d1c3');
+  if (mini.ivMult > 1) label(g, 'DEAD CENTER ×' + mini.ivMult, 428, 746, 16, '#ffe39a', 'right');
+  else label(g, 'Momentum ' + (mini.velocity > 0 ? '↑' : '↓'), 428, 746, 15, '#c4e0d4', 'right');
+  const goingUp = mini.held !== mini.ivInverted;
+  const status = (mini.held ? 'HOLDING' : 'LET GO') + (goingUp ? ' ↑ PUMPING' : ' ↓ RELEASING');
+  label(g, status, 428, 764, 12, '#d3e5c5', 'right');
+  rr(g, 22, 778, 406, 10, 5, '#234959');
+  rr(g, 22, 778, 406 * Math.min(1, mini.stable / mini.need), 10, 5, '#bde5b5');
+  if (mini.ivInverted) {
+    const pulse = 0.14 + Math.sin(mini.t * 10) * 0.05;
+    rect(g, 0, 0, 450, 800, 'rgba(150,70,220,' + pulse + ')');
+    rr(g, 6, 6, 438, 788, 18, null, '#d9a6ff', 5);
   }
 }
 
@@ -1743,32 +2061,40 @@ function ivDrawTapScene(g) {
   if (L.patterns.length === 1 && mini.screen !== 'outro') ivTapHint(g, 85, 335, 630);
 }
 
-// The sweep bar with every window of the current pass.
-function ivDrawSweepBar(g, x, y, w) {
+// The sweep bar with every window of the current pass. Landscape draws it 37 tall; portrait passes a
+// taller h, and b scales the marks around it (b is 1 at h 37, so the landscape bar is unchanged).
+function ivDrawSweepBar(g, x, y, w, h = 37) {
   const s = mini.ivSweep;
   const band = ivBand();
-  rr(g, x, y, w, 37, 16, '#0c2c3b', '#6c969a', 1);
+  const b = Math.min(1.5, h / 37);
+  rr(g, x, y, w, h, 16 * Math.min(1.25, b), '#0c2c3b', '#6c969a', 1);
+  // The tall bar lights up the next live window so the target reads at a glance.
+  const next = h > 37 ? s.wins.find(v => !v.decoy && v.hits < v.need) : null;
+  if (next) glow(g, x + next.pos * w, y + h / 2, 70, '#a8f0c440');
   for (const win of s.wins) {
     const half = (win.decoy ? mini.band : band) / 2;
     const wx = x + (win.pos - half) * w;
     const ww = half * 2 * w;
     if (win.decoy) {
-      rr(g, wx, y + 2, ww, 33, 6, win.hitDecoy ? '#7d2a3a' : '#e2687a', '#ffb3bd', 1);
-      line(g, [[wx + ww / 2 - 6, y + 12], [wx + ww / 2 + 6, y + 24]], '#fff1f1', 3);
-      line(g, [[wx + ww / 2 + 6, y + 12], [wx + ww / 2 - 6, y + 24]], '#fff1f1', 3);
+      const cx = wx + ww / 2;
+      const cy = y + 18 * (h / 37);
+      const r = 6 * b;
+      rr(g, wx, y + 2, ww, h - 4, 6, win.hitDecoy ? '#7d2a3a' : '#e2687a', '#ffb3bd', 1);
+      line(g, [[cx - r, cy - r], [cx + r, cy + r]], '#fff1f1', 3 * b);
+      line(g, [[cx + r, cy - r], [cx - r, cy + r]], '#fff1f1', 3 * b);
       continue;
     }
     if (win.hits >= win.need) {
-      rr(g, wx, y + 2, ww, 33, 6, '#d8f5c766');
-      label(g, '✓', x + win.pos * w, y + 25, 15, '#e9ffd8', 'center');
+      rr(g, wx, y + 2, ww, h - 4, 6, '#d8f5c766');
+      label(g, '✓', x + win.pos * w, y + h / 2 + 6.5 * b, 15 * b, '#e9ffd8', 'center');
       continue;
     }
-    rr(g, wx, y + 2, ww, 33, 6, '#96ceac');
-    rr(g, x + (win.pos - band * 0.14) * w, y + 2, band * 0.28 * w, 33, 3, '#f4e6ad');
+    rr(g, wx, y + 2, ww, h - 4, 6, '#96ceac');
+    rr(g, x + (win.pos - band * 0.14) * w, y + 2, band * 0.28 * w, h - 4, 3, '#f4e6ad');
     if (win.need > 1) {
-      label(g, '×2', x + win.pos * w, y - 9, 13, '#f4e6ad', 'center');
+      label(g, '×2', x + win.pos * w, y - 9 * b, 13 * b, '#f4e6ad', 'center');
       for (let i = 0; i < win.need; i++)
-        ellipse(g, x + win.pos * w - 5 + i * 10, y + 44, 3, 3, i < win.hits ? '#f4e6ad' : '#466f77');
+        ellipse(g, x + win.pos * w - 5 * b + i * 10 * b, y + h + 7 * b, 3 * b, 3 * b, i < win.hits ? '#f4e6ad' : '#466f77');
     }
   }
   // Sliding windows show which way they are heading. One about to turn around flickers first.
@@ -1781,13 +2107,13 @@ function ivDrawSweepBar(g, x, y, w) {
       const hot = Math.sin(mini.t * 40) > 0 ? '#ff9a6a' : '#fff1b8';
       const col = turning ? hot : win.decoy ? '#ffb3bd' : '#c8f0d4';
       for (const k of [0, 1]) {
-        const ax = cx + dir * (k * 9 - 4);
+        const ax = cx + dir * (k * 9 - 4) * b;
         poly(
           g,
           [
-            [ax - dir * 4, y + 49],
-            [ax + dir * 4, y + 54],
-            [ax - dir * 4, y + 59]
+            [ax - dir * 4 * b, y + h + 12 * b],
+            [ax + dir * 4 * b, y + h + 17 * b],
+            [ax - dir * 4 * b, y + h + 22 * b]
           ],
           col
         );
@@ -1798,33 +2124,34 @@ function ivDrawSweepBar(g, x, y, w) {
     const bx = x + s.bounce * w;
     const near = Math.abs(mini.pos - s.bounce) < 0.15;
     const blink = near ? Math.sin(mini.phaseTime * 30) > 0 : true;
-    for (let yy = y - 8; yy < y + 44; yy += 8) line(g, [[bx, yy], [bx, yy + 4]], '#ff9a6a', 2);
+    for (let yy = y - 8; yy < y + h + 7; yy += 8) line(g, [[bx, yy], [bx, yy + 4]], '#ff9a6a', 2 * b);
     if (blink) {
-      rr(g, bx - 14, y - 30, 28, 18, 5, '#ff8a5c', '#ffe1c9', 1);
-      label(g, '↩', bx, y - 16, 14, '#3a1420', 'center');
+      rr(g, bx - 14 * b, y - 30 * b, 28 * b, 18 * b, 5, '#ff8a5c', '#ffe1c9', 1);
+      label(g, '↩', bx, y - 16 * b, 14 * b, '#3a1420', 'center');
     }
   }
   const mx = x + mini.pos * w;
-  line(g, [[mx, y - 5], [mx, y + 43]], mini.ivFumble > 0 ? '#ff9aa8' : '#ffe0a1', 4);
-  ellipse(g, mx, y - 5, 5, 5, mini.ivFumble > 0 ? '#ff9aa8' : '#ffe0a1');
+  const thick = Math.min(1.4, b);
+  line(g, [[mx, y - 5], [mx, y + h + 6]], mini.ivFumble > 0 ? '#ff9aa8' : '#ffe0a1', 4 * thick);
+  ellipse(g, mx, y - 5, 5 * thick, 5 * thick, mini.ivFumble > 0 ? '#ff9aa8' : '#ffe0a1');
 }
 
-// Level 1 only: point at the window and shout when it is time.
-function ivTapHint(g, x, y, w) {
+// Level 1 only: point at the window and shout when it is time. Portrait passes a bigger s.
+function ivTapHint(g, x, y, w, s = 1) {
   const win = mini.ivSweep.wins.find(v => !v.decoy && v.hits < v.need);
   if (!win) return;
   const wx = x + win.pos * w;
   const inside = Math.abs(mini.pos - win.pos) <= ivBand() / 2;
-  const bob = Math.sin(mini.t * 6) * 3;
-  if (inside) ivShout(g, 'NOW!', wx, y - 26, 22, '#fff1b8', '#29434d');
+  const bob = Math.sin(mini.t * 6) * 3 * s;
+  if (inside) ivShout(g, 'NOW!', wx, y - 26 * s, 22 * s, '#fff1b8', '#29434d');
   else {
-    label(g, 'TAP HERE', wx, y - 22 + bob, 12, '#fff1b8', 'center');
+    label(g, 'TAP HERE', wx, y - 22 * s + bob, 12 * s, '#fff1b8', 'center');
     poly(
       g,
       [
-        [wx - 6, y - 15 + bob],
-        [wx + 6, y - 15 + bob],
-        [wx, y - 7 + bob]
+        [wx - 6 * s, y - 15 * s + bob],
+        [wx + 6 * s, y - 15 * s + bob],
+        [wx, y - 7 * s + bob]
       ],
       '#fff1b8'
     );
@@ -2024,20 +2351,29 @@ function ivDrawJumpWarning(g, jump) {
   const c = clamp(jump.home + Math.sin(mini.ivWanderPhase) * mini.ivWanderAmp, 0.16, 0.84);
   const w = jump.width * slim;
   const blink = Math.sin(mini.t * 26) > -0.3;
-  if (blink) rr(g, 308, 351 - (c + w / 2) * 246, 185, w * 246, 5, '#ffe39a22', '#ffe39a', 2);
-  const y0 = 351 - mini.pressureTarget * 246;
-  const y1 = 351 - c * 246;
+  // Gauge geometry: the tall portrait gauge or the landscape one.
+  const tall = mini.portrait;
+  const gy = p => (tall ? ivGaugeTallY(p) : 351 - p * 246);
+  const span = tall ? 374 : 246;
+  const bandX = tall ? 120 : 308;
+  const bandW = tall ? 210 : 185;
+  const ax = tall ? 106 : 296;
+  if (blink) rr(g, bandX, gy(c + w / 2), bandW, w * span, 5, '#ffe39a22', '#ffe39a', 2);
+  const y0 = gy(mini.pressureTarget);
+  const y1 = gy(c);
   const dir = y1 < y0 ? -1 : 1;
-  line(g, [[296, y0], [296, y1 - dir * 10]], '#ffe39a', 4);
+  line(g, [[ax, y0], [ax, y1 - dir * 10]], '#ffe39a', 4);
   poly(
     g,
     [
-      [287, y1 - dir * 12],
-      [305, y1 - dir * 12],
-      [296, y1]
+      [ax - 9, y1 - dir * 12],
+      [ax + 9, y1 - dir * 12],
+      [ax, y1]
     ],
     '#ffe39a'
   );
+  // Portrait has room beside the gauge to say it out loud.
+  if (tall) label(g, 'JUMP ' + (dir < 0 ? '▲' : '▼'), ax - 14, y1 + 5, 14, '#ffe39a', 'right');
 }
 
 function ivDrawEventCard(g) {
@@ -2073,6 +2409,13 @@ function ivDrawEventCard(g) {
     sub = 'hold = down · let go = up';
     col = '#5d2e8a';
   }
+  // Portrait: a wide callout above the gauge, in the title's slot.
+  if (mini.portrait) {
+    rr(g, 30, 250, 390, 56, 14, col, '#f1e2b9aa', 1.5);
+    ivFitLabel(g, title, 225, 274, 18, '#fff0cf', 370);
+    ivFitLabel(g, sub, 225, 296, 13, '#f1dccb', 370);
+    return;
+  }
   rr(g, 604, 238, 174, 64, 13, col, '#f1e2b9aa', 1.5);
   label(g, title, 691, 266, 15, '#fff0cf', 'center');
   label(g, sub, 691, 287, 12, '#f1dccb', 'center');
@@ -2082,8 +2425,54 @@ function ivDrawEventCard(g) {
 
 const IV_BEEPS = [0.3, 0.62, 0.88, 1.08, 1.24, 1.37, 1.47, 1.55, 1.61];
 
+// Where the explosion's pieces sit. Landscape is the original wide shot. Portrait is its own upright
+// composition, nothing cropped or stretched: the shout up top, the monitor on the wall, Macy and her bed
+// big at the bottom, and a taller burst. Points are [x, y]; a third number is a scale.
+function ivBoomStage() {
+  if (!mini.portrait)
+    return {
+      w: 800,
+      h: 450,
+      floor: 404,
+      tile: 50,
+      alarm: [400, 70, 360],
+      wall: [60, 680, 50, 300],
+      stand: [170, 440, 2.1],
+      bed: [400, 445, 2.3],
+      monitor: [650, 290, 1.9],
+      face: [400, 200, 1],
+      smoke: [380, 300, 1],
+      bubble: [545, 150],
+      shout: [400, 62, 1],
+      swell: [400, 210],
+      burst: [400, 220, 250, 1],
+      fly: 1,
+      word: [400, 210, 86]
+    };
+  return {
+    w: 450,
+    h: 800,
+    floor: 640,
+    tile: 45,
+    alarm: [225, 110, 340],
+    wall: [40, 370, 70, 520],
+    stand: [62, 688, 1.7],
+    bed: [225, 690, 1.8],
+    monitor: [330, 330, 1.6],
+    face: [225, 498, 0.78],
+    smoke: [209, 577, 0.78],
+    bubble: [305, 395],
+    shout: [225, 130, 1.2],
+    swell: [225, 480],
+    burst: [225, 470, 195, 1.5],
+    fly: 0.75,
+    word: [225, 470, 58]
+  };
+}
+
 function ivDrawBoom(g) {
   const t = mini.transition || 0;
+  const st = ivBoomStage();
   // Warning beeps quicken; the bang itself plays once.
   while (mini.ivBoomBeep < IV_BEEPS.length && t >= IV_BEEPS[mini.ivBoomBeep]) {
     sfx('countdown');
@@ -2102,19 +2491,22 @@ function ivDrawBoom(g) {
   const sy = Math.cos(t * 91) * amp * 0.6;
   // A short crossfade from the phase that was playing.
   if (t < 0.25) {
-    miniBackdrop(g, '#295d65', '#6ad6aa3d', IV.info.game.toUpperCase());
-    drawIVMini(g);
+    if (mini.portrait) ivDrawPlay(g);
+    else {
+      miniBackdrop(g, '#295d65', '#6ad6aa3d', IV.info.game.toUpperCase());
+      drawIVMini(g);
+    }
   }
   g.save();
   g.globalAlpha = clamp(t / 0.25, 0, 1);
   g.translate(sx, sy);
-  ivBoomRoom(g, t, inflate, post);
+  ivBoomRoom(g, t, inflate, post, st);
   g.restore();
   if (!post) {
     const bubble = t < 0.75 ? 'mmf?' : t < 1.25 ? 'MMMF!' : 'MMMMMFFF!!';
     if (t > 0.3) {
-      const bx = 545 + sx;
-      const by = 150 + sy;
+      const bx = st.bubble[0] + sx;
+      const by = st.bubble[1] + sy;
       const bw = t < 0.75 ? 120 : t < 1.25 ? 150 : 200;
       rr(g, bx - bw / 2, by - 28, bw, 40, 16, '#fff6e4', IV_INK, 2.5);
       poly(
@@ -2128,33 +2520,42 @@ function ivDrawBoom(g) {
       );
       ivShout(g, bubble, bx, by - 8, t < 1.25 ? 20 : 22, '#d23b5a', '#fff6e4');
     }
-    if (t > 0.9) ivShout(g, t < 1.35 ? 'UH OH.' : 'STAND BACK!', 400, 62, t < 1.35 ? 34 : 42, '#ffe066', IV_INK, -0.04);
+    if (t > 0.9) {
+      const [hx, hy, hs] = st.shout;
+      const words = t < 1.35 ? 'UH OH.' : 'STAND BACK!';
+      ivShout(g, words, hx, hy, (t < 1.35 ? 34 : 42) * hs, '#ffe066', IV_INK, -0.04);
+    }
     // A pink glow swells just before the pop.
     if (t > 1.5) {
       const a = clamp((t - 1.5) * 5, 0, 0.9);
-      glow(g, 400 + sx, 210 + sy, 60 + (t - 1.5) * 900, 'rgba(255,190,210,' + a + ')');
+      glow(g, st.swell[0] + sx, st.swell[1] + sy, 60 + (t - 1.5) * 900, 'rgba(255,190,210,' + a + ')');
     }
     return;
   }
-  ivBoomBurst(g, t);
+  ivBoomBurst(g, t, st);
   const flash = clamp(1 - (t - 1.68) / 0.28, 0, 1) * (reduced ? 0.6 : 1);
-  if (flash > 0) rect(g, 0, 0, 800, 450, 'rgba(255,255,255,' + flash + ')');
+  if (flash > 0) rect(g, 0, 0, st.w, st.h, 'rgba(255,255,255,' + flash + ')');
 }
 
 // The close-up: bed, Macy inflating, monitor climbing. After the bang: scorched and empty.
-function ivBoomRoom(g, t, inflate, post) {
-  rect(g, 0, 0, 800, 450, gradient(g, 0, 0, 0, 450, post ? '#3d4a55' : '#2f6a70', post ? '#1c2230' : '#173447'));
+function ivBoomRoom(g, t, inflate, post, st = ivBoomStage()) {
+  const { w, h } = st;
+  rect(g, 0, 0, w, h, gradient(g, 0, 0, 0, h, post ? '#3d4a55' : '#2f6a70', post ? '#1c2230' : '#173447'));
   const alarm = !post && t > 0.85 && Math.sin(t * 22) > 0;
-  glow(g, 400, 70, 360, alarm ? 'rgba(255,70,100,0.35)' : 'rgba(120,220,200,0.12)');
-  rect(g, 0, 404, 800, 46, post ? '#252b33' : '#2e5459');
-  for (let x = 0; x < 800; x += 50) rect(g, x, 404, 1, 46, '#ffffff12');
+  glow(g, st.alarm[0], st.alarm[1], st.alarm[2], alarm ? 'rgba(255,70,100,0.35)' : 'rgba(120,220,200,0.12)');
+  rect(g, 0, st.floor, w, h - st.floor, post ? '#252b33' : '#2e5459');
+  for (let x = 0; x < w; x += st.tile) rect(g, x, st.floor, 1, h - st.floor, '#ffffff12');
+  const [standX, standY, standS] = st.stand;
+  const [bedX, bedY, bedS] = st.bed;
+  const [monX, monY, monS] = st.monitor;
   if (post) {
     // Instant cartoon wallpaper.
+    const [wx, wxSpan, wy, wySpan] = st.wall;
     for (let i = 0; i < 14; i++) {
       // The wallpaper changes with every explosion, so a second viewing does not look like the first.
       const seed = ivBoomCount * 17;
-      const x = 60 + ivHash(i + seed) * 680;
-      const y = 50 + ivHash(i + seed + 40) * 300;
+      const x = wx + ivHash(i + seed) * wxSpan;
+      const y = wy + ivHash(i + seed + 40) * wySpan;
       const r = 14 + ivHash(i + seed + 80) * 26;
       ellipse(g, x, y, r * 1.1, r * 0.9, '#a3183a');
       ellipse(g, x, y, r, r * 0.8, '#d6304f');
@@ -2163,47 +2564,54 @@ function ivBoomRoom(g, t, inflate, post) {
         ellipse(g, x + Math.cos(a) * r * 1.5, y + Math.sin(a) * r * 1.2, r * 0.22, r * 0.22, '#d6304f');
       }
     }
-    ivStand(g, 170, 440, 2.1);
-    ivScorchedBed(g, 400, 445, 2.3, 1);
+    ivStand(g, standX, standY, standS);
+    ivScorchedBed(g, bedX, bedY, bedS, 1);
+    const [mx, my, mk] = st.smoke;
     for (let i = 0; i < 5; i++) {
       const u = clamp((t - 1.68) / 0.5, 0, 1);
-      glow(g, 380 + i * 12, 300 - u * 120 - i * 18, 50 + u * 60, 'rgba(60,50,60,' + (0.5 - u * 0.3) + ')');
+      glow(g, mx + i * 12 * mk, my - (u * 120 + i * 18) * mk, (50 + u * 60) * mk, 'rgba(60,50,60,' + (0.5 - u * 0.3) + ')');
     }
-    ivMonitor(g, 650, 290, 1.9, { flat: true, alarm: true, text: '--' });
+    ivMonitor(g, monX, monY, monS, { flat: true, alarm: true, text: '--' });
     return;
   }
-  ivStand(g, 170, 440, 2.1);
-  ivMonitor(g, 650, 290, 1.9, {
+  ivStand(g, standX, standY, standS);
+  ivMonitor(g, monX, monY, monS, {
     bpm: 88 + inflate * inflate * 212,
     t: t * (1 + inflate * 3),
     alarm: t > 0.85,
     text: t > 1.45 ? '!!!' : String(Math.round(88 + inflate * inflate * 212))
   });
   // Steam from the ears once she is properly cooking.
+  const [fx, fy, fk] = st.face;
   if (inflate > 0.5)
     for (let i = 0; i < 2; i++) {
       const side = i ? 1 : -1;
       const u = (t * 2.4 + i * 0.5) % 1;
       const steam = 'rgba(255,255,255,' + (0.6 - u * 0.6) + ')';
-      ellipse(g, 400 + side * (60 + u * 30), 200 - u * 50, 8 + u * 10, 6 + u * 8, steam);
+      ellipse(g, fx + side * (60 + u * 30) * fk, fy - u * 50 * fk, (8 + u * 10) * fk, (6 + u * 8) * fk, steam);
     }
-  ivPatient(g, 400, 445, 2.3, { mood: 'sick', puff: inflate, green: inflate, t });
+  ivPatient(g, bedX, bedY, bedS, { mood: 'sick', puff: inflate, green: inflate, t });
   // Sweat drops fly off.
   if (inflate > 0.3)
     for (let i = 0; i < 3; i++) {
       const u = (t * 1.8 + i * 0.33) % 1;
       const side = i % 2 ? 1 : -1;
-      ellipse(g, 400 + side * (50 + u * 60), 190 - Math.sin(u * Math.PI) * 30, 3, 4.5, '#bfe8ff');
+      const dx = side * (50 + u * 60) * fk;
+      const dy = (10 + Math.sin(u * Math.PI) * 30) * fk;
+      ellipse(g, fx + dx, fy - dy, 3 * fk, 4.5 * fk, '#bfe8ff');
     }
 }
 
-function ivBoomBurst(g, t) {
+function ivBoomBurst(g, t, st = ivBoomStage()) {
   const u = clamp((t - 1.7) / 0.2, 0, 1);
-  const r = 250 * ivBackOut(u) * (1 + Math.sin(t * 18) * 0.015);
+  const [cx, cy, size, tall] = st.burst;
+  const r = size * ivBackOut(u) * (1 + Math.sin(t * 18) * 0.015);
   if (u <= 0) return;
   g.save();
-  g.translate(400, 220);
+  g.translate(cx, cy);
   g.rotate(-0.06 + Math.sin(t * 4) * 0.02);
+  // Portrait stretches the star upright to fill the tall canvas; landscape keeps it as drawn.
+  if (tall !== 1) g.scale(1, tall);
   ivBurstShape(g, r, 15, 3, '#ffe14d', IV_INK, 7);
   ivBurstShape(g, r * 0.7, 13, 9, '#ff8a3d', null, 0);
   ivBurstShape(g, r * 0.42, 11, 21, '#fff3b0', null, 0);
@@ -2212,14 +2620,15 @@ function ivBoomBurst(g, t) {
   const v = t - 1.68;
   for (let i = 0; i < 28; i++) {
     const a = (i / 28) * Math.PI * 2 + ivHash(i) * 0.4;
-    const speed = 320 + ivHash(i + 50) * 480;
-    const x = 400 + Math.cos(a) * speed * v;
-    const y = 220 + Math.sin(a) * speed * v * 0.8 + 420 * v * v;
+    const speed = (320 + ivHash(i + 50) * 480) * st.fly;
+    const x = cx + Math.cos(a) * speed * v;
+    const y = cy + Math.sin(a) * speed * v * 0.8 + 420 * v * v;
     const s = 0.55 + ivHash(i + 9) * 0.6;
     ivAt(g, x, y, v * (ivHash(i + 3) - 0.5) * 22, s, s, () => ivChunk(g, i % 6));
   }
   const w = clamp((t - 1.74) / 0.18, 0, 1);
-  if (w > 0) ivShout(g, mini.ivWord || 'SPLORT!', 400, 210, 86 * ivBackOut(w), '#ff3d6e', IV_INK, -0.09);
+  const [wx, wy, wsize] = st.word;
+  if (w > 0) ivShout(g, mini.ivWord || 'SPLORT!', wx, wy, wsize * ivBackOut(w), '#ff3d6e', IV_INK, -0.09);
 }
 
 function ivBurstShape(g, r, n, seed, fill, stroke, lw) {
