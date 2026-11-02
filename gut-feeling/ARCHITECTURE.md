@@ -15,12 +15,12 @@ At load time a file may only use names from earlier files (each game calls `regi
 | `state.js` | Helpers (`$`, `clamp`, `rand`, `dist`, `pick`), `rooms` (name, sub, theme, station), difficulties, tiers, save/load, `state`, `player`, ward globals, `mini`, `gore`, the game registry |
 | `art.js` | Drawing primitives, Macy and gremlins, furniture, `roomProps`, cached `roomBg`, shared arcade art (`panel`, `glow`, `drawTimingBar`, `miniBed`, `miniBackdrop`, `arcadeBackdrop`, `softball`, `nutrient`, `vomitArt`) |
 | `audio.js` | `tone()`, `sfx()`, `music()`, `audio` |
-| `world.js` | Ward HUD, rooms, movement, pickups, effects, `drawWorld`, map, department cards, frame loop and canvas sizing |
+| `world.js` | Ward HUD, rooms, movement, tap-the-room touch control, weapon-change flash, pickups, effects, `drawWorld`, map, department cards, frame loop and canvas sizing |
 | `combat.js` | Weapons, gremlin breeds, waves, attacks, jumping, damage, `drawEnemy` |
-| `minigames.js` | Arcade framework: lobby, run lifecycle, HUD, assists, scoring, rewards, results, `drawMini`, pointer plumbing, shared gesture-game helpers |
-| `transitions.js` | Briefing, countdown, finish, `lesson()` dispatch, wide-canvas countdown card |
+| `minigames.js` | Arcade framework: lobby, run lifecycle, canvas shape (`activeCanvas`, portrait flips), HUD, instruction toast, assists, scoring, rewards, results, `drawMini`, pointer plumbing, shared gesture-game helpers |
+| `transitions.js` | Briefing, countdown, finish, `lesson()` dispatch, countdown card for games with their own overlay (`paintTransition`, sized to the active canvas) |
 | `games/*.js` | One arcade each: rules, state, art, copy, controls |
-| `input.js` | DOM events, shop, difficulty, keyboard, startup |
+| `input.js` | DOM events, press-to-act buttons, tap-the-room canvas wiring, control scheme setting, shop, difficulty, keyboard, startup |
 
 ## Game registry
 
@@ -30,6 +30,7 @@ Each game file calls `const NAME = registerGame({...})`. Hooks are called as `de
 | --- | --- |
 | `id` | Room and arcade index, 0–5. Room data lives in `rooms[id]`. |
 | `canvas: {w, h}` | Arcade canvas size. IV is 800 × 450; gesture games are 600 × 600. |
+| `portraitCanvas: {w, h}` | Optional, taller than wide. Used instead of `canvas` while `mini.portrait` is true: the dialog is open on a screen taller than wide. It can flip mid-run when the phone turns (`resize()` re-checks and re-sizes `#miniCanvas`), so read `activeCanvas()` or `mini.portrait` whenever you lay out or draw; never cache the size from `init`. |
 | `layout` | `'iv'` or `'gesture'`; becomes `miniDialog.dataset.arcade` for CSS layout. |
 | `info` | `{game, genre, headline, desc}` for map, cards and lobby, plus `{goal, control, avoid, cue}` for gesture-game briefings. |
 | `tierNotes` | Three lobby strings, one per level. |
@@ -40,12 +41,12 @@ Each game file calls `const NAME = registerGame({...})`. Hooks are called as `de
 | `init()` | `startMini()`, right after `mini` is reset for a new run. Gesture games call `initArcadeRun(limit)` first. | required |
 | `controls()` | Right after `init()`. Call it again yourself whenever button labels change. Uses `setControls([{id, text, key?, hot?}])`. | none |
 | `update(dt)` | Every simulation step while `screen === 'play'` and not paused. `dt` ≤ 1/120 s. Clocks (`t`, `total`, `phaseTime`) and `flash`/`inputLock`/`helpTime` are already advanced. Gesture games call `updateArcade(dt, step)`. | required |
-| `draw(g)` | Every frame in briefing, intro, play and outro, after the canvas is cleared to `canvas.w × h`. | required |
+| `draw(g)` | Every frame in briefing, intro, play and outro, after the canvas is cleared to `activeCanvas()`. | required |
 | `overlay(g)` | After `draw`. Replaces `drawArcadeOverlays` (particles, shift banner, flash banner, countdown card). | shared overlays |
 | `action(a)` | `miniAction(a)` during unpaused play: control buttons (`data-action`), keys, swipes. `'assist'` never arrives here. | none |
 | `assist()` | After the framework spends an assist (`helps--`, `helpUsed++`, `quality -= 5`, `combo = 0`). Apply the effect and set `mini.flash`/`flashText`. The HUD refreshes after. | required |
 | `key(k, e)` | Keydown during unpaused play, except Escape (pause) and E (assist). `k` is lowercase `e.key`. Return true if handled. | none |
-| `down(p)`, `move(p, prev)`, `up(cancel)` | Canvas pointer in canvas coordinates. `mini.pointer` is set before `down` and cleared after `up`. `up(true)` means lost or interrupted: never act on it. A game with none of the three ignores canvas presses. | none |
+| `down(p)`, `move(p, prev)`, `up(cancel)` | Canvas pointer in active-canvas coordinates (`miniPoint` maps letterboxing and portrait canvases). `mini.pointer` is set before `down` and cleared after `up`. `up(true)` means lost or interrupted: never act on it. A game with none of the three ignores canvas presses. | none |
 | `lesson()` | Each briefing. Returns `{title, goal, control, avoid, demo, cue}`; `demo` is a `.control-demo` CSS class. | required |
 | `statLabel()`, `stat()`, `tactics()`, `assistText()` | Every HUD refresh (about 12 per second) and on screen changes. `assistText` is the whole assist button label. | required |
 | `livesLabel()`, `lives()` | HUD refresh. | `'OOPS ALLOWANCE'`, hearts left |
@@ -58,7 +59,9 @@ Each game file calls `const NAME = registerGame({...})`. Hooks are called as `de
 | `shiftMessage(shift)` | When the shift rises; returned text replaces the instruction line. | none |
 | `timeUp()` | Inside `updateArcade` once `phaseTime >= limit`. Must call `finishMini`. | `arcadeTimeUp()`: win if `got >= goal` |
 
-Framework helpers for games: `praise(points, precision)`, `miniOops(message, amount)`, `finishMini(win, reason)`, `setInstructions(text)`, `setControls(buttons)`, `prepareBriefing()` (a paused briefing between phases, as IV does), `initArcadeRun(limit)`, `updateArcade(dt, step)`, `arcadeBurst(x, y, color, n)`, `arcadeQuality(penalty)`, `arcadeTimeUp()`, `ARCADE_QUOTA_MISSED`.
+Framework helpers for games: `activeCanvas()` (the `{w, h}` the run draws at right now), `praise(points, precision)`, `miniOops(message, amount)`, `finishMini(win, reason)`, `setInstructions(text)`, `setControls(buttons)`, `prepareBriefing()` (a paused briefing between phases, as IV does), `initArcadeRun(limit)`, `updateArcade(dt, step)`, `arcadeBurst(x, y, color, n)`, `arcadeQuality(penalty)`, `arcadeTimeUp()`, `ARCADE_QUOTA_MISSED`.
+
+Arcade mode (fullscreen, and every phone and tablet) is canvas-first. The canvas gets every pixel the controls leave at its aspect ratio. The HUD is three translucent pills on its top edge (progress, time, lives): above the canvas when there is room, over its top 44 px when there is not (landscape phones, and portrait canvases that fill the height), with pause and close sharing the right end of that row in portrait. Keep must-read art out of the top corners. The instruction line is a toast under the pills through the countdown, for the first 3 seconds of play, and again whenever `setInstructions` changes it. Controls are one row under the canvas in portrait and a column on the right in landscape (two across from five buttons); every control acts on pointerdown. `#miniDialog` carries `data-portrait="1"` and the CSS variable `--mini-a` (width / height of the active canvas) for the layout.
 
 ## The `mini` run object
 
@@ -66,6 +69,7 @@ Framework helpers for games: `praise(points, precision)`, `miniOops(message, amo
 
 Framework-owned (read freely, do not repurpose):
 - Lifecycle: `open`, `screen` (`lobby`, `briefing`, `intro`, `play`, `outro`, `result`), `id`, `tier`, `forced` (mandatory IV recovery), `approach`, `initialized`, `paused`, `countdown`, `transition`, `demoTime`, `pendingFinish`.
+- Screen: `portrait` (the run is on its `portraitCanvas`; set before `init`, re-checked on every resize), `tipT` and `tipShown` (the instruction toast clock).
 - Rules and clocks: `rules` (difficulty plus `misses` and `coins`), `t`, `total`, `phaseTime`, `hudClock`, `inputLock`, `helpTime`.
 - Scoring: `miss`, `quality`, `score`, `combo`, `maxCombo`, `precisions`, `helps`, `helpUsed`, `win`, `grade`, `qualityFinal`, `reward`, `resultT`.
 - Input: `pointer` (`x`, `y`, `startX`, `startY`, `lastX`, `lastY`, `startT`, `stroke`), `held` (HOLD button or a key a game marks held), `fireHeld` (FIRE button). Space keyup and every pause or dialog clear both.
@@ -83,13 +87,14 @@ Game-owned: `limit` (set it in `init`; the HUD clock and default `timeUp` use it
 
 ## Saved state
 
-`save()` persists: `hp coins name difficulty food medals records taken defeated upgrades cosmetics won wardClears evictions bestChain coinsEarned runs ralphReady ralph sound played briefed arcade daily`. Notes:
+`save()` persists: `hp coins name difficulty food medals records taken defeated upgrades cosmetics won wardClears evictions bestChain coinsEarned runs ralphReady ralph sound played briefed arcade controls daily`. Notes:
 
 - `wardClears[room]` is the grudge level; `wardLocked(id)` (combat.js) is true until the first clear. Rooms 0 and 5 have no combat.
 - `ralphReady` is set by `checkDischarge()` when the passport is complete; combat spawns Ralph in room 0 and sets `ralph` on defeat, then calls `checkDischarge()` again for the win dialog.
 - `briefed` holds `"<id>:<phase>"` keys; a game's full briefing shows once, then a 1.2 s GO card. Countdown is 1.5 s (3.2 s under reduced motion).
 - `daily` holds the Daily Dose record (date, best, streak, paid). During a daily run `mini.daily` is true and a date-seeded RNG replaces `Math.random` around the game hooks (`dailyScoped`).
-- `arcade` remembers fullscreen ("arcade mode", `body.arcade`), which phones enter on first start.
+- `arcade` remembers fullscreen ("arcade mode", `body.arcade`), which phones and tablets enter on first start.
+- `controls` is the touch scheme: `'tap'` (the room is the controller, default) or `'stick'` (joystick and the full button column). `body.tap-controls` / `body.stick-controls` follow it.
 - `cosmetics.worn` feeds `macyLook()` for `girl()`.
 
 ## Parallel work rules
@@ -113,11 +118,11 @@ node gut-feeling/tests/smoke.cjs        # one file (build first)
 
 | File | Covers | Owner |
 | --- | --- | --- |
-| `verify.cjs` | Saves, nutrients, run lifecycle, idle failure for all 54 combinations, frame-rate independence, discharge | framework |
+| `verify.cjs` | Saves, nutrients, run lifecycle, idle failure for all 54 combinations, frame-rate independence, discharge, press-to-act buttons (JUMP with the joystick held), weapon strip, EAT, portrait canvases, the instruction toast, tap the room | framework |
 | `combat.cjs` | Ward rules, breeds, spawns, grudge, Ralph, and the masher-vs-kiter tuning check | combat |
 | `game-<name>.cjs` | That game's mechanics rules | that game |
 | `bots/<name>.cjs` | `{id, policy}`: input-only controller code run every play tick by `playthrough.cjs`, with a persistent `bot` object for its memory. It must win every tier and difficulty. | that game |
 | `playthrough.cjs` | Runs every bot through all 54 combinations | framework |
-| `smoke.cjs` | Registry shape; every game and room draws | framework |
+| `smoke.cjs` | Registry shape; every game and room draws; tall and wide ward views; games with a portrait canvas run on it | framework |
 
 When you change a game's rules, update its bot and its `game-<name>.cjs` in the same commit. Do not edit another owner's test file.

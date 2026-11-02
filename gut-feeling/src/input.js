@@ -232,13 +232,12 @@ function uiUnlockAudio() {
 
 // ---- Arcade mode (fullscreen) ----
 // body.arcade pins the cabinet to the screen and hides the page around it. The Fullscreen API is
-// used where it exists (desktop, Android); iPhone Safari has none for pages, so CSS does the work.
+// used where it exists (desktop, Android, iPad); iPhone Safari has none for pages, so CSS does the work.
 let arcadeFullscreen = false;
 
-function isPhone() {
-  const w = window.innerWidth || 1000,
-    h = window.innerHeight || 1000;
-  return matchMedia('(pointer: coarse)').matches && Math.min(w, h) <= 540;
+// Phones and tablets: a finger is the main pointer. They start in arcade mode.
+function isTouchScreen() {
+  return matchMedia('(pointer: coarse)').matches;
 }
 
 function fullscreenElement() {
@@ -348,29 +347,95 @@ $('miniDialog').addEventListener('cancel', e => {
   } else if (!mini.forced) leaveMini();
 });
 
+// ---- Press-to-act buttons ----
+// Game buttons act on pointerdown, not click. Phones never turn a tap into a click while another
+// finger is down (the thumb on the joystick), and a thumb that rolls a few pixels cancels the click
+// too: that is why JUMP needed smashing. The click that can follow a press is ignored; a click with
+// no press before it (Enter or Space on a focused button, assistive tech) still acts.
+const PRESS_CLICK_MS = 1500;
+
+// The element the latest handled press landed on. A press can change the screen (the beacon opens an
+// arcade, a tap ends a phase), and the click that follows must not land on whatever appeared under
+// the finger: until the next pointerdown, clicks only reach the pressed element.
+let pressTarget = null;
+
+document.addEventListener('pointerdown', () => (pressTarget = null), true);
+document.addEventListener(
+  'click',
+  e => {
+    if (!pressTarget || e.detail === 0 || Date.now() - pressTarget.pressedAt > PRESS_CLICK_MS) return;
+    if (pressTarget.contains(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+  },
+  true
+);
+
+// Starts a press on el. Returns false for buttons other than the primary one.
+function pressStart(el, e) {
+  if (e.button > 0) return false;
+  e.preventDefault();
+  try {
+    el.setPointerCapture(e.pointerId);
+  } catch {}
+  el.pressedAt = Date.now();
+  pressTarget = el;
+  return true;
+}
+
+// True for the click a pointer press already handled.
+function pressClick(el, e) {
+  return e.detail > 0 && Date.now() - (el.pressedAt || 0) < PRESS_CLICK_MS;
+}
+
+// Wires a ward button: it acts on press and shows .pressed until the finger lifts.
+function onPress(el, act) {
+  el.addEventListener('pointerdown', e => {
+    if (!pressStart(el, e)) return;
+    el.classList.add('pressed');
+    act(e);
+  });
+  el.addEventListener('click', e => {
+    if (!pressClick(el, e)) act(e);
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+    el.addEventListener(type, () => el.classList.remove('pressed'))
+  );
+}
+
 // ---- Arcade touch controls ----
-// HOLD / FIRE buttons stay pressed while the pointer is down; other buttons act on click.
+// Every button acts on press. HOLD and FIRE stay pressed until that pointer lifts. Games re-render
+// their buttons mid-press, so the press time lives on the row, not on the button.
 let miniHoldPointer = null;
 
 $('miniControls').addEventListener('pointerdown', e => {
-  let b = e.target.closest('[data-action]');
-  if (!b || !['hold', 'fire'].includes(b.dataset.action) || mini.screen !== 'play' || mini.paused) return;
-  e.preventDefault();
-  miniHoldPointer = e.pointerId;
-  b.setPointerCapture(e.pointerId);
-  if (b.dataset.action === 'fire') {
-    mini.fireHeld = true;
-    miniAction('fire');
-  } else mini.held = true;
+  const b = e.target.closest('[data-action]');
+  if (!b || !pressStart(b, e)) return;
+  $('miniControls').pressedAt = b.pressedAt;
   b.classList.add('active');
+  b.dataset.pointer = String(e.pointerId);
+  const a = b.dataset.action;
+  if (a === 'hold' || a === 'fire') {
+    if (mini.screen !== 'play' || mini.paused) return;
+    miniHoldPointer = e.pointerId;
+    if (a === 'fire') {
+      mini.fireHeld = true;
+      miniAction('fire');
+    } else mini.held = true;
+    return;
+  }
+  miniAction(a);
 });
 
 function releaseMiniHold(e) {
-  if (e && e.pointerId !== undefined && e.pointerId !== miniHoldPointer) return;
+  const id = e && e.pointerId !== undefined ? String(e.pointerId) : null;
+  $$('#miniControls .active').forEach(b => {
+    if (id === null || b.dataset.pointer === id) b.classList.remove('active');
+  });
+  if (id !== null && e.pointerId !== miniHoldPointer) return;
   mini.held = false;
   mini.fireHeld = false;
   miniHoldPointer = null;
-  $$('#miniControls .active').forEach(b => b.classList.remove('active'));
 }
 
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
@@ -378,9 +443,8 @@ function releaseMiniHold(e) {
 );
 
 $('miniControls').addEventListener('click', e => {
-  let b = e.target.closest('[data-action]');
-  if (!b) return;
-  if (b.dataset.action === 'hold') return;
+  const b = e.target.closest('[data-action]');
+  if (!b || b.dataset.action === 'hold' || pressClick($('miniControls'), e)) return;
   miniAction(b.dataset.action);
 });
 
@@ -449,14 +513,16 @@ joystick.addEventListener('pointermove', handleJoy);
   })
 );
 
-// Dragging the attack button aims; releasing it attacks.
+// The attack button hits on press and keeps hitting while held, like holding Space. Dragging it
+// aims the follow-up hits; letting go stops.
 $('attackBtn').addEventListener('pointerdown', e => {
-  if (attackPointer !== null) return;
-  e.preventDefault();
+  if (attackPointer !== null || !pressStart($('attackBtn'), e)) return;
   attackPointer = e.pointerId;
   attackOrigin = { x: e.clientX, y: e.clientY };
   wardAim = { dx: 0, dy: 0 };
-  e.currentTarget.setPointerCapture(e.pointerId);
+  heldAttack = true;
+  $('attackBtn').classList.add('pressed');
+  attack();
 });
 
 $('attackBtn').addEventListener('pointermove', e => {
@@ -467,7 +533,7 @@ $('attackBtn').addEventListener('pointermove', e => {
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
   $('attackBtn').addEventListener(type, e => {
     if (e.pointerId !== attackPointer) return;
-    if (type === 'pointerup') attack();
+    $('attackBtn').classList.remove('pressed');
     attackPointer = null;
     attackOrigin = null;
     wardAim = null;
@@ -476,10 +542,21 @@ $('attackBtn').addEventListener('pointermove', e => {
 );
 
 $('attackBtn').addEventListener('click', e => {
-  if (e.detail === 0) attack();
+  if (!pressClick($('attackBtn'), e)) attack();
 });
 
-$('jumpBtn').addEventListener('click', jump);
+onPress($('jumpBtn'), jump);
+onPress($('dashBtn'), dash);
+onPress($('useBtn'), useItem);
+onPress($('touchEat'), eat);
+
+// The weapon strip equips on press; the strip and the canvas both announce the change.
+[0, 1, 2].forEach(i =>
+  onPress($('wslot' + i), () => {
+    equip(i);
+    wardWeaponSync();
+  })
+);
 
 $('rematchBtn').addEventListener('click', () => {
   if (isModal() || state.room === 0 || !encounter.complete) return;
@@ -487,9 +564,6 @@ $('rematchBtn').addEventListener('click', () => {
   else startEncounter();
 });
 
-$('useBtn').addEventListener('click', useItem);
-$('dashBtn').addEventListener('click', dash);
-$('cycleBtn').addEventListener('click', () => equip((state.item + 1) % 3));
 $('eatBtn').addEventListener('click', eat);
 $('hudEat').addEventListener('click', eat);
 
@@ -546,6 +620,7 @@ window.addEventListener('keydown', e => {
     openMap();
   }
   if (['1', '2', '3'].includes(k)) equip(+k - 1);
+  if (k === 'c') equip((state.item + 1) % 3);
   if (k === 'enter') {
     let [x, y] = rooms[state.room].station;
     if (dist(player, { x, y }) < 85) tryOpenArcade();
@@ -578,8 +653,56 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) loseFocus();
 });
 
-// A tap on the room resumes from pause; a tap on the beacon opens its arcade.
+// ---- Touch scheme: tap the room, or the joystick and buttons ----
+const CONTROL_NAMES = { tap: 'Tap the room', stick: 'Joystick' };
+
+function renderControls() {
+  const tap = tapScheme();
+  document.body.classList.toggle('tap-controls', tap);
+  document.body.classList.toggle('stick-controls', !tap);
+  $('pauseControls').textContent = 'Controls: ' + CONTROL_NAMES[state.controls];
+  $$('[data-controls]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.controls === state.controls)));
+}
+
+function setControlScheme(scheme) {
+  state.controls = scheme === 'stick' ? 'stick' : 'tap';
+  save();
+  clearHeld();
+  renderControls();
+  resize();
+}
+
+$('pauseControls').addEventListener('click', () => setControlScheme(tapScheme() ? 'stick' : 'tap'));
+$('controlsPick').addEventListener('click', e => {
+  const b = e.target.closest('[data-controls]');
+  if (b) setControlScheme(b.dataset.controls);
+});
+
+// Tap the room: a finger on the canvas walks, hits, dashes, jumps and uses the ability (world.js).
+// Mice keep the click below.
+function roomTouch(e) {
+  return e.pointerType !== 'mouse' && e.button <= 0 && tapScheme();
+}
+
+canvas.addEventListener('pointerdown', e => {
+  if (roomTouch(e) && wardTouchDown(e.pointerId, e.clientX, e.clientY, wardPoint(e))) pressStart(canvas, e);
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (wardTouches.has(e.pointerId)) wardTouchMove(e.pointerId, e.clientX, e.clientY, wardPoint(e));
+});
+
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+  canvas.addEventListener(type, e => wardTouchUp(e.pointerId, e.clientX, e.clientY, type !== 'pointerup'))
+);
+
+// A tap on the room resumes from pause; a tap on the beacon opens its arcade. A touch the room
+// already handled is not tapped twice.
 canvas.addEventListener('click', e => {
+  if (pressClick(canvas, e)) {
+    canvas.focus({ preventScroll: true });
+    return;
+  }
   if (state.paused) setWardPause(false);
   else if (state.started && !isModal() && e && e.clientX !== undefined && beaconTapped(wardPoint(e)))
     tryOpenArcade();
@@ -587,8 +710,8 @@ canvas.addEventListener('click', e => {
 });
 
 $('startBtn').addEventListener('click', () => {
-  // Phones go fullscreen on the first start unless the player already said no.
-  if (state.arcade === true || (state.arcade === null && isPhone())) enterArcade(true);
+  // Phones and tablets go fullscreen on the first start unless the player already said no.
+  if (state.arcade === true || (state.arcade === null && isTouchScreen())) enterArcade(true);
   begin();
 });
 
@@ -642,7 +765,8 @@ $('departmentGrid').addEventListener('click', e => {
   if (b) goRoom(+b.dataset.room);
 });
 
-$$('[data-item]').forEach(b => b.addEventListener('click', () => equip(+b.dataset.item)));
+// Sidebar weapon cards (the touch strip has its own press handlers above).
+$$('.item[data-item]').forEach(b => b.addEventListener('click', () => equip(+b.dataset.item)));
 
 $('saveName').addEventListener('click', () => {
   state.name = $('heroName').value.trim().slice(0, 18) || 'Macy';
@@ -705,6 +829,9 @@ function welcomeBack() {
 }
 
 new ResizeObserver(resize).observe($('stage'));
+// Turning the phone re-fits both canvases and flips an arcade run to its portrait canvas, if it has one.
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
 buildDepartments();
 setupIllustrations();
 loadRoom(0);
@@ -712,10 +839,11 @@ hud();
 equip(0);
 drawPortrait();
 uiRenderSound();
+renderControls();
 if (typeof audio !== 'undefined' && typeof audio.toggle !== 'function') audio.enabled = !!state.sound;
 if (state.played) welcomeBack();
-// A phone that chose arcade mode starts in it (CSS only until the first tap allows real fullscreen).
-if (state.arcade === true && isPhone()) enterArcade(false);
+// A phone or tablet that chose arcade mode starts in it (CSS only until a tap allows real fullscreen).
+if (state.arcade === true && isTouchScreen()) enterArcade(false);
 renderArcadeButtons();
 resize();
 checkDischarge();

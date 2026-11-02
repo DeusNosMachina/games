@@ -139,6 +139,39 @@ function recordDaily(score) {
   return { bonus, record };
 }
 
+// ---- Canvas shape ----
+// A game may declare portraitCanvas {w, h} beside canvas. mini.portrait is true while an upright screen
+// shows a game that has one, and can flip mid-run when the phone turns; activeCanvas() is the size the
+// run draws at right now. Games should read it (or mini.portrait) when they lay out, not cache it.
+function activeCanvas() {
+  const def = games[mini.id];
+  return mini.portrait && def.portraitCanvas ? def.portraitCanvas : def.canvas;
+}
+
+function miniPortraitWanted() {
+  const def = games[mini.id],
+    upright = window.innerHeight > window.innerWidth;
+  return !!(mini.open && $('miniDialog').open && def && def.portraitCanvas && upright);
+}
+
+// Sizes #miniCanvas to the active canvas and tells CSS its shape (data-portrait, --mini-a).
+function fitMiniCanvas() {
+  const { w, h } = activeCanvas(),
+    dialog = $('miniDialog');
+  configureCanvas($('miniCanvas'), w, h);
+  dialog.dataset.portrait = mini.portrait ? '1' : '';
+  dialog.style.setProperty('--mini-a', (w / h).toFixed(4));
+}
+
+// resize() calls this while the dialog is open. Returns true when the run flipped canvases.
+function orientMini() {
+  const portrait = miniPortraitWanted(),
+    flipped = portrait !== !!mini.portrait;
+  mini.portrait = portrait;
+  fitMiniCanvas();
+  return flipped;
+}
+
 // Department card and lobby preview art.
 function miniScene(g, id, w, h) {
   games[id].scene(g, w, h);
@@ -268,8 +301,14 @@ function startMini() {
     helpTime: 0,
     helpUsed: 0,
     precisions: [],
-    inputLock: 0
+    inputLock: 0,
+    portrait: false,
+    tipT: 0,
+    tipShown: false
   };
+  // The game's init may lay out for the canvas it will draw on, so pick it first.
+  mini.portrait = miniPortraitWanted();
+  $('miniInstruction').dataset.show = '';
   $('miniLobby').classList.add('hidden');
   $('miniPlay').classList.remove('hidden');
   $('miniResult').classList.add('hidden');
@@ -280,7 +319,7 @@ function startMini() {
     def.init();
     if (def.controls) def.controls();
   });
-  configureCanvas($('miniCanvas'), def.canvas.w, def.canvas.h);
+  fitMiniCanvas();
   $('miniDialog').dataset.arcade = def.layout;
   mini.initialized = true;
   prepareBriefing();
@@ -288,13 +327,34 @@ function startMini() {
   drawMini();
 }
 
+// Arcade mode on phones shows the instruction line as a toast over the canvas: through the countdown,
+// for the first MINI_TIP_SECONDS of play, and again whenever the line changes. Wider layouts always show it.
+const MINI_TIP_SECONDS = 3;
+
 function setInstructions(t) {
+  const changed = $('miniInstruction').textContent !== t;
   $('miniInstruction').textContent = t;
+  if (changed && mini.initialized) showMiniTip();
+}
+
+function showMiniTip(sec = MINI_TIP_SECONDS) {
+  mini.tipT = sec;
+  syncMiniTip();
+}
+
+// data-show on #miniInstruction follows the screen and the tip clock; CSS decides what it means.
+function syncMiniTip() {
+  const on = mini.screen === 'intro' || (mini.screen === 'play' && mini.tipT > 0);
+  if (on === !!mini.tipShown) return;
+  mini.tipShown = on;
+  $('miniInstruction').dataset.show = on ? '1' : '';
 }
 
 // Buttons: {id, text, key?, hot?, pad?}. Each click sends miniAction(id); the assist button is always appended.
 function setControls(buttons) {
   $('miniControls').dataset.game = mini.id;
+  // Arcade mode lays out by button count (the assist included).
+  $('miniControls').dataset.count = String(buttons.length + 1);
   const html = buttons.map(
     b =>
       `<button data-action="${b.id}" class="${b.hot ? 'hot ' : ''}${b.pad ? 'pad' : ''}" ${b.pad ? `style="--pad:${b.pad}"` : ''}` +
@@ -354,6 +414,7 @@ function pauseMini() {
 
 function updateMini(dt) {
   if (!mini.open || document.hidden) return;
+  syncMiniTip();
   if (updateTransition(dt)) return;
   if (mini.screen === 'result') {
     // Result splatter (spawned by a game's onLose) keeps falling on the result art.
@@ -374,6 +435,8 @@ function updateMini(dt) {
     return;
   }
   if (mini.screen !== 'play' || mini.paused) return;
+  mini.tipT = Math.max(0, (mini.tipT || 0) - dt);
+  syncMiniTip();
   mini.flash = Math.max(0, mini.flash - dt);
   mini.inputLock = Math.max(0, mini.inputLock - dt);
   mini.helpTime = Math.max(0, mini.helpTime - dt);
@@ -604,14 +667,15 @@ function checkDischarge() {
 function drawMini() {
   if (!['briefing', 'intro', 'play', 'outro'].includes(mini.screen)) return;
   const def = games[mini.id],
+    size = activeCanvas(),
     g = mc;
-  g.clearRect(0, 0, def.canvas.w, def.canvas.h);
+  g.clearRect(0, 0, size.w, size.h);
   def.draw(g);
   if (def.overlay) def.overlay(g);
   else drawArcadeOverlays(g);
 }
 
-// ---- Shared plumbing for the gesture games (600 × 600) ----
+// ---- Shared plumbing for the gesture games (600 × 600 unless they declare otherwise) ----
 let arcadePointer = null,
   strokeSerial = 0;
 
@@ -666,7 +730,7 @@ function arcadeTimeUp() {
 // object-fit: contain, so a letterboxed arcade (fullscreen) still maps exactly.
 function miniPoint(e) {
   const r = $('miniCanvas').getBoundingClientRect(),
-    { w, h } = games[mini.id].canvas,
+    { w, h } = activeCanvas(),
     s = Math.min(r.width / w, r.height / h) || 1,
     left = r.left + (r.width - w * s) / 2,
     top = r.top + (r.height - h * s) / 2;
@@ -716,18 +780,22 @@ function arcadeBurst(x, y, col, n = 12) {
 
 // Particles, shift banner, flash banner, and the countdown / finish card.
 function drawArcadeOverlays(g) {
+  const { w, h } = activeCanvas(),
+    cx = w / 2,
+    cy = h / 2,
+    cardW = Math.min(510, w - 30);
   for (const p of mini.fx) {
     g.globalAlpha = Math.min(1, p.life * 3);
     ellipse(g, p.x, p.y, 4, 4, p.col);
   }
   g.globalAlpha = 1;
   if (mini.notice > 0 && mini.screen === 'play') {
-    rr(g, 170, 48, 260, 48, 15, '#16374bdf', '#b6d9ca66', 1);
+    rr(g, cx - 130, 48, 260, 48, 15, '#16374bdf', '#b6d9ca66', 1);
     label(
       g,
       (mini.shift === 2 ? 'FINAL ' : mini.shift === 1 ? 'SECOND ' : 'FIRST ') +
         (games[mini.id].shiftName || 'SHIFT'),
-      300,
+      cx,
       79,
       18,
       '#f1e2b9',
@@ -736,19 +804,19 @@ function drawArcadeOverlays(g) {
   }
   if (mini.flash > 0) {
     g.globalAlpha = Math.min(1, mini.flash * 3);
-    rr(g, 30, 115, 540, 37, 12, '#173349ed');
-    label(g, mini.flashText, 300, 139, 13, '#ffe5b8', 'center');
+    rr(g, 30, 115, w - 60, 37, 12, '#173349ed');
+    label(g, mini.flashText, cx, 139, 13, '#ffe5b8', 'center');
     g.globalAlpha = 1;
   }
   if (mini.screen === 'intro' || mini.screen === 'outro') {
     const intro = mini.screen === 'intro';
-    rect(g, 0, 0, 600, 600, '#102c4299');
-    rr(g, 45, 225, 510, 145, 22, '#112e45ee', '#9dc7be66', 1);
+    rect(g, 0, 0, w, h, '#102c4299');
+    rr(g, cx - cardW / 2, cy - 75, cardW, 145, 22, '#112e45ee', '#9dc7be66', 1);
     label(
       g,
       intro ? countdownLabel() : mini.pendingFinish.win ? 'SHIFT COMPLETE' : 'WELL. THAT HAPPENED.',
-      300,
-      295,
+      cx,
+      cy - 5,
       intro ? 64 : 27,
       '#f4ebcf',
       'center'
@@ -756,8 +824,8 @@ function drawArcadeOverlays(g) {
     label(
       g,
       intro ? 'The clock starts on GO.' : 'Score ' + mini.score + ' · Best chain ' + mini.maxCombo,
-      300,
-      334,
+      cx,
+      cy + 34,
       15,
       '#bad8cc',
       'center'

@@ -78,6 +78,13 @@ function hud() {
   $('hudEat').textContent = '+♥ ' + state.food;
   $('hudEat').disabled = state.food === 0 || state.hp >= max;
   $('hudEat').setAttribute('aria-label', `Eat a nutrient. ${state.food} carried.`);
+  // The touch EAT button: the badge counts nutrients; it greys out when empty or at full hearts.
+  $('touchEat').disabled = state.food === 0 || state.hp >= max;
+  $('touchEatCount').textContent = String(state.food);
+  $('touchEat').setAttribute(
+    'aria-label',
+    state.hp >= max ? `Eat a nutrient. Hearts full. ${state.food} carried.` : `Eat a nutrient. ${state.food} carried.`
+  );
   $('difficultyBtn').textContent = cfg().name + ' ⚙';
   $('heroName').value = state.name;
   $('passport').innerHTML = rooms
@@ -141,6 +148,7 @@ function clearHeld() {
   mini.fireHeld = false;
   joyPointer = null;
   $('stick').style.transform = 'translate(0,0)';
+  wardTouchReset();
 }
 
 function modalOpen(d) {
@@ -179,6 +187,7 @@ function loadRoom(id) {
   player.vz = 0;
   player.attack = 0;
   player.attackCd = 0;
+  wardTouchReset();
   wardHpSeen = state.hp;
   const toastsBefore = toastSerial;
   // The room track starts first so a boss intro inside startEncounter can take over the music.
@@ -211,6 +220,9 @@ function begin() {
   $('startCallout').classList.add('hidden');
   $('playStatus').textContent = 'EXPLORE / PLAY / GET HOME';
   loadRoom(state.room);
+  // First steps on a touch screen: the room is the controller.
+  if (wardCoarsePointer && tapScheme())
+    toast('Tap to walk. Tap a gremlin to bonk it. Flick to dash. Two fingers: jump.', 4.5);
   canvas.focus({ preventScroll: true });
   sfx('ui');
 }
@@ -282,6 +294,277 @@ function eat() {
   hud();
 }
 
+// ---- Weapon changes ----
+// equip() (combat.js) swaps the buttons. This notices any change (strip, keys, sidebar), slides the
+// strip highlight and flashes the weapon over Macy for a second, so a swap is never a surprise.
+const WEAPON_FLASH_SECONDS = 1,
+  WEAPON_ICON_PATHS = {
+    pillow: 'm4 3 3 2h10l3-2 1 3-2 3v7l2 4-4-1H7l-4 2 1-5V8L2 4zM8 8h8m-9 7h9',
+    bag: 'M7 3h10l-1 5 3 13H5L8 8zM7 6h10m-7 8h4m-2-2v4',
+    brick: 'm3 10 9-5 9 5v8l-9 5-9-5zM3 10l9 5 9-5m-9 5v8M7 7V4l3-2 3 2v3m0-1V3l3-2 3 2v5'
+  };
+
+let wardWeaponSeen = state.item,
+  wardWeaponFlash = 0;
+
+// Returns true when the weapon changed since the last call.
+function wardWeaponSync() {
+  if (state.item === wardWeaponSeen) return false;
+  wardWeaponSeen = state.item;
+  wardWeaponFlash = WEAPON_FLASH_SECONDS;
+  const strip = $('weaponStrip');
+  strip.dataset.active = String(state.item);
+  // Alternating names restart the CSS pop on every change.
+  strip.dataset.pop = strip.dataset.pop === 'a' ? 'b' : 'a';
+  sfx('select');
+  return true;
+}
+
+function drawWeaponFlash(vw, vh) {
+  if (wardWeaponFlash <= 0) return;
+  const w = weapons[state.item],
+    text = w.name.toUpperCase() + ' · ' + w.verb,
+    boxW = 74 + text.length * 11.5,
+    age = WEAPON_FLASH_SECONDS - wardWeaponFlash,
+    fade = Math.min(1, wardWeaponFlash / 0.3),
+    pop = reduced ? 1 : 1 + Math.max(0, 0.16 - age) * 1.6,
+    x = clamp(player.x - cameraX, boxW / 2 + 8, vw - boxW / 2 - 8),
+    y = clamp(player.y - wardCameraY - player.z - 150, 70, vh - 40);
+  wardWeaponFlash = Math.max(0, wardWeaponFlash - renderDelta);
+  c.save();
+  c.globalAlpha = fade;
+  c.translate(x, y);
+  c.scale(pop, pop);
+  rr(c, -boxW / 2, -25, boxW, 50, 25, '#173847ee', '#ffe29b', 2.5);
+  c.save();
+  c.translate(-boxW / 2 + 16, -16);
+  c.scale(1.35, 1.35);
+  c.strokeStyle = '#ffe29b';
+  c.lineWidth = 1.9;
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+  c.stroke(new Path2D(WEAPON_ICON_PATHS[w.icon]));
+  c.restore();
+  label(c, text, 22, 7, 20, '#ffe29b', 'center');
+  c.restore();
+}
+
+// ---- Tap the room ----
+// On touch screens the floor is the controller: tap to walk there, tap a gremlin to go and hit it (hold
+// to keep swinging), flick to dash, tap with two fingers to jump, long-press the floor for the ability.
+// state.controls === 'stick' swaps this for the joystick and the full button column. Mice never use it.
+const TAP_ARRIVE = 12,
+  TAP_SLOP = 12,
+  TAP_GREMLIN_RADIUS = 40,
+  FLICK_DISTANCE = 40,
+  FLICK_SECONDS = 0.25,
+  LONG_PRESS_SECONDS = 0.45,
+  TWO_FINGER_SECONDS = 0.2,
+  TAP_STUCK_SECONDS = 0.6,
+  TAP_PREY_GIVE_UP = 3,
+  TAP_RIPPLE_SECONDS = 0.45;
+
+// wardTouches: pointerId -> finger. wardGoal: floor point Macy walks to. wardPrey: the gremlin she is after.
+let wardTouches = new Map(),
+  wardGoal = null,
+  wardPrey = null,
+  wardGoalBest = Infinity,
+  wardStuck = 0,
+  wardRipples = [];
+
+function tapScheme() {
+  return state.controls !== 'stick';
+}
+
+function wardTouchReset() {
+  wardTouches.clear();
+  wardGoal = null;
+  wardPrey = null;
+}
+
+// The live gremlin nearest a tap, within TAP_GREMLIN_RADIUS of its feet or its body.
+function wardGremlinAt(p) {
+  let best = null,
+    bestD = Infinity;
+  for (const e of wardFighters()) {
+    const d = Math.min(dist(p, e), dist(p, { x: e.x, y: e.y - (e.z || 0) - 32 }));
+    if (d < TAP_GREMLIN_RADIUS && d < bestD) {
+      best = e;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+function wardSetGoal(p) {
+  wardGoal = { x: clamp(p.x, 40, 960), y: clamp(p.y, 170, 574) };
+  wardGoalBest = Infinity;
+  wardStuck = 0;
+}
+
+// id: pointer id; cx, cy: client coordinates; p: the same point in room coordinates.
+// Returns false when the ward is not taking input (the click handler then gets the tap).
+function wardTouchDown(id, cx, cy, p) {
+  if (!state.started || state.paused || isModal() || deadDelay > 0) return false;
+  const finger = { id, x0: cx, y0: cy, t0: time, moved: false, long: false, kind: 'walk' };
+  wardRipples.push({ x: p.x, y: p.y, t: 0 });
+  if (wardTouches.size) {
+    // Any second finger jumps. A first finger that landed a moment ago was half of the same tap,
+    // so its walk is taken back.
+    finger.kind = 'jump';
+    for (const f of wardTouches.values())
+      if (!f.moved && f.kind !== 'jump' && time - f.t0 < TWO_FINGER_SECONDS) {
+        f.kind = 'jump';
+        wardGoal = f.goalBefore;
+        wardPrey = f.preyBefore;
+      }
+    wardTouches.set(id, finger);
+    jump();
+    return true;
+  }
+  finger.goalBefore = wardGoal;
+  finger.preyBefore = wardPrey;
+  wardTouches.set(id, finger);
+  const e = wardGremlinAt(p);
+  if (e) {
+    finger.kind = 'prey';
+    wardPrey = { e, held: true, swings: 0, idle: 0 };
+    wardGoal = null;
+  } else if (!arcadeBlocked() && beaconTapped(p)) finger.kind = 'beacon';
+  else {
+    wardPrey = null;
+    wardSetGoal(p);
+  }
+  return true;
+}
+
+// Dragging steers: once a finger wanders past TAP_SLOP, the goal follows it.
+function wardTouchMove(id, cx, cy, p) {
+  const f = wardTouches.get(id);
+  if (!f || f.kind === 'jump' || f.long) return;
+  if (!f.moved && Math.hypot(cx - f.x0, cy - f.y0) > TAP_SLOP) f.moved = true;
+  if (!f.moved) return;
+  if (f.kind === 'prey' && wardPrey) wardPrey.held = false;
+  f.kind = 'walk';
+  wardPrey = null;
+  wardSetGoal(p);
+}
+
+// cancel = true when the pointer was lost; a lost finger never acts.
+function wardTouchUp(id, cx, cy, cancel = false) {
+  const f = wardTouches.get(id);
+  if (!f) return;
+  wardTouches.delete(id);
+  if (f.kind === 'prey' && wardPrey) wardPrey.held = false;
+  if (cancel || f.kind === 'jump' || f.long) return;
+  const dx = cx - f.x0,
+    dy = cy - f.y0,
+    d = Math.hypot(dx, dy);
+  if (d >= FLICK_DISTANCE && time - f.t0 < FLICK_SECONDS) {
+    // A flick dashes that way and then stands still.
+    wardGoal = null;
+    wardPrey = null;
+    player.lastDx = dx / d;
+    player.lastDy = dy / d;
+    dash();
+    return;
+  }
+  if (f.kind === 'beacon' && !f.moved) tryOpenArcade();
+}
+
+function wardAimAt(e, d) {
+  // The brick lands where it is aimed, so its aim length sets the distance (attack() reads it as power).
+  const k = state.item === 2 ? clamp(d / 230, 0.65, 1.35) : 1;
+  wardAim = { dx: ((e.x - player.x) / d) * 65 * k, dy: ((e.y - player.y) / d) * 65 * k };
+}
+
+// One simulation step of the tap scheme. Returns the steering vector for this step.
+function wardTouchStep(dt) {
+  for (const f of wardTouches.values())
+    if (f.kind === 'walk' && !f.moved && !f.long && wardTouches.size === 1 && time - f.t0 >= LONG_PRESS_SECONDS) {
+      f.long = true;
+      wardGoal = null;
+      useItem();
+    }
+  if (wardPrey) {
+    const prey = wardPrey,
+      e = prey.e;
+    prey.idle += dt;
+    if (e.hp <= 0 || e.gone || (!prey.held && (prey.swings > 0 || prey.idle > TAP_PREY_GIVE_UP))) wardPrey = null;
+    else {
+      const d = Math.max(1, dist(player, e)),
+        range = state.item === 0 ? 86 : 300;
+      if (d <= range) {
+        const ready = player.attackCd <= 0;
+        wardAimAt(e, d);
+        attack();
+        wardAim = null;
+        if (ready && player.attackCd > 0) {
+          prey.swings++;
+          prey.idle = 0;
+        }
+        return { x: 0, y: 0 };
+      }
+      return { x: (e.x - player.x) / d, y: (e.y - player.y) / d };
+    }
+  }
+  if (!wardGoal) return { x: 0, y: 0 };
+  const d = dist(player, wardGoal);
+  if (d <= TAP_ARRIVE) {
+    wardGoal = null;
+    return { x: 0, y: 0 };
+  }
+  // Furniture in the way: give up once Macy stops getting closer.
+  if (d < wardGoalBest - 0.5) {
+    wardGoalBest = d;
+    wardStuck = 0;
+  } else if ((wardStuck += dt) > TAP_STUCK_SECONDS) {
+    wardGoal = null;
+    return { x: 0, y: 0 };
+  }
+  return { x: (wardGoal.x - player.x) / d, y: (wardGoal.y - player.y) / d };
+}
+
+// Floor layer: the dashed walk line and the goal ring.
+function drawWardGoal(g) {
+  if (!wardGoal || !player.moving) return;
+  g.setLineDash([7, 9]);
+  line(g, [[player.x, player.y], [wardGoal.x, wardGoal.y]], '#fff4c8aa', 3);
+  g.setLineDash([]);
+  g.strokeStyle = '#fff4c8cc';
+  g.lineWidth = 2.5;
+  g.beginPath();
+  g.ellipse(wardGoal.x, wardGoal.y, 14, 5, 0, 0, Math.PI * 2);
+  g.stroke();
+}
+
+// Top layer: tap ripples and a ring on the gremlin Macy is after.
+function drawWardTaps(g) {
+  for (const r of wardRipples) {
+    const k = r.t / TAP_RIPPLE_SECONDS;
+    g.globalAlpha = Math.max(0, 1 - k);
+    g.strokeStyle = '#fff4c8';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(r.x, r.y, 8 + k * 26, 0, Math.PI * 2);
+    g.stroke();
+    r.t += renderDelta;
+  }
+  g.globalAlpha = 1;
+  wardRipples = wardRipples.filter(r => r.t < TAP_RIPPLE_SECONDS);
+  if (!wardPrey) return;
+  const e = wardPrey.e;
+  g.strokeStyle = '#ffb19c';
+  g.lineWidth = 2.5;
+  g.setLineDash([5, 6]);
+  g.lineDashOffset = reduced ? 0 : -time * 22;
+  g.beginPath();
+  g.ellipse(e.x, e.y, 30, 10, 0, 0, Math.PI * 2);
+  g.stroke();
+  g.setLineDash([]);
+  g.lineDashOffset = 0;
+}
+
 function updateWorld(dt) {
   time += dt;
   player.visualDir =
@@ -324,14 +607,17 @@ function updateWorld(dt) {
     hitStop -= dt;
     return;
   }
+  const steer = wardTouchStep(dt);
   let dx =
       (keys.has('d') || keys.has('arrowright') ? 1 : 0) -
       (keys.has('a') || keys.has('arrowleft') ? 1 : 0) +
-      joy.x,
+      joy.x +
+      steer.x,
     dy =
       (keys.has('s') || keys.has('arrowdown') ? 1 : 0) -
       (keys.has('w') || keys.has('arrowup') ? 1 : 0) +
-      joy.y;
+      joy.y +
+      steer.y;
   let len = Math.hypot(dx, dy);
   if (len > 1) {
     dx /= len;
@@ -359,7 +645,12 @@ function updateWorld(dt) {
       state.taken.push(s.id);
       state.food++;
       floating('+1 ' + s.type.toUpperCase(), s.x, s.y - 50, '#b7e6bd');
-      toast('Nutrient stashed. Drink / eat (F) when you need a heart.', 2.7);
+      toast(
+        wardCoarsePointer
+          ? 'Nutrient stashed. Tap EAT when you need a heart.'
+          : 'Nutrient stashed. Drink / eat (F) when you need a heart.',
+        2.7
+      );
       save();
       hud();
       sfx('pickup');
@@ -399,8 +690,10 @@ function drawWorld() {
   syncWardPause();
   c.clearRect(0, 0, vw, vh);
   cameraX += (clamp(player.x - vw / 2, 0, Math.max(0, 1000 - vw)) - cameraX) * ease;
-  // Screens wider than 1.6 show a horizontal slice of the room and follow Macy vertically.
-  wardCameraY += (clamp(player.y - vh * 0.58, 0, Math.max(0, 625 - vh)) - wardCameraY) * ease;
+  // Screens wider than 1.6 show a horizontal slice of the room and follow Macy vertically. A tall
+  // portrait view (taller than the room) centers it, with a band above and below.
+  const camYGoal = vh > 625 ? -(vh - 625) / 2 : clamp(player.y - vh * 0.58, 0, 625 - vh);
+  wardCameraY += (camYGoal - wardCameraY) * ease;
   c.save();
   c.translate(-cameraX + (shake ? rand(-3, 3) : 0), -wardCameraY + (shake ? rand(-2, 2) : 0));
   roomBg(c, state.room);
@@ -440,6 +733,7 @@ function drawWorld() {
     brick(c, tr.x - 15, tr.y, '#e38878');
     brick(c, tr.x + 2, tr.y + 5, '#6faeab');
   }
+  drawWardGoal(c);
   const renderables = roomProps[state.room].map(p => ({ y: p.y, draw: p.draw }));
   renderables.push({
     y: player.y,
@@ -521,10 +815,13 @@ function drawWorld() {
   }
   c.globalAlpha = 1;
   if (typeof drawCombatFx === 'function') drawCombatFx(c);
+  drawWardTaps(c);
   rect(c, 0, 603, 1000, 22, '#244856');
   rect(c, 24, 603, 952, 4, '#90b6a2');
   c.restore();
   if (typeof drawCombatOverlay === 'function') drawCombatOverlay(c, vw);
+  wardWeaponSync();
+  drawWeaponFlash(vw, vh);
   if (state.paused) rect(c, 0, 0, vw, vh, '#102734aa');
   if (wardIris > 0) drawRoomIris(vw, vh);
 }
@@ -642,18 +939,24 @@ function hudBucket(px) {
   return px >= 52 ? 'l' : px >= 36 ? 'm' : px >= 28 ? 's' : 'xs';
 }
 
+// A tall phone still sees at least this much of the room's 1000 px width.
+const WARD_MIN_VIEW_W = 540;
+
 function resize() {
   const r = $('stage').getBoundingClientRect();
   if (r.width > 0 && r.height > 0) {
     const aspect = r.width / r.height;
-    viewport.w = Math.min(1000, 625 * aspect);
-    viewport.h = viewport.w < 1000 ? 625 : clamp(1000 / aspect, 300, 625);
-    $('stage').dataset.hud = hudBucket(((WALL_SIGN_TOP - 4) * r.height) / viewport.h);
+    viewport.w = clamp(625 * aspect, WARD_MIN_VIEW_W, 1000);
+    viewport.h = viewport.w < 1000 ? Math.max(625, viewport.w / aspect) : clamp(1000 / aspect, 300, 625);
+    // Cards end above the wall signs; a centered tall view moves the signs down by its top band.
+    const band = Math.max(0, viewport.h - 625) / 2;
+    $('stage').dataset.hud = hudBucket(((WALL_SIGN_TOP - 4 + band) * r.height) / viewport.h);
   }
   configureCanvas(canvas, viewport.w, viewport.h);
-  // A closed arcade keeps the 800 × 450 canvas it starts with.
-  const size = mini.open ? games[mini.id].canvas : { w: 800, h: 450 };
-  configureCanvas($('miniCanvas'), size.w, size.h);
+  // An open arcade re-reads the screen shape (a portrait canvas flips in and out as the phone turns).
+  // A closed one keeps the 800 × 450 canvas it starts with.
+  if (mini.open) orientMini();
+  else configureCanvas($('miniCanvas'), 800, 450);
 }
 
 // Fixed small simulation steps keep 30, 60 and 120 Hz displays moving identically.

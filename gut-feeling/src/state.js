@@ -128,6 +128,8 @@ let state = {
   briefed: Array.isArray(saved.briefed) ? saved.briefed.filter(x => typeof x === 'string') : [],
   // Arcade (fullscreen) preference: null until chosen, then true or false.
   arcade: typeof saved.arcade === 'boolean' ? saved.arcade : null,
+  // Touch scheme: 'tap' (the room is the controller, the default) or 'stick' (joystick and buttons).
+  controls: saved.controls === 'stick' ? 'stick' : 'tap',
   // Daily Dose: last day played (YYYY-MM-DD), that day's best score, consecutive-day streak.
   daily: {
     last: typeof savedDaily.last === 'string' ? savedDaily.last : '',
@@ -248,6 +250,7 @@ function save() {
         played: state.played,
         briefed: state.briefed,
         arcade: state.arcade,
+        controls: state.controls,
         daily: state.daily
       })
     );

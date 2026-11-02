@@ -27,7 +27,7 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 /* v0.5: gestures need a real playfield and controls that stay within reach. */
 .ward-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 14px;background:#244550;color:#d8e9d1;font:700 10px/1.4 var(--mono)}
 .weapon-readout{padding:8px 14px 0;background:#203740;color:#e6d49d;font:10px/1.5 var(--mono)}
-.ward-strip .smallbtn{min-height:36px;font-size:10px}.touch-actions{display:grid;grid-template-columns:44px 44px 64px;grid-template-rows:44px 44px;gap:7px}.touch-actions .cycle,.touch-actions #useBtn{width:44px;height:44px;border-radius:13px}.touch-actions .cycle small{font-size:7px}.touch-actions .attack{grid-column:3;grid-row:1/3;width:64px;height:95px;border-radius:24px}.touch-actions #dashBtn{grid-column:1;grid-row:1}.touch-actions #jumpBtn{grid-column:2;grid-row:1}.touch-actions #cycleBtn{grid-column:1;grid-row:2}.touch-actions #useBtn{grid-column:2;grid-row:2}.touch-actions #useBtn svg{width:17px;height:17px}.touch-actions #useBtn span{font-size:6px}.touch-actions button{min-width:44px;min-height:44px}
+.ward-strip .smallbtn{min-height:36px;font-size:10px}
 .mini-dialog[data-arcade=gesture]{width:min(1040px,97vw)}
 .mini-dialog[data-arcade=gesture] #miniPlay{display:grid;grid-template-columns:minmax(300px,1fr) 250px;column-gap:20px;align-content:start;min-height:0}
 .mini-dialog[data-arcade=gesture] .mini-stage{grid-column:1;grid-row:1/7;aspect-ratio:1;width:min(100%,calc(96dvh - 130px));align-self:center}
@@ -40,7 +40,7 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 .mini-dialog[data-arcade=gesture] .mini-briefing{grid-column:1/3;z-index:5}.control-demo.aim b{transform:translate(20px,-15px) rotate(-30deg)}.control-demo.slice b{width:70%;height:5px;transform:rotate(-18deg);background:#b8e7d1}.control-demo.magnet b{border:6px solid #b8e7d1;border-top:0;background:transparent;border-radius:0 0 30px 30px}
 @media(max-width:700px){
  .mini-dialog[data-arcade=gesture] #miniPlay{display:flex;flex-direction:column;gap:0}.mini-dialog[data-arcade=gesture] .mini-rulebar{order:0;padding:8px 10px;display:block}.mini-dialog[data-arcade=gesture] .mini-rulebar strong{font-size:11px}.mini-dialog[data-arcade=gesture] .mini-rulebar span{font-size:10px;line-height:1.5;margin:5px 0 0}.mini-dialog[data-arcade=gesture] .mini-hud{order:1;flex-wrap:nowrap;margin:8px 0 5px}.mini-dialog[data-arcade=gesture] .mini-hud>div,.mini-dialog[data-arcade=gesture] .mini-hud>div:first-child{min-width:0;flex:1;flex-basis:0;font-size:11px;padding:7px}.mini-dialog[data-arcade=gesture] .mini-tactics{order:2;padding:3px 0 7px;font-size:9px}.mini-dialog[data-arcade=gesture] .mini-stage{order:3;width:min(100%,calc(97dvh - 340px));min-width:min(100%,290px)}.mini-dialog[data-arcade=gesture] .mini-instruction{order:4;font-size:10px;line-height:1.5;margin:8px 0}.mini-dialog[data-arcade=gesture] .mini-controls{order:5;flex-wrap:wrap;gap:7px}.mini-dialog[data-arcade=gesture] .mini-controls button{min-height:46px;min-width:70px;font-size:10px;flex:1;padding:9px}.mini-dialog[data-arcade=gesture] .mini-controls .assist{flex-basis:auto}.mini-dialog[data-arcade=gesture] .mini-briefing{order:6}.mini-dialog[data-arcade=gesture] #miniControls[data-game="3"] button{flex-basis:27%}
- .weapon-readout{font-size:9px;padding-top:8px}.ward-strip{font-size:9px}.key-guide{flex-wrap:wrap}.touch-actions{gap:6px;grid-template-columns:44px 44px 60px}.touch-actions .attack{width:60px;height:94px}.controlbar{padding:10px 12px}.mini-head h2{font-size:18px}
+ .weapon-readout{font-size:9px;padding-top:8px}.ward-strip{font-size:9px}.key-guide{flex-wrap:wrap}.controlbar{padding:10px 12px}.mini-head h2{font-size:18px}
 }
 @media(prefers-reduced-motion:reduce){.control-demo *{animation:none!important}}
 
@@ -554,6 +554,292 @@ body.returning .game-layout {
   background: var(--mint);
 }
 
+/* ---- Touch controls (v0.7) ----
+   Sizes are tokens so phones, short phones and tablets share one layout. #touchActions holds, in order:
+   the weapon strip, EAT, the ability, DASH, JUMP and the big attack. Tap-the-room (body.tap-controls)
+   hides the joystick, DASH and the attack: the room does those. */
+:root {
+  --slot: 48px;
+  --btn: 52px;
+  --btn-gap: 10px;
+  --attack-w: 74px;
+  --attack-h: 64px;
+  --joy: 124px;
+  --strip-gap: 4px;
+  --strip-w: calc(var(--slot) * 3 + var(--strip-gap) * 2);
+}
+@media (pointer: coarse) and (min-width: 600px) and (min-height: 600px) {
+  :root {
+    --slot: 58px;
+    --btn: 62px;
+    --btn-gap: 12px;
+    --attack-w: 92px;
+    --attack-h: 78px;
+    --joy: 156px;
+  }
+}
+@media (pointer: coarse) {
+  /* Touch screens have the EAT button; the tiny one by the hearts is for mice. */
+  .hud-eat {
+    display: none;
+  }
+}
+.joystick {
+  width: var(--joy);
+  height: var(--joy);
+}
+.joystick:before {
+  left: 50%;
+  top: 14%;
+  width: 1px;
+  height: 72%;
+}
+.joystick:after {
+  top: 50%;
+  left: 14%;
+  width: 72%;
+  height: 1px;
+}
+.stick {
+  left: 50%;
+  top: 50%;
+  width: 38%;
+  height: 38%;
+  margin: -19% 0 0 -19%;
+}
+#touchActions {
+  display: grid;
+  grid-template-columns: repeat(3, var(--slot)) var(--attack-w);
+  grid-template-areas:
+    'strip strip strip eat'
+    'use dash jump attack';
+  gap: 8px;
+  align-items: center;
+  justify-items: center;
+}
+#touchActions .weapon-strip {
+  grid-area: strip;
+}
+#touchActions .eat {
+  grid-area: eat;
+}
+#touchActions #useBtn {
+  grid-area: use;
+}
+#touchActions #dashBtn {
+  grid-area: dash;
+}
+#touchActions #jumpBtn {
+  grid-area: jump;
+}
+#touchActions .attack {
+  grid-area: attack;
+}
+.weapon-strip {
+  position: relative;
+  display: flex;
+  gap: var(--strip-gap);
+  padding: 0;
+  border-radius: 14px;
+  background: #0f222cd9;
+  box-shadow: 0 3px 10px #0006, inset 0 0 0 1px #ffffff1f;
+}
+.weapon-strip::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--slot);
+  height: var(--slot);
+  border-radius: 13px;
+  background: var(--yellow);
+  box-shadow: 0 0 0 2px #fff7d6aa, 0 4px 14px #ffe08a55;
+  transform: translateX(calc(var(--slot-i, 0) * (var(--slot) + var(--strip-gap))));
+  transition: transform 0.2s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.weapon-strip[data-active='1'] {
+  --slot-i: 1;
+}
+.weapon-strip[data-active='2'] {
+  --slot-i: 2;
+}
+#touchActions .wslot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--slot);
+  height: var(--slot);
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 13px;
+  box-shadow: none;
+  background: transparent;
+  color: #d5e8df;
+  touch-action: none;
+}
+#touchActions .wslot svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2;
+}
+#touchActions .wslot.selected {
+  color: var(--ink);
+}
+.weapon-strip[data-pop='a'] .wslot.selected svg {
+  animation: wslotPopA 0.42s ease-out;
+}
+.weapon-strip[data-pop='b'] .wslot.selected svg {
+  animation: wslotPopB 0.42s ease-out;
+}
+@keyframes wslotPopA {
+  0% {
+    transform: scale(0.6) rotate(-14deg);
+  }
+  60% {
+    transform: scale(1.25) rotate(6deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes wslotPopB {
+  0% {
+    transform: scale(0.6) rotate(-14deg);
+  }
+  60% {
+    transform: scale(1.25) rotate(6deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+#touchActions .act {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: var(--btn);
+  height: var(--btn);
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid #ffffff33;
+  border-radius: 16px;
+  background: #18323fe6;
+  color: var(--cream);
+  box-shadow: 0 3px 10px #0007;
+  font: 800 9px/1 var(--mono);
+  letter-spacing: 0.5px;
+  touch-action: none;
+}
+#touchActions .act .act-icon {
+  font-size: 19px;
+  line-height: 1;
+}
+#touchActions .act small {
+  font-size: 9px;
+}
+#touchActions .act svg {
+  width: 21px;
+  height: 21px;
+}
+#touchActions #useBtn {
+  background: #b5e8c5ee;
+  color: var(--ink);
+}
+#touchActions #useBtn span {
+  font-size: 9px;
+}
+#touchActions .eat {
+  background: #f3a69ce6;
+  color: var(--ink);
+}
+#touchActions .eat:disabled {
+  opacity: 0.4;
+}
+#touchActions .act-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: var(--yellow);
+  color: var(--ink);
+  box-shadow: 0 2px 6px #0006;
+  font: 800 11px/21px var(--mono);
+}
+#touchActions .attack {
+  width: var(--attack-w);
+  height: var(--attack-h);
+  min-width: 0;
+  min-height: 0;
+  border: 2px solid #101e29;
+  border-radius: 22px;
+  background: #ffa48ef2;
+  color: var(--ink);
+  box-shadow: 0 4px 12px #0007;
+  font: 800 11px var(--mono);
+  touch-action: none;
+}
+#touchActions .attack svg {
+  width: 26px;
+  height: 26px;
+}
+#touchActions button.pressed {
+  transform: scale(0.92);
+  filter: brightness(1.15);
+}
+/* Tap the room: the floor walks, hits and dashes, so those controls step aside. */
+body.tap-controls .joystick,
+body.tap-controls #touchActions #dashBtn,
+body.tap-controls #touchActions .attack {
+  display: none;
+}
+body.tap-controls #touchActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--btn-gap);
+  margin-left: auto;
+}
+/* Narrow phones outside arcade mode: the controls sit under the room in the page, so they shrink a bit. */
+@media (max-width: 540px) {
+  body:not(.arcade) {
+    --joy: 96px;
+    --attack-w: 64px;
+    --btn-gap: 6px;
+  }
+  body:not(.arcade) #touchActions {
+    gap: 6px;
+  }
+}
+.controls-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 4px;
+  font: 800 10px var(--mono);
+  letter-spacing: 1.2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.controls-pick span {
+  margin-right: 4px;
+}
+.controls-pick .smallbtn[aria-pressed='true'] {
+  background: var(--mint);
+  color: var(--ink);
+  border-color: var(--mint);
+}
+
 /* ---- Arcade mode: the cabinet owns the screen. ---- */
 html:has(body.arcade) {
   overflow: hidden;
@@ -585,11 +871,41 @@ body.arcade .cabinet {
   box-shadow: none;
   background: #142730;
 }
+/* The bar keeps the room name and four icons: play, map, pause, leave fullscreen. */
 body.arcade .gamebar {
   flex: 0 0 auto;
   flex-wrap: nowrap;
-  height: 48px;
-  padding: 0 10px;
+  height: 46px;
+  padding: 0 8px;
+  gap: 6px;
+}
+body.arcade .gamebar .room-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: auto;
+}
+body.arcade .gamebar .room-label > span,
+body.arcade .gamebar .room-label small,
+body.arcade .gamebar .btn-label,
+body.arcade .gamebar .launch-name {
+  display: none;
+}
+body.arcade .gamebar .room-label strong {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+body.arcade .gamebar .smallbtn,
+body.arcade .gamebar .arcade-launch {
+  order: 0;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 44px;
+  min-height: 40px;
+  justify-content: center;
+  padding: 6px 10px;
 }
 body.arcade .stage {
   flex: 1 1 auto;
@@ -599,78 +915,86 @@ body.arcade .stage {
 }
 body.arcade .controlbar {
   flex: 0 0 auto;
+  min-height: 0;
+}
+/* The ward strip (wave, grudge, rematch) is a small pill over the bottom of the room. */
+body.arcade .ward-strip {
+  position: relative;
+  z-index: 5;
+  align-self: center;
+  max-width: min(86%, 520px);
+  margin: -38px auto 8px;
+  padding: 5px 12px;
+  border-radius: 13px;
+  background: #132c37d0;
+  font-size: 9px;
+  text-align: center;
+}
+body.arcade .ward-strip .smallbtn {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 9px;
 }
 
-/* Portrait phone: canvas on top, controls below, nothing else. */
-@media (orientation: portrait) and (max-width: 540px) {
-  body.arcade .gamebar {
-    height: 46px;
-    gap: 6px;
-    padding: 0 8px;
-  }
-  body.arcade .gamebar .room-label {
-    display: none;
-  }
-  body.arcade .gamebar .arcade-launch {
-    order: 0;
-    flex: 1 1 auto;
-    width: auto;
-    min-width: 0;
-    justify-content: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+/* Portrait: the room on top, the controls under it. */
+@media (orientation: portrait) {
+  /* The room takes every pixel the controls leave. A tall room zooms in and the camera follows Macy. */
   body.arcade .stage {
-    flex: 0 0 auto;
-    aspect-ratio: 1;
-    max-height: calc(100dvh - 300px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    flex: 1 1 0;
   }
   body.arcade .controlbar {
-    flex: 1 1 auto;
-    min-height: 0;
-    padding: 10px 16px;
+    padding: 10px 12px 12px;
+  }
+  /* Toasts drop below the hearts and coins cards. */
+  body.arcade .toast {
+    top: 58px;
+    max-width: 90%;
   }
   body.arcade .touch-controls {
-    align-items: center;
+    align-items: flex-end;
+    gap: 12px;
   }
-  body.arcade .joystick {
-    width: 124px;
-    height: 124px;
+  /* Joystick on the left; the column hugs the right edge, strip on top and the attack at the bottom. */
+  body.arcade.stick-controls #touchActions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--btn-gap);
   }
-  body.arcade .joystick:before {
-    left: 61px;
-    top: 18px;
-    height: 88px;
+  body.arcade.tap-controls .controlbar {
+    padding: 8px 12px 10px;
   }
-  body.arcade .joystick:after {
-    top: 61px;
-    left: 18px;
-    width: 88px;
+  body.arcade.tap-controls .touch-controls {
+    justify-content: center;
   }
-  body.arcade .stick {
-    left: 38px;
-    top: 38px;
-    width: 48px;
-    height: 48px;
+  body.arcade.tap-controls #touchActions {
+    margin: 0 auto;
   }
-  body.arcade .touch-actions {
-    grid-template-columns: 54px 54px 76px;
-    grid-template-rows: 54px 54px;
-    gap: 9px;
+  body.arcade .turn-hint {
+    padding: 4px 6px 4px 12px;
+    font-size: 10px;
   }
-  body.arcade .touch-actions .cycle,
-  body.arcade .touch-actions #useBtn {
-    width: 54px;
-    height: 54px;
+}
+/* Short portrait screens (phone Safari with its toolbars): the column folds into three across. */
+@media (orientation: portrait) and (max-height: 719px) {
+  body.arcade.stick-controls #touchActions {
+    display: grid;
+    grid-template-columns: repeat(3, var(--btn));
+    grid-template-areas:
+      'strip strip strip'
+      'eat use jump'
+      'dash attack attack';
+    gap: 8px;
+    justify-items: end;
   }
-  body.arcade .touch-actions .attack {
-    width: 76px;
-    height: 117px;
+  body.arcade.stick-controls #touchActions .attack {
+    width: 100%;
   }
 }
 
-/* Landscape phone: the canvas fills the screen; controls float over its corners. */
-@media (orientation: landscape) and (max-height: 540px) {
+/* Landscape on touch screens: the room fills the screen. Joystick bottom left; the column rides
+   the right edge from the weapon strip at the top to the attack at the bottom. */
+@media (orientation: landscape) and (pointer: coarse), (orientation: landscape) and (max-height: 540px) {
   body.arcade .cabinet {
     display: block;
     padding: 0;
@@ -678,27 +1002,34 @@ body.arcade .controlbar {
   body.arcade .stage {
     position: absolute;
     inset: 0;
+    max-height: none;
   }
   body.arcade .gamebar {
     position: absolute;
     z-index: 6;
     top: calc(env(safe-area-inset-top) + 6px);
-    right: calc(env(safe-area-inset-right) + 8px);
+    right: calc(env(safe-area-inset-right) + 18px + var(--strip-w));
+    max-width: 46vw;
     height: auto;
     gap: 6px;
     padding: 0;
     border: 0;
     background: none;
   }
-  body.arcade .gamebar .room-label,
-  body.arcade .gamebar .btn-label,
-  body.arcade .gamebar .launch-name {
-    display: none;
+  body.arcade .gamebar .room-label {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 150px;
+    padding: 0 10px;
+    height: 38px;
+    border-radius: 19px;
+    background: #132c37c4;
+    display: flex;
+    align-items: center;
   }
   body.arcade .gamebar .smallbtn {
-    min-width: 40px;
+    min-width: 42px;
     min-height: 38px;
-    justify-content: center;
     padding: 6px 10px;
     border: 1px solid #8fb6b166;
     background: #132c37c4;
@@ -713,83 +1044,73 @@ body.arcade .controlbar {
     justify-content: flex-start;
   }
   body.arcade .toast {
-    top: calc(env(safe-area-inset-top) + 6px);
-    max-width: 36%;
+    top: calc(env(safe-area-inset-top) + 54px);
+    max-width: 44%;
   }
   body.arcade .ward-strip {
     position: absolute;
-    z-index: 5;
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom) + 8px);
-    max-width: 38%;
+    max-width: 40%;
+    margin: 0;
     transform: translateX(-50%);
-    gap: 8px;
-    padding: 5px 10px;
-    border-radius: 12px;
-    background: #132c37c4;
-    font-size: 9px;
   }
   body.arcade .controlbar {
-    position: absolute;
-    z-index: 4;
-    inset: auto 0 0 0;
-    min-height: 0;
-    padding: 0 calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 10px)
-      calc(env(safe-area-inset-left) + 14px);
+    position: static;
+    padding: 0;
     background: none;
     pointer-events: none;
   }
+  body.arcade .turn-hint,
   body.arcade .key-guide,
-  body.arcade .play-status,
-  body.arcade .turn-hint {
+  body.arcade .play-status {
     display: none;
   }
   body.arcade .touch-controls {
-    display: flex;
-    align-items: flex-end;
+    display: block;
   }
   body.arcade .joystick,
-  body.arcade .touch-actions button {
+  body.arcade #touchActions button {
     pointer-events: auto;
   }
   body.arcade .joystick {
-    width: 112px;
-    height: 112px;
+    position: absolute;
+    z-index: 4;
+    left: calc(env(safe-area-inset-left) + 16px);
+    bottom: calc(env(safe-area-inset-bottom) + 14px);
     background: #152c3599;
-    opacity: 0.8;
+    opacity: 0.85;
   }
-  body.arcade .joystick:before {
-    left: 55px;
-    top: 16px;
-    height: 80px;
+  body.arcade #touchActions,
+  body.arcade.tap-controls #touchActions {
+    position: absolute;
+    z-index: 4;
+    top: calc(env(safe-area-inset-top) + 6px);
+    right: calc(env(safe-area-inset-right) + 8px);
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: var(--btn-gap);
+    margin: 0;
+    pointer-events: none;
   }
-  body.arcade .joystick:after {
-    top: 55px;
-    left: 16px;
-    width: 80px;
+  /* Strip at the top, everything else stacked down to the bottom edge. */
+  body.arcade #touchActions .eat {
+    margin-top: auto;
   }
-  body.arcade .stick {
-    left: 32px;
-    top: 32px;
-    width: 48px;
-    height: 48px;
+  body.arcade #touchActions .act {
+    background: #132c37b8;
   }
-  body.arcade .touch-actions {
-    grid-template-columns: 50px 50px 70px;
-    grid-template-rows: 50px 50px;
-    gap: 8px;
+  body.arcade #touchActions #useBtn {
+    background: #b5e8c5cc;
   }
-  body.arcade .touch-actions button {
-    opacity: 0.84;
+  body.arcade #touchActions .eat {
+    background: #f3a69cd0;
   }
-  body.arcade .touch-actions .cycle,
-  body.arcade .touch-actions #useBtn {
-    width: 50px;
-    height: 50px;
-  }
-  body.arcade .touch-actions .attack {
-    width: 70px;
-    height: 108px;
+  body.arcade #touchActions .attack {
+    background: #ffa48ee0;
   }
   body.arcade .start-callout {
     left: 50%;
@@ -802,9 +1123,50 @@ body.arcade .controlbar {
     visibility: hidden;
   }
 }
+/* Short landscape screens: EAT joins the weapon strip's row so the column fits. */
+@media (orientation: landscape) and (max-height: 400px) {
+  :root {
+    --btn: 48px;
+    --btn-gap: 8px;
+    --attack-h: 58px;
+  }
+  body.arcade.stick-controls #touchActions .eat {
+    position: absolute;
+    top: 0;
+    right: calc(var(--strip-w) + 8px);
+    margin: 0;
+  }
+  body.arcade.stick-controls .gamebar {
+    right: calc(env(safe-area-inset-right) + 26px + var(--strip-w) + var(--btn));
+  }
+  body.arcade.stick-controls #touchActions #useBtn {
+    margin-top: auto;
+  }
+}
+@media (orientation: landscape) and (max-width: 760px) {
+  body.arcade .gamebar .room-label {
+    display: none;
+  }
+}
 
-/* ---- Arcade mode: the minigame dialog fills the screen too. ---- */
+/* ---- Arcade mode: the minigame dialog is the canvas plus the minimum. ---- */
+/* The canvas box is computed from the viewport: --mini-a (width / height of the active canvas, set by
+   fitMiniCanvas) fits it into what the controls leave. --cv-l/--cv-t place it, --hud-t places the pill
+   row (directly above the canvas when there is room, over its top edge when there is not). */
+#miniDialog {
+  --mini-a: 1.7778;
+}
 body.arcade #miniDialog {
+  --sa-t: env(safe-area-inset-top, 0px);
+  --sa-r: env(safe-area-inset-right, 0px);
+  --sa-b: env(safe-area-inset-bottom, 0px);
+  --sa-l: env(safe-area-inset-left, 0px);
+  --box-w: calc(100vw - var(--sa-l) - var(--sa-r));
+  --box-h: calc(100dvh - var(--sa-t) - var(--sa-b));
+  --hud-h: 44px;
+  --ctl: 66px;
+  --ctl-w: 140px;
+  --ctl-btn: 52px;
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -812,10 +1174,45 @@ body.arcade #miniDialog {
   max-width: none;
   max-height: none;
   margin: 0;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: var(--sa-t) var(--sa-r) var(--sa-b) var(--sa-l);
   border: 0;
   border-radius: 0;
   overflow: hidden;
+}
+@media (pointer: coarse) and (min-width: 600px) and (min-height: 600px) {
+  body.arcade #miniDialog {
+    --hud-h: 50px;
+    --ctl: 84px;
+    --ctl-w: 200px;
+    --ctl-btn: 62px;
+  }
+}
+@media (orientation: portrait) {
+  body.arcade #miniDialog {
+    --area-w: var(--box-w);
+    --area-h: calc(var(--box-h) - var(--ctl));
+    --hud-pad-r: 96px;
+    --top-y: calc(var(--sa-t) + var(--hud-t) + 4px);
+    --top-x: calc(var(--sa-r) + var(--cv-l) + 4px);
+  }
+}
+@media (orientation: landscape) {
+  body.arcade #miniDialog {
+    --area-w: calc(var(--box-w) - var(--ctl-w));
+    --area-h: var(--box-h);
+    --hud-pad-r: 6px;
+    --top-y: calc(var(--sa-t) + 6px);
+    --top-x: calc(var(--sa-r) + 8px);
+  }
+}
+body.arcade #miniDialog {
+  --fit-w: min(var(--area-w), calc(var(--area-h) * var(--mini-a)));
+  --fit-h: calc(var(--fit-w) / var(--mini-a));
+  --slack: max(0px, calc(var(--area-h) - var(--fit-h)));
+  --band: min(var(--hud-h), var(--slack));
+  --cv-t: calc(var(--band) + (var(--slack) - var(--band)) / 2);
+  --cv-l: calc((var(--area-w) - var(--fit-w)) / 2);
+  --hud-t: calc(var(--cv-t) - var(--band));
 }
 body.arcade #miniDialog[open] {
   display: flex;
@@ -839,65 +1236,115 @@ body.arcade #miniDialog .mini-body {
   overflow: auto;
   padding: 8px 10px;
 }
+/* Play screens: no title row. Pause and close float top right, over the briefing too. */
+body.arcade #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) .mini-head {
+  position: absolute;
+  z-index: 12;
+  top: var(--top-y);
+  right: var(--top-x);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
 body.arcade #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) .mini-titles {
-  visibility: hidden;
+  display: none;
+}
+body.arcade #miniDialog .mini-topactions .smallbtn,
+body.arcade #miniDialog .mini-topactions .close {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 38px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid #ffffff33;
+  border-radius: 12px;
+  background: #0b1c27c0;
+  color: var(--cream);
+}
+body.arcade #miniDialog .mini-topactions .hidden {
+  display: none;
+}
+body.arcade #miniDialog .mini-topactions .close svg {
+  width: 18px;
+  height: 18px;
 }
 body.arcade #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) .mini-body {
+  position: relative;
   overflow: hidden;
+  padding: 0;
 }
 body.arcade #miniDialog #miniPlay {
-  position: static;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
-  grid-template-areas: 'stage' 'controls';
-  gap: 8px;
+  position: relative;
+  display: block;
   height: 100%;
   min-height: 0;
 }
 body.arcade #miniDialog .mini-rulebar,
-body.arcade #miniDialog .mini-tactics,
-body.arcade #miniDialog .mini-instruction {
+body.arcade #miniDialog .mini-tactics {
   display: none;
 }
-body.arcade #miniDialog .mini-stage {
-  grid-area: stage;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
+body.arcade #miniDialog .mini-stage,
+body.arcade #miniDialog[data-arcade] .mini-stage {
+  position: absolute;
+  left: var(--cv-l);
+  top: var(--cv-t);
+  width: var(--fit-w);
+  height: var(--fit-h);
+  min-width: 0;
   max-width: none;
   margin: 0;
   aspect-ratio: auto;
   border: 0;
-  border-radius: 0;
-  background: transparent;
-  align-self: stretch;
+  border-radius: 6px;
+  background: #102932;
 }
-/* HUD condensed to one line, in the title row. */
-body.arcade #miniDialog .mini-hud {
+body.arcade #miniDialog #miniCanvas,
+body.arcade #miniDialog[data-arcade] #miniCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  aspect-ratio: auto;
+}
+/* HUD: translucent pills on the top corners of the canvas (progress left, time, strikes right). */
+body.arcade #miniDialog .mini-hud,
+body.arcade #miniDialog[data-arcade] .mini-hud {
   position: absolute;
   z-index: 7;
-  top: calc(env(safe-area-inset-top) + 7px);
-  left: calc(env(safe-area-inset-left) + 10px);
-  right: calc(env(safe-area-inset-right) + 96px);
+  left: var(--cv-l);
+  top: var(--hud-t);
   display: flex;
   flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 6px;
-  width: auto;
-  height: 32px;
+  width: var(--fit-w);
+  height: var(--hud-h);
   margin: 0;
+  padding: 6px var(--hud-pad-r) 0 6px;
+  pointer-events: none;
 }
 body.arcade #miniDialog .mini-hud > div,
-body.arcade #miniDialog .mini-hud > div:first-child {
+body.arcade #miniDialog[data-arcade] .mini-hud > div,
+body.arcade #miniDialog[data-arcade] .mini-hud > div:first-child {
   display: flex;
   align-items: center;
   gap: 6px;
   flex: 0 1 auto;
   min-width: 0;
+  height: 30px;
   margin: 0;
-  padding: 4px 9px;
+  padding: 0 11px;
   overflow: hidden;
-  font-size: 12px;
+  border: 1px solid #ffffff26;
+  border-radius: 15px;
+  background: #0b1c27b8;
+  color: #f6eed6;
+  font: 700 12px var(--mono);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -905,30 +1352,140 @@ body.arcade #miniDialog .mini-hud small {
   display: none;
   margin: 0;
   font-size: 8px;
+  color: #a9c9c3;
 }
-@media (min-width: 760px) {
+@media (min-width: 760px) and (min-height: 600px) {
   body.arcade #miniDialog .mini-hud small {
     display: inline;
   }
+  body.arcade #miniDialog .mini-hud > div,
+  body.arcade #miniDialog[data-arcade] .mini-hud > div {
+    height: 34px;
+    font-size: 14px;
+  }
 }
-body.arcade #miniDialog #miniControls {
-  grid-area: controls;
+/* The instruction line: a toast under the pills for the countdown, the first seconds and any change. */
+body.arcade #miniDialog .mini-instruction,
+body.arcade #miniDialog[data-arcade] .mini-instruction {
+  position: absolute;
+  z-index: 6;
+  left: calc(var(--cv-l) + var(--fit-w) / 2);
+  top: calc(var(--hud-t) + var(--hud-h));
+  display: block;
+  width: max-content;
+  max-width: calc(var(--fit-w) - 24px);
+  min-height: 0;
+  margin: 0;
+  padding: 7px 12px;
+  border: 1px solid #ffe29b55;
+  border-radius: 12px;
+  background: #0d2230e6;
+  color: #f7ecd0;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -4px);
+  transition: opacity 0.2s, transform 0.2s, visibility 0s linear 0.2s;
+  pointer-events: none;
+}
+body.arcade #miniDialog .mini-instruction[data-show='1'] {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  transition: opacity 0.2s, transform 0.2s;
+}
+body.arcade #miniDialog .mini-instruction:empty {
+  display: none;
+}
+/* Controls: one compact row under the canvas (portrait) or a column on the right (landscape). The
+   assist is the small one. Key hints are for keyboards. */
+body.arcade #miniDialog #miniControls,
+body.arcade #miniDialog[data-arcade] #miniControls {
+  position: absolute;
+  z-index: 5;
+  display: flex;
   flex-wrap: nowrap;
+  justify-content: center;
+  align-items: stretch;
   gap: 6px;
   min-height: 0;
-  overflow-x: auto;
+  margin: 0;
+  overflow: hidden;
 }
-body.arcade #miniDialog #miniControls button {
+body.arcade #miniDialog #miniControls button,
+body.arcade #miniDialog[data-arcade] #miniControls button {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 46px;
-  padding: 8px 6px;
+  min-height: var(--ctl-btn);
+  padding: 4px 6px;
   font-size: 11px;
+  line-height: 1.15;
+  white-space: normal;
 }
-body.arcade #miniDialog #miniControls .assist {
-  flex: 1.3 1 0;
-  max-width: none;
-  min-height: 46px;
+body.arcade #miniDialog #miniControls .assist,
+body.arcade #miniDialog[data-arcade] #miniControls .assist {
+  flex: 0.7 1 0;
+  max-width: 34%;
+  min-height: 42px;
+  align-self: center;
+  font-size: 9px;
+  opacity: 0.92;
+}
+@media (pointer: coarse) {
+  body.arcade #miniDialog #miniControls small {
+    display: none;
+  }
+}
+@media (orientation: portrait) {
+  body.arcade #miniDialog #miniControls,
+  body.arcade #miniDialog[data-arcade] #miniControls {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--ctl);
+    padding: 7px 8px;
+  }
+}
+@media (orientation: landscape) {
+  body.arcade #miniDialog #miniControls,
+  body.arcade #miniDialog[data-arcade] #miniControls {
+    top: 52px;
+    right: 0;
+    bottom: 0;
+    width: var(--ctl-w);
+    flex-direction: column;
+    justify-content: center;
+    padding: 6px 8px 8px 0;
+  }
+  body.arcade #miniDialog #miniControls button,
+  body.arcade #miniDialog[data-arcade] #miniControls button {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+  body.arcade #miniDialog #miniControls .assist,
+  body.arcade #miniDialog[data-arcade] #miniControls .assist {
+    flex: 0 0 auto;
+    width: 84%;
+    max-width: none;
+    margin-top: 4px;
+  }
+  /* Five or six buttons: two across, the assist under them. */
+  body.arcade #miniDialog #miniControls:is([data-count='5'], [data-count='6'], [data-count='7']) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: center;
+  }
+  body.arcade #miniDialog #miniControls:is([data-count='5'], [data-count='6'], [data-count='7']) .assist {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+  /* One or two buttons: make them thumb-sized. */
+  body.arcade #miniDialog #miniControls:is([data-count='2'], [data-count='3']) button:not(.assist) {
+    min-height: 92px;
+    font-size: 13px;
+  }
 }
 /* Results stay on one screen: the art shrinks before the numbers and buttons scroll away. */
 body.arcade #miniDialog .mini-result-art {
@@ -965,7 +1522,7 @@ body.arcade #miniDialog .mini-result-art {
     margin: 8px 0 2px;
   }
 }
-/* Briefing and GO cards sit over everything. */
+/* Briefing and GO cards sit over everything but pause and close. */
 body.arcade #miniDialog .mini-briefing {
   position: fixed;
   inset: 0;
@@ -973,30 +1530,19 @@ body.arcade #miniDialog .mini-briefing {
   padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 12px);
   border-radius: 0;
 }
-@media (orientation: landscape) and (max-height: 540px) {
-  body.arcade #miniDialog #miniPlay {
-    grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: 'stage controls';
-  }
-  body.arcade #miniDialog #miniControls {
-    flex-direction: column;
-    justify-content: center;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-  body.arcade #miniDialog #miniControls button,
-  body.arcade #miniDialog #miniControls .assist {
-    flex: 0 0 auto;
-    width: 100%;
-    min-height: 42px;
-  }
-  /* Results in two columns: the scene and verdict left, numbers and buttons right. */
+/* Results in two columns on landscape phones and on tablets: scene and verdict left, numbers and
+   buttons right. */
+@media (orientation: landscape) and (max-height: 540px), (min-width: 760px) {
   body.arcade #miniDialog #miniResult {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: 18px;
+    column-gap: 22px;
     align-items: center;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  body.arcade #miniDialog #miniResult.hidden {
+    display: none;
   }
   body.arcade #miniDialog #miniResult > * {
     grid-column: 1;
@@ -1016,8 +1562,87 @@ body.arcade #miniDialog .mini-briefing {
     grid-row: 4;
   }
 }
-
-/* Arcade mode: the canvas hugs its drawing instead of leaving letterbox space around a square game. */
-body.arcade #miniDialog .mini-stage{display:flex;align-items:center;justify-content:center}
-body.arcade #miniDialog[data-arcade=gesture] #miniCanvas{width:auto;height:100%;max-width:100%;max-height:100%;aspect-ratio:1;margin:auto;display:block}
-body.arcade #miniDialog[data-arcade=iv] #miniCanvas{width:auto;height:100%;max-width:100%;max-height:100%;aspect-ratio:16/9;margin:auto;display:block}
+/* Tablets: the lobby uses the width. Preview and pitch on the left, levels and the big start right. */
+@media (min-width: 760px) and (min-height: 600px) {
+  body.arcade #miniDialog #miniLobby {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    column-gap: 28px;
+    align-items: start;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  body.arcade #miniDialog #miniLobby.hidden {
+    display: none;
+  }
+  body.arcade #miniDialog #miniLobby > * {
+    grid-column: 2;
+  }
+  body.arcade #miniDialog #miniLobby .lobby-intro {
+    grid-column: 1;
+    grid-row: 1 / span 6;
+    grid-template-columns: 1fr;
+    align-self: center;
+  }
+  body.arcade #miniDialog #miniLobby .lobby-intro h3 {
+    font-size: 26px;
+  }
+  body.arcade #miniDialog #miniLobby .lobby-intro p {
+    font-size: 13px;
+  }
+  body.arcade #miniDialog #miniLobby .tier-grid {
+    margin-top: 0;
+  }
+  body.arcade #miniDialog:is([data-screen='lobby'], [data-screen='result']) .mini-body {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 24px;
+  }
+  /* Centered when it fits, scrollable from the top when it does not. */
+  body.arcade #miniDialog #miniLobby,
+  body.arcade #miniDialog #miniResult {
+    width: 100%;
+    margin-block: auto;
+  }
+}
+/* Tablets: bigger arcade buttons and labels. */
+@media (pointer: coarse) and (min-width: 600px) and (min-height: 600px) {
+  body.arcade #miniDialog[data-arcade] #miniControls button {
+    font-size: 15px;
+  }
+  body.arcade #miniDialog[data-arcade] #miniControls .assist {
+    font-size: 12px;
+  }
+  body.arcade #miniDialog[data-arcade] .mini-instruction {
+    font-size: 15px;
+  }
+  #touchActions .act small,
+  #touchActions #useBtn span {
+    font-size: 11px;
+  }
+}
+/* Outside arcade mode a tablet still gets a roomy dialog. */
+@media (pointer: coarse) and (min-width: 760px) {
+  .mini-dialog {
+    width: min(1180px, 96vw);
+  }
+}
+/* A portrait canvas outside arcade mode gets a tall box instead of the 16:9 one. */
+#miniDialog[data-portrait='1'] .mini-stage {
+  width: min(100%, calc((100dvh - 300px) * var(--mini-a)));
+  aspect-ratio: var(--mini-a);
+  margin-inline: auto;
+}
+#miniDialog[data-portrait='1'] #miniCanvas {
+  width: 100%;
+  height: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .weapon-strip::before,
+  body.arcade #miniDialog .mini-instruction {
+    transition: none;
+  }
+  .weapon-strip .wslot svg {
+    animation: none !important;
+  }
+}
