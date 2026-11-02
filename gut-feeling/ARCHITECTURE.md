@@ -94,4 +94,15 @@ python3 gut-feeling/build.py            # build only
 node gut-feeling/tests/smoke.cjs        # one file (build first)
 ```
 
-`tests/harness.cjs` runs the built `index.html` in a Node VM with stub DOM and canvas objects and exports `run(code)`, `close()` (closes dialogs and resets the arcade screen), `nodes`, `events`, `box`, and `assert`. Each test file gets a fresh page because `run-all` starts it in its own process. `verify.cjs` covers mechanics rules, `playthrough.cjs` wins all 54 game/level/difficulty combinations with input-only controllers, and `smoke.cjs` checks the registry and draws every game and room. A new `tests/game-<name>.cjs` is picked up automatically.
+`tests/harness.cjs` runs the built `index.html` in a Node VM with stub DOM and canvas objects and exports `run(code)`, `close()` (closes dialogs and resets the arcade screen), `nodes`, `events`, `box`, and `assert`. Each test file gets a fresh page because `run-all` starts it in its own process.
+
+| File | Covers | Owner |
+| --- | --- | --- |
+| `verify.cjs` | Saves, nutrients, run lifecycle, idle failure for all 54 combinations, frame-rate independence, discharge | framework |
+| `combat.cjs` | Ward weapons, enemies, jumping, damage, wave payout | combat |
+| `game-<name>.cjs` | That game's mechanics rules | that game |
+| `bots/<name>.cjs` | `{id, policy}`: input-only controller code run every play tick by `playthrough.cjs`, with a persistent `bot` object for its memory. It must win every tier and difficulty. | that game |
+| `playthrough.cjs` | Runs every bot through all 54 combinations | framework |
+| `smoke.cjs` | Registry shape; every game and room draws | framework |
+
+When you change a game's rules, update its bot and its `game-<name>.cjs` in the same commit. Do not edit another owner's test file.
