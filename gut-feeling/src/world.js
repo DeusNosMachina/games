@@ -50,6 +50,9 @@ function coins(n) {
 // Gives an extra room the first say on an action ('attack', 'jump', 'dash', 'use', 'enter', 'tap').
 // point is in room coordinates for taps. True means it handled the action.
 function roomAction(kind, point) {
+  // Any action wakes Macy from an idle; the room's own hotspots (TV, E-Type, cards) go first.
+  macyWake();
+  if (roomSpotAction(kind, point)) return true;
   return typeof roomExtrasAction === 'function' && !!roomExtrasAction(kind, point);
 }
 
@@ -236,6 +239,7 @@ function loadRoom(id) {
     // Rooms without an arcade (the hallway) do their own greeting.
     if (toastSerial === toastsBefore && !rooms[id].noArcade) toast(roomToast(id), 3);
   }
+  macyRoomLoaded();
   if (typeof onRoomLoaded === 'function') onRoomLoaded(id);
 }
 
@@ -308,8 +312,9 @@ function emit(x, y, col, n = 12, speed = 100) {
     });
 }
 
-function floating(text, x, y, col = '#fff1c2') {
-  floats.push({ text, x, y, life: 1.1, col });
+// life (optional) keeps a longer line up long enough to read; text may hold '\n' line breaks.
+function floating(text, x, y, col = '#fff1c2', life = 1.1) {
+  floats.push({ text, x, y, life, col });
 }
 
 function eat() {
@@ -325,13 +330,524 @@ function eat() {
   hud();
 }
 
+// ---- Macy's room life ----
+// Idles when she stands still, reactions (a flinch, a fist-pump, the medal grin), the room's hotspots
+// (the TV, the E-Type, the get-well wall), the TV and its channels, and the quiet stuff: dust in the
+// sun, swaying curtains, a nurse passing the door glass, the MRI hum, nodding plants (art.js).
+const MACY_IDLE_MIN = 4,
+  MACY_IDLE_SPAN = 3,
+  TV_WATCH_SECONDS = 3,
+  ROOM_SWAY = 0.022,
+  CAT_CARD = {
+    who: 'cats',
+    name: 'Addie, Stella and Pepper',
+    text: 'We knocked your water glass off the table. For you.'
+  },
+  ETYPE_LINES = [
+    'She built this. 1,000 pieces. Zero regrets.',
+    'British racing green. Built in Bergen County.',
+    'Wire wheels. Every spoke placed by hand. Hers.',
+    'Zero to sixty in never. It is LEGO.',
+    'The only E-Type that fits on a nightstand.',
+    'Built one brick at a time. Like a comeback.'
+  ],
+  // zone: where Macy stands to use it; tap: what a finger or a click can hit; tip: the prompt.
+  ROOM_SPOTS = {
+    0: [
+      { id: 'wall', zone: [40, 170, 200, 165], at: [160, 296], tip: [167, 140], verb: 'READ', tap: [86, 66, 162, 62] },
+      { id: 'etype', zone: [240, 170, 130, 150], at: [307, 282], tip: [307, 130], verb: 'ADMIRE', tap: [266, 138, 82, 36] },
+      { id: 'tv', zone: [596, 170, 228, 125], at: [705, 236], tip: [705, 142], verb: 'CHANNEL', tap: [620, 24, 170, 100] }
+    ],
+    2: [{ id: 'tv', zone: [630, 170, 245, 140], at: [750, 250], tip: [750, 150], verb: 'CHANNEL', tap: [660, 20, 180, 106] }]
+  };
+
+let macyIdleT = 0,
+  macyIdleWait = 0,
+  macyIdleSeq = 0,
+  macyWaveSeen = null,
+  roomSpotSeq = 0,
+  tvWatch = 0,
+  tvCounted = false,
+  tvFlash = 0,
+  tvOsd = 0;
+
+const tvChannels = { 0: 0, 2: 0 },
+  wallCache = { cv: null, n: -1, last: null, night: false },
+  curtainSprites = new Map();
+
+// ---- Poses ----
+function macySetPose(kind) {
+  if (!MACY_POSES[kind]) return false;
+  player.pose = kind;
+  player.poseT = 0;
+  player.poseLen = MACY_POSES[kind];
+  return true;
+}
+
+function macyClearPose() {
+  player.pose = '';
+  player.poseT = 0;
+  player.poseLen = 0;
+}
+
+const macyIsIdle = () => MACY_IDLES.includes(player.pose);
+
+// What girl() should play right now, or null.
+function macyAct() {
+  return player.pose ? { kind: player.pose, t: player.poseT } : null;
+}
+
+// The medal grin, straight at the camera. The result screen calls this; it clears on its own.
+function macyCelebrate() {
+  macyIdleT = 0;
+  macyIdleWait = 0;
+  return macySetPose('grin');
+}
+
+// The volleyball idle thumps the floor three times.
+const MACY_BALL_THUMPS = [0.61, 1.23, 1.85];
+
+function macyPoseTick(dt) {
+  if (!player.pose) return;
+  if (macyIsIdle() && (mini.open || isModal() || state.paused || !state.started)) {
+    macyClearPose();
+    return;
+  }
+  const before = player.poseT;
+  player.poseT += dt;
+  if (player.pose === 'ball')
+    for (const at of MACY_BALL_THUMPS) if (before < at && player.poseT >= at) sfx('bounce', { vol: 0.3 });
+  if (player.poseT >= player.poseLen) macyClearPose();
+}
+
+// Input of any kind, or anything happening to Macy, cancels an idle and restarts the wait.
+function macyWake() {
+  macyIdleT = 0;
+  macyIdleWait = 0;
+  if (macyIsIdle()) macyClearPose();
+}
+
+const macyGremlinsLive = () => enemies.some(e => e && e.hp > 0 && !e.gone),
+  macyTalking = () => typeof hallwayTalk !== 'undefined' && !!hallwayTalk;
+
+function macyBusy() {
+  return (
+    keys.size > 0 ||
+    Math.abs(joy.x) + Math.abs(joy.y) > 0.05 ||
+    wardTouches.size > 0 ||
+    !!wardGoal ||
+    !!wardPrey ||
+    heldAttack ||
+    player.moving ||
+    player.attack > 0 ||
+    player.dash > 0 ||
+    player.z > 0 ||
+    player.eat > 0 ||
+    player.vomit > 0 ||
+    deadDelay > 0 ||
+    macyGremlinsLive() ||
+    macyTalking()
+  );
+}
+
+// After 4 to 7 still seconds (a fixed, repeatable spread), one idle from the rotation.
+function macyIdleStep(dt) {
+  if (macyBusy()) {
+    macyWake();
+    return;
+  }
+  if (player.pose) return;
+  if (!macyIdleWait) macyIdleWait = MACY_IDLE_MIN + MACY_IDLE_SPAN * titleHash(macyIdleSeq, 3.7);
+  macyIdleT += dt;
+  if (macyIdleT < macyIdleWait) return;
+  macySetPose(MACY_IDLES[macyIdleSeq % MACY_IDLES.length]);
+  macyIdleSeq++;
+  macyIdleT = 0;
+  macyIdleWait = 0;
+  const stats = (state.stats ||= {});
+  stats.idles = (stats.idles || 0) + 1;
+  save();
+}
+
+// A hit flinches; a cleared wave (or the whole ward) gets a fist-pump.
+function macyReactions() {
+  if (state.hp < wardHpSeen) {
+    macyIdleT = 0;
+    macySetPose('flinch');
+  }
+  if (typeof encounter === 'undefined' || !encounter) return;
+  const seen = macyWaveSeen,
+    now = { ref: encounter, wave: encounter.wave || 0, complete: !!encounter.complete };
+  macyWaveSeen = now;
+  if (!seen || seen.ref !== now.ref || encounter.calm) return;
+  if (now.wave > seen.wave || (now.complete && !seen.complete)) macySetPose('pump');
+}
+
+function macyRoomLoaded() {
+  macyWake();
+  if (player.pose !== 'grin') macyClearPose();
+  macyWaveSeen = null;
+  tvWatch = 0;
+  tvCounted = false;
+  tvFlash = 0;
+  tvOsd = 0;
+  macySeedCatCard(true);
+}
+
+// ---- The TV ----
+const tvRoomKey = (id = state.room) => (id === 5 ? 0 : ROOM_TVS[id] ? id : -1);
+
+function tvChannel(id = state.room) {
+  const k = tvRoomKey(id);
+  return k < 0 ? -1 : tvChannels[k] || 0;
+}
+
+// The remote: next channel, a click, a blink of static and the channel name.
+function tvChange(id = state.room) {
+  const k = tvRoomKey(id);
+  if (k < 0) return false;
+  tvChannels[k] = ((tvChannels[k] || 0) + 1) % TV_CHANNELS.length;
+  tvFlash = reduced ? 0 : 0.22;
+  tvOsd = 1.8;
+  tvWatch = 0;
+  tvCounted = false;
+  sfx('ui');
+  return true;
+}
+
+function tvVisible(id = state.room) {
+  const k = tvRoomKey(id);
+  if (k < 0) return false;
+  const tv = ROOM_TVS[k];
+  return (
+    tv.x + tv.w > cameraX &&
+    tv.x < cameraX + viewport.w &&
+    tv.y + tv.h > wardCameraY &&
+    tv.y < wardCameraY + viewport.h
+  );
+}
+
+// Three seconds of the cat cam counts as watching it, once per sitting.
+function tvTick(dt) {
+  tvFlash = Math.max(0, tvFlash - dt);
+  tvOsd = Math.max(0, tvOsd - dt);
+  if (tvChannel() !== 0 || !tvVisible()) {
+    tvWatch = 0;
+    tvCounted = false;
+    return;
+  }
+  tvWatch += dt;
+  if (tvCounted || tvWatch < TV_WATCH_SECONDS) return;
+  tvCounted = true;
+  const stats = (state.stats ||= {});
+  stats.catCam = (stats.catCam || 0) + 1;
+  macySeedCatCard();
+  save();
+}
+
+const macyToday = () => (typeof dailyToday === 'function' ? dailyToday() : '');
+
+// The cats send one card, ever, once Macy has watched them at least once. stats.catCard remembers
+// it was sent even if the wall is ever cleared.
+function macySeedCatCard(quiet = false) {
+  const stats = (state.stats ||= {});
+  if (!(stats.catCam >= 1) || stats.catCard >= 1) return false;
+  if (!Array.isArray(state.cards)) state.cards = [];
+  stats.catCard = 1;
+  if (state.cards.some(card => card && card.who === 'cats')) return false;
+  state.cards.push({ ...CAT_CARD, day: macyToday() });
+  if (!quiet) toast('New card on the wall. Signed with paws.', 2.8);
+  save();
+  return true;
+}
+
+function tvDraw(g, id) {
+  const k = tvRoomKey(id);
+  if (k < 0 || !tvVisible(id)) return;
+  const tv = ROOM_TVS[k],
+    s = tvScreenRect(tv),
+    ch = tvChannel(id),
+    flick = reduced ? 0 : 0.08 * Math.sin(time * 7.3) * Math.sin(time * 2.9 + 1) + (k === 2 ? 0.07 * Math.sin(time * 13.7) : 0);
+  // The screen lights the wall around it, a little unevenly.
+  g.globalAlpha = clamp((id === 5 ? 0.9 : 0.62) + flick + tvFlash * 1.5, 0, 1);
+  g.drawImage(tvGlowSprite(TV_GLOW_COLORS[ch]), tv.x - tv.w * 0.45, tv.y - tv.h * 0.45, tv.w * 1.9, tv.h * 1.9);
+  g.globalAlpha = 1;
+  g.save();
+  g.beginPath();
+  g.rect(s.x, s.y, s.w, s.h);
+  g.clip();
+  g.translate(s.x, s.y);
+  if (ch === 0) tvCatCam(g, s.w, s.h, time);
+  else if (ch === 1) tvRamsGame(g, s.w, s.h, time);
+  else tvCardShow(g, s.w, s.h, time, state.cards, state.name);
+  if (tvFlash > 0) {
+    g.globalAlpha = Math.min(1, tvFlash * 6);
+    tvNoise(g, s.w, s.h, time);
+    g.globalAlpha = 1;
+  }
+  if (tvOsd > 0) {
+    const text = 'CH ' + (ch + 1) + ' · ' + TV_CHANNELS[ch];
+    g.globalAlpha = Math.min(1, tvOsd * 3);
+    rr(g, s.w - 8 - text.length * 4.6, 4, text.length * 4.6 + 4, 11, 3, '#0b1220cc');
+    label(g, text, s.w - 6, 12.4, 7.5, '#a6f0b8', 'right');
+    g.globalAlpha = 1;
+  }
+  g.restore();
+  poly(g, [[s.x + s.w * 0.58, s.y], [s.x + s.w * 0.76, s.y], [s.x + s.w * 0.46, s.y + s.h], [s.x + s.w * 0.28, s.y + s.h]], '#ffffff0b');
+}
+
+// ---- Hotspots ----
+const roomSpotsHere = () => ROOM_SPOTS[state.room === 5 ? 0 : state.room] || [];
+
+function roomSpotsBlocked() {
+  return !state.started || state.paused || mini.open || isModal() || deadDelay > 0 || macyGremlinsLive() || macyTalking();
+}
+
+// The hotspot Macy is standing at (the nearest, when zones overlap), or null.
+function roomSpotNear() {
+  let best = null,
+    bestD = Infinity;
+  for (const s of roomSpotsHere()) {
+    const [x, y, w, h] = s.zone;
+    if (player.x < x || player.x > x + w || player.y < y || player.y > y + h) continue;
+    const d = Math.hypot(player.x - s.at[0], player.y - s.at[1]);
+    if (d < bestD) {
+      best = s;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+function roomSpotAt(p) {
+  if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
+  return roomSpotsHere().find(s => p.x >= s.tap[0] && p.x <= s.tap[0] + s.tap[2] && p.y >= s.tap[1] && p.y <= s.tap[1] + s.tap[3]) || null;
+}
+
+function roomBeaconNear() {
+  const station = isArcadeRoom(state.room) && rooms[state.room].station;
+  return !!station && dist(player, { x: station[0], y: station[1] }) < 85;
+}
+
+// Space, E or Enter at a hotspot, or a tap on one. Enter by the arcade beacon stays the arcade's.
+function roomSpotAction(kind, point) {
+  if (roomSpotsBlocked()) return false;
+  let spot = null;
+  if (kind === 'tap') spot = roomSpotAt(point);
+  else if (kind === 'attack' || kind === 'use' || kind === 'enter') {
+    spot = roomSpotNear();
+    if (spot && kind === 'enter' && roomBeaconNear()) spot = null;
+  }
+  return spot ? roomSpotUse(spot) : false;
+}
+
+// Wraps a line for a floating caption: about `max` characters a line.
+function roomWrap(text, max = 30) {
+  const lines = [];
+  for (const word of String(text).split(/\s+/).filter(Boolean)) {
+    const lastLine = lines[lines.length - 1];
+    if (lastLine !== undefined && (lastLine + ' ' + word).length <= max) lines[lines.length - 1] = lastLine + ' ' + word;
+    else lines.push(word);
+  }
+  return lines;
+}
+
+// A floating caption that stays readable: wrapped, held longer, kept inside the view.
+function roomFloat(lines, x, y, col, life) {
+  floats.push({ text: lines.join('\n'), lines, x, y, life, col });
+}
+
+function roomSpotUse(s) {
+  macyWake();
+  if (Math.abs(s.at[0] - player.x) > 8) player.dir = s.at[0] > player.x ? 1 : -1;
+  if (s.id === 'tv') return tvChange();
+  if (s.id === 'etype') {
+    const text = ETYPE_LINES[roomSpotSeq % ETYPE_LINES.length];
+    roomSpotSeq++;
+    roomFloat(roomWrap(text, 26), 307, 126, '#fff1c2', 2.8);
+    sfx('ui');
+    return true;
+  }
+  if (s.id === 'wall') {
+    const cards = (Array.isArray(state.cards) ? state.cards : []).filter(card => card && typeof card === 'object'),
+      card = cards[cards.length - 1],
+      lines = card
+        ? [...roomWrap('“' + String(card.text || '…') + '”', 30), '♥ ' + String(card.name || 'A friend')]
+        : ['No cards yet.', 'The wall is saving room.'];
+    roomFloat(lines, 167, 156, '#ffe4ec', 3.6);
+    sfx('ui');
+    return true;
+  }
+  return false;
+}
+
+// Multi-line floats, nudged sideways so no line runs off the edge of the view.
+function floatLines(g, f) {
+  const lines = f.lines || String(f.text).split('\n'),
+    widest = Math.max(...lines.map(ln => ln.length)) * 6.4,
+    x = clamp(f.x, cameraX + widest / 2 + 8, cameraX + viewport.w - widest / 2 - 8);
+  lines.forEach((ln, i) => {
+    const y = f.y - (lines.length - 1 - i) * 15;
+    label(g, ln, x + 1, y + 1, 12, '#244656', 'center');
+    label(g, ln, x, y, 12, f.col, 'center');
+  });
+}
+
+function drawRoomSpotPrompt(g) {
+  if (roomSpotsBlocked()) return;
+  const s = roomSpotNear();
+  if (!s) return;
+  const text = (wardCoarsePointer ? 'TAP' : 'SPACE') + ' · ' + s.verb,
+    w = text.length * 6.4 + 18,
+    [x, y] = s.tip;
+  rr(g, x - w / 2, y - 10, w, 20, 10, '#173847e6', '#ffe29b', 1.5);
+  label(g, text, x, y + 4, 10, '#ffe29b', 'center');
+}
+
+// A mouse click on a hotspot (touches arrive through roomAction('tap') in input.js).
+function roomSpotClick(e) {
+  if (typeof pressClick === 'function' && pressClick(canvas, e)) return;
+  if (!e || e.clientX === undefined) return;
+  macyWake();
+  roomSpotAction('tap', wardPoint(e));
+}
+
+if (canvas && typeof canvas.addEventListener === 'function') canvas.addEventListener('click', roomSpotClick);
+// Any key or press anywhere wakes Macy at once (the ward step also notices held keys and fingers).
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener('keydown', macyWake, true);
+  document.addEventListener('pointerdown', macyWake, true);
+}
+
+// ---- The wall and the ambience ----
+function roomCurtainSway(side, id = state.room) {
+  if (!roomSwayCurtains(id)) return 0;
+  return Math.sin(time * 0.8 + side * 1.3 + id) * ROOM_SWAY;
+}
+
+function curtainSprite(h) {
+  let cv = curtainSprites.get(h);
+  if (!cv) {
+    cv = document.createElement('canvas');
+    curtainArt(configureCanvas(cv, 20, h), 0, 0, h);
+    curtainSprites.set(h, cv);
+  }
+  return cv;
+}
+
+// Curtains hang from the rail and the hems drift. Two sprites, two draws.
+function roomCurtains(g, id) {
+  if (!roomSwayCurtains(id)) return;
+  const win = ROOM_WINDOWS[id],
+    h = win.h + 12,
+    sprite = curtainSprite(h);
+  for (const side of [-1, 1]) {
+    const x = side < 0 ? win.x - 24 : win.x + win.w + 5;
+    g.save();
+    g.translate(x + 10, win.y - 7);
+    g.transform(1, 0, roomCurtainSway(side, id), 1, 0, 0);
+    g.drawImage(sprite, -10, 0, 20, h);
+    g.restore();
+  }
+}
+
+// Dust motes drifting in the window light: one path, one fill.
+function roomMotes(g, id) {
+  if (reduced || id === 5 || !ROOM_WINDOWS[id] || roomDaypart() === 'night') return;
+  g.beginPath();
+  for (let i = 0; i < 16; i++) {
+    const v = (roomHash(i, 81) + time * 0.012 * (0.5 + roomHash(i, 82))) % 1,
+      y = 165 + v * 285,
+      k = (y - 155) / 307,
+      left = 365 + k * 112,
+      right = 590 + k * 140,
+      x = left + (right - left) * roomHash(i, 83) + Math.sin(time * 0.6 + i * 1.7) * 7,
+      r = 0.9 + roomHash(i, 84) * 1.1;
+    g.moveTo(x + r, y);
+    g.arc(x, y, r, 0, Math.PI * 2);
+  }
+  g.globalAlpha = 0.45 + 0.15 * Math.sin(time * 0.7);
+  g.fillStyle = '#fff6d4';
+  g.fill();
+  g.globalAlpha = 1;
+}
+
+// Every so often a nurse walks past the glass in the door, one way or the other.
+function roomNurse(g, id) {
+  if (reduced) return;
+  const loop = time + id * 3.1,
+    c = loop % 15;
+  if (c > 2.6) return;
+  const pane = ROOM_DOOR_GLASS,
+    dir = Math.floor(loop / 15) % 2 ? -1 : 1,
+    k = c / 2.6,
+    x = dir > 0 ? pane.x - 10 + k * (pane.w + 20) : pane.x + pane.w + 10 - k * (pane.w + 20),
+    bob = Math.abs(Math.sin(c * 7)) * 1.2;
+  g.save();
+  g.beginPath();
+  g.rect(pane.x, pane.y, pane.w, pane.h);
+  g.clip();
+  g.globalAlpha = id === 5 ? 0.4 : 0.55;
+  rr(g, x - 9, pane.y + 21 - bob, 18, 22, 7, '#3f7f8a');
+  ellipse(g, x, pane.y + 14 - bob, 4.4, 5, '#2f5a63');
+  ellipse(g, x - dir * 3.4, pane.y + 10 - bob, 2.4, 2.4, '#2f5a63');
+  g.restore();
+}
+
+// The MRI's hum, felt in the room light.
+function roomHum(g, id) {
+  if (reduced || id !== 1) return;
+  g.globalAlpha = 0.045 * (0.5 + 0.5 * Math.sin(time * Math.PI * 1.8));
+  rect(g, 0, 0, 1000, 625, '#d6f1ff');
+  g.globalAlpha = 1;
+}
+
+// The cards on the board, from a cache that rebuilds only when a card arrives.
+function roomWallCards(g, night) {
+  const cards = Array.isArray(state.cards) ? state.cards : [],
+    last = cards[cards.length - 1] || null,
+    b = WALL_BOARD;
+  if (!wallCache.cv || wallCache.n !== cards.length || wallCache.last !== last || wallCache.night !== night) {
+    if (!wallCache.cv) wallCache.cv = document.createElement('canvas');
+    const cg = configureCanvas(wallCache.cv, b.w + 24, b.h + 24);
+    cg.save();
+    cg.translate(12 - b.x, 12 - b.y);
+    wallCardsArt(cg, cards);
+    cg.restore();
+    if (night) {
+      cg.globalCompositeOperation = 'source-atop';
+      rect(cg, 0, 0, b.w + 24, b.h + 24, '#162a5266');
+      cg.globalCompositeOperation = 'source-over';
+    }
+    wallCache.n = cards.length;
+    wallCache.last = last;
+    wallCache.night = night;
+  }
+  g.drawImage(wallCache.cv, b.x - 12, b.y - 12, b.w + 24, b.h + 24);
+}
+
+// Everything on the walls that moves or changes, drawn right over the cached room.
+function roomWallLayer(g) {
+  const id = state.room;
+  if (!(id >= 0 && id <= 5)) return;
+  roomHum(g, id);
+  roomMotes(g, id);
+  roomCurtains(g, id);
+  roomNurse(g, id);
+  if (id === 0 || id === 5) roomWallCards(g, id === 5);
+  tvDraw(g, id);
+}
+
 // ---- Title screen ----
 // #titleScreen owns the viewport on load: the hospital at dusk drawn on #titleArt, the logo, and one
 // START. Any key, any tap or the button starts; the screen irises out (instantly under reduced motion)
 // and begin() runs. "Quit to title" in the pause menu brings it back. Under reduced motion the art
 // holds still. After TITLE_ATTRACT_SECONDS idle, a gremlin runs past and Macy's window flickers.
 const TITLE_IRIS_SECONDS = reduced ? 0 : 0.25,
-  TITLE_ATTRACT_SECONDS = 25;
+  TITLE_ATTRACT_SECONDS = 25,
+  TITLE_HOSPITAL = 'VALLEY HOSPITAL',
+  TITLE_FLOORS = 8,
+  TITLE_MACY_FLOOR = 7;
 
 let titleUp = false,
   titleLeaving = 0,
@@ -487,22 +1003,31 @@ function drawTitleArt(g, w, h, t, attract) {
   rr(g, bx + bw / 2 - 34 * s, by - 46 * s, 68 * s, 46 * s, 8 * s, '#1d3742');
   rect(g, bx + bw / 2 - 7 * s, by - 40 * s, 14 * s, 34 * s, '#ffa48e');
   rect(g, bx + bw / 2 - 17 * s, by - 30 * s, 34 * s, 14 * s, '#ffa48e');
-  // Windows: four floors. Macy's is lit and has company; a few dark ones have eyes.
+  // The name across the top of the facade, lit.
+  const signY = by + 30 * s,
+    signSize = Math.max(9, 13 * s);
+  ellipse(g, bx + bw / 2, signY - signSize * 0.35, signSize * 6.4, signSize * 0.9, '#ffe7a81c');
+  label(g, TITLE_HOSPITAL, bx + bw / 2, signY, signSize, '#f6edd0', 'center');
+  // Windows: eight floors, counted from the ground. Macy's (7th floor, room 5) is lit and has
+  // company; a few dark ones have eyes. The lobby keeps clear of the entrance.
   const cols = Math.max(4, Math.round(bw / (70 * s))),
     cw = bw / cols,
-    rows = Math.max(4, Math.round((bh - 70 * s) / (cw * 0.95))),
-    rh = (bh - 70 * s) / rows,
+    rows = TITLE_FLOORS,
+    top = by + 40 * s,
+    rh = (groundY - 10 * s - top) / rows,
     ww = cw * 0.56,
-    wh = rh * 0.6,
+    wh = rh * 0.62,
     macyCol = Math.floor(cols * 0.3),
-    macyRow = 1,
+    macyRow = rows - TITLE_MACY_FLOOR,
+    entry = 70 * s,
     flicker = attract && !reduced ? 0.55 + 0.45 * Math.abs(Math.sin(t * 17) * Math.sin(t * 5.3)) : 1;
   for (let r = 0; r < rows; r++)
     for (let col = 0; col < cols; col++) {
       const x = bx + col * cw + (cw - ww) / 2,
-        y = by + 26 * s + r * rh,
+        y = top + r * rh,
         macy = r === macyRow && col === macyCol,
         lit = macy || titleHash(col, r) > 0.42;
+      if (y + wh > groundY - 92 * s && Math.abs(x + ww / 2 - (bx + bw / 2)) < entry * 0.5 + ww * 0.5) continue;
       if (macy) {
         g.globalAlpha = flicker;
         ellipse(g, x + ww / 2, y + wh / 2, ww * 1.1, wh * 1.1, '#ffe7a833');
@@ -552,6 +1077,9 @@ function titleSilhouette(g, x, y, ww, wh) {
   ellipse(g, x + ww * 0.6, y + wh * 0.48, wh * 0.14, wh * 0.15, ink);
   ellipse(g, x + ww * 0.6 - wh * 0.16, y + wh * 0.52, wh * 0.07, wh * 0.16, ink);
   rr(g, x + ww * 0.6 - wh * 0.22, y + wh * 0.66, wh * 0.44, wh * 0.36, wh * 0.12, ink);
+  // Her number on the hoodie, when the window is big enough for it to read.
+  const size = wh * 0.24;
+  if (size >= 6) macyNumber(g, x + ww * 0.6, y + wh * 0.83, size, '#ffe7a8', ink);
 }
 
 // A pair of gremlin eyes in a dark window, blinking now and then.
@@ -843,6 +1371,8 @@ function updateWorld(dt) {
   player.visualDir =
     (player.visualDir ?? player.dir) +
     (player.dir - (player.visualDir ?? player.dir)) * (1 - Math.exp(-dt * 16));
+  // Poses run on their own clock, so the medal grin plays out on the result screen too.
+  macyPoseTick(dt);
   if (toastTimer > 0) {
     toastTimer -= dt;
     if (toastTimer <= 0) $('toast').classList.remove('show');
@@ -913,6 +1443,7 @@ function updateWorld(dt) {
   if (keys.has(' ') || heldAttack) attack();
   updateCombat(dt);
   if (typeof updateRoomExtras === 'function') updateRoomExtras(dt);
+  macyReactions();
   wardHpSeen = state.hp;
   for (let s of supplies.filter(supplyAvailable))
     if (dist(s, player) < 27 && state.food < maxFood()) {
@@ -936,6 +1467,8 @@ function updateWorld(dt) {
     else openMap();
   }
   updateEffects(dt);
+  macyIdleStep(dt);
+  tvTick(dt);
   $('dashBtn').style.opacity = player.dashCd > 0 ? '.45' : '1';
   $('useBtn').style.opacity = state.item && player.itemCd > 0 ? '.45' : '1';
 }
@@ -996,6 +1529,7 @@ function drawWorld() {
   c.save();
   c.translate(-cameraX + (shake ? rand(-3, 3) : 0), -wardCameraY + (shake ? rand(-2, 2) : 0));
   roomBg(c, state.room);
+  roomWallLayer(c);
   for (let p of puddles) {
     if (p.gunk) continue;
     c.globalAlpha = Math.min(1, p.life);
@@ -1046,7 +1580,8 @@ function drawWorld() {
         player.walk,
         player.visualDir ?? player.dir,
         player.inv > 0 && player.vomit <= 0,
-        player.z <= 0
+        player.z <= 0,
+        macyAct()
       );
       g.restore();
       vomitArt(g, player.x, player.y - player.z, player.dir, player.vomit, 1.24);
@@ -1092,10 +1627,14 @@ function drawWorld() {
   c.globalAlpha = 1;
   for (let f of floats) {
     c.globalAlpha = Math.min(1, f.life * 2);
-    label(c, f.text, f.x + 1, f.y + 1, 12, '#244656', 'center');
-    label(c, f.text, f.x, f.y, 12, f.col, 'center');
+    if (f.lines || String(f.text).includes('\n')) floatLines(c, f);
+    else {
+      label(c, f.text, f.x + 1, f.y + 1, 12, '#244656', 'center');
+      label(c, f.text, f.x, f.y, 12, f.col, 'center');
+    }
   }
   c.globalAlpha = 1;
+  drawRoomSpotPrompt(c);
   if (typeof drawCombatFx === 'function') drawCombatFx(c);
   drawWardTaps(c);
   rect(c, 0, 603, roomWidth(), 22, '#244856');
