@@ -87,15 +87,16 @@ node gut-feeling/tests/playthrough.cjs
 
 Run from the repository root. Commit the editable sources and generated `gut-feeling/index.html` together. The generated file contains all HTML, CSS, JavaScript, and canvas artwork.
 
-Source guide:
+Source guide (details, hook reference, and parallel-work rules in [ARCHITECTURE.md](ARCHITECTURE.md)):
 
-- `state.js`, `world.js`: persistence, room navigation, pickups, health, and base exploration.
+- `state.js`: helpers, room table, difficulties, saves, shared run state, and the arcade registry.
+- `art.js`: drawing primitives, characters, furniture, cached room backgrounds, and shared arcade art.
+- `audio.js`: WebAudio beeps and the named `sfx()` vocabulary.
+- `world.js`: ward navigation, pickups, health, effects, map, and the frame loop.
 - `combat.js`: equipped attacks, aiming, jumping, enemy behaviors, and wave encounters.
-- `minigames.js`, `transitions.js`: IV recovery, scoring, rewards, briefings, and transitions.
-- `arcade.js`, `arcade-art.js`: gesture game mechanics and illustrations.
-- `bedside.js`: the dark-room shooter, crawling/leaping enemies, aiming, magazines, and art.
-- `art.js`, `mini-art.js`, `smooth.js`, `challenge-art.js`: shared illustrations, IV rendering, and frame scheduling. Some earlier prototype helpers remain here.
-- `input.js`: keyboard, pointer capture, independent touch inputs, and menus.
+- `minigames.js`, `transitions.js`: the arcade framework (lobby, scoring, rewards, results, shared gesture plumbing) plus briefings and countdowns.
+- `games/iv.js`, `magnet.js`, `bricks.js`, `race.js`, `slice.js`, `blaster.js`: one file per arcade game, each with its rules, art, copy, and controls.
+- `input.js`: keyboard, pointer capture, independent touch inputs, menus, and startup.
 - `template.html`, `dialogs.html`, `v2.css`: interface, instructions, and responsive layout.
 
 Regression checks cover weapon dispatch, wind-up damage, multi-hit/splitting enemies, jumping, health budgets, pause and transition clocks, reward idempotence, aim cancellation, magnetic force direction, swipe rules, race obstacle rules, and shooter sight/ammo/headshot/reload/leap behavior. Input-driven controllers complete **54 game/level/prescription combinations** through the actual simulation. Separate checks reject idle play in all 45 gesture-game combinations. These tests establish mechanics and solvability; they do not replace human difficulty tuning.
