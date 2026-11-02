@@ -615,7 +615,7 @@ let arcadePointer = null,
   strokeSerial = 0;
 
 const ARCADE_QUOTA_MISSED =
-  'Shift over. Quota missed. In the race, jumping crates, sliding bars and defeating gremlins earn stunts. Try a Steady hands assist if needed.';
+  'Shift over. Quota missed. The gremlins are unbearable about it. A Steady hands assist buys a breather next time.';
 
 // Common run state for a gesture game; call first from def.init().
 function initArcadeRun(limit) {
@@ -695,6 +695,8 @@ function arcadeMove(p) {
   const prev = { x: mini.pointer.lastX, y: mini.pointer.lastY },
     def = games[mini.id];
   if (def.move) dailyScoped(() => def.move(p, prev));
+  // A move hook can end the run (an oops that spends the last heart), which clears the pointer.
+  if (!mini.pointer) return;
   mini.pointer.lastX = p.x;
   mini.pointer.lastY = p.y;
 }
