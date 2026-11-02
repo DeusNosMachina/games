@@ -292,7 +292,7 @@ const HOSPITAL_MAP_COPY = {
   station: ['Nurses’ station', 'ASK NICELY'],
   restroom: ['Restroom', 'OCCUPIED. ALWAYS.'],
   shop: 'Gift shop',
-  floor: 'VALLEY HOSPITAL · 7F · GUT WING',
+  floor: 'VALLEY · 7F · PEDIATRICS',
   lift: '7',
   // Macy's room is Room 5. Its plate keeps the name "Your room" and puts the number underneath.
   home: 'ROOM 5',

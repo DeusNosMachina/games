@@ -64,9 +64,9 @@ run(`var signLog = [];
   hallwayRoomBg(signCtx);
   roomProps[6].forEach(p => p.draw(signCtx));`);
 const signs = JSON.parse(run('JSON.stringify(signLog)'));
-for (const want of ['ROOM 5', '7', 'FLOOR', 'VALLEY HOSPITAL · 7F · GUT WING', 'VALLEY HOSPITAL', 'PARAMUS · 7TH FLOOR', "NURSES’ STATION"])
+for (const want of ['ROOM 5', '7', 'FLOOR', 'VALLEY · 7F · PEDIATRICS', 'VALLEY HOSPITAL', 'PARAMUS · 7TH FLOOR', "NURSES’ STATION"])
   assert.ok(signs.includes(want), `the corridor shows ${want}`);
-assert.equal(signs.filter(t => t === 'VALLEY HOSPITAL · 7F · GUT WING').length, 3, 'the wall stripe repeats about once a screen');
+assert.equal(signs.filter(t => t === 'VALLEY · 7F · PEDIATRICS').length, 3, 'the wall stripe repeats about once a screen');
 for (const gone of ['ROOM 412', '4', '4F', 'FLOOR 4']) assert.ok(!signs.includes(gone), `no ${gone} on the walls`);
 assert.ok(!signs.some(t => /412|4F|FLOOR 4|FOURTH/.test(t)));
 console.log('PASS: Mimi and Dodo by name everywhere; ROOM 5, the 7 in the elevator, the Valley Hospital stripe and plaque.');

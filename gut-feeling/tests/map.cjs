@@ -56,7 +56,7 @@ console.log('PASS: 900x560, 390x600 and 800x360 pick wide, portrait and strip la
 const mapSrc = fs.readFileSync(path.join(__dirname, '../src/map.js'), 'utf8');
 for (const old of ['4F', 'FLOOR 4', 'floor 4', 'fourth', 'Fourth', '412']) assert.ok(!mapSrc.includes(old), `map.js no longer says ${old}`);
 assert.equal(run('HOSPITAL_MAP_COPY.header'), 'VALLEY HOSPITAL · FLOOR 7');
-assert.equal(run('HOSPITAL_MAP_COPY.floor'), 'VALLEY HOSPITAL · 7F · GUT WING', 'the Gut Wing joke stays');
+assert.equal(run('HOSPITAL_MAP_COPY.floor'), 'VALLEY · 7F · PEDIATRICS', 'the wing is pediatrics');
 // The still layer (corridor, elevator) is cached offscreen, so read it straight from the base painter.
 run(`function hmBase(w, h) {
   hmLog = [];
@@ -65,7 +65,7 @@ run(`function hmBase(w, h) {
 }`);
 for (const [w, h, kind] of SIZES) {
   const texts = run(`hmBase(${w}, ${h}).concat(hmDraw(${w}, ${h}))`);
-  assert.ok(texts.includes('VALLEY HOSPITAL · 7F · GUT WING'), `${kind} corridor says where we are`);
+  assert.ok(texts.includes('VALLEY · 7F · PEDIATRICS'), `${kind} corridor says where we are`);
   assert.ok(texts.includes('7'), `${kind} elevator chip shows 7`);
   assert.ok(texts.includes('ROOM 5') || texts.includes('ROOM 5 · HOME BASE'), `${kind} Macy's plate says Room 5`);
   for (const gone of ['4', 'GUT WING · 4F', '4F', 'FLOOR 4']) assert.ok(!texts.includes(gone), `${kind} has no ${gone}`);

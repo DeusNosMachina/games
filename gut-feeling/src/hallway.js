@@ -40,7 +40,7 @@ const HALLWAY_ID = 6,
   HALLWAY_MAX_BOTTLES = 9,
   // Where Macy actually is: Valley Hospital in Paramus, seventh floor, Room 5.
   HALLWAY_FLOOR = '7',
-  HALLWAY_STRIPE = 'VALLEY HOSPITAL · 7F · GUT WING',
+  HALLWAY_STRIPE = 'VALLEY · 7F · PEDIATRICS',
   HALLWAY_STRIPE_X = [400, 1300, 2200],
   HALLWAY_ROOM = {
     id: 6,
