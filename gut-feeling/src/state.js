@@ -85,6 +85,37 @@ try {
 const SHOP_UPGRADE_IDS = ['slippers', 'pillow', 'bag', 'scrunchie', 'snacks', 'thick', 'repellent', 'pass'],
   SHOP_LOOK_IDS = ['look-hoodie', 'look-scrunchie', 'look-socks'];
 
+// Shared records other files write with guards: stats is a plain object of counters, stickers a list
+// of sticker ids, cards the get-well wall ({ who, name, text, day }), jersey Macy's number.
+const SAVED_CARD_LIMIT = 200;
+
+function savedStats(v) {
+  const out = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [k, n] of Object.entries(v)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+    if (typeof n === 'number' && Number.isFinite(n)) out[k] = n;
+  }
+  return out;
+}
+
+function savedCards(v) {
+  if (!Array.isArray(v)) return [];
+  const text = (x, n) => (typeof x === 'string' ? x.slice(0, n) : '');
+  return v
+    .filter(card => card && typeof card === 'object')
+    .map(card => ({
+      who: text(card.who, 24),
+      name: text(card.name, 48),
+      text: text(card.text, 280),
+      day: text(card.day, 24)
+    }))
+    .filter(card => card.name || card.text)
+    .slice(-SAVED_CARD_LIMIT);
+}
+
+const savedJersey = v => (Number.isInteger(v) && v >= 0 && v <= 99 ? v : 22);
+
 const savedCount = v => Math.max(0, Math.floor(Number(v) || 0)),
   savedIds = (list, allowed) => (Array.isArray(list) ? list.filter(x => allowed.includes(x)) : []),
   savedUpgrades = savedIds(saved.upgrades, SHOP_UPGRADE_IDS),
@@ -144,7 +175,15 @@ let state = {
     last: typeof savedDaily.last === 'string' ? savedDaily.last : '',
     best: savedCount(savedDaily.best),
     streak: savedCount(savedDaily.streak)
-  }
+  },
+  // Counters anyone may bump: (state.stats ||= {}).x = ... world.js counts catCam and idles.
+  stats: savedStats(saved.stats),
+  // Sticker ids earned so far (the stickers module owns the catalog).
+  stickers: Array.isArray(saved.stickers) ? saved.stickers.filter(x => typeof x === 'string').slice(0, 200) : [],
+  // Get-well cards, oldest first: { who, name, text, day }. The wall in Macy's room draws them.
+  cards: savedCards(saved.cards),
+  // Macy's jersey number, on her hoodie.
+  jersey: savedJersey(saved.jersey)
 };
 if (saved.difficulty === undefined) state.difficulty = 1;
 
@@ -183,7 +222,12 @@ let player = {
   jumpCd: 0,
   swingHit: false,
   attackKind: 0,
-  attackDuration: 0.42
+  attackDuration: 0.42,
+  // A pose girl() plays over the walk: an idle or a reaction (see MACY_POSES in art.js).
+  // poseT counts up from 0; the pose clears at poseLen. macyCelebrate() sets the medal grin.
+  pose: '',
+  poseT: 0,
+  poseLen: 0
 };
 
 // Ward globals: clock, effects, enemies, and live pointer/keyboard input.
@@ -261,7 +305,11 @@ function save() {
         arcade: state.arcade,
         controls: state.controls,
         recoveries: state.recoveries,
-        daily: state.daily
+        daily: state.daily,
+        stats: state.stats,
+        stickers: state.stickers,
+        cards: state.cards,
+        jersey: state.jersey
       })
     );
     storageOK = true;
