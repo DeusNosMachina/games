@@ -1,6 +1,6 @@
-.intro{padding:23px 0}.intro h1{font-size:46px}.intro .desc{font-size:12px}.hero-tag{transform:rotate(2deg)}.version{color:#99b8b4}.arcade-launch{background:var(--mint)!important;color:var(--ink)!important;border-color:var(--mint)!important}.gamebar{gap:12px}.room-label{margin-right:auto}.supplybar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:17px 0}.supplybar>span{flex:1;font-size:10px;line-height:1.5;color:var(--muted)}#foodCount{background:#36534d;padding:3px 6px;border-radius:3px;color:var(--mint)}.rules{font:9px/1.7 var(--mono)!important;margin:14px 0!important}.passport-row{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:9px 0;border-bottom:1px solid #253b3920;font-size:10px}.passport-row span:last-child{color:#426c56;font:700 12px var(--mono)}#passport{margin:16px 0}.questcard .textbtn{color:#395e4e;font-size:9px;margin-top:10px}.world-heading p{font-size:9px}.dept-card p{min-height:28px}.stage{background:#1c3c43}.stage:after{content:'';position:absolute;inset:0;box-shadow:inset 0 0 60px #122a3920;pointer-events:none}.touch-actions .cycle{font-size:10px}.touch-actions .cycle small{font-size:6px}.mini-dialog{width:min(960px,96vw);max-height:96dvh}.mini-head{padding:15px 21px}.mini-head h2{font-size:21px}.mini-head small{display:block;font:9px var(--mono);color:var(--mint);letter-spacing:1px;margin-bottom:6px}.mini-topactions{display:flex;gap:8px}.mini-body{padding:20px}.game-intro{display:grid;grid-template-columns:1fr 1.05fr;gap:24px;align-items:center}.game-intro canvas{width:100%;image-rendering:auto;border:1px solid #4d7379;border-radius:6px}.game-intro h3{font-size:26px;letter-spacing:-.8px;line-height:1.1;margin:10px 0}.game-intro p{font-size:12px;line-height:1.75;color:var(--muted)}.genre{font:9px var(--mono);color:var(--coral);letter-spacing:1px}.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px 0 15px}.tier-card{background:#203b44;border:1px solid #42636b;border-radius:5px;padding:15px;text-align:left}.tier-card.selected{border-color:var(--mint);box-shadow:inset 0 0 0 1px var(--mint)}.tier-card strong{display:block;font-size:12px;margin:8px 0}.tier-card small{font:9px var(--mono);color:var(--muted);line-height:1.6}.tier-card .medals{font:17px var(--mono);color:var(--yellow);letter-spacing:3px;margin:10px 0 0}.launch-row{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:20px}.launch-row p{font:10px/1.65 var(--mono);color:var(--muted);margin:0;max-width:460px}.mini-hud{display:flex;gap:8px;justify-content:space-between;margin-bottom:10px}.mini-hud>div{background:#223c46;border:1px solid #45626b;border-radius:4px;padding:9px 12px;font:12px var(--mono)}.mini-hud small{display:block;font-size:8px;letter-spacing:1px;color:#9ebdbe;margin-bottom:4px}.mini-stage{position:relative;background:#102932;aspect-ratio:16/9;border:1px solid #567d83;border-radius:6px;overflow:hidden}#miniCanvas{width:100%;height:100%;display:block;image-rendering:auto;touch-action:none}.mini-instruction{text-align:center;min-height:35px;font-size:12px;line-height:1.6;margin:14px auto 10px;color:var(--cream)}.mini-controls{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;min-height:50px}.mini-controls button{min-width:70px;min-height:48px;padding:12px 20px;border:1px solid #0c1d28;border-radius:5px;box-shadow:0 3px 0 #0c1d28;background:var(--mint);color:var(--ink);font:700 12px var(--mono);touch-action:none;user-select:none}.mini-controls .hot{background:var(--yellow)}.mini-controls .pad{background:var(--pad);min-width:72px}.mini-controls button.active{filter:brightness(1.35);transform:translateY(2px);box-shadow:0 0 15px #ffe5a677}.mini-controls .muted{background:#304b56;color:#e9dfc6}.mini-pause{position:absolute;inset:0;background:#0c1d28e6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:2}.mini-pause strong{font-size:25px}.result-panel{text-align:center}.result-panel .medal-big{font-size:58px;color:var(--yellow);margin:12px 0}.result-panel h3{font-size:34px;letter-spacing:-1px;margin:5px 0 12px}.result-panel>p{font-size:12px;line-height:1.7;color:var(--muted);max-width:520px;margin:10px auto}.result-numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px auto;max-width:580px}.result-numbers div{background:#203a44;padding:17px 9px;border-radius:6px}.result-numbers strong{display:block;font:700 25px var(--mono);color:var(--mint)}.result-numbers small{display:block;font:9px var(--mono);color:var(--muted);margin-top:8px}.result-buttons{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:22px 0 6px}.difficulty-options{display:grid;gap:12px}.difficulty-option{text-align:left;background:#203b44;border:1px solid #47646b;border-radius:5px;padding:17px}.difficulty-option.selected{border:2px solid var(--mint)}.difficulty-option strong{display:block;font-size:17px;margin-bottom:8px;color:var(--mint)}.difficulty-option p{font-size:12px;line-height:1.6;color:var(--muted);margin:0}.difficulty-option small{display:block;margin-top:9px;font:10px var(--mono);color:var(--yellow)}.shop-item{display:flex;align-items:center;gap:14px;padding:18px 0;border-bottom:1px solid #38505a}.shop-item>div{flex:1}.shop-item strong{font-size:15px}.shop-item p{font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:0}.mini-dialog.gory{border-color:#b34558;background:radial-gradient(ellipse at 5% 5%,#941e3b77 0 10%,transparent 10.3%),radial-gradient(ellipse at 95% 70%,#bc304b66 0 10%,transparent 10.4%),#241d2b}.mini-dialog.gory::backdrop{background:radial-gradient(ellipse at 12% 30%,#a21c3caa 0 5%,transparent 5.4%),radial-gradient(ellipse at 83% 77%,#ad2642bb 0 8%,transparent 8.5%),#180e1ce6}.mini-result-art{width:100%;height:160px;object-fit:cover;image-rendering:auto;border-radius:5px;border:1px solid #526b70}.toast{z-index:2}.touch-actions{gap:8px}.key-guide{gap:8px;font-size:9px}.key-guide b{padding:4px}.focus-mode .supplybar{margin:0;padding:8px 0}.focus-mode .cabinet{max-width:calc((100dvh - 240px)*1.6)}.focus-mode .game-layout{max-width:1200px}.mini-dialog .modal-note{font-size:9px}#storageNote{display:none;color:var(--coral);font-size:10px;margin:8px 0}.map-room .medals{color:var(--yellow);font:12px var(--mono);display:block;margin-top:10px}button:active{transform:translateY(1px)}
-@media(max-width:800px){.mini-body{padding:16px}.questcard{display:block}.sidebar{grid-template-columns:1fr 1fr}.intro .hero-tag{display:none}.intro h1{font-size:43px}.gamebar{gap:7px}.gamebar .smallbtn{font-size:10px}.supplybar .smallbtn{font-size:10px;padding:10px}.supplybar>span{display:none}.supplybar{justify-content:space-between}.tier-card{padding:12px}.focus-mode .cabinet{max-width:none}}
-@media(max-width:540px){.intro{padding:18px 0}.intro .eyebrow{margin-bottom:12px}.intro h1{font-size:38px}.intro .desc{font-size:10px}.intro h1 .operation{font-size:9px;margin-bottom:7px}.gamebar{flex-wrap:wrap;height:auto;padding:9px;gap:8px}.room-label{flex:1;min-width:130px}.room-label small{font-size:6px;letter-spacing:.6px}.gamebar .smallbtn{font-size:9px;padding:8px}.gamebar .arcade-launch{order:3;width:100%;justify-content:center}.gamebar .smallbtn svg{width:15px}.controlbar{padding:12px 8px;min-height:112px}.touch-actions{gap:5px}.touch-actions .cycle{width:32px;height:38px;border-radius:8px}.touch-actions button{width:48px;height:48px}.touch-actions .attack{width:57px;height:57px}.joystick{width:78px;height:78px}.joystick:before{left:38px;top:10px;height:58px}.joystick:after{top:38px;left:10px;width:58px}.stick{left:17px;top:17px}.sidebar{grid-template-columns:1fr;margin-top:10px}.questcard{order:2;padding:18px}.questcard h2{font-size:23px}.questcard h2 br{display:none}.questcard>p{margin-bottom:6px}.passport-row{padding:8px 0}.aside-note{display:none}.game-intro{grid-template-columns:1fr;gap:13px}.game-intro canvas{height:120px;object-fit:cover}.game-intro h3{font-size:24px;margin:5px 0}.game-intro p{font-size:11px;margin-bottom:0}.tier-grid{gap:7px;margin-top:16px}.tier-card{padding:9px 7px}.tier-card strong{font-size:10px}.tier-card small{font-size:8px}.tier-card .medals{font-size:13px;letter-spacing:1px}.launch-row{flex-direction:column;align-items:stretch}.launch-row p{font-size:9px}.mini-head{padding:13px 15px}.mini-head h2{font-size:17px}.mini-head small{font-size:7px}.mini-body{padding:12px}.mini-hud{gap:5px}.mini-hud>div{padding:8px;font-size:11px;flex:1}.mini-hud small{font-size:7px}.mini-instruction{font-size:11px;min-height:34px}.mini-controls{gap:7px}.mini-controls button{padding:10px 14px;min-width:54px;font-size:10px}.mini-controls .pad{min-width:55px}.result-panel h3{font-size:27px}.result-numbers{gap:6px}.result-numbers strong{font-size:20px}.result-numbers small{font-size:7px}.result-panel>p{font-size:11px}.mini-result-art{height:130px}.mini-dialog{max-height:97dvh;width:97vw}.focus-mode .stage{aspect-ratio:1.12}.focus-mode .controlbar{padding:8px}.shop-item{gap:8px}.shop-item .primary{padding:10px;font-size:10px}.shop-item strong{font-size:13px}.shop-item p{font-size:10px}}
+.intro{padding:23px 0}.intro h1{font-size:46px}.intro .desc{font-size:12px}.hero-tag{transform:rotate(2deg)}.version{color:#99b8b4}.arcade-launch{background:var(--mint)!important;color:var(--ink)!important;border-color:var(--mint)!important}.gamebar{gap:12px}.room-label{margin-right:auto}.supplybar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:17px 0}.supplybar>span{flex:1;font-size:10px;line-height:1.5;color:var(--muted)}#foodCount{background:#36534d;padding:3px 6px;border-radius:3px;color:var(--mint)}.rules{font:9px/1.7 var(--mono)!important;margin:14px 0!important}.passport-row{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:9px 0;border-bottom:1px solid #253b3920;font-size:10px}.passport-row span:last-child{color:#426c56;font:700 12px var(--mono)}#passport{margin:16px 0}.questcard .textbtn{color:#395e4e;font-size:9px;margin-top:10px}.world-heading p{font-size:9px}.dept-card p{min-height:28px}.stage{background:#1c3c43}.stage:after{content:'';position:absolute;inset:0;box-shadow:inset 0 0 60px #122a3920;pointer-events:none}.touch-actions .cycle{font-size:10px}.touch-actions .cycle small{font-size:6px}.mini-dialog{width:min(960px,96vw);max-height:96dvh}.mini-head{padding:15px 21px}.mini-head h2{font-size:21px}.mini-head small{display:block;font:9px var(--mono);color:var(--mint);letter-spacing:1px;margin-bottom:6px}.mini-topactions{display:flex;gap:8px}.mini-body{padding:20px}.game-intro{display:grid;grid-template-columns:1fr 1.05fr;gap:24px;align-items:center}.game-intro canvas{width:100%;image-rendering:auto;border:1px solid #4d7379;border-radius:6px}.game-intro h3{font-size:26px;letter-spacing:-.8px;line-height:1.1;margin:10px 0}.game-intro p{font-size:12px;line-height:1.75;color:var(--muted)}.genre{font:9px var(--mono);color:var(--coral);letter-spacing:1px}.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px 0 15px}.tier-card{background:#203b44;border:1px solid #42636b;border-radius:5px;padding:15px;text-align:left}.tier-card.selected{border-color:var(--mint);box-shadow:inset 0 0 0 1px var(--mint)}.tier-card strong{display:block;font-size:12px;margin:8px 0}.tier-card small{font:9px var(--mono);color:var(--muted);line-height:1.6}.tier-card .medals{font:17px var(--mono);color:var(--yellow);letter-spacing:3px;margin:10px 0 0}.launch-row{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:20px}.launch-row p{font:10px/1.65 var(--mono);color:var(--muted);margin:0;max-width:460px}.mini-hud{display:flex;gap:8px;justify-content:space-between;margin-bottom:10px}.mini-hud>div{background:#223c46;border:1px solid #45626b;border-radius:4px;padding:9px 12px;font:12px var(--mono)}.mini-hud small{display:block;font-size:8px;letter-spacing:1px;color:#9ebdbe;margin-bottom:4px}.mini-stage{position:relative;background:#102932;aspect-ratio:16/9;border:1px solid #567d83;border-radius:6px;overflow:hidden}#miniCanvas{width:100%;height:100%;display:block;image-rendering:auto;touch-action:none}.mini-instruction{text-align:center;min-height:35px;font-size:12px;line-height:1.6;margin:14px auto 10px;color:var(--cream)}.mini-controls{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;min-height:50px}.mini-controls button{min-width:70px;min-height:48px;padding:12px 20px;border:1px solid #0c1d28;border-radius:5px;box-shadow:0 3px 0 #0c1d28;background:var(--mint);color:var(--ink);font:700 12px var(--mono);touch-action:none;user-select:none}.mini-controls .hot{background:var(--yellow)}.mini-controls .pad{background:var(--pad);min-width:72px}.mini-controls button.active{filter:brightness(1.35);transform:translateY(2px);box-shadow:0 0 15px #ffe5a677}.mini-controls .muted{background:#304b56;color:#e9dfc6}.mini-pause{position:absolute;inset:0;background:#0c1d28e6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:2}.mini-pause strong{font-size:25px}.result-panel{text-align:center}.result-panel .medal-big{font-size:58px;color:var(--yellow);margin:12px 0}.result-panel h3{font-size:34px;letter-spacing:-1px;margin:5px 0 12px}.result-panel>p{font-size:12px;line-height:1.7;color:var(--muted);max-width:520px;margin:10px auto}.result-numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px auto;max-width:580px}.result-numbers div{background:#203a44;padding:17px 9px;border-radius:6px}.result-numbers strong{display:block;font:700 25px var(--mono);color:var(--mint)}.result-numbers small{display:block;font:9px var(--mono);color:var(--muted);margin-top:8px}.result-buttons{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:22px 0 6px}.difficulty-options{display:grid;gap:12px}.difficulty-option{text-align:left;background:#203b44;border:1px solid #47646b;border-radius:5px;padding:17px}.difficulty-option.selected{border:2px solid var(--mint)}.difficulty-option strong{display:block;font-size:17px;margin-bottom:8px;color:var(--mint)}.difficulty-option p{font-size:12px;line-height:1.6;color:var(--muted);margin:0}.difficulty-option small{display:block;margin-top:9px;font:10px var(--mono);color:var(--yellow)}.shop-item{display:flex;align-items:center;gap:14px;padding:18px 0;border-bottom:1px solid #38505a}.shop-item>div{flex:1}.shop-item strong{font-size:15px}.shop-item p{font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:0}.mini-dialog.gory{border-color:#b34558;background:radial-gradient(ellipse at 5% 5%,#941e3b77 0 10%,transparent 10.3%),radial-gradient(ellipse at 95% 70%,#bc304b66 0 10%,transparent 10.4%),#241d2b}.mini-dialog.gory::backdrop{background:radial-gradient(ellipse at 12% 30%,#a21c3caa 0 5%,transparent 5.4%),radial-gradient(ellipse at 83% 77%,#ad2642bb 0 8%,transparent 8.5%),#180e1ce6}.mini-result-art{width:100%;height:160px;object-fit:cover;image-rendering:auto;border-radius:5px;border:1px solid #526b70}.toast{z-index:2}.touch-actions{gap:8px}.key-guide{gap:8px;font-size:9px}.key-guide b{padding:4px}.mini-dialog .modal-note{font-size:9px}#storageNote{display:none;color:var(--coral);font-size:10px;margin:8px 0}.map-room .medals{color:var(--yellow);font:12px var(--mono);display:block;margin-top:10px}button:active{transform:translateY(1px)}
+@media(max-width:800px){.mini-body{padding:16px}.questcard{display:block}.sidebar{grid-template-columns:1fr 1fr}.intro .hero-tag{display:none}.intro h1{font-size:43px}.gamebar{gap:7px}.gamebar .smallbtn{font-size:10px}.supplybar .smallbtn{font-size:10px;padding:10px}.supplybar>span{display:none}.supplybar{justify-content:space-between}.tier-card{padding:12px}}
+@media(max-width:540px){.intro{padding:18px 0}.intro .eyebrow{margin-bottom:12px}.intro h1{font-size:38px}.intro .desc{font-size:10px}.intro h1 .operation{font-size:9px;margin-bottom:7px}.gamebar{flex-wrap:wrap;height:auto;padding:9px;gap:8px}.room-label{flex:1;min-width:130px}.room-label small{font-size:6px;letter-spacing:.6px}.gamebar .smallbtn{font-size:9px;padding:8px}.gamebar .arcade-launch{order:3;width:100%;justify-content:center}.gamebar .smallbtn svg{width:15px}.controlbar{padding:12px 8px;min-height:112px}.touch-actions{gap:5px}.touch-actions .cycle{width:32px;height:38px;border-radius:8px}.touch-actions button{width:48px;height:48px}.touch-actions .attack{width:57px;height:57px}.joystick{width:78px;height:78px}.joystick:before{left:38px;top:10px;height:58px}.joystick:after{top:38px;left:10px;width:58px}.stick{left:17px;top:17px}.sidebar{grid-template-columns:1fr;margin-top:10px}.questcard{order:2;padding:18px}.questcard h2{font-size:23px}.questcard h2 br{display:none}.questcard>p{margin-bottom:6px}.passport-row{padding:8px 0}.aside-note{display:none}.game-intro{grid-template-columns:1fr;gap:13px}.game-intro canvas{height:120px;object-fit:cover}.game-intro h3{font-size:24px;margin:5px 0}.game-intro p{font-size:11px;margin-bottom:0}.tier-grid{gap:7px;margin-top:16px}.tier-card{padding:9px 7px}.tier-card strong{font-size:10px}.tier-card small{font-size:8px}.tier-card .medals{font-size:13px;letter-spacing:1px}.launch-row{flex-direction:column;align-items:stretch}.launch-row p{font-size:9px}.mini-head{padding:13px 15px}.mini-head h2{font-size:17px}.mini-head small{font-size:7px}.mini-body{padding:12px}.mini-hud{gap:5px}.mini-hud>div{padding:8px;font-size:11px;flex:1}.mini-hud small{font-size:7px}.mini-instruction{font-size:11px;min-height:34px}.mini-controls{gap:7px}.mini-controls button{padding:10px 14px;min-width:54px;font-size:10px}.mini-controls .pad{min-width:55px}.result-panel h3{font-size:27px}.result-numbers{gap:6px}.result-numbers strong{font-size:20px}.result-numbers small{font-size:7px}.result-panel>p{font-size:11px}.mini-result-art{height:130px}.mini-dialog{max-height:97dvh;width:97vw}.shop-item{gap:8px}.shop-item .primary{padding:10px;font-size:10px}.shop-item strong{font-size:13px}.shop-item p{font-size:10px}}
 @media(max-height:550px) and (min-width:600px){.mini-dialog{width:95vw}.mini-head{padding:8px 15px}.mini-body{padding:10px}.mini-stage{width:64%;margin:auto}.mini-hud{position:absolute;left:20px;width:15%;display:block}.mini-hud>div{margin-bottom:6px}.mini-instruction{margin:7px 0;min-height:20px}.mini-controls button{min-height:40px;padding:7px 14px}.game-intro canvas{height:145px;object-fit:cover}.tier-grid{margin:12px 0}.tier-card{padding:10px}}
 /* Keep action buttons on screen even in a short laptop window. */
 .mini-stage{width:min(100%,calc(170.666dvh - 480px));margin-inline:auto}
@@ -47,3 +47,972 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 @media(max-width:700px){body.playing .intro{display:none}body.playing .game-layout{margin-top:12px}}
 
 .department-grid{grid-template-columns:repeat(3,1fr)}@media(max-width:700px){.department-grid{grid-template-columns:repeat(2,1fr)}}
+
+
+/* v0.6: arcade (fullscreen) mode, faster starts, meta progression, and a HUD that leaves the signs alone. */
+
+/* Game surfaces: no scroll bounce, no double-tap zoom, no accidental text selection. */
+html,
+body {
+  overscroll-behavior: none;
+}
+.cabinet,
+.mini-dialog {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.mini-dialog input {
+  user-select: text;
+}
+.stage,
+#game,
+.mini-stage,
+#miniCanvas,
+.joystick,
+.touch-actions,
+.touch-actions button,
+.mini-controls,
+.mini-controls button {
+  touch-action: none;
+}
+#miniCanvas {
+  object-fit: contain;
+}
+.rules {
+  white-space: pre-line;
+}
+body.playing .scene-tag {
+  display: none;
+}
+
+/* Returning players land on the cabinet. */
+body.returning .intro {
+  display: none;
+}
+body.returning .game-layout {
+  margin-top: 16px;
+}
+
+/* Gamebar: labels collapse to icons on narrow screens. */
+.gamebar .smallbtn {
+  white-space: nowrap;
+}
+.gamebar #pauseBtn[aria-pressed='true'] {
+  background: var(--yellow);
+  color: var(--ink);
+  border-color: var(--yellow);
+}
+@media (max-width: 700px) {
+  .gamebar .btn-label {
+    display: none;
+  }
+}
+
+/* HUD cards. world.js sets data-hud so the cards always end above the wall signs (WALL_SIGN_TOP). */
+.hud {
+  inset: 10px 10px auto;
+  align-items: flex-start;
+}
+.hud-card {
+  padding: 6px 9px;
+}
+.health-name {
+  font-size: 8px;
+  margin-bottom: 3px;
+  line-height: 1.2;
+}
+.hearts-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hearts {
+  gap: 3px;
+}
+.hearts svg {
+  width: 15px;
+  height: 15px;
+}
+.hud-eat {
+  pointer-events: auto;
+  border: 0;
+  border-radius: 8px;
+  background: #36534d;
+  color: var(--mint);
+  font: 700 10px/1.2 var(--mono);
+  padding: 1px 6px;
+  min-height: 0;
+}
+.hud-eat:disabled {
+  opacity: 0.45;
+}
+.score {
+  font-size: 15px;
+  line-height: 1.1;
+}
+.score small {
+  font-size: 7px;
+  margin-bottom: 2px;
+}
+.stage[data-hud='m'] .hud {
+  inset: 8px 8px auto;
+}
+.stage[data-hud='m'] .hud-card {
+  padding: 5px 8px;
+}
+.stage[data-hud='m'] .health-name,
+.stage[data-hud='m'] .score small {
+  display: none;
+}
+.stage[data-hud='m'] .score {
+  font-size: 13px;
+}
+.stage[data-hud='s'] .hud,
+.stage[data-hud='xs'] .hud {
+  inset: 5px 6px auto;
+}
+.stage[data-hud='s'] .hud-card {
+  padding: 4px 7px;
+}
+.stage[data-hud='xs'] .hud-card {
+  padding: 3px 6px;
+}
+.stage[data-hud='s'] .health-name,
+.stage[data-hud='s'] .score small,
+.stage[data-hud='xs'] .health-name,
+.stage[data-hud='xs'] .score small {
+  display: none;
+}
+.stage[data-hud='s'] .hearts svg {
+  width: 12px;
+  height: 12px;
+}
+.stage[data-hud='xs'] .hearts svg {
+  width: 10px;
+  height: 10px;
+}
+.stage[data-hud='s'] .hearts,
+.stage[data-hud='xs'] .hearts {
+  gap: 2px;
+}
+.stage[data-hud='s'] .hud-eat,
+.stage[data-hud='xs'] .hud-eat {
+  font-size: 8px;
+  padding: 0 4px;
+}
+.stage[data-hud='s'] .score {
+  font-size: 11px;
+}
+.stage[data-hud='xs'] .score {
+  font-size: 9px;
+}
+
+/* Toasts: a small strip along the top, clear of the action. */
+.toast {
+  top: 8px;
+  z-index: 3;
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 6px 12px;
+  border-radius: 10px;
+  max-width: min(52%, 460px);
+}
+/* Narrow stages have no room between the cards, so the toast drops just below them. */
+@media (max-width: 540px) {
+  .toast {
+    top: 40px;
+    font-size: 10px;
+    padding: 5px 9px;
+    max-width: 86%;
+  }
+}
+
+/* Ward pause menu. */
+.ward-pause {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: #0c1d28b0;
+}
+.ward-pause-card {
+  width: min(360px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px 18px;
+  border: 1px solid #577985;
+  border-radius: 18px;
+  background: #173445f2;
+  box-shadow: 0 12px 30px #0006;
+  text-align: center;
+}
+.ward-pause-card strong {
+  display: block;
+  font-size: 24px;
+  letter-spacing: -0.5px;
+}
+.ward-pause-card p {
+  margin: 4px 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ward-pause-card .primary {
+  width: 100%;
+  min-height: 46px;
+  font-size: 14px;
+}
+.ward-pause-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.ward-pause-grid .smallbtn {
+  justify-content: center;
+  min-height: 40px;
+}
+
+/* Orientation hint for phones held upright. */
+.turn-hint {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px 6px 14px;
+  background: #2b4a47;
+  color: #e6f2dc;
+  font: 700 11px/1.4 var(--mono);
+}
+.turn-hint button {
+  min-width: 36px;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+}
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 540px) {
+  .turn-hint {
+    display: flex;
+  }
+}
+
+/* Daily Dose card (sidebar and map). */
+.daily-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid #f0b77a55;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #3b2f4a, #24414d);
+  color: var(--cream);
+}
+.daily-card:empty {
+  display: none;
+}
+.daily-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font: 800 9px var(--mono);
+  letter-spacing: 1.4px;
+  color: #ffcf95;
+}
+.daily-game {
+  font-size: 19px;
+  letter-spacing: -0.4px;
+}
+.daily-card small {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #cfe0da;
+}
+.daily-go {
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 6px;
+}
+#mapDaily {
+  margin-bottom: 16px;
+}
+
+/* Hall of Nonsense. */
+.hall-panel {
+  padding: 0 3px;
+}
+.hall-panel h3 {
+  margin: 1px 0 10px;
+  font: 10px var(--mono);
+  letter-spacing: 1.7px;
+  color: var(--muted);
+}
+.hall-title {
+  margin: 22px 0 10px;
+  font-size: 16px;
+}
+.hall-stats {
+  display: grid;
+  gap: 3px;
+}
+.hall-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #172e38;
+  font-size: 11px;
+}
+.hall-row span {
+  color: var(--muted);
+}
+.hall-row strong {
+  font: 700 11px var(--mono);
+  color: var(--cream);
+  text-align: right;
+}
+.hall-kicker {
+  margin: 12px 0 6px;
+  font: 800 9px var(--mono);
+  letter-spacing: 1.3px;
+  color: #ffcf95;
+}
+
+/* Gift shop. */
+.shop-top {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.shop-top canvas {
+  flex-shrink: 0;
+  width: 96px;
+  height: 124px;
+  border-radius: 12px;
+}
+.shop-top p {
+  margin: 4px 0;
+}
+.shop-section {
+  margin: 18px 0 0;
+  font: 800 10px var(--mono);
+  letter-spacing: 1.6px;
+  color: var(--mint);
+  text-transform: uppercase;
+}
+.shop-item .primary {
+  white-space: nowrap;
+}
+
+/* One-screen lobby: level cards, approach, one big start. */
+.lobby-intro {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+.lobby-intro canvas {
+  width: 100%;
+  aspect-ratio: 420 / 240;
+  border: 1px solid #4d7379;
+  border-radius: 10px;
+}
+.lobby-intro h3 {
+  margin: 4px 0;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+}
+.lobby-intro p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+#miniLobby .tier-grid {
+  margin: 14px 0 10px;
+}
+.tier-tag {
+  display: block;
+  margin-top: 3px;
+  font: 800 9px var(--mono);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+.tier-card[data-tier='0'] .tier-tag {
+  color: #ffdea4;
+}
+.lobby-start {
+  display: flex;
+  width: 100%;
+  min-height: 54px;
+  margin-top: 12px;
+  font-size: 16px;
+}
+.lobby-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 10px 0 0;
+  font: 10px/1.5 var(--mono);
+  color: var(--muted);
+}
+.lobby-foot .textbtn {
+  padding: 0;
+  font-size: 10px;
+}
+.daily-banner {
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  border: 1px solid #f0b77a66;
+  border-radius: 10px;
+  background: #5a3d2e55;
+  color: #ffdca8;
+  font: 700 11px/1.5 var(--mono);
+}
+@media (max-width: 540px), (max-height: 560px) {
+  .lobby-intro {
+    grid-template-columns: 1fr;
+  }
+  .lobby-intro canvas,
+  .lobby-intro p {
+    display: none;
+  }
+}
+@media (max-height: 560px) {
+  .lobby-intro .genre {
+    display: none;
+  }
+  .lobby-intro h3 {
+    font-size: 17px;
+  }
+  .tier-card {
+    padding: 8px 10px;
+  }
+  .tier-card small:nth-of-type(2) {
+    display: none;
+  }
+  .tier-card .medals {
+    margin-top: 4px;
+    font-size: 13px;
+  }
+  .approach {
+    padding: 8px 10px;
+  }
+  .approach small {
+    display: none;
+  }
+  .lobby-start {
+    min-height: 46px;
+  }
+}
+
+/* The GO card: a known game skips the full briefing. Tap to start early. */
+.mini-briefing.quick {
+  background: #153243e8;
+}
+.go-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(460px, 100%);
+  padding: 24px 22px;
+  border: 1px solid #6c9c97;
+  border-radius: 20px;
+  background: #173b4d;
+  color: var(--cream);
+  text-align: center;
+}
+.go-card strong {
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.6px;
+}
+.go-cue {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffdea4;
+}
+.go-track {
+  display: block;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #0d2939;
+}
+.go-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--mint);
+}
+
+/* ---- Arcade mode: the cabinet owns the screen. ---- */
+html:has(body.arcade) {
+  overflow: hidden;
+}
+body.arcade {
+  overflow: hidden;
+  touch-action: manipulation;
+}
+body.arcade .scene-tag,
+body.arcade header,
+body.arcade .intro,
+body.arcade .sidebar,
+body.arcade .below,
+body.arcade .world-section,
+body.arcade footer,
+body.arcade .supplybar,
+body.arcade .weapon-readout {
+  display: none;
+}
+body.arcade .cabinet {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #142730;
+}
+body.arcade .gamebar {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  height: 48px;
+  padding: 0 10px;
+}
+body.arcade .stage {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+body.arcade .controlbar {
+  flex: 0 0 auto;
+}
+
+/* Portrait phone: canvas on top, controls below, nothing else. */
+@media (orientation: portrait) and (max-width: 540px) {
+  body.arcade .gamebar {
+    height: 46px;
+    gap: 6px;
+    padding: 0 8px;
+  }
+  body.arcade .gamebar .room-label {
+    display: none;
+  }
+  body.arcade .gamebar .arcade-launch {
+    order: 0;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    justify-content: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body.arcade .stage {
+    flex: 0 0 auto;
+    aspect-ratio: 1;
+    max-height: calc(100dvh - 300px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  body.arcade .controlbar {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 10px 16px;
+  }
+  body.arcade .touch-controls {
+    align-items: center;
+  }
+  body.arcade .joystick {
+    width: 124px;
+    height: 124px;
+  }
+  body.arcade .joystick:before {
+    left: 61px;
+    top: 18px;
+    height: 88px;
+  }
+  body.arcade .joystick:after {
+    top: 61px;
+    left: 18px;
+    width: 88px;
+  }
+  body.arcade .stick {
+    left: 38px;
+    top: 38px;
+    width: 48px;
+    height: 48px;
+  }
+  body.arcade .touch-actions {
+    grid-template-columns: 54px 54px 76px;
+    grid-template-rows: 54px 54px;
+    gap: 9px;
+  }
+  body.arcade .touch-actions .cycle,
+  body.arcade .touch-actions #useBtn {
+    width: 54px;
+    height: 54px;
+  }
+  body.arcade .touch-actions .attack {
+    width: 76px;
+    height: 117px;
+  }
+}
+
+/* Landscape phone: the canvas fills the screen; controls float over its corners. */
+@media (orientation: landscape) and (max-height: 540px) {
+  body.arcade .cabinet {
+    display: block;
+    padding: 0;
+  }
+  body.arcade .stage {
+    position: absolute;
+    inset: 0;
+  }
+  body.arcade .gamebar {
+    position: absolute;
+    z-index: 6;
+    top: calc(env(safe-area-inset-top) + 6px);
+    right: calc(env(safe-area-inset-right) + 8px);
+    height: auto;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  body.arcade .gamebar .room-label,
+  body.arcade .gamebar .btn-label,
+  body.arcade .gamebar .launch-name {
+    display: none;
+  }
+  body.arcade .gamebar .smallbtn {
+    min-width: 40px;
+    min-height: 38px;
+    justify-content: center;
+    padding: 6px 10px;
+    border: 1px solid #8fb6b166;
+    background: #132c37c4;
+    color: var(--cream);
+  }
+  body.arcade .gamebar .arcade-launch {
+    background: #b5e8c5d9 !important;
+    color: var(--ink) !important;
+  }
+  body.arcade .hud {
+    inset: calc(env(safe-area-inset-top) + 6px) auto auto calc(env(safe-area-inset-left) + 8px);
+    justify-content: flex-start;
+  }
+  body.arcade .toast {
+    top: calc(env(safe-area-inset-top) + 6px);
+    max-width: 36%;
+  }
+  body.arcade .ward-strip {
+    position: absolute;
+    z-index: 5;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
+    max-width: 38%;
+    transform: translateX(-50%);
+    gap: 8px;
+    padding: 5px 10px;
+    border-radius: 12px;
+    background: #132c37c4;
+    font-size: 9px;
+  }
+  body.arcade .controlbar {
+    position: absolute;
+    z-index: 4;
+    inset: auto 0 0 0;
+    min-height: 0;
+    padding: 0 calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 10px)
+      calc(env(safe-area-inset-left) + 14px);
+    background: none;
+    pointer-events: none;
+  }
+  body.arcade .key-guide,
+  body.arcade .play-status,
+  body.arcade .turn-hint {
+    display: none;
+  }
+  body.arcade .touch-controls {
+    display: flex;
+    align-items: flex-end;
+  }
+  body.arcade .joystick,
+  body.arcade .touch-actions button {
+    pointer-events: auto;
+  }
+  body.arcade .joystick {
+    width: 112px;
+    height: 112px;
+    background: #152c3599;
+    opacity: 0.8;
+  }
+  body.arcade .joystick:before {
+    left: 55px;
+    top: 16px;
+    height: 80px;
+  }
+  body.arcade .joystick:after {
+    top: 55px;
+    left: 16px;
+    width: 80px;
+  }
+  body.arcade .stick {
+    left: 32px;
+    top: 32px;
+    width: 48px;
+    height: 48px;
+  }
+  body.arcade .touch-actions {
+    grid-template-columns: 50px 50px 70px;
+    grid-template-rows: 50px 50px;
+    gap: 8px;
+  }
+  body.arcade .touch-actions button {
+    opacity: 0.84;
+  }
+  body.arcade .touch-actions .cycle,
+  body.arcade .touch-actions #useBtn {
+    width: 50px;
+    height: 50px;
+  }
+  body.arcade .touch-actions .attack {
+    width: 70px;
+    height: 108px;
+  }
+  body.arcade .start-callout {
+    left: 50%;
+    top: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+  }
+  /* The floating controls step aside while the pause menu is up. */
+  body.arcade.ward-paused .controlbar {
+    visibility: hidden;
+  }
+}
+
+/* ---- Arcade mode: the minigame dialog fills the screen too. ---- */
+body.arcade #miniDialog {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+}
+body.arcade #miniDialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+body.arcade #miniDialog .mini-head {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 6px 10px;
+}
+body.arcade #miniDialog .mini-head h2 {
+  font-size: 16px;
+}
+body.arcade #miniDialog .mini-head small {
+  display: none;
+}
+body.arcade #miniDialog .mini-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 10px;
+}
+body.arcade #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) .mini-titles {
+  visibility: hidden;
+}
+body.arcade #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) .mini-body {
+  overflow: hidden;
+}
+body.arcade #miniDialog #miniPlay {
+  position: static;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: 'stage' 'controls';
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+body.arcade #miniDialog .mini-rulebar,
+body.arcade #miniDialog .mini-tactics,
+body.arcade #miniDialog .mini-instruction {
+  display: none;
+}
+body.arcade #miniDialog .mini-stage {
+  grid-area: stage;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  align-self: stretch;
+}
+/* HUD condensed to one line, in the title row. */
+body.arcade #miniDialog .mini-hud {
+  position: absolute;
+  z-index: 7;
+  top: calc(env(safe-area-inset-top) + 7px);
+  left: calc(env(safe-area-inset-left) + 10px);
+  right: calc(env(safe-area-inset-right) + 96px);
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: auto;
+  height: 32px;
+  margin: 0;
+}
+body.arcade #miniDialog .mini-hud > div,
+body.arcade #miniDialog .mini-hud > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 9px;
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+body.arcade #miniDialog .mini-hud small {
+  display: none;
+  margin: 0;
+  font-size: 8px;
+}
+@media (min-width: 760px) {
+  body.arcade #miniDialog .mini-hud small {
+    display: inline;
+  }
+}
+body.arcade #miniDialog #miniControls {
+  grid-area: controls;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-height: 0;
+  overflow-x: auto;
+}
+body.arcade #miniDialog #miniControls button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 46px;
+  padding: 8px 6px;
+  font-size: 11px;
+}
+body.arcade #miniDialog #miniControls .assist {
+  flex: 1.3 1 0;
+  max-width: none;
+  min-height: 46px;
+}
+/* Results stay on one screen: the art shrinks before the numbers and buttons scroll away. */
+body.arcade #miniDialog .mini-result-art {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 30dvh;
+  margin: 0 auto;
+}
+@media (max-height: 560px) {
+  .result-panel .medal-big {
+    margin: 2px 0;
+    font-size: 30px;
+  }
+  .result-panel h3 {
+    margin: 2px 0 6px;
+    font-size: 22px;
+  }
+  .result-panel > p {
+    margin: 4px auto;
+    font-size: 11px;
+  }
+  .result-numbers {
+    grid-template-columns: repeat(4, 1fr);
+    margin: 8px auto;
+  }
+  .result-numbers div {
+    padding: 8px 6px;
+  }
+  .result-numbers strong {
+    font-size: 18px;
+  }
+  .result-buttons {
+    margin: 8px 0 2px;
+  }
+}
+/* Briefing and GO cards sit over everything. */
+body.arcade #miniDialog .mini-briefing {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 12px);
+  border-radius: 0;
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  body.arcade #miniDialog #miniPlay {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: 'stage controls';
+  }
+  body.arcade #miniDialog #miniControls {
+    flex-direction: column;
+    justify-content: center;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  body.arcade #miniDialog #miniControls button,
+  body.arcade #miniDialog #miniControls .assist {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 42px;
+  }
+  /* Results in two columns: the scene and verdict left, numbers and buttons right. */
+  body.arcade #miniDialog #miniResult {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 18px;
+    align-items: center;
+  }
+  body.arcade #miniDialog #miniResult > * {
+    grid-column: 1;
+  }
+  body.arcade #miniDialog #resultNumbers {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    grid-template-columns: repeat(2, 1fr);
+    width: 100%;
+  }
+  body.arcade #miniDialog #resultJourney {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  body.arcade #miniDialog #miniResult .result-buttons {
+    grid-column: 2;
+    grid-row: 4;
+  }
+}

@@ -4,9 +4,140 @@ const mc = $('miniCanvas').getContext('2d');
 
 // Each run owns its timers, score, limited assists, and escalating rounds.
 const approaches = [
-  { name: 'Steady hands', helps: 2, multiplier: 1, desc: 'Two emergency assists for the entire run.' },
-  { name: 'Show-off shift', helps: 0, multiplier: 1.25, desc: 'No assists. Earn 25% more coins.' }
+  { name: 'Steady hands', helps: 2, multiplier: 1, desc: 'Two emergency assists for the whole run.' },
+  { name: 'Show-off shift', helps: 0, multiplier: 1.25, desc: 'No assists. 25% more coins.' }
 ];
+
+// The Arcade pass adds one assist to Steady hands runs.
+function approachHelps(i) {
+  return approaches[i].helps + (i === 0 && state.upgrades.includes('pass') ? 1 : 0);
+}
+
+// ---- Daily Dose ----
+// The local date picks one game and level. The run swaps in a seeded Math.random (seed from the
+// date) around every game hook, so the day's spawns match for everyone. Draw code keeps the real one.
+const DAILY_BONUS_BASE = 60,
+  DAILY_BONUS_STEP = 10;
+
+let dailyRng = null;
+
+function dailyDateKey(d) {
+  return (
+    d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+  );
+}
+
+function dailyToday() {
+  return dailyDateKey(new Date());
+}
+
+function dailyShift(key, days) {
+  const [y, m, d] = key.split('-').map(Number);
+  return dailyDateKey(new Date(y, m - 1, d + days));
+}
+
+// FNV-1a: a stable 32-bit hash of the date string.
+function dailyHash(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function dailyPick(key = dailyToday()) {
+  const h = dailyHash('gut-feeling/' + key);
+  return { date: key, id: h % rooms.length, tier: Math.floor(h / rooms.length) % 3, seed: dailyHash(key + '/seed') };
+}
+
+// mulberry32: tiny, fast, and good enough for gremlin placement.
+function dailyRandom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Runs a game hook with the daily RNG in place of Math.random, then restores the original.
+function dailyScoped(fn) {
+  if (!mini.daily || !dailyRng) return fn();
+  const outer = Math.random;
+  Math.random = dailyRng;
+  try {
+    return fn();
+  } finally {
+    Math.random = outer;
+  }
+}
+
+// A streak survives until the end of the day after the last daily run.
+function dailyStreak() {
+  const today = dailyToday(),
+    last = state.daily.last;
+  return last === today || last === dailyShift(today, -1) ? state.daily.streak : 0;
+}
+
+function dailyBonus() {
+  return DAILY_BONUS_BASE + DAILY_BONUS_STEP * Math.min(dailyStreak(), 4);
+}
+
+function dailyLabel(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
+}
+
+function renderDaily() {
+  const pick = dailyPick(),
+    played = state.daily.last === pick.date,
+    html =
+      `<div class="daily-top"><span>DAILY DOSE · ${dailyLabel(pick.date)}</span>` +
+      `<span>STREAK ${dailyStreak()}</span></div>` +
+      `<strong class="daily-game">${games[pick.id].info.game}</strong>` +
+      `<small>Level ${pick.tier + 1} · Show-off rules · same run for everyone today</small>` +
+      `<small>${played ? 'Today’s best: ' + state.daily.best : 'First run today pays +' + dailyBonus() + ' coins'}</small>` +
+      `<button class="primary coral daily-go" data-daily>${played ? 'Beat your best' : 'Take today’s dose'} →</button>`;
+  $('dailyCard').innerHTML = html;
+  $('mapDaily').innerHTML = html;
+}
+
+function openDaily(key = dailyToday()) {
+  const pick = dailyPick(key);
+  if (arcadeBlocked(pick.id)) {
+    // Toasts live on the stage, so close the map before saying no.
+    if ($('mapDialog').open) $('mapDialog').close();
+    toast('Today’s dose is in the ' + rooms[pick.id].name + '. ' + ARCADE_LOCKED_TOAST, 3.4);
+    sfx('miss');
+    return false;
+  }
+  openMini(pick.id);
+  Object.assign(mini, { daily: true, dailyDate: pick.date, dailySeed: pick.seed, tier: pick.tier, approach: 1 });
+  showLobby();
+  return true;
+}
+
+// Records a finished daily run: first run of a new day extends the streak and pays the bonus.
+function recordDaily(score) {
+  const d = state.daily,
+    day = mini.dailyDate;
+  if (!day || day < d.last) return { bonus: 0, record: false };
+  let bonus = 0;
+  if (d.last !== day) {
+    d.streak = d.last === dailyShift(day, -1) ? d.streak + 1 : 1;
+    d.last = day;
+    d.best = 0;
+    bonus = DAILY_BONUS_BASE + DAILY_BONUS_STEP * Math.min(d.streak - 1, 4);
+  }
+  const record = score > d.best;
+  d.best = Math.max(d.best, score);
+  if (bonus) coins(bonus);
+  else save();
+  return { bonus, record };
+}
 
 // Department card and lobby preview art.
 function miniScene(g, id, w, h) {
@@ -18,7 +149,18 @@ function openMini(id, forced = false) {
   if ($('mapDialog').open) $('mapDialog').close();
   let next = state.medals[id].findIndex(m => !m),
     tier = forced ? 0 : next < 0 ? 2 : next;
-  mini = { open: true, screen: 'lobby', id, tier, forced, approach: 0, paused: false, held: false, t: 0 };
+  mini = {
+    open: true,
+    screen: 'lobby',
+    id,
+    tier,
+    forced,
+    approach: 0,
+    daily: false,
+    paused: false,
+    held: false,
+    t: 0
+  };
   $('miniDialog').classList.remove('gory');
   $('miniClose').classList.toggle('hidden', forced);
   showLobby();
@@ -43,38 +185,53 @@ function showLobby() {
   $('miniGenre').textContent = info.genre;
   $('miniHeadline').textContent = info.headline;
   $('miniDescription').textContent = info.desc;
+  $('miniDialog').dataset.daily = mini.daily ? 'yes' : '';
+  // One screen: level cards, approach, one big start. Level 1 teaches; 2 and 3 are the real deal.
   // A level unlocks once the previous one has any medal; forced recovery stays on level 1.
+  // A Daily Dose fixes the level and Show-off rules.
   $('tierGrid').innerHTML = tiers
     .map((t, i) => {
-      const medal = state.medals[mini.id][i];
-      const locked = i > 0 && (!state.medals[mini.id][i - 1] || mini.forced);
+      const medal = state.medals[mini.id][i],
+        locked = mini.daily ? i !== mini.tier : i > 0 && (!state.medals[mini.id][i - 1] || mini.forced);
       return (
         `<button class="tier-card ${mini.tier === i ? 'selected' : ''}" data-tier="${i}" ${locked ? 'disabled' : ''}>` +
-        `<small>LEVEL ${i + 1}</small><strong>${t}</strong><small>${def.tierNotes[i]}</small>` +
+        `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : 'The real deal'}</span>` +
+        `<strong>${t}</strong><small>${def.tierNotes[i]}</small>` +
         `<div class="medals">${'★'.repeat(medal)}${'☆'.repeat(3 - medal)}</div></button>`
       );
     })
     .join('');
   $('approachOptions').innerHTML = approaches
-    .map(
-      (a, i) =>
-        `<button class="approach ${mini.approach === i ? 'selected' : ''}" data-approach="${i}" aria-pressed="${mini.approach === i}">` +
-        `<strong>${a.name}</strong><small>${a.desc}</small></button>`
-    )
+    .map((a, i) => {
+      const helps = approachHelps(i),
+        desc = i === 0 ? `${helps === 3 ? 'Three' : 'Two'} emergency assists for the whole run.` : a.desc,
+        off = mini.daily && i === 0;
+      return (
+        `<button class="approach ${mini.approach === i ? 'selected' : ''}" data-approach="${i}" ` +
+        `aria-pressed="${mini.approach === i}" ${off ? 'disabled' : ''}><strong>${a.name}</strong><small>${desc}</small></button>`
+      );
+    })
     .join('');
-  $('miniRewardInfo').textContent =
-    (mini.forced ? 'Complete all three stages to recover. ' : 'Longer runs. New mechanics at each level. ') +
-    'Bronze 1★ · Silver 2★ · Gold 3★. Precision, clean chains, and unused assists improve your result.';
-  $('miniBest').textContent =
-    'Best arcade score here: ' +
-    (state.records[mini.id][mini.tier] || '—') +
-    ' · Progress saves between runs.';
+  $('dailyBanner').classList.toggle('hidden', !mini.daily);
+  if (mini.daily)
+    $('dailyBanner').textContent =
+      `DAILY DOSE · ${dailyLabel(mini.dailyDate)} · Same gremlins for everyone today. ` +
+      (state.daily.last === mini.dailyDate ? `Today’s best: ${state.daily.best}.` : `First run pays +${dailyBonus()} coins.`);
+  $('miniStart').innerHTML = mini.daily
+    ? 'Take today’s dose →'
+    : mini.forced
+      ? 'Start the recovery →'
+      : 'Let’s make poor decisions →';
+  $('miniRewardInfo').textContent = mini.forced
+    ? 'Finish all three stages to get out of bed.'
+    : 'Bronze 1★ · Silver 2★ · Gold 3★.';
+  $('miniBest').textContent = 'Best here: ' + (state.records[mini.id][mini.tier] || 'nothing yet') + '.';
   $('miniDifficulty').textContent = 'Chaos prescription: ' + cfg().name + ' ↗';
   miniScene($('miniPreview').getContext('2d'), mini.id, 420, 240);
 }
 
 function startMini() {
-  const { id, tier, forced, approach = 0 } = mini,
+  const { id, tier, forced, approach = 0, daily = false, dailyDate = '', dailySeed = 0 } = mini,
     def = games[id];
   clearHeld();
   $('miniLivesLabel').textContent = 'OOPS ALLOWANCE';
@@ -85,6 +242,9 @@ function startMini() {
     tier,
     forced,
     approach,
+    daily,
+    dailyDate,
+    dailySeed,
     rules: { ...cfg(), misses: cfg().misses + 2, coins: cfg().coins * approaches[approach].multiplier },
     paused: false,
     held: false,
@@ -104,7 +264,7 @@ function startMini() {
     score: 0,
     combo: 0,
     maxCombo: 0,
-    helps: approaches[approach].helps,
+    helps: approachHelps(approach),
     helpTime: 0,
     helpUsed: 0,
     precisions: [],
@@ -115,8 +275,11 @@ function startMini() {
   $('miniResult').classList.add('hidden');
   $('miniPaused').classList.add('hidden');
   $('miniDialog').classList.remove('gory');
-  def.init();
-  if (def.controls) def.controls();
+  dailyRng = daily ? dailyRandom(dailySeed) : null;
+  dailyScoped(() => {
+    def.init();
+    if (def.controls) def.controls();
+  });
   configureCanvas($('miniCanvas'), def.canvas.w, def.canvas.h);
   $('miniDialog').dataset.arcade = def.layout;
   mini.initialized = true;
@@ -156,7 +319,7 @@ function miniOops(message, amount = 1) {
   mini.flash = 0.9;
   mini.flashText = message;
   mini.quality = Math.max(0, mini.quality - 12 * amount);
-  tone(120, 0.17, 'sawtooth');
+  sfx('miss');
   if (mini.miss >= mini.rules.misses) finishMini(false);
 }
 
@@ -167,7 +330,7 @@ function useAssist() {
   mini.helpUsed++;
   mini.quality -= 5;
   mini.combo = 0;
-  games[mini.id].assist();
+  dailyScoped(() => games[mini.id].assist());
   updateMiniHUD();
 }
 
@@ -178,7 +341,7 @@ function miniAction(a) {
     return;
   }
   const def = games[mini.id];
-  if (def.action) def.action(a);
+  if (def.action) dailyScoped(() => def.action(a));
 }
 
 function pauseMini() {
@@ -218,7 +381,7 @@ function updateMini(dt) {
   mini.total += dt;
   mini.phaseTime += dt;
   mini.hudClock -= dt;
-  games[mini.id].update(dt);
+  dailyScoped(() => games[mini.id].update(dt));
   if (mini.hudClock <= 0) {
     updateMiniHUD();
     mini.hudClock = 0.08;
@@ -251,9 +414,11 @@ function updateMiniHUD() {
 }
 
 // 0–100 performance score that sets the medal. Games may replace it with def.quality().
+// A non-number (say, an average of no samples) counts as 0 so it can never reach the coin total.
 function qualityScore() {
-  const def = games[mini.id];
-  return def.quality ? def.quality() : arcadeQuality();
+  const def = games[mini.id],
+    q = def.quality ? def.quality() : arcadeQuality();
+  return Number.isFinite(q) ? clamp(Math.round(q), 0, 100) : 0;
 }
 
 // Standard arcade score: quota overshoot and best chain, minus oopses, assists, and any game penalty.
@@ -278,9 +443,7 @@ function grantReward(id, tier, grade, quality, multiplier, arcadeScore = 0) {
   let pay =
     Math.round((18 + grade * 18 + tier * 12 + quality * 0.2 + Math.min(70, arcadeScore / 120)) * multiplier) +
     delta * 20;
-  state.coins += pay;
-  save();
-  hud();
+  coins(pay);
   return { delta, pay, old };
 }
 
@@ -295,12 +458,14 @@ function resolveMiniResult(win, reason) {
   mini.resultT = 0;
   mini.win = win;
   gore = [];
+  state.runs++;
+  state.bestChain = Math.max(state.bestChain, mini.maxCombo || 0);
   $('miniPlay').classList.add('hidden');
   $('miniLobby').classList.add('hidden');
   $('miniResult').classList.remove('hidden');
   $('miniPauseBtn').classList.add('hidden');
   $('miniBack').classList.toggle('hidden', mini.forced && !win);
-  $('miniRetry').textContent = win ? 'Improve / next level' : 'Reassemble. Try again.';
+  $('miniRetry').textContent = mini.daily ? 'Run it back' : win ? 'Improve / next level' : 'Reassemble. Try again.';
   if (win) {
     mini.qualityFinal = qualityScore();
     mini.grade = mini.qualityFinal >= 88 ? 3 : mini.qualityFinal >= 68 ? 2 : 1;
@@ -333,8 +498,8 @@ function resolveMiniResult(win, reason) {
       `<strong>+${reward.pay}</strong><small>COINS EARNED</small></div><div>` +
       `<strong>+${reward.delta} ★</strong><small>NEW DISCHARGE STARS</small></div>`;
     $('resultJourney').textContent =
-      `${stars()}/12 stars · ${stamps()}/${rooms.length} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins awarded.'}`;
-    tone(784, 0.35);
+      `${stars()}/12 stars · ${stamps()}/${rooms.length} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins paid.'}`;
+    sfx('win');
     $('miniDialog').classList.remove('gory');
   } else {
     mini.grade = 0;
@@ -355,10 +520,18 @@ function resolveMiniResult(win, reason) {
       `<small>COINS THIS RUN</small></div><div><strong>${stars()} ★</strong>` +
       `<small>STARS PRESERVED</small></div>`;
     $('resultJourney').textContent = mini.forced
-      ? 'You’re still in bed. Reassemble, then complete all three IV phases.'
-      : 'One heart lost (minimum one). Retry or explore another department.';
-    tone(65, 0.4, 'sawtooth');
+      ? 'Still in bed. Reassemble, then finish all three IV phases.'
+      : 'One heart lost (you keep at least one). Retry or go bother another department.';
+    sfx('lose');
   }
+  if (mini.daily) {
+    const d = recordDaily(mini.score || 0);
+    $('resultJourney').textContent +=
+      ` Daily Dose: ${d.bonus ? '+' + d.bonus + ' bonus coins, streak ' + state.daily.streak + '. ' : ''}` +
+      `${d.record ? 'New best for today.' : 'Today’s best: ' + state.daily.best + '.'}`;
+  }
+  save();
+  music('result:' + (win ? 'win' : 'lose'));
   drawResultArt();
   $('miniResult').scrollIntoView({ block: 'nearest' });
 }
@@ -399,19 +572,31 @@ function leaveMini() {
     loadRoom(0);
     player.inv = 2;
     hud();
-  }
+  } else music('room:' + state.room);
   checkDischarge();
   canvas.focus({ preventScroll: true });
 }
 
+// Discharge needs 12 stars, a medal in all six arcades, a level 2 medal, and Ralph out of the way.
+// Until combat reports state.ralph, a complete passport only sends Ralph to Macy's room.
 function checkDischarge() {
-  if (!state.won && stars() >= 12 && stamps() === rooms.length && levelTwo()) {
-    state.won = true;
-    save();
-    $('winScore').textContent =
-      `${state.name || 'Macy'} earned ${stars()} discharge stars across all six arcade challenges. Your arcade passport is complete.`;
-    modalOpen($('winDialog'));
+  if (state.won || !(stars() >= 12 && stamps() === rooms.length && levelTwo())) return;
+  if (!state.ralph) {
+    if (!state.ralphReady) {
+      state.ralphReady = true;
+      save();
+      hud();
+      renderMap();
+      toast('Passport complete. Ralph is blocking the exit. Go to your room.', 5);
+    }
+    return;
   }
+  state.won = true;
+  save();
+  hud();
+  $('winScore').textContent =
+    `${state.name || 'Macy'} earned ${stars()} discharge stars across all six arcade games and evicted Ralph. The passport is complete.`;
+  modalOpen($('winDialog'));
 }
 
 // Paints the current game, then either its own overlay or the shared arcade overlays.
@@ -451,7 +636,7 @@ function updateArcade(dt, step) {
   if (shift > mini.shift) {
     mini.shift = shift;
     mini.notice = 3.5;
-    tone(520, 0.12);
+    sfx('wave');
     if (def.shiftMessage) setInstructions(def.shiftMessage(shift));
   }
   step(dt);
@@ -476,13 +661,17 @@ function arcadeTimeUp() {
   finishMini(met, met ? undefined : ARCADE_QUOTA_MISSED);
 }
 
-// Client coordinates to canvas coordinates for the current game.
+// Client coordinates to canvas coordinates for the current game. The canvas uses
+// object-fit: contain, so a letterboxed arcade (fullscreen) still maps exactly.
 function miniPoint(e) {
   const r = $('miniCanvas').getBoundingClientRect(),
-    { w, h } = games[mini.id].canvas;
+    { w, h } = games[mini.id].canvas,
+    s = Math.min(r.width / w, r.height / h) || 1,
+    left = r.left + (r.width - w * s) / 2,
+    top = r.top + (r.height - h * s) / 2;
   return {
-    x: clamp(((e.clientX - r.left) * w) / r.width, 0, w),
-    y: clamp(((e.clientY - r.top) * h) / r.height, 0, h)
+    x: clamp((e.clientX - left) / s, 0, w),
+    y: clamp((e.clientY - top) / s, 0, h)
   };
 }
 
@@ -498,14 +687,14 @@ function arcadeDown(p) {
     stroke: ++strokeSerial
   };
   const def = games[mini.id];
-  if (def.down) def.down(p);
+  if (def.down) dailyScoped(() => def.down(p));
 }
 
 function arcadeMove(p) {
   if (mini.screen !== 'play' || mini.paused || !mini.pointer) return;
   const prev = { x: mini.pointer.lastX, y: mini.pointer.lastY },
     def = games[mini.id];
-  if (def.move) def.move(p, prev);
+  if (def.move) dailyScoped(() => def.move(p, prev));
   mini.pointer.lastX = p.x;
   mini.pointer.lastY = p.y;
 }
@@ -513,7 +702,7 @@ function arcadeMove(p) {
 // cancel = true when the pointer was lost or the run was interrupted; games must not act on it.
 function arcadeUp(cancel = false) {
   const def = games[mini.id];
-  if (def.up) def.up(cancel);
+  if (def.up) dailyScoped(() => def.up(cancel));
   mini.pointer = null;
 }
 
@@ -554,13 +743,7 @@ function drawArcadeOverlays(g) {
     rr(g, 45, 225, 510, 145, 22, '#112e45ee', '#9dc7be66', 1);
     label(
       g,
-      intro
-        ? mini.transition < 3
-          ? String(3 - Math.floor(mini.transition))
-          : 'GO!'
-        : mini.pendingFinish.win
-          ? 'SHIFT COMPLETE'
-          : 'WELL. THAT HAPPENED.',
+      intro ? countdownLabel() : mini.pendingFinish.win ? 'SHIFT COMPLETE' : 'WELL. THAT HAPPENED.',
       300,
       295,
       intro ? 64 : 27,
@@ -569,9 +752,7 @@ function drawArcadeOverlays(g) {
     );
     label(
       g,
-      intro
-        ? 'Find your grip. The clock is still paused.'
-        : 'Score ' + mini.score + ' · Best chain ' + mini.maxCombo,
+      intro ? 'The clock starts on GO.' : 'Score ' + mini.score + ' · Best chain ' + mini.maxCombo,
       300,
       334,
       15,

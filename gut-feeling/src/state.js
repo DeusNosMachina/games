@@ -74,32 +74,66 @@ try {
   storageOK = false;
 }
 
+// Gift shop catalog ids. Copy and prices live in input.js; combat reads upgrades by id.
+const SHOP_UPGRADE_IDS = ['slippers', 'pillow', 'bag', 'scrunchie', 'snacks', 'thick', 'repellent', 'pass'],
+  SHOP_LOOK_IDS = ['look-hoodie', 'look-scrunchie', 'look-socks'];
+
+const savedCount = v => Math.max(0, Math.floor(Number(v) || 0)),
+  savedIds = (list, allowed) => (Array.isArray(list) ? list.filter(x => allowed.includes(x)) : []),
+  savedUpgrades = savedIds(saved.upgrades, SHOP_UPGRADE_IDS),
+  savedHearts = 5 + (savedUpgrades.includes('scrunchie') ? 1 : 0),
+  savedFood = savedUpgrades.includes('snacks') ? 5 : 3,
+  savedDaily = saved.daily && typeof saved.daily === 'object' ? saved.daily : {};
+
 let state = {
   started: false,
   paused: false,
   room: 0,
-  hp: clamp(Number.isFinite(saved.hp) ? saved.hp : 5, 0, 5),
-  coins: Math.max(0, Math.floor(Number(saved.coins) || 0)),
+  hp: clamp(Number.isFinite(saved.hp) ? saved.hp : 5, 0, savedHearts),
+  coins: savedCount(saved.coins),
   name:
     (typeof (saved.name ?? old.name) === 'string' ? (saved.name ?? old.name).trim().slice(0, 18) : '') ||
     'Macy',
   difficulty: clamp(Math.floor(Number(saved.difficulty) || 0), 0, 2),
-  food: clamp(Math.floor(Number(saved.food) || 0), 0, 3),
+  food: clamp(Math.floor(Number(saved.food) || 0), 0, savedFood),
   item: 0,
-  sound: false,
+  // Sound preference. audio.js reads it at init and writes it on toggle; save() persists it.
+  sound: saved.sound === undefined ? true : !!saved.sound,
   medals: Array.from({ length: rooms.length }, (_, i) =>
     Array.from({ length: 3 }, (_, j) => clamp(Math.floor(Number(saved.medals?.[i]?.[j]) || 0), 0, 3))
   ),
   records: Array.from({ length: rooms.length }, (_, i) =>
-    Array.from({ length: 3 }, (_, j) => Math.max(0, Math.floor(Number(saved.records?.[i]?.[j]) || 0)))
+    Array.from({ length: 3 }, (_, j) => savedCount(saved.records?.[i]?.[j]))
   ),
   taken: Array.isArray(saved.taken) ? saved.taken : [],
   defeated: Array.isArray(saved.defeated) ? saved.defeated : [],
-  upgrades: Array.isArray(saved.upgrades)
-    ? saved.upgrades.filter(x => ['slippers', 'pillow', 'bag'].includes(x))
-    : [],
+  upgrades: savedUpgrades,
+  // Wardrobe: owned and worn look ids. girl() reads worn through macyLook().
+  cosmetics: {
+    owned: savedIds(saved.cosmetics?.owned, SHOP_LOOK_IDS),
+    worn: savedIds(saved.cosmetics?.worn, SHOP_LOOK_IDS)
+  },
   won: !!saved.won,
-  wardClears: Array.from({ length: rooms.length }, (_, i) => Math.max(0, Number(saved.wardClears?.[i]) || 0))
+  wardClears: Array.from({ length: rooms.length }, (_, i) => savedCount(saved.wardClears?.[i])),
+  // Hall of Nonsense counters. Combat adds to evictions and bestChain; the arcade adds runs.
+  evictions: savedCount(saved.evictions),
+  bestChain: savedCount(saved.bestChain),
+  coinsEarned: savedCount(saved.coinsEarned),
+  runs: savedCount(saved.runs),
+  // Ralph guards the exit once the passport is complete. Combat sets ralph when he is beaten.
+  ralphReady: !!saved.ralphReady,
+  ralph: !!saved.ralph,
+  // Faster to fun: returning players skip the hero; each briefing (game:phase) shows in full once.
+  played: !!saved.played,
+  briefed: Array.isArray(saved.briefed) ? saved.briefed.filter(x => typeof x === 'string') : [],
+  // Arcade (fullscreen) preference: null until chosen, then true or false.
+  arcade: typeof saved.arcade === 'boolean' ? saved.arcade : null,
+  // Daily Dose: last day played (YYYY-MM-DD), that day's best score, consecutive-day streak.
+  daily: {
+    last: typeof savedDaily.last === 'string' ? savedDaily.last : '',
+    best: savedCount(savedDaily.best),
+    streak: savedCount(savedDaily.streak)
+  }
 };
 if (saved.difficulty === undefined) state.difficulty = 1;
 
@@ -108,6 +142,10 @@ const cfg = () => difficulties[state.difficulty],
   stars = () => state.medals.flat().reduce((a, b) => a + b, 0),
   stamps = () => state.medals.filter(m => m.some(Boolean)).length,
   levelTwo = () => state.medals.some(m => m[1] > 0);
+
+// Shop-driven caps: the Lucky scrunchie adds a sixth heart, Pocket snacks carry five nutrients.
+const maxHearts = () => 5 + (state.upgrades.includes('scrunchie') ? 1 : 0),
+  maxFood = () => (state.upgrades.includes('snacks') ? 5 : 3);
 
 // Macy in the ward. z/vz are jump height and velocity.
 let player = {
@@ -197,8 +235,20 @@ function save() {
         taken: state.taken,
         defeated: state.defeated,
         upgrades: state.upgrades,
+        cosmetics: state.cosmetics,
         won: state.won,
-        wardClears: state.wardClears
+        wardClears: state.wardClears,
+        evictions: state.evictions,
+        bestChain: state.bestChain,
+        coinsEarned: state.coinsEarned,
+        runs: state.runs,
+        ralphReady: state.ralphReady,
+        ralph: state.ralph,
+        sound: state.sound,
+        played: state.played,
+        briefed: state.briefed,
+        arcade: state.arcade,
+        daily: state.daily
       })
     );
     storageOK = true;

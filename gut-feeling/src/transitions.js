@@ -1,10 +1,18 @@
-// Motion preferences change animation, never the time provided to read or prepare.
-const INTRO_SECONDS = 3.2,
+// Motion preferences change animation, never the time provided to read or prepare: reduced-motion
+// players keep the long countdown and a longer GO card.
+const INTRO_SECONDS = reduced ? 3.2 : 1.5,
+  INTRO_GO_SECONDS = reduced ? 0.2 : 0.3,
+  QUICK_BRIEF_SECONDS = reduced ? 3.2 : 1.2,
   OUTRO_SECONDS = 2.2;
 
 // Briefing copy for the current run or phase.
 function lesson() {
   return games[mini.id].lesson();
+}
+
+// Each game (and each IV phase) gets the full briefing once; after that a short GO card.
+function briefKey() {
+  return mini.id + ':' + (mini.phase || 0);
 }
 
 function prepareBriefing() {
@@ -15,6 +23,7 @@ function prepareBriefing() {
   mini.demoTime = 0;
   mini.countdown = 0;
   mini.flash = 0;
+  mini.quickBrief = state.briefed.includes(briefKey());
   clearHeld();
   const l = lesson();
   $('miniBriefKicker').textContent =
@@ -26,20 +35,30 @@ function prepareBriefing() {
   $('miniDemo').className = 'control-demo ' + l.demo;
   $('miniRuleGoal').textContent = l.goal;
   $('miniRuleControl').textContent = l.cue;
+  $('miniGoTitle').textContent = l.title;
+  $('miniGoCue').textContent = l.cue;
   $('miniBriefing').classList.remove('hidden');
+  $('miniBriefing').classList.toggle('quick', mini.quickBrief);
+  $('miniBriefCard').classList.toggle('hidden', mini.quickBrief);
+  $('miniGo').classList.toggle('hidden', !mini.quickBrief);
   $('miniPaused').classList.add('hidden');
   $('miniPauseBtn').classList.add('hidden');
   $('miniDialog').dataset.screen = 'briefing';
-  $('miniReadyBtn').textContent = mini.total > 0 ? 'Ready for the next challenge →' : 'Ready — count me in';
-  $('miniReadyBtn').focus({ preventScroll: true });
+  $('miniReadyBtn').textContent = mini.total > 0 ? 'Next challenge →' : 'Ready. Count me in →';
+  (mini.quickBrief ? $('miniGo') : $('miniReadyBtn')).focus({ preventScroll: true });
   $('miniDialog').scrollTop = 0;
   updateMiniHUD();
 }
 
 function launchMini() {
   if (mini.screen !== 'briefing') return;
+  if (!state.briefed.includes(briefKey())) {
+    state.briefed.push(briefKey());
+    save();
+  }
   mini.screen = 'intro';
   mini.transition = 0;
+  mini.countTick = countdownLabel(0);
   mini.held = false;
   clearHeld();
   $('miniBriefing').classList.add('hidden');
@@ -47,13 +66,24 @@ function launchMini() {
   $('miniPauseBtn').classList.remove('hidden');
   $('miniPauseBtn').textContent = 'Ⅱ';
   $('miniCanvas').focus({ preventScroll: true });
-  tone(440, 0.1, 'sine');
+  sfx('countdown');
+  music('game:' + mini.id);
   updateMiniHUD();
+}
+
+// 3, 2, 1 evenly across the countdown, then GO! for its last moment.
+function countdownLabel(t = mini.transition) {
+  const count = INTRO_SECONDS - INTRO_GO_SECONDS;
+  return t < count ? String(3 - Math.floor(t / (count / 3))) : 'GO!';
 }
 
 function updateTransition(dt) {
   if (mini.screen === 'briefing') {
     mini.demoTime += dt;
+    if (mini.quickBrief) {
+      $('miniGoBar').style.width = Math.min(100, (mini.demoTime / QUICK_BRIEF_SECONDS) * 100) + '%';
+      if (mini.demoTime >= QUICK_BRIEF_SECONDS) launchMini();
+    }
     return true;
   }
   if (mini.screen === 'intro') {
@@ -64,8 +94,11 @@ function updateTransition(dt) {
       mini.transition = 0;
       clearHeld();
       $('miniDialog').dataset.screen = 'play';
-      tone(660, 0.09, 'sine');
+      sfx('go');
       updateMiniHUD();
+    } else if (countdownLabel() !== mini.countTick) {
+      mini.countTick = countdownLabel();
+      if (mini.countTick !== 'GO!') sfx('countdown');
     }
     return true;
   }
@@ -89,7 +122,7 @@ function finishMini(win, reason) {
   $('miniPauseBtn').classList.add('hidden');
   $('miniClose').disabled = true;
   $('miniTimer').textContent = 'Finished';
-  tone(win ? 690 : 135, win ? 0.2 : 0.3, win ? 'sine' : 'triangle');
+  sfx(win ? 'clear' : 'miss');
 }
 
 // Countdown / finish card for the wide 800 × 450 canvas (the IV game).
@@ -107,19 +140,11 @@ function paintTransition(g) {
     g.scale(z, z);
   }
   rr(g, -250, -70, 500, 155, 24, '#102c42f5', '#afdec277', 1.3);
-  const title = intro
-    ? mini.transition < 3
-      ? String(3 - Math.floor(mini.transition))
-      : 'GO!'
-    : mini.pendingFinish.win
-      ? 'Run complete!'
-      : 'Well. That happened.';
+  const title = intro ? countdownLabel() : mini.pendingFinish.win ? 'Run complete!' : 'Well. That happened.';
   label(g, title, 0, 0, intro ? 64 : 35, outro && !mini.pendingFinish.win ? '#f5b6b2' : '#edf4d7', 'center');
   label(
     g,
-    intro
-      ? 'Find your controls. The clock has not started.'
-      : 'Score ' + mini.score + ' · best chain ' + mini.maxCombo,
+    intro ? 'The clock starts on GO.' : 'Score ' + mini.score + ' · best chain ' + mini.maxCombo,
     0,
     43,
     16,

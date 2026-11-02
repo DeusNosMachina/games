@@ -120,7 +120,26 @@ function panel(g, x, y, w, h, col = '#244853', edge = '#4d7e83') {
   if (h > 14) line(g, [[x + 12, y + 3], [x + w - 12, y + 3]], '#daf0d31a', 1);
 }
 
+// Macy's outfit. girl() reads it on every draw: the shop's wardrobe (state.cosmetics.worn), or
+// girlLookOverride while a preview paints a look she has not bought yet.
+const MACY_HOODIE = ['#a5e2c9', '#5bb9ac', '#398c88', '#4caaa2', '#3e9d96'],
+  MACY_VARSITY = ['#c9b0ec', '#7d5bbd', '#553a8e', '#7a58b8', '#e8c35a'];
+
+let girlLookOverride = null;
+
+function macyLook() {
+  if (girlLookOverride) return girlLookOverride;
+  const worn = state.cosmetics?.worn || [];
+  return {
+    hoodie: worn.includes('look-hoodie') ? MACY_VARSITY : MACY_HOODIE,
+    scrunchie: worn.includes('look-scrunchie') ? '#f3ec4f' : '#f1abbd',
+    socks: worn.includes('look-socks') ? 'stitch' : ''
+  };
+}
+
 function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow = true) {
+  const look = macyLook(),
+    hood = look.hoodie;
   g.save();
   g.translate(x, y);
   g.scale(scale, scale);
@@ -157,7 +176,12 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
       i ? '#33475e' : '#28394d',
       7
     );
-    line(g, [[side * 7 + step, -6], [side * 7 + step, -1]], '#f3bb99', 5);
+    if (look.socks) {
+      // Softball-stitch socks: white with two red seams.
+      line(g, [[side * 7 + step, -9], [side * 7 + step, -1]], '#fbf4e6', 5.5);
+      line(g, [[side * 7 + step - 2.6, -6.5], [side * 7 + step + 2.6, -6.5]], '#de5b66', 1.4);
+      line(g, [[side * 7 + step - 2.6, -3.6], [side * 7 + step + 2.6, -3.6]], '#de5b66', 1.4);
+    } else line(g, [[side * 7 + step, -6], [side * 7 + step, -1]], '#f3bb99', 5);
     rr(g, side * 7 + step - 6, -2, 15, 7, 3, '#f6f3de', '#61777f', 0.8);
     line(g, [[side * 7 + step - 4, 3], [side * 7 + step + 7, 3]], '#86b7b4', 1.5);
   }
@@ -170,13 +194,13 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
         p.quadraticCurveTo(side * 19, -38, side * 17 + swing, -28);
       },
       null,
-      '#4caaa2',
+      hood[3],
       8
     );
     ellipse(g, side * 17 + swing, -26, 3.3, 4.4, '#e8ac8b');
     if (side === 1) line(g, [[side * 15 + swing, -30], [side * 20 + swing, -29]], '#ecf4e8', 2);
   }
-  rr(g, -13, -51, 27, 28, 8, gradient(g, -13, -50, 26, 25, '#a5e2c9', '#5bb9ac'), '#398c88', 1.1);
+  rr(g, -13, -51, 27, 28, 8, gradient(g, -13, -50, 26, 25, hood[0], hood[1]), hood[2], 1.1);
   path(
     g,
     p => {
@@ -187,7 +211,7 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
     '#e1f0d9',
     2.2
   );
-  line(g, [[-8, -28], [9, -28]], '#3e9d96', 1);
+  line(g, [[-8, -28], [9, -28]], hood[4], 1);
   spark(g, 2, -38, '#e5e5ac', 0.55);
   line(g, [[-8, -42], [-7, -30]], '#bcf0d344', 1.5);
   rr(g, -3, -57, 8, 9, 3, '#dca17f');
@@ -242,7 +266,8 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
     '#a7645d',
     1
   );
-  ellipse(g, dir * 15, -77, 3.4, 3.2, '#f1abbd');
+  ellipse(g, dir * 15, -77, 4, 3.6, look.scrunchie);
+  ellipse(g, dir * 15.6, -78, 1.6, 1.2, '#ffffff66');
   g.restore();
 }
 
@@ -536,7 +561,15 @@ function windowArt(g, x, y, w = 190, h = 100) {
   }
 }
 
-function poster(g, x, y, kind = 0) {
+function poster(g, x, y, kind = 0, s = 1) {
+  if (s !== 1) {
+    g.save();
+    g.translate(x, y);
+    g.scale(s, s);
+    poster(g, 0, 0, kind);
+    g.restore();
+    return;
+  }
   rr(g, x - 4, y - 4, 62, 77, 4, '#507d7a');
   rr(g, x, y, 54, 69, 2, '#fbebc6');
   if (kind === 0) {
@@ -626,16 +659,24 @@ function floor(g, w, h, theme) {
   rect(g, 0, h - 22, w, 22, gradient(g, 0, h - 22, 0, 22, '#67989b', '#2c586c'));
 }
 
+// Wall signs start at WALL_SIGN_TOP so the hearts and pocket-money cards (sized in world.js to
+// stay above that line) never cover them. Windows and doors may sit higher; they carry no text.
+const WALL_SIGN_TOP = 68;
+
+function wallSign(g, x, w, title, sub, titleColor = '#476c66', subColor = '#6d8b7a') {
+  rr(g, x, WALL_SIGN_TOP, w, 54, 10, '#e9eed3', '#6f9c94', 1);
+  label(g, title, x + w / 2, WALL_SIGN_TOP + 24, 14, titleColor, 'center');
+  label(g, sub, x + w / 2, WALL_SIGN_TOP + 43, 9, subColor, 'center');
+}
+
 // The full room illustration. Use roomBg() in frame code; it caches this per room.
 function roomIllustration(g, id) {
   const themes = ['#82bcad', '#7bb6c7', '#b6a0bb', '#c7b18e', '#91bda7'];
   floor(g, 1000, 625, themes[id]);
   if (id === 0) {
     windowArt(g, 370, 21, 214, 102);
-    poster(g, 782, 32, 0);
-    rr(g, 176, 32, 181, 62, 10, '#e6ecd0', '#638e82', 1);
-    label(g, 'MACY’S ROOM', 267, 58, 17, '#476c66', 'center');
-    label(g, 'GREMLINS NOT FOUND', 267, 79, 9, '#6d8b7a', 'center');
+    poster(g, 790, WALL_SIGN_TOP, 0, 0.78);
+    wallSign(g, 112, 152, 'MACY’S ROOM', 'GREMLINS NOT FOUND');
     rr(g, 386, 274, 250, 170, 21, '#7f859f30');
     rr(g, 392, 278, 238, 160, 18, gradient(g, 400, 280, 220, 150, '#b9adc7', '#a29dbb'));
     rr(g, 404, 290, 214, 136, 12, null, '#ded5da88', 2);
@@ -646,10 +687,16 @@ function roomIllustration(g, id) {
     label(g, 'NO JERKS', 110, 536, 9, '#d6e6c3', 'center');
   }
   if (id === 1 || id === 3) {
-    rr(g, 103, 25, 225, 72, 12, '#eef0d7', '#74a4a5', 1);
-    label(g, id === 1 ? 'MAGNETIC PERSONALITY' : 'COMPUTED TOMFOOLERY', 215, 53, 12, '#496f80', 'center');
-    label(g, id === 1 ? 'NO METAL. NO CHILL.' : 'THE DONUT STRIKES BACK', 215, 75, 10, '#648a88', 'center');
-    poster(g, 809, 28, 1);
+    wallSign(
+      g,
+      590,
+      205,
+      id === 1 ? 'MAGNETIC PERSONALITY' : 'COMPUTED TOMFOOLERY',
+      id === 1 ? 'NO METAL. NO CHILL.' : 'THE DONUT STRIKES BACK',
+      '#496f80',
+      '#648a88'
+    );
+    poster(g, 818, WALL_SIGN_TOP, 1, 0.78);
     rr(g, 370, 345, 240, 132, 18, '#4d97a536');
     for (let yy = 360; yy < 466; yy += 26)
       line(g, [[386, yy], [594, yy]], '#b4ddc753', 2);
@@ -658,21 +705,19 @@ function roomIllustration(g, id) {
   }
   if (id === 2) {
     windowArt(g, 425, 22, 191, 101);
-    poster(g, 118, 28, 1);
-    rr(g, 697, 22, 191, 76, 10, gradient(g, 700, 24, 0, 70, '#75849b', '#3e607b'));
-    rr(g, 704, 28, 177, 61, 6, '#25495f');
-    label(g, 'MOVIE NIGHT', 793, 52, 14, '#e6cfad', 'center');
-    label(g, 'NOW SHOWING: YOU VS. GUT', 793, 74, 8, '#acd8c7', 'center');
+    poster(g, 330, WALL_SIGN_TOP, 1, 0.78);
+    rr(g, 660, WALL_SIGN_TOP, 180, 56, 10, gradient(g, 660, WALL_SIGN_TOP, 0, 56, '#75849b', '#3e607b'));
+    rr(g, 666, WALL_SIGN_TOP + 5, 168, 46, 6, '#25495f');
+    label(g, 'MOVIE NIGHT', 750, WALL_SIGN_TOP + 25, 14, '#e6cfad', 'center');
+    label(g, 'NOW SHOWING: YOU VS. GUT', 750, WALL_SIGN_TOP + 42, 8, '#acd8c7', 'center');
     rr(g, 272, 285, 459, 221, 28, '#8c89a941');
     rr(g, 282, 290, 440, 206, 25, gradient(g, 282, 290, 420, 200, '#b5a8c3', '#a395b6'));
     rr(g, 297, 306, 410, 174, 20, null, '#e2d3d87a', 2);
   }
   if (id === 4) {
-    rr(g, 103, 24, 221, 69, 11, '#eef0d3');
-    label(g, 'ULTRA-SUSPICIOUS', 213, 53, 14, '#557d76', 'center');
-    label(g, 'NOW WITH 30% MORE GEL', 213, 75, 10, '#6d8c78', 'center');
+    wallSign(g, 276, 221, 'ULTRA-SUSPICIOUS', 'NOW WITH 30% MORE GEL', '#557d76', '#6d8c78');
     windowArt(g, 535, 24, 155, 91);
-    poster(g, 802, 28, 1);
+    poster(g, 810, WALL_SIGN_TOP, 1, 0.78);
     rr(g, 390, 305, 290, 172, 28, '#8fb7a44a');
     ellipse(g, 535, 387, 99, 45, '#b6d3b244');
   }
@@ -682,11 +727,11 @@ function roomIllustration(g, id) {
   rr(g, 914, 35, 56, 117, 5, gradient(g, 915, 35, 55, 115, '#a3c9c7', '#779fa9'));
   rr(g, 924, 46, 35, 45, 5, '#d7e8d6');
   rr(g, 928, 50, 27, 37, 3, gradient(g, 928, 50, 0, 37, '#88bdca', '#bed9ce'));
-  rr(g, 950, 111, 8, 4, 2, '#f8d38f');
+  rr(g, 950, 100, 8, 4, 2, '#f8d38f');
   rr(g, 885, 167, 89, 35, 9, '#4f8e83');
   label(g, 'MAP →', 929, 190, 13, '#e2edc8', 'center');
-  rr(g, 906, 9, 73, 15, 5, '#cde1bb');
-  label(g, 'ADVENTURE', 943, 20, 8, '#547e74', 'center');
+  rr(g, 906, 114, 73, 15, 5, '#cde1bb');
+  label(g, 'ADVENTURE', 943, 125, 8, '#547e74', 'center');
 }
 
 // Only moving actors are redrawn as geometry. Cache the lit room background once per room.
@@ -825,7 +870,7 @@ const roomProps = [
       box: [380, 167, 188, 130],
       draw: g => {
         scanner(g, 424, 200);
-        label(g, 'DONUT II', 483, 65, 12, '#fbe1a9', 'center');
+        label(g, 'DONUT II', 481, 112, 12, '#fbe1a9', 'center');
       }
     },
     {
