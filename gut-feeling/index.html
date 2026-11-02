@@ -10388,7 +10388,8 @@ function paintTransition(g) {
 // Drip or Die (your room). Three phases: tap the drip, mix the recipe, hold the pressure, on three strikes total.
 // Every phase escalates within the run (IV_LEVELS): level 1 starts gentle with hints and ends where level 2
 // starts; levels 2 and 3 add decoys, mix orders, coughs and flipped controls on top.
-// It doubles as mandatory recovery at zero hearts (mini.forced), which always runs level 1. Canvas 800 × 450,
+// It doubles as mandatory recovery at zero hearts (mini.forced): ONE phase, rotating and getting harder with every
+// collapse (see ivRecoveryPlan). Canvas 800 × 450,
 // or 450 × 800 when the framework sets mini.portrait on an upright phone: a scene strip on top and the phase
 // below it. Rules never change with the shape; draw code branches on mini.portrait every frame.
 // Losing ends in a staged cartoon explosion: the outro builds to a burst, the result screen shows the aftermath.
@@ -10649,6 +10650,14 @@ const IV_LOSS_COPY = [
   ['INSIDES: NOW OUTSIDES.', 'The IV pole is wearing your intestines like a scarf. Honestly? It works.']
 ];
 
+// Mandatory recovery: one phase per collapse. Quotas are this share of normal, rounded up.
+const IV_RECOVERY_QUOTA = 0.75;
+const IV_PHASE_NAMES = ['Prime the pump', 'Mix the recipe', 'Hold the pressure'];
+
+// The recovery in progress ({phase, level, count}), kept so a retry after an explosion repeats it.
+// Cleared when the recovery is won; the next collapse plans a new one.
+let ivRecovery = null;
+
 // Explosion bookkeeping survives between runs so a second viewing lands differently.
 let ivBoomCount = 0;
 let ivLastWord = '';
@@ -10662,8 +10671,21 @@ const IV = registerGame({
   info: {
     game: 'Drip or Die',
     genre: 'PRECISION · CATCHING · BALANCE',
-    headline: 'A three-course IV.',
-    desc: 'Tap the drip, mix the recipe, hold the pressure. Every run starts kind and ends mean: windows shrink and slide, sips fall faster, the band jumps around. Levels 2 and 3 add decoys, mix orders, hopping skulls, coughs and flipped controls. Three strikes and things get anatomical.'
+    // A forced recovery rewrites the lobby pitch: one phase, which one, at what level.
+    get headline() {
+      return ivRecoveryLobby() ? 'One IV. Then back to the ward.' : 'A three-course IV.';
+    },
+    get desc() {
+      if (!ivRecoveryLobby())
+        return 'Tap the drip, mix the recipe, hold the pressure. Every run starts kind and ends mean: windows shrink and slide, sips fall faster, the band jumps around. Levels 2 and 3 add decoys, mix orders, hopping skulls, coughs and flipped controls. Three strikes and things get anatomical.';
+      const plan = ivRecoveryPlan();
+      return (
+        ivRecoveryLine(plan) +
+        ' Tonight’s course: ' +
+        IV_PHASE_NAMES[plan.phase] +
+        ', at three quarters of the usual quota. Three strikes still pops you. Every collapse rotates the course and raises the level.'
+      );
+    }
   },
   tierNotes: [
     '3 strikes. Windows shrink, then slide. Sips speed up. The band jumps.',
@@ -10671,8 +10693,9 @@ const IV = registerGame({
     '3 strikes. Echoes, hoppers, flipped controls, windows with commitment issues.'
   ],
   init() {
-    // Mandatory recovery is always the teaching level, with the same three strikes.
-    if (mini.forced) mini.tier = 0;
+    // Mandatory recovery is one phase at the plan's level, with the same three strikes.
+    const plan = mini.forced ? ivRecoveryStart() : null;
+    if (plan) mini.tier = plan.level;
     mini.rules.misses = IV_STRIKES;
     mini.good = 0;
     mini.precision = [];
@@ -10697,7 +10720,7 @@ const IV = registerGame({
     const words = IV_WORDS.filter(w => w !== ivLastWord);
     mini.ivWord = pick(words);
     ivLastWord = mini.ivWord;
-    ivPhase(0);
+    ivPhase(plan ? plan.phase : 0);
   },
   controls() {
     if (mini.phase === 0) setControls([{ id: 'tap', text: 'TAP THE DRIP', key: 'Space', hot: true }]);
@@ -10823,47 +10846,14 @@ const IV = registerGame({
     if (touch.phase === 2) mini.held = false;
   },
   lesson() {
-    const t = mini.tier;
-    if (mini.phase === 0)
-      return {
-        title: '1 / Prime the pump',
-        goal: 'Land ' + mini.required + ' drips.',
-        control:
-          'Tap the screen (or TAP THE DRIP, or Space) while the line crosses a mint window. Gold centers in a row build a chain multiplier.',
-        avoid: [
-          'Tapping outside mint, or letting a drip slip past, is a strike. Three strikes and you pop. Windows shrink with every drip and start sliding at drip 4.',
-          'Two mint windows: tap both. Red is a decoy and a strike. Windows slide from drip 2, faster and thinner as you go.',
-          'A ↩ flag bounces the line early; ×2 echoes need a tap each way. Every window slides, and some change direction.'
-        ][t],
-        demo: 'timing',
-        cue: ['Tap on mint · 3 strikes', 'Every mint · never red · 3 strikes', 'Chase the slide · 3 strikes'][t]
-      };
-    if (mini.phase === 1)
-      return {
-        title: '2 / Mix the recipe',
-        goal: 'Catch ' + mini.catchNeed + ' sips that match the order.',
-        control:
-          'Tap a lane or drag the cup with your finger. LEFT / MIDDLE / RIGHT and A / S / D work too. The banner shows what goes in the cup next.',
-        avoid: [
-          'A green skull is a strike. The wrong flavor only costs style. The recipe flips every 3 catches, and it all speeds up.',
-          'Orders mix flavors in sequence. The wrong flavor dumps the cup and is a strike. Arrow skulls hop lanes. A full cup is heavy.',
-          'Longer orders, three flavors, double skulls, more hoppers, no mercy on pace. Rainbow scoops count twice.'
-        ][t],
-        demo: 'catch',
-        cue: ['Match the recipe · dodge skulls', 'Follow the order · wrong flavor = strike', 'Mix it right · heavy cup, quick feet'][t]
-      };
+    const l = ivPhaseLesson();
+    if (!mini.forced) return l;
+    // Recovery is one phase: say which one, at what level, and where it leads.
+    const plan = ivRecoveryPlan();
     return {
-      title: '3 / Steady hands',
-      goal: 'Bank ' + mini.need + ' seconds inside the mint band.',
-      control:
-        'Press and hold anywhere on the screen (or HOLD TO PUMP, or Space) to raise pressure. Let go to lower it. Dead center banks time faster.',
-      avoid: [
-        'The band jumps to new heights (watch the arrow) and slims as you bank. Pinning the top or bottom is a strike. Late on, a cough: let go.',
-        'COUGH shoves up, HICCUP shoves down, a SPIKE moves the band. Counter them or take a strike. Split bands: either half counts.',
-        'All of that, plus purple warnings: the controls flip for 3 seconds. Hold goes down, letting go goes up.'
-      ][t],
-      demo: 'balance',
-      cue: ['Hold = up · release = down', 'Counter every shove', 'Purple = flipped controls'][t]
+      ...l,
+      title: 'Recovery / ' + IV_PHASE_NAMES[mini.phase] + ' · Level ' + (plan.level + 1),
+      goal: ivRecoveryLine(plan) + ' ' + l.goal
     };
   },
   statLabel: () => ['PRIME THE PUMP', 'MIX THE RECIPE', 'HOLD THE PRESSURE'][mini.phase],
@@ -10900,12 +10890,18 @@ const IV = registerGame({
     const centre = Math.min(1, (mini.ivCentreTime / Math.max(1, mini.ivBandTime)) * 1.6);
     const clean = mini.ivServed ? mini.ivCleanOrders / mini.ivServed : 1;
     let q = 56 + accuracy * 18 + Math.min(8, mini.ivBestChain * 1.6) + centre * 12 + clean * 6;
+    // A one-phase recovery is judged on the phase it played, on the same scale.
+    if (mini.forced) {
+      const tap = (accuracy * 18 + Math.min(8, mini.ivBestChain * 1.6)) / 26;
+      q = 56 + [tap, clean, centre][mini.phase] * 44;
+    }
     q -= 100 - mini.quality;
-    q -= Math.max(0, mini.phaseTime - mini.need * 2.7) * 0.4;
+    if (mini.phase === 2) q -= Math.max(0, mini.phaseTime - mini.need * 2.7) * 0.4;
     return Math.round(clamp(q, 0, 100));
   },
-  // Recovery restores hearts by medal.
+  // Recovery restores hearts by medal. A won recovery closes; the next collapse plans a new one.
   onWin() {
+    if (mini.forced) ivRecovery = null;
     state.hp = Math.max(state.hp, 2 + mini.grade);
     player.vomit = 0;
     save();
@@ -10940,6 +10936,52 @@ const IV = registerGame({
     g.restore();
   }
 });
+
+// Briefing copy for the phase in play, at the run's level.
+function ivPhaseLesson() {
+  const t = mini.tier;
+  if (mini.phase === 0)
+    return {
+      title: '1 / Prime the pump',
+      goal: 'Land ' + mini.required + ' drips.',
+      control:
+        'Tap the screen (or TAP THE DRIP, or Space) while the line crosses a mint window. Gold centers in a row build a chain multiplier.',
+      avoid: [
+        'Tapping outside mint, or letting a drip slip past, is a strike. Three strikes and you pop. Windows shrink with every drip and start sliding at drip 4.',
+        'Two mint windows: tap both. Red is a decoy and a strike. Windows slide from drip 2, faster and thinner as you go.',
+        'A ↩ flag bounces the line early; ×2 echoes need a tap each way. Every window slides, and some change direction.'
+      ][t],
+      demo: 'timing',
+      cue: ['Tap on mint · 3 strikes', 'Every mint · never red · 3 strikes', 'Chase the slide · 3 strikes'][t]
+    };
+  if (mini.phase === 1)
+    return {
+      title: '2 / Mix the recipe',
+      goal: 'Catch ' + mini.catchNeed + ' sips that match the order.',
+      control:
+        'Tap a lane or drag the cup with your finger. LEFT / MIDDLE / RIGHT and A / S / D work too. The banner shows what goes in the cup next.',
+      avoid: [
+        'A green skull is a strike. The wrong flavor only costs style. The recipe flips every 3 catches, and it all speeds up.',
+        'Orders mix flavors in sequence. The wrong flavor dumps the cup and is a strike. Arrow skulls hop lanes. A full cup is heavy.',
+        'Longer orders, three flavors, double skulls, more hoppers, no mercy on pace. Rainbow scoops count twice.'
+      ][t],
+      demo: 'catch',
+      cue: ['Match the recipe · dodge skulls', 'Follow the order · wrong flavor = strike', 'Mix it right · heavy cup, quick feet'][t]
+    };
+  return {
+    title: '3 / Steady hands',
+    goal: 'Bank ' + mini.need + ' seconds inside the mint band.',
+    control:
+      'Press and hold anywhere on the screen (or HOLD TO PUMP, or Space) to raise pressure. Let go to lower it. Dead center banks time faster.',
+    avoid: [
+      'The band jumps to new heights (watch the arrow) and slims as you bank. Pinning the top or bottom is a strike. Late on, a cough: let go.',
+      'COUGH shoves up, HICCUP shoves down, a SPIKE moves the band. Counter them or take a strike. Split bands: either half counts.',
+      'All of that, plus purple warnings: the controls flip for 3 seconds. Hold goes down, letting go goes up.'
+    ][t],
+    demo: 'balance',
+    cue: ['Hold = up · release = down', 'Counter every shove', 'Purple = flipped controls'][t]
+  };
+}
 
 // ---------- Shared helpers ----------
 
@@ -11082,6 +11124,43 @@ function ivLaneAt(gameX) {
   return clamp(Math.round((gameX - 240) / 160), 0, 2);
 }
 
+// ---------- Mandatory recovery ----------
+// Zero hearts sends Macy back to bed for ONE phase. The phase rotates with every collapse (pump, recipe,
+// pressure, around again) and the level climbs: the first collapse is level 1, the second level 2, then
+// level 3 from there. state.recoveries counts collapses; the framework resets and saves it.
+
+// {phase, level, count}: level is the tier index (0 to 2, shown as level + 1). Before a recovery starts it
+// is the plan for the next one; during one (and its retries) it is that recovery's plan.
+function ivRecoveryPlan() {
+  if (ivRecovery) return { ...ivRecovery };
+  const count = state.recoveries || 0;
+  return { phase: count % 3, level: Math.min(2, count), count };
+}
+
+// A forced run starts. A new recovery takes the next plan and counts the collapse; a retry repeats its plan.
+function ivRecoveryStart() {
+  if (!ivRecovery) {
+    ivRecovery = ivRecoveryPlan();
+    state.recoveries = ivRecovery.count + 1;
+    save();
+  }
+  return { ...ivRecovery };
+}
+
+// True while the lobby or a run is a forced recovery (the lobby copy changes).
+function ivRecoveryLobby() {
+  return !!(mini && mini.open && mini.forced);
+}
+
+function ivRecoveryLine(plan) {
+  return 'One phase. Level ' + (plan.level + 1) + '. Then back to the ward.';
+}
+
+// Recovery runs are brisk: three quarters of the usual quota, rounded up.
+function ivQuota(n) {
+  return mini.forced ? Math.ceil(n * IV_RECOVERY_QUOTA) : n;
+}
+
 // ---------- Phases ----------
 
 // Every strike says how many are gone. The third one ends the run (miniOops calls finishMini).
@@ -11101,7 +11180,7 @@ function ivPhase(phase) {
   mini.ivRipples = [];
   if (phase === 0) {
     mini.limit = L.tap.limit;
-    mini.required = L.tap.required;
+    mini.required = ivQuota(L.tap.required);
     mini.dir = 1;
     mini.pos = 0;
     mini.band = L.tap.width[1];
@@ -11126,7 +11205,7 @@ function ivPhase(phase) {
     mini.spawn = 0.5;
     mini.spawned = 0;
     mini.caught = 0;
-    mini.catchNeed = L.catch.need;
+    mini.catchNeed = ivQuota(L.catch.need);
     mini.ivFall = ivFallSpeed();
     mini.ivOrderList = [];
     mini.ivOrderIdx = 0;
@@ -11148,7 +11227,7 @@ function ivPhase(phase) {
     mini.pressure = 0.5;
     mini.velocity = 0;
     mini.stable = 0;
-    mini.need = L.press.need;
+    mini.need = ivQuota(L.press.need);
     mini.pressureTarget = 0.52;
     mini.ivHome = 0.52;
     mini.ivHomeTo = 0.52;
@@ -11180,6 +11259,17 @@ function ivPhase(phase) {
   }
   IV.controls();
   if (mini.initialized) prepareBriefing();
+}
+
+// A phase is done: on to the next one or, in a one-phase recovery, out of bed.
+function ivPhaseDone(next) {
+  if (!mini.forced) {
+    ivPhase(next);
+    return;
+  }
+  praise(300);
+  ivMood('grin', 3);
+  finishMini(true);
 }
 
 function updateIVGame(dt) {
@@ -11445,7 +11535,7 @@ function ivTap() {
   if (mini.ivChain >= 2) sfx('combo', { count: mini.ivChain });
   if (mini.good >= mini.required) {
     sfx('clear');
-    ivPhase(1);
+    ivPhaseDone(1);
     return;
   }
   ivSyncTarget();
@@ -11647,7 +11737,7 @@ function ivCatch(d) {
     mini.recipe = ivKindAt(0);
     if (mini.caught >= mini.catchNeed) {
       sfx('clear');
-      ivPhase(2);
+      ivPhaseDone(2);
     }
     return;
   }
