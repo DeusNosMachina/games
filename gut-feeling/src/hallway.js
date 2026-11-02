@@ -61,8 +61,9 @@ const HALLWAY_DOORS = [
   { room: 4, x: 2430, name: 'Ultrasound', plate: 'ULTRASOUND' }
 ];
 
-// Voice ids for sfx('talk', {voice}); audio.js defines each one. Mimi speaks with the 'grandma' voice
-// and Dodo with 'grandpa': those are audio.js's ids, not names anyone sees.
+// Voice ids for sfx('talk', {voice}); audio.js defines each one. Mimi speaks with the 'grandma' voice,
+// Dodo with 'grandpa', and Presley, Norah and Taylor share 'cousin' at their own pitch offsets: those
+// are audio.js's ids, not names anyone sees.
 const HALLWAY_VOICES = ['dad', 'brother', 'grandma', 'grandpa', 'cousin', 'doctor', 'nurse', 'ensure', 'macy', 'rowdy'];
 
 const HALLWAY_FLAVORS = ['#7a4b33', '#e9d39a', '#ef9fb0'],
@@ -86,9 +87,10 @@ const HALLWAY_FLAVORS = ['#7a4b33', '#e9d39a', '#ef9fb0'],
   HALLWAY_NURSE_NAMES = ['Tasha', 'Marco', 'Priya', 'Deb', 'Lou', 'Kim', 'Andre', 'Bea', 'Sam', 'Rosa'];
 
 // ---- What people say ----
-// talks: one conversation each, one to three bubbles of [who, text]; who is 'npc' or 'macy'. A talk
-// with when() only comes up while it is true, and comes up first the first time it is. {name} and
-// {NAME} become Macy's name. barks are the one-liners people call out as she walks past.
+// talks: one conversation each, one to four bubbles of [who, text]; who is 'npc', 'macy', or the id of
+// someone in the same visiting group who chimes in. A talk with when() only comes up while it is true,
+// and comes up first the first time it is. {name} and {NAME} become Macy's name. barks are the
+// one-liners people call out as she walks past.
 const hallwayWon = () => !!state.won,
   hallwayRalphWaiting = () => !!state.ralphReady && !state.ralph,
   hallwayCleared = () => [1, 2, 3, 4].some(i => (state.wardClears[i] || 0) > 0),
@@ -204,21 +206,43 @@ const HALLWAY_LINES = {
       { when: hallwayWon, say: [['npc', 'Going home. Good. The house needs its slugger back.']] }
     ]
   },
-  teammate: {
-    whoa: 'Whoa! Wheels!',
-    barks: ['{NAME}!', "Let's gooo!", 'Lap queen!'],
+  // The friends: Presley, Norah and Taylor visit together. Volleyball in the fall, softball in the spring,
+  // all with Macy, all Ramsey Rams. Any of them can chime in on another's conversation: a bubble whose
+  // who is 'presley', 'norah' or 'taylor' is spoken by that girl, with her own portrait and pitch.
+  presley: {
+    whoa: 'Whoa! Watch the ponytail!',
+    barks: ['{NAME}!', "Let's gooo!", 'Lap queen!', 'Ponytail check: still perfect.'],
     talks: [
-      { say: [['npc', "The team signed a ball for you. Coach signed it twice. He's emotional."]] },
-      { say: [['npc', "We saved your spot. Nobody's allowed to stand there. It's weird. We love it."]] },
       {
         say: [
-          ['npc', 'Practice is so boring without you yelling MINE at everything.'],
-          ['macy', 'Somebody has to.'],
-          ['npc', 'Nobody else does it right.']
+          ['npc', "Coach let me serve the last point Thursday. I didn't miss. I'm telling you because nobody else will."],
+          ['norah', 'She has told everyone.'],
+          ['npc', 'Everyone deserved to know.']
         ]
       },
-      { say: [['npc', "You'll be back before playoffs. That's not a guess. I asked a doctor. Kind of."]] },
-      { when: hallwayWon, say: [['npc', "You're out?! Practice is Monday. Kidding. Tuesday."]] },
+      {
+        say: [
+          ['npc', 'I redid my ponytail three times in the parking garage. Hospital lighting is a lot.'],
+          ['macy', 'It looks the same.'],
+          ['npc', "That's the point. Consistency."]
+        ]
+      },
+      { say: [['npc', "We saved your spot on the bench. Nobody's allowed to sit there. It's weird. We love it."]] },
+      {
+        say: [
+          ['npc', 'Practice is so quiet without you yelling MINE at everything.'],
+          ['taylor', 'Presley tried. It came out as a question.'],
+          ['npc', 'Mine?']
+        ]
+      },
+      { say: [['npc', "The team signed a ball for you. Coach signed it twice. He's emotional."]] },
+      {
+        say: [
+          ['npc', "New rule: my ponytail doesn't come down until you come back."],
+          ['macy', "That's going to get gross."],
+          ['npc', "That's commitment."]
+        ]
+      },
       {
         when: hallwayMedals,
         say: [
@@ -226,25 +250,103 @@ const HALLWAY_LINES = {
           ['macy', "They're arcade medals."],
           ['npc', "He doesn't care."]
         ]
+      },
+      {
+        when: hallwayWon,
+        say: [
+          ['npc', "You're out?! Open gym is Tuesday. Kidding. Mostly."],
+          ['taylor', "She's not kidding."]
+        ]
       }
     ]
   },
-  cousin: {
+  norah: {
     whoa: 'Whoa! Safe!',
-    barks: ['Cuz!', 'Swing, batter!', 'Looking good, cuz.'],
+    barks: ['Hey, you!', 'Swing, batter!', 'Looking good, {name}.'],
     talks: [
       {
         say: [
-          ['npc', "I brought your glove. I don't know why. It felt right."],
+          ['npc', "I brought your softball glove. I don't know why. It felt right."],
           ['macy', 'Break it in for me?'],
           ['npc', 'I would never touch your glove.']
         ]
       },
-      { say: [['npc', "Coach says you're still batting cleanup when you're back. No pressure. Some pressure."]] },
-      { say: [['npc', "We lost Saturday. I'm not saying it's because you're in here. But you're in here."]] },
+      {
+        say: [
+          ['npc', 'Taylor drove. She made us listen to her senior playlist. Twice.'],
+          ['taylor', "It's called culture."],
+          ['npc', "It's called the same four songs."]
+        ]
+      },
+      { say: [['npc', 'Softball starts in March. Coach already has you batting second. No pressure. Some pressure.']] },
       { say: [['npc', "Mimi tried to give me a cookie from your tin. I said no. I'm loyal. I'm also starving."]] },
+      { say: [['npc', "We lost Thursday. I'm not saying it's because you're in here. But you're in here."]] },
+      {
+        say: [
+          ['npc', 'Taylor says I get her car when she goes to college.'],
+          ['taylor', 'I said maybe.'],
+          ['npc', 'Maybe means yes.'],
+          ['taylor', 'Maybe means maybe.']
+        ]
+      },
       { when: hallwayCleared, say: [['npc', "You cleared a whole ward of gremlins? That's basically a triple play."]] },
-      { when: hallwayWon, say: [['npc', "Discharged! First game back, I'm buying the sunflower seeds."]] }
+      { when: hallwayWon, say: [['npc', 'Discharged! First game back, the sunflower seeds are on me.']] }
+    ]
+  },
+  taylor: {
+    whoa: 'Whoa! Easy, freshman.',
+    barks: ['Hey, superstar.', "Car's out front whenever you're ready.", 'There she is!'],
+    talks: [
+      {
+        say: [
+          ['npc', "I drove these two here. Norah touched the radio. We don't talk about it."],
+          ['norah', 'I changed ONE song.'],
+          ['npc', 'And now we live with that.']
+        ]
+      },
+      {
+        say: [
+          ['npc', 'Senior advice: the nurses know everything. Be nice to the nurses.'],
+          ['macy', 'I am nice to the nurses.'],
+          ['npc', "I know. They told me. That's how I know they know everything."]
+        ]
+      },
+      {
+        say: [
+          ['npc', "Senior night's in the spring. You have to be there. I already made you a sign."],
+          ['presley', 'It has glitter.'],
+          ['npc', 'It has a LOT of glitter.']
+        ]
+      },
+      {
+        say: [
+          ['npc', "When you're out, I'm driving you to practice. Shotgun's yours."],
+          ['norah', 'I was born in the back seat.']
+        ]
+      },
+      { say: [['npc', "You've got four years on this team. I've got one. Get better so I can brag about you."]] },
+      {
+        say: [
+          ['npc', "Presley's ponytail got a yellow card in warmups."],
+          ['presley', 'It was a warning.'],
+          ['npc', 'It hit the down ref.']
+        ]
+      },
+      {
+        when: hallwayRalphWaiting,
+        say: [
+          ['npc', "A gremlin named Ralph is in your room? I'll keep the car running."],
+          ['macy', 'For him or for me?'],
+          ['npc', 'Yes.']
+        ]
+      },
+      {
+        when: hallwayWon,
+        say: [
+          ['npc', "Discharged? I'll pull the car around. You're up front. Norah, you know the drill."],
+          ['norah', 'Back seat. Forever.']
+        ]
+      }
     ]
   },
   doctor: {
@@ -742,15 +844,20 @@ const HALLWAY_CARDS = {
     'Home by the weekend. I told the doctor. Twice.',
     "Atta girl. Keep walking. I'm guarding the cookies."
   ],
-  kenzie: [
-    "Your spot on the court is saved. Nobody's allowed to stand there.",
-    'Practice is too quiet. Come back and yell MINE at us.',
-    'Back before playoffs. Not a guess. I asked a doctor. Kind of.'
+  presley: [
+    "The ponytail stays up until you're back. That's a promise and a threat.",
+    'Your spot on the bench is saved. Nobody sits there. Hurry back!',
+    'Practice is too quiet. Come back and yell MINE at us.'
   ],
-  bri: [
+  norah: [
     "Your glove is safe. I haven't touched it. I'm loyal.",
-    "Cleanup spot's still yours, cuz. Get well.",
-    'First game back, the sunflower seeds are on me.'
+    'Batting second in March. Coach said. So get well, okay?',
+    'Taylor says hi. I say it better. Get well soon.'
+  ],
+  taylor: [
+    "Shotgun is yours the day you're out. Norah gets the back.",
+    "Senior night needs you in the stands. I made a sign. It's mostly glitter.",
+    'Get better so I can brag about you. Four years of you on this team. Lucky us.'
   ],
   doctor: [
     'Rx: more laps, fewer days. Refills: unlimited.',
@@ -921,6 +1028,10 @@ function npcLook(over) {
     badge: false,
     pearls: false,
     stubble: false,
+    kneepads: '',
+    shades: '',
+    letter: '',
+    bounce: 0,
     age: 0,
     seed: rand(0, 10),
     ...over
@@ -1036,64 +1147,100 @@ const HALLWAY_LOOKS = {
       glasses: '#3c3c3c',
       mustache: '#ecebe6'
     }),
-  kenzie: () =>
+  // The friends wear Ramsey Rams blue and gold. Presley: freshman, blond, a high ponytail that never
+  // stops moving, the fall volleyball jersey and kneepads, the team ball.
+  presley: () =>
     npcLook({
-      leg: 37,
-      torso: 31,
-      shoulder: 12,
-      hip: 6.8,
-      legW: 6.8,
+      leg: 36,
+      torso: 30,
+      shoulder: 11.8,
+      hip: 6.7,
+      legW: 6.7,
       armW: 5.8,
-      head: 12.2,
-      skin: '#f3cfae',
-      skinShade: '#dfab89',
-      hair: '#dcb36a',
-      hairDark: '#b48a48',
+      head: 12.1,
+      skin: '#f6d4b9',
+      skinShade: '#e3af93',
+      hair: '#efcf7f',
+      hairDark: '#c49b4a',
       hairStyle: 'pony',
-      band: '#3f6fc4',
-      eyes: '#4f7d5a',
-      brows: '#a17c45',
+      band: '#f0c94a',
+      bounce: 2.4,
+      eyes: '#5b7fa6',
+      brows: '#b48a48',
       top: 'jersey',
-      topA: '#3f6fc4',
-      topB: '#f6f3e6',
-      topC: '#f0c94a',
-      number: '7',
+      topA: '#2f5fb3',
+      topB: '#f0c94a',
+      topC: '#f6f3e6',
+      number: '9',
       shortSleeve: true,
-      pants: '#2e3540',
+      pants: '#24324a',
+      kneepads: '#1b2433',
       shoes: 'sneaker',
       shoeColor: '#f4f2ea',
-      shoeAccent: '#3f6fc4',
+      shoeAccent: '#2f5fb3',
       item: 'volleyball'
     }),
-  bri: () =>
+  // Norah: freshman, brunette, a long braid over one shoulder, her spring softball jersey and her glove.
+  norah: () =>
     npcLook({
-      leg: 31,
+      leg: 34,
       torso: 30,
-      shoulder: 12,
-      hip: 7,
-      legW: 7,
-      armW: 6,
-      head: 12.2,
-      skin: '#c98e66',
-      skinShade: '#ad7352',
-      hair: '#2b1d1a',
-      hairDark: '#160e0d',
-      hairStyle: 'puff',
-      band: '#f6f3e6',
-      eyes: '#4a2f22',
-      brows: '#21140f',
+      shoulder: 11.8,
+      hip: 6.9,
+      legW: 6.9,
+      armW: 5.9,
+      head: 12.1,
+      skin: '#f1c7a2',
+      skinShade: '#d9a37f',
+      hair: '#5c3b28',
+      hairDark: '#3b2519',
+      hairStyle: 'braid',
+      band: '#f0c94a',
+      eyes: '#6b4226',
+      brows: '#3b2519',
       top: 'softball',
-      topA: '#c94f4f',
-      topB: '#f6f3e6',
-      topC: '#7d2c2c',
-      number: '12',
+      topA: '#2f5fb3',
+      topB: '#f0c94a',
+      topC: '#1f3f7a',
+      number: '14',
       shortSleeve: true,
-      pants: '#8b9097',
+      pants: '#dcdde0',
       cuffs: true,
       shoes: 'sneaker',
       shoeColor: '#f4f2ea',
-      shoeAccent: '#c94f4f',
+      shoeAccent: '#f0c94a',
       item: 'glove'
+    }),
+  // Taylor: Norah's big sister, a senior, the same brown hair worn long, sunglasses parked on top. The
+  // senior touch is the varsity jacket (a chenille R, class of '27); she has the car keys, because she drives.
+  taylor: () =>
+    npcLook({
+      leg: 39,
+      torso: 33,
+      shoulder: 12.4,
+      hip: 7,
+      legW: 7,
+      armW: 6.1,
+      head: 12.3,
+      skin: '#f1c7a2',
+      skinShade: '#d9a37f',
+      hair: '#563724',
+      hairDark: '#352116',
+      hairStyle: 'long',
+      shades: '#2b2b33',
+      eyes: '#6b4226',
+      brows: '#352116',
+      top: 'letter',
+      topA: '#22427f',
+      topB: '#f2e6c4',
+      topC: '#f0c94a',
+      letter: 'R',
+      number: '27',
+      pants: '#3d5275',
+      shoes: 'sneaker',
+      shoeColor: '#f4f2ea',
+      shoeAccent: '#f0c94a',
+      item: 'keys'
     }),
   doctor: () =>
     npcLook({
@@ -1166,7 +1313,7 @@ function hallwayNurseLook(scrub) {
     skinShade: skin[1],
     hair: hair[0],
     hairDark: hair[1],
-    hairStyle: pick(['bob', 'curly', 'short', 'bun', 'pony', 'buzz']),
+    hairStyle: pick(['bob', 'curly', 'short', 'bun', 'pony', 'buzz', 'puff']),
     band: pick(['#f0c94a', '#ef9fb0', '#f6f3e6', '#7fc4a2']),
     eyes: pick(['#3a261c', '#6b4226', '#4f7d5a', '#5a6e7c']),
     brows: hair[1],
@@ -1202,6 +1349,11 @@ function hallwayNpc(id, name, voice, look, x, y, range, speed, extra = {}) {
     offset: extra.offset || 0,
     ensure: !!extra.ensure,
     present: !extra.ensure,
+    // A visiting group (the friends): one lead wanders, the rest hold a slot off the lead.
+    group: extra.group || '',
+    lead: !!extra.lead,
+    slot: extra.slot ? extra.slot.slice() : [0, 0],
+    home: extra.slot ? extra.slot.slice() : [0, 0],
     mode: 'idle',
     wait: rand(0.5, 3),
     tx: x,
@@ -1238,17 +1390,27 @@ function hallwayResetCast() {
     hallwayNpc('doctor', 'Dr. Reyes', 'doctor', HALLWAY_LOOKS.doctor(), 1260, 390, [1000, 1700], 58, { tag: '#cfe3ee' }),
     hallwayNpc('mimi', 'Mimi', 'grandma', HALLWAY_LOOKS.mimi(), 1500, 330, [1350, 1800], 32, { tag: '#ddc8ec' }),
     hallwayNpc('dodo', 'Dodo', 'grandpa', HALLWAY_LOOKS.dodo(), 1650, 365, [1300, 1850], 30, { tag: '#cfe0b4' }),
-    hallwayNpc('kenzie', 'Kenzie', 'cousin', HALLWAY_LOOKS.kenzie(), 2060, 320, [1850, 2350], 60, {
-      lines: 'teammate',
-      tag: '#b4cbf2'
+    // The friends travel as one loose cluster: Taylor leads (she drove), Presley and Norah keep their slots.
+    hallwayNpc('taylor', 'Taylor', 'cousin', HALLWAY_LOOKS.taylor(), 2180, 330, [1850, 2450], 50, {
+      pitch: -2,
+      tag: '#c9b8ef',
+      group: 'friends',
+      lead: true
+    }),
+    hallwayNpc('presley', 'Presley', 'cousin', HALLWAY_LOOKS.presley(), 2134, 306, [1850, 2450], 50, {
+      pitch: 3,
+      tag: '#f6dd8c',
+      group: 'friends',
+      slot: [-46, -24]
+    }),
+    hallwayNpc('norah', 'Norah', 'cousin', HALLWAY_LOOKS.norah(), 2224, 352, [1850, 2450], 50, {
+      pitch: 1,
+      tag: '#a9c6ef',
+      group: 'friends',
+      slot: [44, 22]
     }),
     nurse(1, 2250, 450, [1800, 2600]),
     hallwayNpc('brother', 'Little Bro', 'brother', HALLWAY_LOOKS.brother(), 2560, 262, [2350, 2800], 55, { tag: '#f2bf8f' }),
-    hallwayNpc('bri', 'Cousin Bri', 'cousin', HALLWAY_LOOKS.bri(), 2800, 340, [2550, 3050], 58, {
-      lines: 'cousin',
-      pitch: 3,
-      tag: '#f2b0ad'
-    }),
     nurse(2, 2950, 420, [2650, 3120]),
     hallwayNpc('barb', 'Barb · Dietary', 'ensure', HALLWAY_LOOKS.barb(), HALLWAY_ELEVATOR_X, HALLWAY_TOP + 6, [80, 3120], 108, {
       lines: 'ensure',
@@ -1294,7 +1456,8 @@ function hallwayBlocked(x, y, self) {
     if (x + 13 > bx && x - 13 < bx + bw && y + 5 > by && y - 8 < by + bh) return true;
   }
   for (const o of hallwayCast) {
-    if (o === self || !o.present) continue;
+    // Friends in one group brush past each other instead of blocking.
+    if (o === self || !o.present || (self.group && o.group === self.group)) continue;
     const now = Math.hypot(o.x - self.x, o.y - self.y),
       next = Math.hypot(o.x - x, o.y - y);
     if (next < 24 && next < now) return true;
@@ -1314,7 +1477,9 @@ function hallwayWalkTo(npc, tx, ty, speed, dt) {
   }
   const step = Math.min(len, speed * dt),
     mx = (dx / len) * step,
-    my = (dy / len) * step;
+    my = (dy / len) * step,
+    x0 = npc.x,
+    y0 = npc.y;
   let moved = false;
   if (Math.abs(mx) > 1e-6 && !hallwayBlocked(npc.x + mx, npc.y, npc)) {
     npc.x += mx;
@@ -1324,6 +1489,20 @@ function hallwayWalkTo(npc, tx, ty, speed, dt) {
     npc.y += my;
     moved = true;
   }
+  // A friend who is blocked, or only sliding along someone, steps sideways around them to whichever side
+  // is clear.
+  const progress = Math.hypot(npc.x - x0, npc.y - y0);
+  if (npc.group && progress < step * 0.5)
+    for (const [px, py] of [
+      [-my / step, mx / step],
+      [my / step, -mx / step]
+    ]) {
+      if (hallwayBlocked(npc.x + px * step, npc.y + py * step, npc)) continue;
+      npc.x += px * step;
+      npc.y += py * step;
+      moved = true;
+      break;
+    }
   if (!moved && !hallwayBlocked(npc.x, npc.y + step, npc)) {
     npc.y += step;
     moved = true;
@@ -1368,6 +1547,81 @@ function hallwayMaybeBark(npc, d) {
   npc.barkN++;
   npc.barkCd = rand(30, 55);
   hallwayBarkGap = 2.2;
+  // A group calls out once per pass, not three times in a row.
+  if (npc.group) for (const o of hallwayCast) if (o !== npc && o.group === npc.group) o.barkCd = Math.max(o.barkCd, 14);
+}
+
+// ---- The friends ----
+// Presley, Norah and Taylor move as one loose cluster. The lead (Taylor) wanders like anyone else; the
+// others walk to their slot off her, a little looser each time she sets off, and stop when they get
+// there. When Macy comes near any of them, or talks to one, all three stop and turn to her together.
+// Standing around on their own, they turn in to talk to each other.
+function hallwayCrew(group) {
+  return hallwayCast.filter(n => n.group === group && n.present);
+}
+
+function hallwayGroupNear(group) {
+  if (hallwayTalk && hallwayTalk.npc.group === group) return true;
+  return hallwayCast.some(n => n.group === group && n.present && dist(n, player) < HALLWAY_FACE_RANGE);
+}
+
+function hallwayGroupTurnIn(npc, crew) {
+  const others = crew.filter(o => o !== npc);
+  if (!others.length) return;
+  const cx = others.reduce((a, o) => a + o.x, 0) / others.length;
+  if (Math.abs(cx - npc.x) > 6) npc.dir = cx > npc.x ? 1 : -1;
+}
+
+function hallwayGroupStep(npc, dt) {
+  const crew = hallwayCrew(npc.group),
+    lead = crew.find(n => n.lead) || crew[0];
+  if (hallwayGroupNear(npc.group)) {
+    npc.moving = false;
+    npc.walk = 0;
+    npc.mode = 'idle';
+    if (npc === lead) npc.wait = Math.max(npc.wait, 0.8);
+    hallwayFace(npc);
+    return;
+  }
+  if (npc === lead) {
+    if (npc.mode !== 'walk') {
+      npc.moving = false;
+      npc.walk = 0;
+      npc.wait -= dt;
+      // She waits for the others to catch up (three seconds at most) before setting off again.
+      const together = crew.every(o => o === npc || Math.hypot(o.x - npc.x - o.slot[0], o.y - npc.y - o.slot[1]) < 40);
+      if (npc.wait > 0 || (!together && npc.wait > -3)) hallwayGroupTurnIn(npc, crew);
+      else {
+        hallwayPickTarget(npc);
+        if (npc.mode === 'walk')
+          for (const o of crew) if (o !== npc) o.slot = [o.home[0] + rand(-8, 8), o.home[1] + rand(-6, 6)];
+      }
+      return;
+    }
+    if (hallwayWalkTo(npc, npc.tx, npc.ty, npc.speed, dt) || npc.stuck > 0.6) {
+      npc.mode = 'idle';
+      npc.wait = rand(2.5, 6);
+      npc.moving = false;
+      npc.walk = 0;
+    }
+    return;
+  }
+  const tx = clamp(lead.x + npc.slot[0], HALLWAY_LEFT, HALLWAY_RIGHT),
+    ty = clamp(lead.y + npc.slot[1], HALLWAY_TOP, HALLWAY_BOTTOM),
+    gap = Math.hypot(tx - npc.x, ty - npc.y);
+  if (npc.mode === 'walk' || gap > 16) {
+    npc.mode = 'walk';
+    if (hallwayWalkTo(npc, tx, ty, lead.speed * (gap > 70 ? 1.7 : 1.2), dt) || npc.stuck > 1) {
+      npc.mode = 'idle';
+      npc.moving = false;
+      npc.walk = 0;
+      npc.stuck = 0;
+    }
+    return;
+  }
+  npc.moving = false;
+  npc.walk = 0;
+  hallwayGroupTurnIn(npc, crew);
 }
 
 function hallwayNpcStep(npc, dt) {
@@ -1403,6 +1657,10 @@ function hallwayNpcStep(npc, dt) {
     return;
   }
   hallwayMaybeBark(npc, d);
+  if (npc.group) {
+    hallwayGroupStep(npc, dt);
+    return;
+  }
   if (d < HALLWAY_FACE_RANGE) {
     npc.moving = false;
     npc.walk = 0;
@@ -1682,6 +1940,13 @@ function hallwayNextConvo(npc) {
   return talks[i].say.map(([who, text]) => ({ who, text: hallwayFill(text) }));
 }
 
+// Who says a bubble: Macy (null), the visitor she is talking to, or a friend who chimes in by id.
+function hallwaySpeaker(tk, line) {
+  if (!tk || !line || line.who === 'macy') return null;
+  if (line.who === 'npc') return tk.npc;
+  return hallwayCast.find(n => n.id === line.who) || tk.npc;
+}
+
 function hallwayOpenTalk(npc) {
   hallwayTalk = { npc, lines: hallwayNextConvo(npc), i: 0, shown: 0, acc: 0, pause: 0, voiced: 0, age: 0, blipAt: -1 };
   hallwayBubble(hallwayTalk);
@@ -1778,13 +2043,13 @@ function hallwayTalkStep(dt) {
     if (/[A-Za-z0-9]/.test(ch)) {
       tk.voiced++;
       // One voice blip per two letters (a chunk, not a machine gun); Rowdy blips by the clock instead.
-      const macy = line.who === 'macy',
-        voice = macy ? 'macy' : tk.npc.voice,
+      const who = hallwaySpeaker(tk, line),
+        voice = who ? who.voice : 'macy',
         gap = HALLWAY_BLIP_GAP[voice],
         due = gap ? hallwayClock - tk.blipAt >= gap - 1e-6 : tk.voiced % 2 === 1;
       if (due && typeof sfx === 'function') {
         tk.blipAt = hallwayClock;
-        sfx('talk', { voice, count: tk.voiced >> 1, combo: macy ? 0 : tk.npc.pitch });
+        sfx('talk', { voice, count: tk.voiced >> 1, combo: who ? who.pitch : 0 });
       }
     } else if ('.!?'.includes(ch)) tk.pause = 0.16;
     else if (ch === ',') tk.pause = 0.07;
@@ -1995,8 +2260,16 @@ function npcHeadY(k) {
   return -(k.leg + k.torso + 5 + k.head * 1.12 - 3);
 }
 
+// Sleeves: the shirt under Dodo's vest, the leather sleeves on Taylor's varsity jacket.
 function npcSleeve(k) {
-  return k.top === 'vest' ? k.topB : k.topA;
+  return k.top === 'vest' || k.top === 'letter' ? k.topB : k.topA;
+}
+
+// The varsity jacket's striped knit cuff, just above the hand.
+function npcCuff(g, k, hx, hy) {
+  if (k.top !== 'letter') return;
+  ellipse(g, hx, hy - 3.2, 3.7, 1.9, k.topA);
+  line(g, [[hx - 3, hy - 3.2], [hx + 3, hy - 3.2]], k.topC, 0.8);
 }
 
 function npcText(g, text, x, y, size, color, flip) {
@@ -2067,6 +2340,7 @@ function npcArm(g, k, side, shY, walk) {
       sleeve,
       k.armW + 1.2
     );
+  npcCuff(g, k, hx, hy);
   ellipse(g, hx, hy, 3.1, 3.9, k.skin);
 }
 
@@ -2087,6 +2361,8 @@ function npcLegs(g, k, hipY, walk) {
       col,
       k.legW
     );
+    // Volleyball kneepads.
+    if (k.kneepads) rr(g, hx + step * 0.3 - k.legW * 0.78, hipY * 0.5 - 3.6, k.legW * 1.56, 7.2, 3, k.kneepads);
     if (k.cuffs) line(g, [[fx, -9], [fx, -4]], npcShade(k.pants, 0.76), k.legW + 1.6);
     npcShoe(g, k, fx);
   }
@@ -2245,6 +2521,26 @@ function npcTorso(g, k, shY, hipY, flip) {
     for (let i = 0; i < 4; i++) ellipse(g, 3.4, shY + 7 + i * 7, 0.9, 0.9, b);
     npcText(g, k.number, -5.5, shY + 15, 8, b, flip);
     line(g, [[-S, hipY + 3], [S, hipY + 3]], c, 1.6);
+  } else if (k.top === 'letter') {
+    // A varsity jacket worn open over a white tee: wool body, striped knit hem, snaps, a chenille letter
+    // with a cream edge, and the class year. Leather sleeves come from npcSleeve.
+    rr(g, -S + 3.5, shY, S * 2 - 7, h - 1, 6, '#f6f3e6');
+    rr(g, -S, shY - 0.5, S - 2.5, h, 7, gradient(g, -S, shY, S, h, npcShade(a, 1.18), a));
+    rr(g, 2.5, shY - 0.5, S - 2.5, h, 7, gradient(g, 0, shY, S, h, a, dark));
+    for (const [x0, w0] of [
+      [-S, S - 2.5],
+      [2.5, S - 2.5]
+    ]) {
+      rr(g, x0, hipY + 0.5, w0, 5, 2, a);
+      line(g, [[x0 + 1, hipY + 2.2], [x0 + w0 - 1, hipY + 2.2]], c, 1);
+      line(g, [[x0 + 1, hipY + 3.9], [x0 + w0 - 1, hipY + 3.9]], b, 0.8);
+    }
+    for (let i = 0; i < 4; i++) ellipse(g, -3.6, shY + 6 + i * (T / 4.6), 0.9, 0.9, b);
+    if (k.letter) {
+      npcText(g, k.letter, -S * 0.52 + 0.7, shY + T * 0.5 + 0.7, 12, b, flip);
+      npcText(g, k.letter, -S * 0.52, shY + T * 0.5, 12, c, flip);
+    }
+    if (k.number) npcText(g, k.number, S * 0.48, shY + T * 0.32, 6, b, flip);
   } else if (k.top === 'apron') {
     rr(g, -S, shY - 0.5, S * 2, h, 8, a);
     path(
@@ -2282,6 +2578,14 @@ function npcCollar(g, k, shY) {
   } else if (k.top === 'hoodie') {
     line(g, [[-3.5, shY + 2], [-4, shY + 12]], k.topB, 1.1);
     line(g, [[3.5, shY + 2], [4.2, shY + 11]], k.topB, 1.1);
+  } else if (k.top === 'letter') {
+    // Striped knit collar on the varsity jacket.
+    const neck = p => {
+      p.moveTo(-5.6, shY + 0.5);
+      p.quadraticCurveTo(0, shY + 5, 5.6, shY + 0.5);
+    };
+    path(g, neck, null, k.topA, 3.2);
+    path(g, neck, null, k.topC, 1);
   } else if (k.top === 'scrubs' || k.top === 'jersey') {
     poly(
       g,
@@ -2401,6 +2705,7 @@ function npcHold(g, k, shY, t) {
       k.armW + 1.2
     );
   npcItem(g, k.item, hx + 3, hy - 1, t);
+  npcCuff(g, k, hx + 0.8, hy);
   ellipse(g, hx + 1.5, hy, 3.1, 3.7, k.skin);
 }
 
@@ -2537,6 +2842,18 @@ function npcItem(g, item, x, y, t) {
     rr(g, x - 5, y - 9, 11, 15, 2, '#2f3d4c');
     rr(g, x - 3.6, y - 7.6, 8.2, 11, 1, '#9ad7e0');
     line(g, [[x - 2.4, y - 4], [x + 3, y - 4]], '#ffffff99', 0.8);
+  } else if (item === 'keys') {
+    // Taylor drives: a ring, a car key, a house key and a Rams fob, swinging a little.
+    g.save();
+    g.translate(x - 1.5, y + 2);
+    g.rotate(Math.sin(t * 2.6) * 0.22);
+    path(g, p => p.arc(0, 2, 2.6, 0, Math.PI * 2), null, '#c9ccd1', 1);
+    rr(g, -3.6, 4, 4.6, 4, 1.6, '#3a3f47');
+    rr(g, -2.2, 7.5, 1.8, 6, 0.8, '#d9dce0');
+    rr(g, 0.4, 4.2, 1.8, 7, 0.8, '#d9b45a');
+    rr(g, 1.6, 4.6, 5.6, 7, 2, '#2f5fb3', '#f0c94a', 0.7);
+    ellipse(g, 4.4, 8.1, 1.3, 1.3, '#f0c94a');
+    g.restore();
   } else if (item === 'cup') {
     poly(
       g,
@@ -2553,18 +2870,33 @@ function npcItem(g, item, x, y, t) {
 }
 
 function npcBackHair(g, k, hy, hr, hry, t) {
+  // bounce: a ponytail with a life of its own (Presley's), faster and wider.
   const top = hy - hry,
-    sway = Math.sin(t * 3.4 + k.seed) * 1.5;
+    sway = Math.sin(t * (3.4 + k.bounce) + k.seed) * (1.5 + k.bounce),
+    flick = k.bounce ? Math.abs(Math.sin(t * (3.4 + k.bounce) + k.seed)) * 2 : 0;
   if (k.hairStyle === 'pony')
     path(
       g,
       p => {
         p.moveTo(-6, top + 1);
-        p.bezierCurveTo(-24, top - 4, -21, hy + 12, -15 + sway, hy + 21);
+        p.bezierCurveTo(-24, top - 4 - flick, -21, hy + 12, -15 + sway, hy + 21 - flick);
         p.bezierCurveTo(-9, hy + 10, -11, hy - 2, -4, top + 4);
         p.closePath();
       },
       gradient(g, -24, top, 20, 36, k.hair, k.hairDark)
+    );
+  else if (k.hairStyle === 'long')
+    // Long and straight, falling past the shoulders behind her.
+    path(
+      g,
+      p => {
+        p.moveTo(-hr - 1.5, hy - 5);
+        p.bezierCurveTo(-hr - 4.5, hy + 8, -hr - 4, hy + 20, -hr + 0.5 + sway * 0.3, hy + 27);
+        p.quadraticCurveTo(0.5, hy + 30, hr + 2 + sway * 0.3, hy + 27);
+        p.bezierCurveTo(hr + 5.5, hy + 20, hr + 5.5, hy + 8, hr + 2.5, hy - 5);
+        p.closePath();
+      },
+      gradient(g, 0, hy - 5, 0, 34, k.hair, k.hairDark)
     );
   else if (k.hairStyle === 'bob') rr(g, -hr - 2.6, hy - 6, hr * 2 + 5, hry + 9, 7, k.hairDark);
   else if (k.hairStyle === 'curly' || k.hairStyle === 'net') ellipse(g, 0.5, hy - 2, hr + 4, hry + 3, k.hairDark);
@@ -2641,6 +2973,15 @@ function npcHead(g, k, hy, hr, hry, t, speak) {
       k.mustache
     );
   npcHair(g, k, hy, hr, hry, fx);
+  if (k.shades) {
+    // Sunglasses parked on top of her head: the senior who drives.
+    const sy = hy - hry + 2;
+    rr(g, fx - 8.5, sy - 2.4, 7.4, 4.6, 2.2, k.shades);
+    rr(g, fx + 1.6, sy - 2.6, 7.4, 4.6, 2.2, k.shades);
+    line(g, [[fx - 1.2, sy - 0.8], [fx + 1.6, sy - 0.8]], k.shades, 1);
+    line(g, [[fx - 7, sy - 1.6], [fx - 4.6, sy - 1.6]], '#ffffff55', 0.8);
+    line(g, [[fx + 3, sy - 1.8], [fx + 5.4, sy - 1.8]], '#ffffff55', 0.8);
+  }
   if (k.glasses) {
     rr(g, fx - 7.8, hy - 2.2, 6.6, 5.2, 2, null, k.glasses, 1);
     rr(g, fx + 2.2, hy - 2.2, 6.6, 5.2, 2, null, k.glasses, 1);
@@ -2790,8 +3131,60 @@ function npcHair(g, k, hy, hr, hry, fx) {
       );
       ellipse(g, -hr + 1, top + 2, 2.6, 2.4, k.band);
     }
+  } else if (style === 'braid') {
+    // Norah: pulled back with a side part, one long braid over her shoulder, a gold tie at the end.
+    path(
+      g,
+      p => {
+        p.moveTo(-hr - 0.5, hy + 3);
+        p.bezierCurveTo(-hr - 2.5, top - 5.5, hr + 3, top - 5.5, hr + 1.5, hy + 1.5);
+        p.bezierCurveTo(hr - 1.5, hy - 5, fx + 5, hy - 8.5, fx + 3.5, hy - 8);
+        p.bezierCurveTo(-4, hy - 8, -9, hy - 3, -hr + 2, hy + 3.5);
+        p.closePath();
+      },
+      fill
+    );
+    line(g, [[fx + 3.5, top - 0.5], [fx + 3.5, hy - 8]], k.hairDark, 0.9);
+    const S = k.shoulder,
+      at = u => [
+        (1 - u) * (1 - u) * (hr + 1.5) + 2 * (1 - u) * u * (hr + 5) + u * u * (S - 1),
+        (1 - u) * (1 - u) * (hy + 8) + 2 * (1 - u) * u * (hy + 17) + u * u * (hy + 31)
+      ];
+    for (let i = 0; i < 7; i++) {
+      const [bx, by] = at(i / 6.5);
+      ellipse(g, bx + (i % 2 ? 0.8 : -0.8), by, 2.9 - i * 0.12, 3.1, i % 2 ? k.hair : k.hairDark);
+    }
+    const [ex, ey] = at(1);
+    rr(g, ex - 2, ey + 1, 4, 2.4, 1, k.band || k.hairDark);
+    poly(g, [[ex - 2, ey + 3.2], [ex + 2, ey + 3.2], [ex + 0.8, ey + 7], [ex - 1, ey + 6.4]], k.hair);
+  } else if (style === 'long') {
+    // Taylor: long and straight with a side part, framing her face to the chin.
+    path(
+      g,
+      p => {
+        p.moveTo(-hr - 2, hy + 12);
+        p.bezierCurveTo(-hr - 3.5, top - 6, hr + 3.5, top - 6, hr + 2, hy + 12);
+        p.lineTo(hr - 1, hy + 12);
+        p.quadraticCurveTo(hr - 0.5, hy - 4, fx + 5, hy - 8);
+        p.quadraticCurveTo(fx - 2, hy - 5.5, -hr + 1.5, hy - 1);
+        p.lineTo(-hr + 0.5, hy + 12);
+        p.closePath();
+      },
+      fill
+    );
+    line(g, [[fx + 5, top - 0.5], [fx + 4.5, hy - 8]], k.hairDark, 0.9);
+    path(
+      g,
+      p => {
+        p.moveTo(-6, top + 0.5);
+        p.quadraticCurveTo(0, top - 3.5, 6, top);
+      },
+      null,
+      '#ffffff22',
+      1.3
+    );
   } else if (style === 'puff') {
-    // Cousin Bri: a curly puff on top, a headband.
+    // A curly puff on top, a headband.
     const cx = fx - 1,
       cy = top - 5;
     ellipse(g, cx, cy, 9, 7.5, k.hairDark);
@@ -3373,8 +3766,8 @@ function hallwayDrawNpc(g, npc) {
     return;
   }
   const tk = hallwayTalk,
-    line = tk && tk.npc === npc ? tk.lines[tk.i] : null,
-    speak = (line && line.who === 'npc' && tk.shown < line.text.length) || (npc.bark && npc.bark.life > npc.bark.max - 0.45),
+    line = tk ? tk.lines[tk.i] : null,
+    speak = (line && hallwaySpeaker(tk, line) === npc && tk.shown < line.text.length) || (npc.bark && npc.bark.life > npc.bark.max - 0.45),
     hop = npc.whoa > 0 ? Math.sin((npc.whoa / 0.45) * Math.PI) * 9 : 0;
   npcFigure(g, npc.x, npc.y, HALLWAY_SCALE, npc.look, npc.moving ? npc.walk : 0, npc.vdir, hallwayClock, { hop, speak });
 }
@@ -3520,7 +3913,8 @@ function hallwayPortrait(g, x, y, w, h, npc, speak) {
 function hallwaySpeechBox(g, vw, vh, css) {
   const tk = hallwayTalk,
     line = tk.lines[tk.i],
-    macy = line.who === 'macy',
+    who = hallwaySpeaker(tk, line),
+    macy = !who,
     size = clamp(Math.round(14 / css), 17, 30),
     lh = Math.round(size * 1.32),
     pad = 12,
@@ -3533,7 +3927,7 @@ function hallwaySpeechBox(g, vw, vh, css) {
     h = Math.max(face + 24, rows.length * lh + 44),
     y = vh - h - pad,
     done = tk.shown >= line.text.length,
-    name = macy ? hallwayName() : tk.npc.name,
+    name = macy ? hallwayName() : who.name,
     tagSize = Math.round(size * 0.78),
     tagH = tagSize + 12,
     tagY = y - tagSize * 0.75,
@@ -3543,8 +3937,8 @@ function hallwaySpeechBox(g, vw, vh, css) {
   rr(g, x + 3, y + 5, w, h, 18, '#0b1d2666');
   rr(g, x, y, w, h, 18, gradient(g, x, y, 0, h, '#21495a', '#163444'), '#9fd3bd', 2);
   rr(g, x + 18, y + 4, w - 36, 1.4, 1, '#daf0d32e');
-  hallwayPortrait(g, x + 12, y + 12, face, face, macy ? null : tk.npc, !macy && !done);
-  rr(g, tx - 6, tagY, tagW, tagH, tagH / 2, macy ? '#f1abbd' : tk.npc.tag, '#163444', 2);
+  hallwayPortrait(g, x + 12, y + 12, face, face, who, !macy && !done);
+  rr(g, tx - 6, tagY, tagW, tagH, tagH / 2, macy ? '#f1abbd' : who.tag, '#163444', 2);
   label(g, name, tx + 7, tagY + tagH / 2 + tagSize * 0.36, tagSize, '#1d3440');
   let left = tk.shown;
   rows.forEach((row, i) => {

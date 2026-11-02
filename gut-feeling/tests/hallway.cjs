@@ -37,7 +37,7 @@ assert.equal(run('HALLWAY_LOOKS.mimi().item'), 'tin', 'Mimi still has the cookie
 assert.equal(run('HALLWAY_LOOKS.dodo().hairStyle'), 'cap', 'Dodo still has the flat cap');
 assert.ok(run('JSON.stringify(HALLWAY_LINES.mimi.talks).includes("Dodo")'), 'Mimi talks about Dodo');
 assert.ok(run('JSON.stringify(HALLWAY_LINES.dodo.talks).includes("Mimi")'), 'Dodo talks about Mimi');
-assert.ok(run('JSON.stringify(HALLWAY_LINES.cousin.talks).includes("Mimi tried")'), 'Bri tells on Mimi');
+assert.ok(run('JSON.stringify(HALLWAY_LINES.norah.talks).includes("Mimi tried")'), 'Norah tells on Mimi');
 assert.ok(run('HALLWAY_DAD_CHEERS.some(t => t.startsWith("Mimi has told"))'), 'Dad brags about Mimi bragging');
 assert.ok(run('HALLWAY_DAD_GROANS.includes("Dodo told it better.")'), 'Macy says Dodo told it better');
 assert.equal(run('HALLWAY_DOORS.find(d => d.room === 0).plate'), 'ROOM 5', "Macy's door is Room 5");
@@ -172,6 +172,8 @@ function standBy(id, dx = 40) {
     n.y = 400;
     player.x = n.x + ${dx};
     player.y = n.y;
+    // The rest of her group stands just behind her, out of TALK range but part of the scene.
+    hallwayCast.filter(o => o !== n && n.group && o.group === n.group).forEach((o, k) => { o.x = n.x - 48 - 40 * k; o.y = 400 + (k ? 20 : -20); });
     player.moving = false;
     player.dash = 0;
     hallwayArrival = 0;
@@ -250,9 +252,9 @@ run('var escaped = { key: "Escape", stopped: 0, preventDefault() {}, stopPropaga
 assert.equal(run('hallwayTalk'), null, 'the Escape key closes a conversation');
 assert.equal(run('escaped.stopped'), 1, 'and keeps the pause menu out of it');
 assert.equal(run('state.paused'), false);
-standBy('kenzie');
+standBy('presley');
 assert.equal(run("roomExtrasAction('tap', { x: player.x - 40, y: player.y - 60 })"), true, 'tapping a visitor talks');
-assert.equal(run('hallwayTalk.npc.id'), 'kenzie');
+assert.equal(run('hallwayTalk.npc.id'), 'presley');
 run('updateRoomExtras(0.1)');
 assert.equal(run("roomExtrasAction('tap', { x: 5, y: 5 })"), true, 'any tap advances an open conversation');
 run('hallwayCloseTalk()');
@@ -279,11 +281,122 @@ assert.match(talkOnce('dad')[0].text, /Discharge papers/);
 run('state.won = false; state.ralphReady = true; state.ralph = false; hallwayResetCast(); state.room = 6');
 assert.match(talkOnce('dodo')[0].text, /Ralph/);
 run('state.ralphReady = false; state.wardClears[3] = 1; hallwayResetCast(); state.room = 6');
-assert.match(talkOnce('bri')[0].text, /triple play/);
+assert.match(talkOnce('norah')[0].text, /triple play/);
 run('state.medals[2][0] = 3; hallwayResetCast(); state.room = 6');
 assert.match(talkOnce('dad')[0].text, /gold medal/);
-run('state.wardClears[3] = 0; state.medals[2][0] = 0');
+assert.match(talkOnce('presley')[0].text, /medals/);
+run('state.wardClears[3] = 0; state.medals[2][0] = 0; state.ralphReady = true; hallwayResetCast(); state.room = 6');
+assert.match(talkOnce('taylor')[0].text, /Ralph/);
+run('state.ralphReady = false; state.won = true; hallwayResetCast(); state.room = 6');
+assert.match(talkOnce('taylor').map(l => l.text).join(' '), /pull the car around/);
+run('state.won = false');
 console.log('PASS: lines react to the win, Ralph, cleared wards and medals.');
+
+// ---- The friends: Presley, Norah and Taylor ----
+run('hallwayResetCast(); state.room = 6; state.won = false; state.ralphReady = false; state.ralph = false');
+for (const old of ['Kenzie', 'kenzie', 'Cousin', 'Bri', "'bri'", 'teammate', 'cuz'])
+  assert.ok(!src.includes(old), `hallway.js no longer has ${old}`);
+assert.ok(!/Kenzie|\bBri\b|cousin|cuz\b|teammate/i.test(run('JSON.stringify([HALLWAY_LINES, HALLWAY_CARDS, HALLWAY_DAD_CHEERS, HALLWAY_DAD_JOKES, hallwayCast.map(n => n.name)])')),
+  'nobody on screen is Kenzie, Bri or a cousin');
+const friends = JSON.parse(run(`JSON.stringify(['presley', 'norah', 'taylor'].map(id => {
+  const n = hallwayCast.find(x => x.id === id);
+  return { id, name: n.name, group: n.group, lead: n.lead, voice: n.voice, pitch: n.pitch, look: n.look };
+}))`));
+assert.deepEqual(friends.map(f => f.name), ['Presley', 'Norah', 'Taylor']);
+assert.ok(friends.every(f => f.group === 'friends' && f.voice === 'cousin'), 'one group, one voice');
+assert.deepEqual(friends.map(f => f.lead), [false, false, true], 'Taylor leads: she drove');
+assert.equal(new Set(friends.map(f => f.pitch)).size, 3, 'each girl at her own pitch');
+assert.ok(friends[2].pitch < friends[1].pitch && friends[1].pitch < friends[0].pitch, 'Taylor lowest, Presley highest');
+const [pres, nor, tay] = friends.map(f => f.look);
+assert.equal(pres.hairStyle, 'pony', "Presley's ponytail");
+assert.ok(parseInt(pres.hair.slice(1, 3), 16) > 0xd0, 'Presley is blond');
+assert.ok(pres.bounce > 0, 'and the ponytail never stops moving');
+assert.equal(pres.item, 'volleyball');
+assert.ok(pres.kneepads, 'volleyball kneepads');
+assert.equal(nor.hairStyle, 'braid');
+assert.equal(nor.top, 'softball');
+assert.equal(nor.item, 'glove');
+assert.equal(tay.hairStyle, 'long');
+assert.deepEqual([tay.top, tay.letter, tay.number, tay.item], ['letter', 'R', '27', 'keys'], "Taylor's senior varsity jacket, class of '27, the car keys");
+assert.ok(tay.shades, 'sunglasses on her head');
+for (const look of [nor, tay]) assert.ok(parseInt(look.hair.slice(1, 3), 16) < 0x70, 'Norah and Taylor are brunettes');
+assert.equal(nor.skin, tay.skin, 'sisters');
+assert.ok(friends.every(f => f.look.topA === '#2f5fb3' || f.look.topA === '#22427f'), 'Rams blue');
+// Lines: each her own, the others chime in, and the specifics the owner asked for.
+const friendTalks = JSON.parse(run('JSON.stringify(["presley", "norah", "taylor"].map(id => HALLWAY_LINES[id].talks.map(t => t.say)))'));
+friendTalks.forEach((talks, i) => {
+  assert.ok(talks.length >= 6, `${friends[i].name} has at least six conversations`);
+  assert.ok(talks.some(say => say.some(([who]) => ['presley', 'norah', 'taylor'].includes(who))), `someone chimes in on ${friends[i].name}`);
+  for (const say of talks) for (const [who] of say) assert.ok(['npc', 'macy', 'presley', 'norah', 'taylor'].includes(who), who);
+});
+const friendText = JSON.stringify(friendTalks);
+assert.match(JSON.stringify(friendTalks[0]), /ponytail/, "Presley's ponytail");
+assert.match(JSON.stringify(friendTalks[2]), /drove|driving|car/, 'Taylor drives');
+assert.match(JSON.stringify(friendTalks[2]), /[Ss]enior/, 'Taylor is a senior');
+assert.ok(friendTalks[1].some(say => say.some(([who]) => who === 'taylor')) && friendTalks[2].some(say => say.some(([who]) => who === 'norah')), 'sister banter both ways');
+assert.match(friendText, /softball|batting|glove/i, 'spring softball');
+assert.match(friendText, /serve|MINE|open gym|ref/, 'fall volleyball');
+
+// Talking to one pulls the others in: a chime-in bubble is spoken, voiced and drawn by that girl.
+run('var friendBlips = []; var spyFriendSfx = sfx; sfx = (name, o) => { if (name === "talk") friendBlips.push([o.voice, o.combo]); return spyFriendSfx(name, o); }');
+standBy('norah');
+run(`(() => {
+  const n = hallwayCast.find(x => x.id === 'norah');
+  n.heard = HALLWAY_LINES.norah.talks.map((t, i) => i).filter(i => !HALLWAY_LINES.norah.talks[i].say.some(([w]) => w === 'taylor'));
+  n.last = -1;
+})()`);
+run("updateRoomExtras(0.2); roomExtrasAction('attack')");
+const chime = JSON.parse(run('JSON.stringify(hallwayTalk.lines)'));
+const tIdx = chime.findIndex(l => l.who === 'taylor');
+assert.ok(tIdx > 0, 'the conversation with Norah pulls Taylor in');
+assert.equal(run('hallwaySpeaker(hallwayTalk, hallwayTalk.lines[0]).id'), 'norah');
+run(`hallwayTalk.i = ${tIdx}; hallwayTalk.shown = 0; friendBlips = []; for (let i = 0; i < 30; i++) updateRoomExtras(1 / 60)`);
+assert.equal(run('hallwaySpeaker(hallwayTalk, hallwayTalk.lines[hallwayTalk.i]).id'), 'taylor', 'that bubble is Taylor’s');
+const taylorBlips = JSON.parse(run('JSON.stringify(friendBlips.filter(([v]) => v !== "rowdy"))'));
+assert.ok(taylorBlips.length > 0 && taylorBlips.every(([v, p]) => v === 'cousin' && p === -2), 'in Taylor’s voice');
+assert.equal(run('hallwayTalk.npc.id'), 'norah', 'the talk is still with Norah');
+run(`var portraitWho = []; var realPortrait = hallwayPortrait; hallwayPortrait = (g, x, y, w, h, npc, speak) => { portraitWho.push(npc && npc.name); return realPortrait(g, x, y, w, h, npc, speak); };
+  drawRoomOverlay(c, 1000, 625); hallwayPortrait = realPortrait;`);
+assert.deepEqual(JSON.parse(run('JSON.stringify(portraitWho)')), ['Taylor'], 'with her portrait');
+run('sfx = spyFriendSfx; hallwayCloseTalk()');
+// Moving together: a minute of strolling, the cluster stays a cluster; they stop and turn to Macy together.
+run(`(() => {
+  hallwayResetCast(); state.room = 6;
+  const crew = hallwayCast.filter(n => n.group === 'friends'), lead = crew.find(n => n.lead);
+  const start = crew.map(n => [n.x, n.y]);
+  let far = 0, frames = 0, gapSum = 0;
+  for (let i = 0; i < 60 * 90; i++) {
+    player.x = 300; player.y = 520;
+    updateRoomExtras(1 / 60);
+    for (const n of crew) if (!n.lead) {
+      const gap = Math.hypot(n.x - lead.x - n.slot[0], n.y - lead.y - n.slot[1]);
+      frames++; gapSum += gap; if (gap > 80) far++;
+    }
+  }
+  globalThis.trio = { moved: crew.map((n, k) => Math.round(Math.hypot(n.x - start[k][0], n.y - start[k][1]))), far: far / frames, mean: gapSum / frames,
+    spread: Math.round(Math.max(...crew.map(n => dist(n, lead)))) };
+})()`);
+const trio = JSON.parse(run('JSON.stringify(trio)'));
+assert.ok(trio.moved.every(m => m > 40), `all three stroll (${trio.moved})`);
+assert.ok(trio.mean < 30 && trio.far < 0.05, `and stay together (mean gap ${trio.mean.toFixed(1)}, far ${(trio.far * 100).toFixed(1)}%)`);
+assert.ok(trio.spread < 110, 'a loose cluster, not a parade');
+run(`(() => {
+  const crew = hallwayCast.filter(n => n.group === 'friends');
+  const lead = crew.find(n => n.lead);
+  lead.mode = 'walk'; lead.tx = lead.x - 300; lead.ty = lead.y;
+  player.x = lead.x + 100; player.y = lead.y;
+  for (let i = 0; i < 20; i++) updateRoomExtras(1 / 60);
+  globalThis.trioFace = crew.map(n => [n.moving, n.dir === (player.x >= n.x ? 1 : -1)]);
+})()`);
+assert.deepEqual(JSON.parse(run('JSON.stringify(trioFace)')), [[false, true], [false, true], [false, true]], 'Macy walks up: all three stop and turn to her');
+run(`(() => {
+  player.x = 300; player.y = 520;
+  for (let i = 0; i < 60 * 8; i++) updateRoomExtras(1 / 60);
+  const crew = hallwayCast.filter(n => n.group === 'friends');
+  globalThis.trioMoving = crew.some(n => n.moving) || crew.find(n => n.lead).mode === 'walk';
+})()`);
+assert.equal(run('trioMoving'), true, 'and wander off together when she goes');
+console.log(`PASS: Presley, Norah and Taylor: their looks, lines, chime-ins with the right voice and portrait, and a cluster that moves together.`);
 
 // ---- Dad: an encouragement and a joke, every single time ----
 const dadSizes = JSON.parse(run('JSON.stringify([HALLWAY_DAD_JOKES.length, HALLWAY_DAD_CHEERS.length, HALLWAY_DAD_GROANS.length])'));
@@ -605,7 +718,7 @@ console.log("PASS: Rowdy's {name} is state.name.");
 
 // ---- Get-well cards and sticker counters ----
 // The room draws state.cards over Macy's bed; the stickers read state.stats. This file only adds to them.
-const CARD_WHO = ['dad', 'brother', 'mimi', 'dodo', 'kenzie', 'bri', 'doctor', 'nurse', 'barb', 'rowdy'];
+const CARD_WHO = ['dad', 'brother', 'mimi', 'dodo', 'presley', 'norah', 'taylor', 'doctor', 'nurse', 'barb', 'rowdy'];
 const cardLists = JSON.parse(run('JSON.stringify(HALLWAY_CARDS)'));
 assert.deepEqual(Object.keys(cardLists).sort(), [...CARD_WHO].sort(), 'a card list for every visitor');
 for (const [who, list] of Object.entries(cardLists)) {
@@ -638,7 +751,7 @@ const cards = () => JSON.parse(run('JSON.stringify(state.cards || [])'));
 const count = key => stats()[key] || 0;
 
 // Closed before the first bubble finishes: nothing. One whole bubble, then Escape: a card and a save.
-standBy('kenzie');
+standBy('presley');
 run("roomExtrasAction('attack'); roomExtrasAction('escape')");
 assert.equal(run('hallwayTalk'), null);
 assert.deepEqual(cards(), [], 'opened and shut straight away: no card');
@@ -647,9 +760,9 @@ run("updateRoomExtras(0.2); roomExtrasAction('attack'); hallwayTalk.shown = hall
 let cs = cards();
 assert.equal(cs.length, 1, 'closed after one whole bubble: a card');
 assert.deepEqual(Object.keys(cs[0]).sort(), ['day', 'name', 'text', 'who']);
-assert.deepEqual([cs[0].who, cs[0].name, cs[0].day], ['kenzie', 'Kenzie', today]);
-assert.equal(cs[0].text, run(`hallwayCardText('kenzie', '${today}')`));
-assert.ok(cardLists.kenzie.includes(cs[0].text));
+assert.deepEqual([cs[0].who, cs[0].name, cs[0].day], ['presley', 'Presley', today]);
+assert.equal(cs[0].text, run(`hallwayCardText('presley', '${today}')`));
+assert.ok(cardLists.presley.includes(cs[0].text));
 assert.equal(count('talks'), 1);
 assert.ok(run('saves > savesBefore'), 'saved after the card went up');
 
@@ -687,7 +800,7 @@ run("barbNpc.present = false; hallwayEnsure.phase = 'away'; hallwayEnsure.due = 
 
 // Everyone else once. metEveryone waits for the last of them.
 let talks = 5;
-for (const id of ['brother', 'mimi', 'dodo', 'bri', 'doctor', 'nurse0']) {
+for (const id of ['brother', 'mimi', 'dodo', 'norah', 'taylor', 'doctor', 'nurse0']) {
   talkOnce(id);
   talks++;
   assert.equal(count('talks'), talks, `a finished talk with ${id} counts`);
