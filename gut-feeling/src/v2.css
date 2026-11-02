@@ -2328,3 +2328,6 @@ html:has(.title-screen[data-state='up']) {
     order: 3;
   }
 }
+
+/* While a hallway conversation is open, the ward strip pill gets out of the speech box's way. */
+body.talking .ward-strip{display:none}

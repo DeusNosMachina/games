@@ -184,7 +184,7 @@ function miniFrameSizes() {
 }
 
 // Pure geometry. aspect is canvas width / height; inset is the safe area in arcade mode.
-function miniFrame(viewW, viewH, aspect, arcade, sizes, inset = { t: 0, r: 0, b: 0, l: 0 }) {
+function miniFrame(viewW, viewH, aspect, arcade, sizes, inset = { t: 0, r: 0, b: 0, l: 0 }, prefer = null) {
   const boxW = arcade ? viewW - inset.l - inset.r : Math.floor(viewW * 0.96),
     boxH = arcade ? viewH - inset.t - inset.b : Math.floor(viewH * 0.94),
     fit = (w, h) => {
@@ -193,7 +193,8 @@ function miniFrame(viewW, viewH, aspect, arcade, sizes, inset = { t: 0, r: 0, b:
     },
     row = fit(boxW, boxH - sizes.row),
     col = fit(boxW - sizes.col, boxH),
-    side = col.w * col.h > row.w * row.h * 1.04 ? 'col' : 'row',
+    // A game with one or two buttons never earns a whole side column; it goes under the canvas.
+    side = prefer === 'row' ? 'row' : col.w * col.h > row.w * row.h * 1.04 ? 'col' : 'row',
     f = side === 'col' ? col : row,
     frameW = arcade ? boxW : Math.ceil(f.w + (side === 'col' ? sizes.col : 0)),
     frameH = arcade ? boxH : Math.ceil(f.h + (side === 'row' ? sizes.row : 0)),
@@ -232,7 +233,8 @@ function applyMiniFrame() {
     { w, h } = activeCanvas(),
     sizes = miniFrameSizes(),
     arcade = inArcade(),
-    f = miniFrame(window.innerWidth || 1280, window.innerHeight || 800, w / h, arcade, sizes, miniSafeInsets(dialog)),
+    buttons = typeof $('miniControls').querySelectorAll === 'function' ? $('miniControls').querySelectorAll('button').length : 0,
+    f = miniFrame(window.innerWidth || 1280, window.innerHeight || 800, w / h, arcade, sizes, miniSafeInsets(dialog), buttons && buttons <= 2 ? 'row' : null),
     px = v => Math.round(v * 10) / 10 + 'px',
     vars = {
       '--frame-w': f.frameW,

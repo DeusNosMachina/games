@@ -3234,6 +3234,8 @@ function hallwaySpeechBox(g, vw, vh, css) {
 }
 
 function drawRoomOverlay(g, vw = 1000, vh = 625) {
+  // The ward strip pill sits where the speech box goes on phones; hide it while anyone is talking.
+  if (typeof document !== 'undefined' && document.body && document.body.classList) document.body.classList.toggle('talking', !!hallwayTalk);
   if (!hallwayHere()) return;
   const css = hallwayCssScale(vw);
   hallwayUi.css = css;
