@@ -6,21 +6,22 @@ One self-contained `index.html`, built from plain scripts that share globals. No
 
 `python3 gut-feeling/build.py` inlines `src/v2.css` into `src/template.html`, appends `src/dialogs.html`, then concatenates the scripts into one `<script>` in this order:
 
-`state` → `art` → `audio` → `world` → `combat` → `minigames` → `transitions` → `games/iv` → `games/magnet` → `games/bricks` → `games/race` → `games/slice` → `games/blaster` → `input`
+`state` → `art` → `audio` → `world` → `combat` → `minigames` → `transitions` → `games/iv` → `games/magnet` → `games/bricks` → `games/race` → `games/slice` → `games/blaster` → `map` → `input`
 
 At load time a file may only use names from earlier files (each game calls `registerGame` from `state.js`). Everything else runs at runtime, after `input.js` boots the page. No file reassigns another file's functions. Commit `src/` and the rebuilt `index.html` together.
 
 | File | Owns |
 | --- | --- |
-| `state.js` | Helpers (`$`, `clamp`, `rand`, `dist`, `pick`), `rooms` (name, sub, theme, station), difficulties, tiers, save/load, `state`, `player`, ward globals, `mini`, `gore`, the game registry |
+| `state.js` | Helpers (`$`, `clamp`, `rand`, `dist`, `pick`), `rooms` (name, sub, theme, station, optional `width` and `noArcade`), `ARCADE_COUNT`, `roomWidth()`, `isArcadeRoom()`, difficulties, tiers, save/load, `state`, `player`, ward globals, `mini`, `gore`, the game registry |
 | `art.js` | Drawing primitives, Macy and gremlins, furniture, `roomProps`, cached `roomBg`, shared arcade art (`panel`, `glow`, `drawTimingBar`, `miniBed`, `miniBackdrop`, `arcadeBackdrop`, `softball`, `nutrient`, `vomitArt`) |
 | `audio.js` | `tone()`, `sfx()`, `music()`, `audio` |
-| `world.js` | Ward HUD, rooms, movement, tap-the-room touch control, weapon-change flash, pickups, effects, `drawWorld`, map, department cards, frame loop and canvas sizing |
+| `world.js` | Title screen, ward HUD, rooms, room-extra hooks, movement, tap-the-room touch control, weapon-change flash, pickups, effects, `drawWorld`, map hookup (`renderMap` mounts `src/map.js`), department cards, frame loop and canvas sizing |
 | `combat.js` | Weapons, gremlin breeds, waves, attacks, jumping, damage, `drawEnemy` |
 | `minigames.js` | Arcade framework: lobby, run lifecycle, canvas shape (`activeCanvas`, portrait flips), HUD, instruction toast, assists, scoring, rewards, results, `drawMini`, pointer plumbing, shared gesture-game helpers |
 | `transitions.js` | Briefing, countdown, finish, `lesson()` dispatch, countdown card for games with their own overlay (`paintTransition`, sized to the active canvas) |
 | `games/*.js` | One arcade each: rules, state, art, copy, controls |
-| `input.js` | DOM events, press-to-act buttons, tap-the-room canvas wiring, control scheme setting, shop, difficulty, keyboard, startup |
+| `map.js` | The map dialog's floor plan (its own owner and tests) |
+| `input.js` | DOM events, title-screen input, press-to-act buttons, tap-the-room canvas wiring, control scheme setting, shop, difficulty, keyboard, startup |
 
 ## Game registry
 
@@ -61,7 +62,7 @@ Each game file calls `const NAME = registerGame({...})`. Hooks are called as `de
 
 Framework helpers for games: `activeCanvas()` (the `{w, h}` the run draws at right now), `praise(points, precision)`, `miniOops(message, amount)`, `finishMini(win, reason)`, `setInstructions(text)`, `setControls(buttons)`, `prepareBriefing()` (a paused briefing between phases, as IV does), `initArcadeRun(limit)`, `updateArcade(dt, step)`, `arcadeBurst(x, y, color, n)`, `arcadeQuality(penalty)`, `arcadeTimeUp()`, `ARCADE_QUOTA_MISSED`.
 
-Arcade mode (fullscreen, and every phone and tablet) is canvas-first. The canvas gets every pixel the controls leave at its aspect ratio. The HUD is three translucent pills on its top edge (progress, time, lives): above the canvas when there is room, over its top 44 px when there is not (landscape phones, and portrait canvases that fill the height), with pause and close sharing the right end of that row in portrait. Keep must-read art out of the top corners. The instruction line is a toast under the pills through the countdown, for the first 3 seconds of play, and again whenever `setInstructions` changes it. Controls are one row under the canvas in portrait and a column on the right in landscape (two across from five buttons); every control acts on pointerdown. `#miniDialog` carries `data-portrait="1"` and the CSS variable `--mini-a` (width / height of the active canvas) for the layout.
+Every run screen (briefing, countdown, play, finish) is canvas-first, in every mode. `applyMiniFrame()` (minigames.js) fits the active canvas into the screen and picks the controls' side: one row under the canvas or a column on the right, whichever leaves the bigger canvas (`data-side` and `mini.frame`). In arcade mode the frame is the whole screen less the safe areas; on a laptop the dialog hugs the canvas inside 96% × 94% of the window, so there is never an empty panel. The HUD is three translucent pills on the canvas's top edge (progress, time, lives): above the canvas when there is room, over its top 44 to 50 px when there is not, with pause and close sharing the right end of that row in a row layout (atop the column otherwise). Keep must-read art out of the top corners. The instruction line is a toast under the pills through the countdown, for the first 3 seconds of play, and again whenever `setInstructions` changes it. Every control acts on pointerdown; a column holds two across from five buttons. `#miniDialog` also carries `data-portrait="1"` and `--mini-a` (width / height of the active canvas).
 
 ## The `mini` run object
 
@@ -69,7 +70,7 @@ Arcade mode (fullscreen, and every phone and tablet) is canvas-first. The canvas
 
 Framework-owned (read freely, do not repurpose):
 - Lifecycle: `open`, `screen` (`lobby`, `briefing`, `intro`, `play`, `outro`, `result`), `id`, `tier`, `forced` (mandatory IV recovery), `approach`, `initialized`, `paused`, `countdown`, `transition`, `demoTime`, `pendingFinish`.
-- Screen: `portrait` (the run is on its `portraitCanvas`; set before `init`, re-checked on every resize), `tipT` and `tipShown` (the instruction toast clock).
+- Screen: `portrait` (the run is on its `portraitCanvas`; set before `init`, re-checked on every resize), `tipT` and `tipShown` (the instruction toast clock), `frame` (the run-screen geometry `applyMiniFrame` computed: `side` 'row' or 'col', canvas fit and position).
 - Rules and clocks: `rules` (difficulty plus `misses` and `coins`), `t`, `total`, `phaseTime`, `hudClock`, `inputLock`, `helpTime`.
 - Scoring: `miss`, `quality`, `score`, `combo`, `maxCombo`, `precisions`, `helps`, `helpUsed`, `win`, `grade`, `qualityFinal`, `reward`, `resultT`.
 - Input: `pointer` (`x`, `y`, `startX`, `startY`, `lastX`, `lastY`, `startT`, `stroke`), `held` (HOLD button or a key a game marks held), `fireHeld` (FIRE button). Space keyup and every pause or dialog clear both.
@@ -87,7 +88,7 @@ Game-owned: `limit` (set it in `init`; the HUD clock and default `timeUp` use it
 
 ## Saved state
 
-`save()` persists: `hp coins name difficulty food medals records taken defeated upgrades cosmetics won wardClears evictions bestChain coinsEarned runs ralphReady ralph sound played briefed arcade controls daily`. Notes:
+`save()` persists: `hp coins name difficulty food medals records taken defeated upgrades cosmetics won wardClears evictions bestChain coinsEarned runs ralphReady ralph sound played briefed arcade controls recoveries daily`. Notes:
 
 - `wardClears[room]` is the grudge level; `wardLocked(id)` (combat.js) is true until the first clear. Rooms 0 and 5 have no combat.
 - `ralphReady` is set by `checkDischarge()` when the passport is complete; combat spawns Ralph in room 0 and sets `ralph` on defeat, then calls `checkDischarge()` again for the win dialog.
@@ -96,6 +97,29 @@ Game-owned: `limit` (set it in `init`; the HUD clock and default `timeUp` use it
 - `arcade` remembers fullscreen ("arcade mode", `body.arcade`), which phones and tablets enter on first start.
 - `controls` is the touch scheme: `'tap'` (the room is the controller, default) or `'stick'` (joystick and the full button column). `body.tap-controls` / `body.stick-controls` follow it.
 - `cosmetics.worn` feeds `macyLook()` for `girl()`.
+- `recoveries` counts forced IV recoveries; games/iv.js increments it and escalates with it. `grantReward()` resets it on any medal outside a recovery, and `openMini(0, true)` opens the lobby on `ivRecoveryPlan().level`.
+- `medals`, `records` and `wardClears` stay `ARCADE_COUNT` (six) long even when extra rooms join `rooms`.
+
+## Title screen
+
+`#titleScreen` covers the page on every load (and after Quit to title in the pause menu). world.js draws the hospital at dusk on `#titleArt` with the art primitives while `titleUp` is true, and plays `music('title')`. START, any key or any tap calls `titleStart()`: `sfx('go')`, a 250 ms iris (none under reduced motion), then `begin()`. `begin()` also clears the title, so any other way into the game works too. Nothing in the ward runs until `state.started`.
+
+## Room extras (the hallway)
+
+Another file may add places that are not arcades. Every call below is guarded with `typeof`, so the game runs the same without them.
+
+| Hook | Called |
+| --- | --- |
+| `hallwayInstall()` | Once at startup, before the department cards and the first `loadRoom`. Pushes its room (`{ id: 6, name, sub, theme, station: null, width, noArcade: true }`) into `rooms` and its props into `roomProps`. |
+| `onRoomLoaded(id)` | At the end of every `loadRoom`. |
+| `updateRoomExtras(dt)` | Every ward step, right after `updateCombat`. |
+| `roomExtraRenderables()` | Every frame; returns `[{ y, draw(g) }]`, depth-sorted with the furniture, Macy and the gremlins. |
+| `drawRoomOverlay(g, vw, vh)` | Every frame, in screen space, after the room. |
+| `hallwayRoomBg(g)` | Once per room wider than 1000 px, to paint its cached background (else a plain floor). |
+| `roomExtrasAction(kind, point)` | Before Macy acts: kind is `attack`, `jump`, `dash`, `use`, `enter` or `tap` (point in room coordinates). Return true to take the action. |
+| `hallwayEnter(id)` | The "MAP →" corner of a room, instead of opening the map. |
+
+Rooms may set `width` (default 1000): the camera, walls and tap goals use `roomWidth()`. Rooms with `noArcade` get no beacon, no play button, no department card, passport row, Daily Dose pick or grudge row, and `tryOpenArcade` says no. `ARCADE_COUNT` (six) is the arcade count everywhere (discharge, Daily Dose, resets).
 
 ## Parallel work rules
 
@@ -114,11 +138,11 @@ python3 gut-feeling/build.py            # build only
 node gut-feeling/tests/smoke.cjs        # one file (build first)
 ```
 
-`tests/harness.cjs` runs the built `index.html` in a Node VM with stub DOM and canvas objects and exports `run(code)`, `close()` (closes dialogs and resets the arcade screen), `nodes`, `events`, `box`, and `assert`. Each test file gets a fresh page because `run-all` starts it in its own process.
+`tests/harness.cjs` runs the built `index.html` in a Node VM with stub DOM and canvas objects and exports `run(code)`, `close()` (closes dialogs and resets the arcade screen), `nodes`, `events`, `box`, and `assert`. Each test file gets a fresh page because `run-all` starts it in its own process. Two environment variables shape a page: `GF_REDUCED_MOTION=1` makes `prefers-reduced-motion` match, and `GF_PRELUDE` is code run in the page before the game script (verify.cjs uses it to stub the hallway hooks in a child process).
 
 | File | Covers | Owner |
 | --- | --- | --- |
-| `verify.cjs` | Saves, nutrients, run lifecycle, idle failure for all 54 combinations, frame-rate independence, discharge, press-to-act buttons (JUMP with the joystick held), weapon strip, EAT, portrait canvases, the instruction toast, tap the room | framework |
+| `verify.cjs` | Saves, nutrients, run lifecycle, idle failure for all 54 combinations, frame-rate independence, discharge, press-to-act buttons (JUMP with the joystick held), weapon strip, EAT, portrait canvases, the instruction toast, tap the room, the title screen, recoveries, run-screen sizing, the room-extra hooks | framework |
 | `combat.cjs` | Ward rules, breeds, spawns, grudge, Ralph, and the masher-vs-kiter tuning check | combat |
 | `game-<name>.cjs` | That game's mechanics rules | that game |
 | `bots/<name>.cjs` | `{id, policy}`: input-only controller code run every play tick by `playthrough.cjs`, with a persistent `bot` object for its memory. It must win every tier and difficulty. | that game |

@@ -42,6 +42,19 @@ function coins(n) {
   hud();
 }
 
+// ---- Room extras (src/hallway.js, when it is present) ----
+// Optional globals another file may define: hallwayInstall(), updateRoomExtras(dt),
+// roomExtraRenderables(), drawRoomOverlay(g, vw, vh), roomExtrasAction(kind, point), hallwayEnter(id),
+// hallwayRoomBg(g) and onRoomLoaded(id). Every call is guarded, so the ward runs the same without them.
+
+// Gives an extra room the first say on an action ('attack', 'jump', 'dash', 'use', 'enter', 'tap').
+// point is in room coordinates for taps. True means it handled the action.
+function roomAction(kind, point) {
+  return typeof roomExtrasAction === 'function' && !!roomExtrasAction(kind, point);
+}
+
+const NO_ARCADE_TOAST = 'No arcade out here. The games live in the departments.';
+
 // Combat owns wardLocked(); until it exists, every arcade is open.
 function arcadeBlocked(id = state.room) {
   return typeof wardLocked === 'function' && !!wardLocked(id);
@@ -49,6 +62,10 @@ function arcadeBlocked(id = state.room) {
 
 // Every way into a room's arcade (beacon, gamebar, map, Enter) goes through here.
 function tryOpenArcade(id = state.room) {
+  if (!isArcadeRoom(id)) {
+    toast(NO_ARCADE_TOAST, 2.4);
+    return false;
+  }
   if (arcadeBlocked(id)) {
     toast(ARCADE_LOCKED_TOAST, 2.6);
     sfx('miss');
@@ -88,17 +105,22 @@ function hud() {
   $('difficultyBtn').textContent = cfg().name + ' ⚙';
   $('heroName').value = state.name;
   $('passport').innerHTML = rooms
+    .filter(r => isArcadeRoom(r.id))
     .map(
-      (r, i) =>
+      r =>
         `<div class="passport-row">` +
-        `<span>${state.medals[i].some(Boolean) ? '✓' : '○'} ${r.name}</span>` +
-        `<span>${state.medals[i].map(m => (m ? '★'.repeat(m) : '·')).join(' ')}</span></div>`
+        `<span>${state.medals[r.id].some(Boolean) ? '✓' : '○'} ${r.name}</span>` +
+        `<span>${state.medals[r.id].map(m => (m ? '★'.repeat(m) : '·')).join(' ')}</span></div>`
     )
     .join('');
   $('progressLabel').textContent = stars() + ' / 12';
   $('progressBar').style.width = Math.min(100, (stars() / 12) * 100) + '%';
   $('dischargeRules').textContent =
-    `${stamps()}/${rooms.length} arcades stamped · ${levelTwo() ? '✓' : '○'} Level 2 medal\n${passportRalphLine()}\nBronze 1★ · Silver 2★ · Gold 3★`;
+    `${stamps()}/${ARCADE_COUNT} arcades stamped · ${levelTwo() ? '✓' : '○'} Level 2 medal\n${passportRalphLine()}\nBronze 1★ · Silver 2★ · Gold 3★`;
+  // The map dialog repeats the progress line, since arcade mode hides the passport card.
+  $('mapPassport').textContent =
+    `★ ${stars()}/12 stars · ${stamps()}/${ARCADE_COUNT} arcades · ${levelTwo() ? '✓' : '○'} level 2 medal · ` +
+    passportRalphLine().replace(/^[✓!○] /, '');
   $('storageNote').style.display = storageOK ? 'none' : 'block';
   renderHall();
   renderDaily();
@@ -112,25 +134,22 @@ function renderHall() {
     stats = [
       ['Gremlins evicted', state.evictions],
       ['Best chain', state.bestChain],
-      ['Medals', `${count(3)} gold · ${count(2)} silver · ${count(1)} bronze`],
-      ['Lifetime coins', state.coinsEarned],
       ['Runs played', state.runs],
+      ['Lifetime coins', state.coinsEarned],
+      ['Gold · silver · bronze', `${count(3)} · ${count(2)} · ${count(1)}`],
       ['Daily streak', streak + (streak === 1 ? ' day' : ' days')]
     ],
     grudge = rooms
-      .filter(r => r.id !== 0 && r.id !== 5)
+      .filter(r => isArcadeRoom(r.id) && r.id !== 0 && r.id !== 5)
       .map(r => {
         const n = state.wardClears[r.id] || 0;
-        return (
-          `<div class="hall-row"><span>${r.name}</span>` +
-          `<strong>${n ? 'Grudge lvl ' + n : 'Not yet annoyed'}</strong></div>`
-        );
+        return `<span class="grudge-chip"><span>${r.name}</span><b>${n ? 'LV ' + n : 'calm'}</b></span>`;
       })
       .join(''),
     html =
       `<div class="hall-stats">` +
-      stats.map(([k, v]) => `<div class="hall-row"><span>${k}</span><strong>${v}</strong></div>`).join('') +
-      `</div><p class="hall-kicker">RALPH’S GRUDGE · WARD CLEARS</p><div class="hall-stats">${grudge}</div>`;
+      stats.map(([k, v]) => `<div class="hall-row"><strong>${v}</strong><span>${k}</span></div>`).join('') +
+      `</div><p class="hall-kicker">Ralph’s grudge · ward clears</p><div class="grudge-chips">${grudge}</div>`;
   $('hallStats').innerHTML = html;
   $('mapHall').innerHTML = html;
 }
@@ -161,6 +180,7 @@ function isModal() {
 }
 
 function roomToast(id) {
+  if (!isArcadeRoom(id)) return rooms[id].toast || 'Hallway. Be nice to the nurses. They know where the pudding is.';
   if (id === 0 && state.ralphReady && !state.ralph) return 'Ralph is in your room. He is not here to visit.';
   if (id === 5) return 'After hours. Bedside Blaster is up. Ralph brought friends.';
   if (id === 0) return 'Home base. Snacks on the rug. IV game by the bed.';
@@ -195,20 +215,31 @@ function loadRoom(id) {
   startEncounter();
   $('roomTitle').textContent = rooms[id].name;
   $('roomSub').textContent = rooms[id].sub;
-  $('sceneTag').textContent =
-    id === 0 || id === 5 ? 'SAFE ROOM / DANGEROUSLY COZY' : 'DODGE THE BLOBS / FIND THE ARCADE';
-  $('arcadeBtn').innerHTML =
-    `<span aria-hidden="true">▶</span> <span class="launch-name">${games[id].info.game}</span>`;
-  $('arcadeBtn').setAttribute('aria-label', 'Play ' + games[id].info.game);
+  const arcade = isArcadeRoom(id);
+  $('sceneTag').textContent = !arcade
+    ? rooms[id].tag || 'HALLWAY / BE NICE TO THE NURSES'
+    : id === 0 || id === 5
+      ? 'SAFE ROOM / DANGEROUSLY COZY'
+      : 'DODGE THE BLOBS / FIND THE ARCADE';
+  // Rooms without an arcade (the hallway) hide the play button.
+  $('arcadeBtn').classList.toggle('hidden', !arcade);
+  if (arcade) {
+    $('arcadeBtn').innerHTML =
+      `<span aria-hidden="true">▶</span> <span class="launch-name">${games[id].info.game}</span>`;
+    $('arcadeBtn').setAttribute('aria-label', 'Play ' + games[id].info.game);
+  }
   renderMap();
+  if ($('mapDialog').open && typeof hospitalMapInvalidate === 'function') hospitalMapInvalidate();
   if (state.started) {
     wardIris = reduced ? 0 : ROOM_IRIS_SECONDS;
     // Combat may announce its own wave or boss on entry; the room line only fills silence.
     if (toastSerial === toastsBefore) toast(roomToast(id), 3);
   }
+  if (typeof onRoomLoaded === 'function') onRoomLoaded(id);
 }
 
 function begin() {
+  titleHide();
   if (state.started) return;
   state.started = true;
   if (!state.played) {
@@ -217,7 +248,6 @@ function begin() {
   }
   document.body.classList.add('playing');
   state.paused = false;
-  $('startCallout').classList.add('hidden');
   $('playStatus').textContent = 'EXPLORE / PLAY / GET HOME';
   loadRoom(state.room);
   // First steps on a touch screen: the room is the controller.
@@ -249,10 +279,10 @@ function syncWardPause() {
 function collides(x, y) {
   return (
     x < 40 ||
-    x > 960 ||
+    x > roomWidth() - 40 ||
     y < 170 ||
     y > 574 ||
-    roomProps[state.room].some(p => {
+    (roomProps[state.room] || []).some(p => {
       let [bx, by, bw, bh] = p.box;
       return x + 11 > bx && x - 11 < bx + bw && y + 4 > by && y - 7 < by + bh;
     })
@@ -292,6 +322,248 @@ function eat() {
   toast('Nutrients consumed. One heart. No Michelin stars.', 2);
   save();
   hud();
+}
+
+// ---- Title screen ----
+// #titleScreen owns the viewport on load: the hospital at dusk drawn on #titleArt, the logo, and one
+// START. Any key, any tap or the button starts; the screen irises out (instantly under reduced motion)
+// and begin() runs. "Quit to title" in the pause menu brings it back. Under reduced motion the art
+// holds still. After TITLE_ATTRACT_SECONDS idle, a gremlin runs past and Macy's window flickers.
+const TITLE_IRIS_SECONDS = reduced ? 0 : 0.25,
+  TITLE_ATTRACT_SECONDS = 25;
+
+let titleUp = false,
+  titleLeaving = 0,
+  titleT = 0,
+  titleIdle = 0,
+  titleLook = { x: 0, y: 0 },
+  titleSize = { w: 0, h: 0 };
+
+function titleShow() {
+  titleUp = true;
+  titleLeaving = 0;
+  titleIdle = 0;
+  $('titleScreen').dataset.state = 'up';
+  $('titleWelcome').textContent = titleWelcomeLine();
+  document.body.classList.add('title-up');
+  music('title');
+  titleFit();
+  $('titleStart').focus({ preventScroll: true });
+}
+
+function titleWelcomeLine() {
+  if (!state.played) return '';
+  if (state.ralphReady && !state.ralph) return `Welcome back, ${state.name || 'Macy'}. Ralph is waiting in your room.`;
+  return `Welcome back, ${state.name || 'Macy'}. The gremlins ate your pudding.`;
+}
+
+// Gone at once: begin() calls this, so every other way into the game clears the title too.
+function titleHide() {
+  if (!titleUp) return;
+  titleUp = false;
+  titleLeaving = 0;
+  $('titleScreen').dataset.state = 'gone';
+  document.body.classList.remove('title-up');
+}
+
+// START, any key or any tap. Returns false when the title is not up or is already leaving.
+function titleStart() {
+  if (!titleUp || titleLeaving > 0) return false;
+  sfx('go');
+  if (TITLE_IRIS_SECONDS <= 0) {
+    titleFinish();
+    return true;
+  }
+  titleLeaving = TITLE_IRIS_SECONDS;
+  $('titleScreen').dataset.state = 'leaving';
+  return true;
+}
+
+// The frame loop (and tests) advance the iris; when it closes, the game begins.
+function titleTick(dt) {
+  if (!titleUp) return;
+  titleT += reduced ? 0 : dt;
+  titleIdle += dt;
+  if (titleLeaving > 0) {
+    titleLeaving -= dt;
+    if (titleLeaving <= 0) titleFinish();
+  }
+}
+
+function titleFinish() {
+  titleHide();
+  begin();
+  // A save left at zero hearts goes straight to the recovery.
+  if (state.hp === 0 && !mini.open) openMini(0, true);
+  if (!document.body.classList.contains('arcade'))
+    $('cabinet').scrollIntoView({ block: 'start', behavior: 'instant' });
+}
+
+// "Quit to title": save, stop the ward, show the title again.
+function titleQuit() {
+  save();
+  $$('dialog[open]').forEach(d => d.close());
+  setWardPause(false);
+  clearHeld();
+  state.started = false;
+  state.paused = true;
+  document.body.classList.remove('playing');
+  syncWardPause();
+  titleShow();
+}
+
+function titleNudge(x, y) {
+  titleIdle = 0;
+  if (reduced || !titleSize.w) return;
+  titleLook = { x: clamp(x / titleSize.w - 0.5, -0.5, 0.5), y: clamp(y / titleSize.h - 0.5, -0.5, 0.5) };
+}
+
+function titleFit() {
+  const w = window.innerWidth || 1280,
+    h = window.innerHeight || 800;
+  if (w === titleSize.w && h === titleSize.h) return;
+  titleSize = { w, h };
+  configureCanvas($('titleArt'), w, h);
+}
+
+function drawTitle() {
+  if (!titleUp) return;
+  titleFit();
+  drawTitleArt($('titleArt').getContext('2d'), titleSize.w, titleSize.h, titleT, titleIdle > TITLE_ATTRACT_SECONDS);
+}
+
+// A cheap stable hash for window patterns.
+function titleHash(i, j) {
+  const s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+// The hospital at dusk. t is seconds (frozen under reduced motion); attract adds the runner and the flicker.
+function drawTitleArt(g, w, h, t, attract) {
+  const lx = titleLook.x * 16,
+    ly = titleLook.y * 10,
+    tall = h > w,
+    groundY = h * 0.79,
+    bh = Math.min(h * 0.43, w * (tall ? 0.95 : 0.48)),
+    bw = Math.min(w * 0.86, bh * 2.25),
+    bx = w / 2 - bw / 2 + lx,
+    by = groundY - bh + ly * 0.4,
+    s = bh / 300;
+  // Sky, stars, moon, clouds.
+  rect(g, 0, 0, w, h, gradient(g, 0, 0, 0, groundY, '#131c38', '#c47a7c'));
+  rect(g, 0, groundY * 0.55, w, groundY * 0.45, gradient(g, 0, groundY * 0.55, 0, groundY * 0.45, '#6a4f7000', '#e9a07a66'));
+  for (let i = 0; i < 46; i++) {
+    const x = titleHash(i, 1) * w,
+      y = titleHash(i, 2) * groundY * 0.5;
+    g.globalAlpha = 0.35 + 0.35 * Math.sin(t * 1.3 + i);
+    rect(g, x, y, 2, 2, '#fff6dd');
+  }
+  g.globalAlpha = 1;
+  const mx = w * 0.82 + lx * 0.3,
+    my = h * (tall ? 0.22 : 0.14) + ly * 0.3,
+    mr = Math.max(18, Math.min(w, h) * 0.055);
+  ellipse(g, mx, my, mr * 2.2, mr * 2.2, '#f8efd914');
+  ellipse(g, mx, my, mr, mr, '#f8efd9');
+  ellipse(g, mx - mr * 0.3, my - mr * 0.2, mr * 0.22, mr * 0.22, '#e3d6b8');
+  ellipse(g, mx + mr * 0.25, my + mr * 0.3, mr * 0.15, mr * 0.15, '#e3d6b8');
+  for (let i = 0; i < 3; i++) {
+    const cx = ((((i * 0.37 + t * 0.012 * (i + 1)) % 1.4) + 1.4) % 1.4 - 0.2) * w + lx * 0.5,
+      cy = h * (0.1 + i * 0.09) + ly * 0.5,
+      cs = (0.7 + i * 0.25) * Math.max(1, w / 900);
+    for (const [ox, oy, r] of [[-38, 4, 26], [0, -6, 34], [40, 4, 24]])
+      ellipse(g, cx + ox * cs, cy + oy * cs, r * cs * 1.6, r * cs * 0.75, '#e6a3a240');
+  }
+  // Gremlins peeking over the roof, drawn first so the building hides their feet.
+  for (const [fx, phase, type] of [[0.18, 0, 0], [0.71, 2.1, 3], [0.46, 4.4, 1]]) {
+    const peek = reduced ? 0.6 : Math.max(0, Math.sin(t * 0.7 + phase)),
+      gs = 0.8 * s;
+    gremlin(g, bx + bw * fx, by + 52 * gs - peek * 38 * gs, gs, type, t + phase);
+  }
+  // The building: facade, side face, roof cap, cross sign.
+  rr(g, bx + bw * 0.02, by + 6, bw, bh, 10 * s, '#132a33');
+  rr(g, bx, by, bw, bh, 10 * s, gradient(g, bx, by, 0, bh, '#36606d', '#24434f'));
+  rect(g, bx, by, bw, 14 * s, '#1d3742');
+  rr(g, bx + bw / 2 - 34 * s, by - 46 * s, 68 * s, 46 * s, 8 * s, '#1d3742');
+  rect(g, bx + bw / 2 - 7 * s, by - 40 * s, 14 * s, 34 * s, '#ffa48e');
+  rect(g, bx + bw / 2 - 17 * s, by - 30 * s, 34 * s, 14 * s, '#ffa48e');
+  // Windows: four floors. Macy's is lit and has company; a few dark ones have eyes.
+  const cols = Math.max(4, Math.round(bw / (70 * s))),
+    cw = bw / cols,
+    rows = Math.max(4, Math.round((bh - 70 * s) / (cw * 0.95))),
+    rh = (bh - 70 * s) / rows,
+    ww = cw * 0.56,
+    wh = rh * 0.6,
+    macyCol = Math.floor(cols * 0.3),
+    macyRow = 1,
+    flicker = attract && !reduced ? 0.55 + 0.45 * Math.abs(Math.sin(t * 17) * Math.sin(t * 5.3)) : 1;
+  for (let r = 0; r < rows; r++)
+    for (let col = 0; col < cols; col++) {
+      const x = bx + col * cw + (cw - ww) / 2,
+        y = by + 26 * s + r * rh,
+        macy = r === macyRow && col === macyCol,
+        lit = macy || titleHash(col, r) > 0.42;
+      if (macy) {
+        g.globalAlpha = flicker;
+        ellipse(g, x + ww / 2, y + wh / 2, ww * 1.1, wh * 1.1, '#ffe7a833');
+        rr(g, x, y, ww, wh, 4 * s, '#ffe7a8');
+        g.globalAlpha = 1;
+        titleSilhouette(g, x, y, ww, wh);
+      } else rr(g, x, y, ww, wh, 4 * s, lit ? '#f2c87ad0' : '#14252f');
+      rect(g, x, y + wh * 0.48, ww, Math.max(1, 2 * s), '#24434f66');
+      if (!lit && titleHash(col + 9, r + 3) > 0.45) titleEyes(g, x + ww / 2, y + wh / 2, ww, t + col * 1.7 + r);
+    }
+  // Entrance and the glowing EXIT sign.
+  const dw = 70 * s,
+    dx = bx + bw / 2 - dw / 2,
+    glow = reduced ? 0.8 : 0.65 + 0.35 * Math.sin(t * 2.4);
+  rr(g, dx, groundY - 62 * s + ly * 0.4, dw, 62 * s, 6 * s, '#0f1f27');
+  rect(g, dx + dw / 2 - 1, groundY - 62 * s + ly * 0.4, 2, 62 * s, '#36606d');
+  g.globalAlpha = glow;
+  ellipse(g, bx + bw / 2, groundY - 76 * s + ly * 0.4, 46 * s, 18 * s, '#5dffa244');
+  g.globalAlpha = 1;
+  rr(g, bx + bw / 2 - 26 * s, groundY - 86 * s + ly * 0.4, 52 * s, 20 * s, 4 * s, '#1b8a5a');
+  label(g, 'EXIT', bx + bw / 2, groundY - 71 * s + ly * 0.4, Math.max(9, 13 * s), '#d4ffe2', 'center');
+  // Ground, path and two street lamps.
+  rect(g, 0, groundY, w, h - groundY, gradient(g, 0, groundY, 0, h - groundY, '#1a3540', '#0c1a21'));
+  rect(g, 0, groundY, w, 3, '#2f5560');
+  poly(g, [[dx + 6 * s, groundY], [dx + dw - 6 * s, groundY], [dx + dw + 30 * s, h], [dx - 30 * s, h]], '#22414c');
+  for (const fx of [0.08, 0.92]) {
+    const x = w * fx + lx;
+    rect(g, x - 2, groundY - 120 * s, 4, 120 * s, '#0e1c23');
+    ellipse(g, x, groundY - 122 * s, 26 * s, 26 * s, '#ffdf9a33');
+    ellipse(g, x, groundY - 122 * s, 7 * s, 7 * s, '#ffe9b8');
+  }
+  // Attract: a gremlin sprints along the sidewalk.
+  if (attract) {
+    const run = (((t * 150) % (w + 160)) + w + 160) % (w + 160),
+      rx = run - 80;
+    gremlin(g, rx, groundY + (h - groundY) * 0.42, 0.9 * s, 2, t * 3);
+  }
+}
+
+// Macy at her window: the IV stand on the left, her silhouette with the ponytail.
+function titleSilhouette(g, x, y, ww, wh) {
+  const ink = '#2a2a35',
+    u = wh / 40;
+  rect(g, x + ww * 0.18, y + wh * 0.18, Math.max(1.5, u), wh * 0.82, ink);
+  rect(g, x + ww * 0.1, y + wh * 0.16, ww * 0.18, Math.max(1.5, u), ink);
+  rr(g, x + ww * 0.08, y + wh * 0.2, ww * 0.12, wh * 0.18, 2, ink);
+  ellipse(g, x + ww * 0.6, y + wh * 0.48, wh * 0.14, wh * 0.15, ink);
+  ellipse(g, x + ww * 0.6 - wh * 0.16, y + wh * 0.52, wh * 0.07, wh * 0.16, ink);
+  rr(g, x + ww * 0.6 - wh * 0.22, y + wh * 0.66, wh * 0.44, wh * 0.36, wh * 0.12, ink);
+}
+
+// A pair of gremlin eyes in a dark window, blinking now and then.
+function titleEyes(g, x, y, ww, t) {
+  const r = Math.max(2, ww * 0.07),
+    shut = !reduced && ((t * 0.9) % 4) > 3.82;
+  for (const side of [-1, 1]) {
+    if (shut) rect(g, x + side * r * 1.6 - r, y, r * 2, Math.max(1, r * 0.4), '#d7f27a');
+    else {
+      ellipse(g, x + side * r * 1.6, y, r, r * 1.2, '#d7f27a');
+      ellipse(g, x + side * r * 1.6 + r * 0.25, y + r * 0.1, r * 0.4, r * 0.5, '#1b2a10');
+    }
+  }
 }
 
 // ---- Weapon changes ----
@@ -397,7 +669,7 @@ function wardGremlinAt(p) {
 }
 
 function wardSetGoal(p) {
-  wardGoal = { x: clamp(p.x, 40, 960), y: clamp(p.y, 170, 574) };
+  wardGoal = { x: clamp(p.x, 40, roomWidth() - 40), y: clamp(p.y, 170, 574) };
   wardGoalBest = Infinity;
   wardStuck = 0;
 }
@@ -419,7 +691,7 @@ function wardTouchDown(id, cx, cy, p) {
         wardPrey = f.preyBefore;
       }
     wardTouches.set(id, finger);
-    jump();
+    if (!roomAction('jump')) jump();
     return true;
   }
   finger.goalBefore = wardGoal;
@@ -430,7 +702,7 @@ function wardTouchDown(id, cx, cy, p) {
     finger.kind = 'prey';
     wardPrey = { e, held: true, swings: 0, idle: 0 };
     wardGoal = null;
-  } else if (!arcadeBlocked() && beaconTapped(p)) finger.kind = 'beacon';
+  } else if (isArcadeRoom(state.room) && !arcadeBlocked() && beaconTapped(p)) finger.kind = 'beacon';
   else {
     wardPrey = null;
     wardSetGoal(p);
@@ -466,7 +738,7 @@ function wardTouchUp(id, cx, cy, cancel = false) {
     wardPrey = null;
     player.lastDx = dx / d;
     player.lastDy = dy / d;
-    dash();
+    if (!roomAction('dash')) dash();
     return;
   }
   if (f.kind === 'beacon' && !f.moved) tryOpenArcade();
@@ -484,7 +756,7 @@ function wardTouchStep(dt) {
     if (f.kind === 'walk' && !f.moved && !f.long && wardTouches.size === 1 && time - f.t0 >= LONG_PRESS_SECONDS) {
       f.long = true;
       wardGoal = null;
-      useItem();
+      if (!roomAction('use')) useItem();
     }
   if (wardPrey) {
     const prey = wardPrey,
@@ -639,6 +911,7 @@ function updateWorld(dt) {
   moveEntity(player, dx * speed * dt, dy * speed * dt);
   if (keys.has(' ') || heldAttack) attack();
   updateCombat(dt);
+  if (typeof updateRoomExtras === 'function') updateRoomExtras(dt);
   wardHpSeen = state.hp;
   for (let s of supplies.filter(supplyAvailable))
     if (dist(s, player) < 27 && state.food < maxFood()) {
@@ -655,9 +928,11 @@ function updateWorld(dt) {
       hud();
       sfx('pickup');
     }
-  if (player.x > 895 && player.y < 202) {
+  // The "MAP →" corner: out to the hallway when it exists, else the map.
+  if (player.x > roomWidth() - 105 && player.y < 202) {
     player.y = 225;
-    openMap();
+    if (typeof hallwayEnter === 'function') hallwayEnter(state.room);
+    else openMap();
   }
   updateEffects(dt);
   $('dashBtn').style.opacity = player.dashCd > 0 ? '.45' : '1';
@@ -683,28 +958,8 @@ function updateEffects(dt) {
   traps = traps.filter(t => t.life > 0);
 }
 
-function drawWorld() {
-  const vw = viewport.w,
-    vh = viewport.h,
-    ease = 1 - Math.exp(-renderDelta * 12);
-  syncWardPause();
-  c.clearRect(0, 0, vw, vh);
-  cameraX += (clamp(player.x - vw / 2, 0, Math.max(0, 1000 - vw)) - cameraX) * ease;
-  // Screens wider than 1.6 show a horizontal slice of the room and follow Macy vertically. A tall
-  // portrait view (taller than the room) centers it, with a band above and below.
-  const camYGoal = vh > 625 ? -(vh - 625) / 2 : clamp(player.y - vh * 0.58, 0, 625 - vh);
-  wardCameraY += (camYGoal - wardCameraY) * ease;
-  c.save();
-  c.translate(-cameraX + (shake ? rand(-3, 3) : 0), -wardCameraY + (shake ? rand(-2, 2) : 0));
-  roomBg(c, state.room);
-  for (let p of puddles) {
-    if (p.gunk) continue;
-    c.globalAlpha = Math.min(1, p.life);
-    ellipse(c, p.x, p.y, 30, 8, '#8da744');
-    ellipse(c, p.x - 4, p.y - 2, 18, 4, '#b4c969');
-  }
-  c.globalAlpha = 1;
-  if (typeof drawCombatGround === 'function') drawCombatGround(c);
+// The arcade beacon on the floor: LOCKED until the ward is cleared, then a pulsing ring.
+function drawBeacon() {
   const station = rooms[state.room].station,
     near = dist(player, { x: station[0], y: station[1] }) < 65,
     locked = arcadeBlocked();
@@ -724,6 +979,31 @@ function drawWorld() {
     locked ? '#7a2f45' : '#244d53',
     'center'
   );
+}
+
+function drawWorld() {
+  const vw = viewport.w,
+    vh = viewport.h,
+    ease = 1 - Math.exp(-renderDelta * 12);
+  syncWardPause();
+  c.clearRect(0, 0, vw, vh);
+  cameraX += (clamp(player.x - vw / 2, 0, Math.max(0, roomWidth() - vw)) - cameraX) * ease;
+  // Screens wider than 1.6 show a horizontal slice of the room and follow Macy vertically. A tall
+  // portrait view (taller than the room) centers it, with a band above and below.
+  const camYGoal = vh > 625 ? -(vh - 625) / 2 : clamp(player.y - vh * 0.58, 0, 625 - vh);
+  wardCameraY += (camYGoal - wardCameraY) * ease;
+  c.save();
+  c.translate(-cameraX + (shake ? rand(-3, 3) : 0), -wardCameraY + (shake ? rand(-2, 2) : 0));
+  roomBg(c, state.room);
+  for (let p of puddles) {
+    if (p.gunk) continue;
+    c.globalAlpha = Math.min(1, p.life);
+    ellipse(c, p.x, p.y, 30, 8, '#8da744');
+    ellipse(c, p.x - 4, p.y - 2, 18, 4, '#b4c969');
+  }
+  c.globalAlpha = 1;
+  if (typeof drawCombatGround === 'function') drawCombatGround(c);
+  if (isArcadeRoom(state.room) && rooms[state.room].station) drawBeacon();
   for (let s of supplies.filter(supplyAvailable)) {
     ellipse(c, s.x, s.y, 20, 7, '#e7eea855');
     nutrient(c, s.x, s.y + Math.sin(time * 3) * 3, s.type, 1.2);
@@ -734,7 +1014,8 @@ function drawWorld() {
     brick(c, tr.x + 2, tr.y + 5, '#6faeab');
   }
   drawWardGoal(c);
-  const renderables = roomProps[state.room].map(p => ({ y: p.y, draw: p.draw }));
+  const renderables = (roomProps[state.room] || []).map(p => ({ y: p.y, draw: p.draw }));
+  if (typeof roomExtraRenderables === 'function') renderables.push(...(roomExtraRenderables() || []));
   renderables.push({
     y: player.y,
     draw: g => {
@@ -816,9 +1097,10 @@ function drawWorld() {
   c.globalAlpha = 1;
   if (typeof drawCombatFx === 'function') drawCombatFx(c);
   drawWardTaps(c);
-  rect(c, 0, 603, 1000, 22, '#244856');
-  rect(c, 24, 603, 952, 4, '#90b6a2');
+  rect(c, 0, 603, roomWidth(), 22, '#244856');
+  rect(c, 24, 603, roomWidth() - 48, 4, '#90b6a2');
   c.restore();
+  if (typeof drawRoomOverlay === 'function') drawRoomOverlay(c, vw, vh);
   if (typeof drawCombatOverlay === 'function') drawCombatOverlay(c, vw);
   wardWeaponSync();
   drawWeaponFlash(vw, vh);
@@ -851,35 +1133,21 @@ function wardPoint(e) {
 
 // Tapping the beacon is the touch version of Enter.
 function beaconTapped(p) {
+  if (!isArcadeRoom(state.room) || !rooms[state.room].station) return false;
   const [x, y] = rooms[state.room].station;
   return Math.abs(p.x - x) < 70 && p.y > y - 85 && p.y < y + 45;
 }
 
+// The map dialog's floor plan (src/map.js). Every caller keeps calling renderMap(); the plan mounts
+// while the dialog is open (it measures the dialog), so openMap opens first.
 function renderMap() {
-  const exit = state.won
-    ? 'Discharged!'
-    : state.ralphReady && !state.ralph
-      ? 'Ralph is in the way.'
-      : 'Homeward bound.';
-  $('mapGrid').innerHTML =
-    rooms
-      .map(
-        r =>
-          `<button class="map-room ${state.room === r.id ? 'active' : ''}" data-room="${r.id}">` +
-          `<span class="map-n">0${r.id + 1} / ${games[r.id].info.genre.split(' · ')[0]}</span>` +
-          `<strong>${r.name}</strong><small>${games[r.id].info.game}</small>` +
-          `<span class="medals">${state.medals[r.id].map(m => (m ? '★'.repeat(m) : '○')).join(' / ')}</span></button>`
-      )
-      .join('') +
-    `<div class="map-room"><span class="map-n">07 / THE EXIT</span>` +
-    `<strong>${exit}</strong>` +
-    `<small>${stars()}/12 stars · ${stamps()}/${rooms.length} arcades · ` +
-    `${state.ralph ? 'Ralph evicted' : 'Ralph pending'}</small></div>`;
+  if ($('mapDialog').open && typeof mountHospitalMap === 'function') mountHospitalMap($('mapGrid'));
 }
 
 function openMap() {
-  renderMap();
+  hud();
   modalOpen($('mapDialog'));
+  renderMap();
 }
 
 function goRoom(id) {
@@ -894,6 +1162,7 @@ function goRoom(id) {
 
 function buildDepartments() {
   $('departmentGrid').innerHTML = rooms
+    .filter(r => isArcadeRoom(r.id))
     .map(
       r =>
         `<button class="dept-card" data-room="${r.id}" aria-label="Explore ${r.name}">` +
@@ -925,7 +1194,6 @@ function configureCanvas(cv, w, h) {
 }
 
 function setupIllustrations() {
-  configureCanvas($('portrait'), 80, 112);
   configureCanvas($('miniPreview'), 420, 240);
   configureCanvas($('resultArt'), 800, 220);
   $$('[data-mini]').forEach(cv => {
@@ -957,6 +1225,7 @@ function resize() {
   // A closed one keeps the 800 × 450 canvas it starts with.
   if (mini.open) orientMini();
   else configureCanvas($('miniCanvas'), 800, 450);
+  if (titleUp) titleFit();
 }
 
 // Fixed small simulation steps keep 30, 60 and 120 Hz displays moving identically.
@@ -969,8 +1238,11 @@ function advanceSimulation(dt) {
 function animateFrame(now) {
   renderDelta = Math.min(0.05, (now - last) / 1000 || 1 / 60);
   last = now;
+  titleTick(renderDelta);
   advanceSimulation(renderDelta);
-  drawWorld();
+  // The title covers the ward; the room only draws again once the iris starts opening.
+  if (titleUp) drawTitle();
+  if (!titleUp || titleLeaving > 0) drawWorld();
   if (mini.open) {
     drawMini();
     if (mini.screen === 'result' && gore.length) drawResultArt();

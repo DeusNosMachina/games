@@ -27,6 +27,13 @@ const rooms = [
   }
 ];
 
+// The six arcade rooms. Other places (the hallway, room 6) may be pushed into rooms later with
+// noArcade: true and an optional width; medals, records, ward clears and the passport stay six long.
+const ARCADE_COUNT = rooms.length;
+
+const roomWidth = (id = state.room) => (rooms[id] && rooms[id].width) || 1000,
+  isArcadeRoom = id => !!rooms[id] && !rooms[id].noArcade && id < ARCADE_COUNT;
+
 const difficulties = [
   {
     name: 'Pillow Fort',
@@ -99,10 +106,10 @@ let state = {
   item: 0,
   // Sound preference. audio.js reads it at init and writes it on toggle; save() persists it.
   sound: saved.sound === undefined ? true : !!saved.sound,
-  medals: Array.from({ length: rooms.length }, (_, i) =>
+  medals: Array.from({ length: ARCADE_COUNT }, (_, i) =>
     Array.from({ length: 3 }, (_, j) => clamp(Math.floor(Number(saved.medals?.[i]?.[j]) || 0), 0, 3))
   ),
-  records: Array.from({ length: rooms.length }, (_, i) =>
+  records: Array.from({ length: ARCADE_COUNT }, (_, i) =>
     Array.from({ length: 3 }, (_, j) => savedCount(saved.records?.[i]?.[j]))
   ),
   taken: Array.isArray(saved.taken) ? saved.taken : [],
@@ -114,7 +121,7 @@ let state = {
     worn: savedIds(saved.cosmetics?.worn, SHOP_LOOK_IDS)
   },
   won: !!saved.won,
-  wardClears: Array.from({ length: rooms.length }, (_, i) => savedCount(saved.wardClears?.[i])),
+  wardClears: Array.from({ length: ARCADE_COUNT }, (_, i) => savedCount(saved.wardClears?.[i])),
   // Hall of Nonsense counters. Combat adds to evictions and bestChain; the arcade adds runs.
   evictions: savedCount(saved.evictions),
   bestChain: savedCount(saved.bestChain),
@@ -130,6 +137,8 @@ let state = {
   arcade: typeof saved.arcade === 'boolean' ? saved.arcade : null,
   // Touch scheme: 'tap' (the room is the controller, the default) or 'stick' (joystick and buttons).
   controls: saved.controls === 'stick' ? 'stick' : 'tap',
+  // Mandatory recoveries since the last medal outside one. games/iv.js counts them to escalate.
+  recoveries: savedCount(saved.recoveries),
   // Daily Dose: last day played (YYYY-MM-DD), that day's best score, consecutive-day streak.
   daily: {
     last: typeof savedDaily.last === 'string' ? savedDaily.last : '',
@@ -251,6 +260,7 @@ function save() {
         briefed: state.briefed,
         arcade: state.arcade,
         controls: state.controls,
+        recoveries: state.recoveries,
         daily: state.daily
       })
     );

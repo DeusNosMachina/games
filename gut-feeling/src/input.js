@@ -77,7 +77,9 @@ function drawShopMacy() {
   girl(g, 48, 114, 1.2, 0, 1, false, false);
 }
 
+// Macy's portrait, where the page has one (the shop draws its own).
 function drawPortrait() {
+  if (!$('portrait')) return;
   const g = configureCanvas($('portrait'), 80, 112);
   g.clearRect(0, 0, 80, 112);
   girl(g, 38, 103, 1.23, 0, 1);
@@ -88,7 +90,7 @@ function shopRow(item, button) {
 }
 
 function showShop() {
-  $('shopBalance').textContent = `Pocket money: ${state.coins} coins`;
+  $('shopBalance').innerHTML = `<small class="card-kicker">Pocket money</small><strong>${state.coins}</strong> coins`;
   const upgradeRows = upgrades
     .map(u => {
       const owned = state.upgrades.includes(u.id),
@@ -109,8 +111,8 @@ function showShop() {
     })
     .join('');
   $('shopItems').innerHTML =
-    `<h3 class="shop-section">Upgrades</h3>${upgradeRows}` +
-    `<h3 class="shop-section">Wardrobe · looks only</h3>${lookRows}`;
+    `<h3 class="card-kicker shop-section">Upgrades</h3><div class="shop-grid">${upgradeRows}</div>` +
+    `<h3 class="card-kicker shop-section">Wardrobe · looks only</h3><div class="shop-grid">${lookRows}</div>`;
   drawShopMacy();
   modalOpen($('shopDialog'));
 }
@@ -518,10 +520,11 @@ joystick.addEventListener('pointermove', handleJoy);
 $('attackBtn').addEventListener('pointerdown', e => {
   if (attackPointer !== null || !pressStart($('attackBtn'), e)) return;
   attackPointer = e.pointerId;
+  $('attackBtn').classList.add('pressed');
+  if (roomAction('attack')) return;
   attackOrigin = { x: e.clientX, y: e.clientY };
   wardAim = { dx: 0, dy: 0 };
   heldAttack = true;
-  $('attackBtn').classList.add('pressed');
   attack();
 });
 
@@ -542,12 +545,12 @@ $('attackBtn').addEventListener('pointermove', e => {
 );
 
 $('attackBtn').addEventListener('click', e => {
-  if (!pressClick($('attackBtn'), e)) attack();
+  if (!pressClick($('attackBtn'), e) && !roomAction('attack')) attack();
 });
 
-onPress($('jumpBtn'), jump);
-onPress($('dashBtn'), dash);
-onPress($('useBtn'), useItem);
+onPress($('jumpBtn'), () => roomAction('jump') || jump());
+onPress($('dashBtn'), () => roomAction('dash') || dash());
+onPress($('useBtn'), () => roomAction('use') || useItem());
 onPress($('touchEat'), eat);
 
 // The weapon strip equips on press; the strip and the canvas both announce the change.
@@ -583,6 +586,14 @@ window.addEventListener('keydown', e => {
   uiUnlockAudio();
   if (e.target instanceof HTMLInputElement) return;
   const k = e.key.toLowerCase();
+  // The title takes any key except modifiers and browser shortcuts.
+  if (titleUp) {
+    const shortcut = e.metaKey || e.ctrlKey || e.altKey;
+    if (shortcut || ['tab', 'shift', 'control', 'alt', 'meta', 'capslock'].includes(k)) return;
+    e.preventDefault();
+    if (!e.repeat) startFromTitle();
+    return;
+  }
   if (mini.open && ['play', 'intro'].includes(mini.screen)) {
     if (ARCADE_KEYS.includes(k)) e.preventDefault();
     if (k === 'escape' && !e.repeat) {
@@ -605,15 +616,20 @@ window.addEventListener('keydown', e => {
     return;
   }
   if (state.paused) return;
+  // An extra room (the hallway) gets the first say on Space; held Space then keeps attacking as usual.
+  if (k === ' ' && !e.repeat && state.started && roomAction('attack')) {
+    e.preventDefault();
+    return;
+  }
   if (WARD_KEYS.includes(k)) {
     e.preventDefault();
     if (!state.started) begin();
     keys.add(k);
   }
   if (e.repeat) return;
-  if (k === 'e') useItem();
-  if (k === 'q') dash();
-  if (k === 'shift' || k === 'j') jump();
+  if (k === 'e' && !roomAction('use')) useItem();
+  if (k === 'q' && !roomAction('dash')) dash();
+  if ((k === 'shift' || k === 'j') && !roomAction('jump')) jump();
   if (k === 'f') eat();
   if (k === 'm') {
     e.preventDefault();
@@ -621,10 +637,10 @@ window.addEventListener('keydown', e => {
   }
   if (['1', '2', '3'].includes(k)) equip(+k - 1);
   if (k === 'c') equip((state.item + 1) % 3);
-  if (k === 'enter') {
-    let [x, y] = rooms[state.room].station;
-    if (dist(player, { x, y }) < 85) tryOpenArcade();
-    else toast('Find the glowing arcade beacon, or use the Play button.', 2);
+  if (k === 'enter' && !roomAction('enter')) {
+    const station = isArcadeRoom(state.room) && rooms[state.room].station;
+    if (station && dist(player, { x: station[0], y: station[1] }) < 85) tryOpenArcade();
+    else if (station) toast('Find the glowing arcade beacon, or use the Play button.', 2);
   }
 });
 
@@ -673,6 +689,7 @@ function setControlScheme(scheme) {
 }
 
 $('pauseControls').addEventListener('click', () => setControlScheme(tapScheme() ? 'stick' : 'tap'));
+$('pauseQuit').addEventListener('click', titleQuit);
 $('controlsPick').addEventListener('click', e => {
   const b = e.target.closest('[data-controls]');
   if (b) setControlScheme(b.dataset.controls);
@@ -685,7 +702,12 @@ function roomTouch(e) {
 }
 
 canvas.addEventListener('pointerdown', e => {
-  if (roomTouch(e) && wardTouchDown(e.pointerId, e.clientX, e.clientY, wardPoint(e))) pressStart(canvas, e);
+  if (!roomTouch(e)) return;
+  const p = wardPoint(e),
+    live = state.started && !state.paused && !isModal();
+  // An extra room (the hallway) may claim the tap first, say for a visitor to talk to.
+  if (live && roomAction('tap', p)) pressStart(canvas, e);
+  else if (wardTouchDown(e.pointerId, e.clientX, e.clientY, p)) pressStart(canvas, e);
 });
 
 canvas.addEventListener('pointermove', e => {
@@ -709,11 +731,23 @@ canvas.addEventListener('click', e => {
   canvas.focus({ preventScroll: true });
 });
 
-$('startBtn').addEventListener('click', () => {
-  // Phones and tablets go fullscreen on the first start unless the player already said no.
+// ---- Title screen (world.js draws it) ----
+// START, any key or any tap. Phones and tablets go fullscreen inside that gesture, the only moment
+// browsers allow it, unless the player already said no; the title then irises out and begin() runs.
+function startFromTitle() {
+  if (!titleUp || titleLeaving > 0) return false;
   if (state.arcade === true || (state.arcade === null && isTouchScreen())) enterArcade(true);
-  begin();
+  return titleStart();
+}
+
+$('titleScreen').addEventListener('pointerdown', e => {
+  if (!titleUp || !pressStart($('titleScreen'), e)) return;
+  startFromTitle();
 });
+
+$('titleScreen').addEventListener('pointermove', e => titleNudge(e.clientX, e.clientY));
+
+$('titleStart').addEventListener('click', () => startFromTitle());
 
 $('arcadeBtn').addEventListener('click', () => {
   if (!state.started) begin();
@@ -744,11 +778,6 @@ $$('dialog').forEach(d =>
     if (!isModal()) canvas.focus({ preventScroll: true });
   })
 );
-
-$('mapGrid').addEventListener('click', e => {
-  let b = e.target.closest('[data-room]');
-  if (b) goRoom(+b.dataset.room);
-});
 
 // Daily Dose cards (sidebar and map).
 function dailyClick(e) {
@@ -785,8 +814,8 @@ $('resetBtn').addEventListener('click', () => {
     return;
   }
   resetPending = false;
-  state.medals = Array.from({ length: rooms.length }, () => [0, 0, 0]);
-  state.records = Array.from({ length: rooms.length }, () => [0, 0, 0]);
+  state.medals = Array.from({ length: ARCADE_COUNT }, () => [0, 0, 0]);
+  state.records = Array.from({ length: ARCADE_COUNT }, () => [0, 0, 0]);
   state.hp = 5;
   state.coins = 0;
   state.food = 0;
@@ -795,7 +824,8 @@ $('resetBtn').addEventListener('click', () => {
   state.upgrades = [];
   state.cosmetics = { owned: [], worn: [] };
   state.won = false;
-  state.wardClears = rooms.map(() => 0);
+  state.wardClears = Array.from({ length: ARCADE_COUNT }, () => 0);
+  state.recoveries = 0;
   state.evictions = 0;
   state.bestChain = 0;
   state.coinsEarned = 0;
@@ -812,26 +842,23 @@ $('resetBtn').addEventListener('click', () => {
   loadRoom(0);
   hud();
   drawPortrait();
-  $('startCallout').classList.remove('hidden');
+  titleShow();
   $('resetBtn').textContent = 'Start a fresh adventure';
 });
 
 // ---- Startup ----
 // Returning players skip the hero and land on the cabinet with a shorter welcome.
+// Returning players: the title greets them (titleWelcomeLine) and the page skips the hero.
 function welcomeBack() {
   document.body.classList.add('returning');
-  $('calloutKicker').textContent = 'WELCOME BACK / STILL NOT DISCHARGED';
-  $('calloutTitle').textContent = `Back for more, ${state.name || 'Macy'}?`;
-  $('calloutText').textContent = state.ralphReady && !state.ralph
-    ? 'Ralph is waiting in your room. He has been practicing his menacing face.'
-    : 'The gremlins rearranged nothing. They did eat your pudding.';
-  $('startLabel').textContent = 'Back to the ward';
 }
 
 new ResizeObserver(resize).observe($('stage'));
 // Turning the phone re-fits both canvases and flips an arcade run to its portrait canvas, if it has one.
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', resize);
+// An optional extra room (src/hallway.js) joins rooms and roomProps before anything reads them.
+if (typeof hallwayInstall === 'function') hallwayInstall();
 buildDepartments();
 setupIllustrations();
 loadRoom(0);
@@ -848,9 +875,7 @@ renderArcadeButtons();
 resize();
 checkDischarge();
 
-if (state.hp === 0) {
-  begin();
-  openMini(0, true);
-}
+// Every visit starts on the title. A save left at zero hearts goes to the recovery after START.
+titleShow();
 
 requestAnimationFrame(animateFrame);

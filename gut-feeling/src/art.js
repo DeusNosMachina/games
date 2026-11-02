@@ -739,6 +739,21 @@ function roomIllustration(g, id) {
 const roomImages = new Map();
 
 function roomBg(g, id) {
+  // A wide extra room (the hallway) paints itself through hallwayRoomBg(g) when that exists, cached at
+  // its own width; without it, a plain floor in the room's theme.
+  const w = (rooms[id] && rooms[id].width) || 1000;
+  if (w > 1000) {
+    let wide = roomImages.get(id);
+    if (!wide) {
+      wide = document.createElement('canvas');
+      const wg = configureCanvas(wide, w, 625);
+      if (typeof hallwayRoomBg === 'function') hallwayRoomBg(wg);
+      else floor(wg, w, 625, rooms[id].theme || '#82bcad');
+      roomImages.set(id, wide);
+    }
+    g.drawImage(wide, 0, 0, w, 625);
+    return;
+  }
   // Room 5 is the home room after dark: the cached room 0 art plus a night tint.
   const base = id === 5 ? 0 : id;
   let cv = roomImages.get(base);

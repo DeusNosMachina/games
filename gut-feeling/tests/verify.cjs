@@ -10,7 +10,17 @@ run('let rng=1873;Math.random=()=>{rng=(rng*1664525+1013904223)>>>0;return rng/4
 assert.equal(run('rooms.length'), 6);
 assert.equal(run('Object.keys(games).length'), 6);
 
+// The title owns the screen on load, and nothing in the ward runs until START.
+assert.equal(run('titleUp'), true, 'the title is up after load');
+assert.equal(nodes.titleScreen.dataset.state, 'up');
+assert.equal(run('state.started'), false);
+run('player.x=505;player.y=470;keys.add("d");for(let i=0;i<30;i++)updateWorld(1/60);keys.clear()');
+assert.equal(run('player.x'), 505, 'the ward stands still under the title');
+run('drawTitleArt(c, 1280, 820, 3, false);drawTitleArt(c, 390, 844, 3, true);drawTitleArt(c, 844, 390, 0, true)');
+console.log('PASS: the title is up on load and the ward waits for START.');
+
 run('begin();drawWorld();state.hp=5;player.x=381;player.y=463;updateWorld(.016)');
+assert.equal(run('titleUp'), false, 'begin() clears the title');
 assert.equal(run('state.food'), 1);
 run('loadRoom(0);player.x=381;player.y=463;updateWorld(.016);eat()');
 assert.equal(run('state.food'), 1);
@@ -522,3 +532,195 @@ finger.tap(22, 300, 470);
 assert.ok(run('wardGoal') !== null, 'tap the room is back');
 run('wardTouchReset();enemies=[]');
 console.log('PASS: tap the room walks, hits, holds, flicks, jumps, long-presses, keeps the beacon and map exit, and switches.');
+
+// ---- Title screen: START, any key, any tap; Quit to title ----
+run('var goCount=0;var realSfx=sfx;sfx=(n,o)=>{if(n==="go")goCount++;return realSfx(n,o)}');
+close();
+run('setWardPause(true)');
+nodes.pauseQuit.events.click();
+assert.equal(run('titleUp'), true, 'Quit to title shows the title again');
+assert.equal(nodes.titleScreen.dataset.state, 'up');
+assert.equal(run('state.started'), false, 'and the ward stops');
+assert.equal(run('state.paused'), true);
+run('player.x=505;keys.add("d");for(let i=0;i<30;i++)updateWorld(1/60);keys.clear()');
+assert.equal(run('player.x'), 505, 'nothing moves behind the title');
+key('x');
+assert.equal(nodes.titleScreen.dataset.state, 'leaving', 'a key starts the iris');
+assert.equal(run('state.started'), false, 'the game begins when the iris closes');
+run('titleTick(.3)');
+assert.equal(run('state.started'), true, 'a keydown starts the game');
+assert.equal(run('state.paused'), false);
+assert.equal(nodes.titleScreen.dataset.state, 'gone');
+nodes.pauseQuit.events.click();
+nodes.titleScreen.events.pointerdown(touch(40));
+run('titleTick(.3)');
+assert.equal(run('state.started'), true, 'a tap anywhere starts the game');
+// START: its press reaches the screen and its click follows; the game starts once.
+nodes.pauseQuit.events.click();
+run('goCount=0');
+nodes.titleScreen.events.pointerdown(touch(41));
+nodes.titleStart.events.click({ detail: 1 });
+run('titleTick(.1)');
+nodes.titleStart.events.click({ detail: 1 });
+run('titleTick(.3)');
+nodes.titleStart.events.click({ detail: 1 });
+assert.equal(run('goCount'), 1, 'START starts exactly once');
+assert.equal(run('state.started'), true);
+nodes.pauseQuit.events.click();
+run('goCount=0');
+nodes.titleStart.events.click({ detail: 0 });
+run('titleTick(.3)');
+assert.equal(run('goCount'), 1, 'Enter on the START button starts it');
+assert.equal(run('state.started'), true);
+run('sfx=realSfx');
+console.log('PASS: START, any key and any tap start once after the iris; Quit to title brings it back.');
+
+// Reduced motion skips the iris (a fresh page with prefers-reduced-motion).
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+function freshPage(env, body) {
+  const code = `const { run, nodes, events, close, assert } = require(${JSON.stringify(path.join(__dirname, 'harness.cjs'))});\n${body}`;
+  const r = spawnSync(process.execPath, ['-e', code], { env: { ...process.env, ...env }, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  return r.stdout;
+}
+freshPage(
+  { GF_REDUCED_MOTION: '1' },
+  `assert.equal(run('reduced'), true);
+assert.equal(run('TITLE_IRIS_SECONDS'), 0);
+assert.equal(run('titleUp'), true);
+run('titleStart()');
+assert.equal(run('state.started'), true, 'reduced motion starts at once');
+assert.equal(nodes.titleScreen.dataset.state, 'gone');`
+);
+console.log('PASS: reduced motion skips the title iris.');
+
+// ---- Recovery escalation bookkeeping ----
+run("state.recoveries=2;state.hp=5;openMini(1);mini.forced=false;startMini();launchMini();updateMini(2);finishMini(true);updateMini(2.3)");
+assert.equal(run('mini.win'), true);
+assert.equal(run('state.recoveries'), 0, 'a medal outside a recovery resets the escalation');
+assert.equal(saved().recoveries, 0, 'recoveries are saved');
+close();
+run('state.recoveries=2;openMini(0,true)');
+assert.equal(run('mini.tier'), run('ivRecoveryPlan().level'), 'the recovery lobby shows the planned level');
+assert.equal(run('mini.tier'), 2);
+assert.match(nodes.tierGrid.innerHTML, /tier-card selected" data-tier="2" >/, 'the planned level is selectable');
+assert.equal(nodes.miniRewardInfo.textContent, run('MINI_RECOVERY_LINE'));
+assert.match(run('MINI_RECOVERY_LINE'), /one IV phase/);
+run('startMini();launchMini();updateMini(2);finishMini(true);updateMini(2.3)');
+assert.equal(run('mini.win'), true);
+assert.ok(run('state.recoveries') > 0, 'a won recovery keeps counting');
+run('mini.forced=false');
+close();
+run('state.recoveries=0;state.hp=5;save()');
+console.log('PASS: recoveries save, reset on a medal outside recovery, and set the recovery lobby level.');
+
+// ---- The run screen: canvas plus the minimum, sized to the window ----
+run('window.innerWidth=1280;window.innerHeight=820;openMini(4);startMini()');
+let frame = JSON.parse(run('JSON.stringify(mini.frame)'));
+assert.equal(frame.side, 'col', 'a square game on a wide window gets a control column');
+assert.equal(Math.round(frame.fitH), Math.floor(820 * 0.94), 'the canvas takes the full dialog height');
+assert.equal(frame.frameW, Math.ceil(frame.fitW + 190), 'the dialog hugs canvas plus column');
+assert.ok(frame.frameW <= 1280 * 0.96 && frame.frameH <= 820 * 0.94, 'inside 96vw × 94vh');
+assert.equal(nodes.miniDialog.dataset.side, 'col');
+assert.equal(nodes.miniDialog.style['--fit-h'], Math.floor(820 * 0.94) + 'px');
+close();
+run('openMini(0);startMini()');
+frame = JSON.parse(run('JSON.stringify(mini.frame)'));
+assert.equal(frame.side, 'row', 'the wide IV canvas gets a control row');
+assert.equal(Math.round(frame.fitW), Math.floor(1280 * 0.96), 'and the full dialog width');
+assert.equal(frame.frameH, Math.ceil(frame.fitH + 72));
+run('window.innerWidth=1440;window.innerHeight=900;resize()');
+frame = JSON.parse(run('JSON.stringify(mini.frame)'));
+assert.ok(
+  Math.abs(frame.fitW - Math.min(Math.floor(1440 * 0.96), (Math.floor(900 * 0.94) - 72) * (800 / 450))) < 0.01,
+  'resizing the window re-fits the frame'
+);
+close();
+const phone = JSON.parse(run('JSON.stringify(miniFrame(390, 844, 450 / 800, true, MINI_FRAME_SIZES.phone))'));
+assert.equal(phone.side, 'row');
+assert.equal(phone.fitW, 390, 'a portrait canvas fills a phone');
+assert.ok(Math.abs(phone.fitH - 693.33) < 0.1);
+assert.ok(phone.cvT >= 0 && phone.cvT + phone.fitH <= 844 - 66 + 0.01, 'clear of the control row');
+const flat = JSON.parse(run('JSON.stringify(miniFrame(844, 390, 1, true, MINI_FRAME_SIZES.phone))'));
+assert.equal(flat.side, 'col', 'a landscape phone puts the controls in a column');
+assert.equal(flat.fitH, 390);
+run('delete window.innerWidth;delete window.innerHeight;resize()');
+console.log('PASS: run screens size the canvas to the window, row or column, with no dead panels.');
+
+// ---- Hallway hooks and rooms without an arcade ----
+// No hallway yet in this build: every hook is optional.
+assert.equal(run('typeof hallwayInstall'), 'undefined');
+run('loadRoom(1);drawWorld();advanceSimulation(1/60)');
+const HALLWAY = `
+var hookLog = [];
+var extrasClaim = '';
+function hallwayInstall() {
+  hookLog.push('install');
+  rooms.push({ id: 6, name: 'Hallway', sub: 'GUT WING / THE LONG WAY ROUND', theme: '#7aa7a0', station: null, width: 3200, noArcade: true });
+  roomProps.push([]);
+}
+function onRoomLoaded(id) { hookLog.push('loaded:' + id); }
+function updateRoomExtras(dt) { hookLog.push('update'); }
+function roomExtraRenderables() { hookLog.push('renderables'); return [{ y: 400, draw() { hookLog.push('extraDraw'); } }]; }
+function drawRoomOverlay(g, vw, vh) { hookLog.push('overlay'); }
+function hallwayRoomBg(g) { hookLog.push('bg'); }
+function roomExtrasAction(kind, point) { hookLog.push('action:' + kind); return kind === extrasClaim; }
+function hallwayEnter(id) { hookLog.push('enter:' + id); }
+`;
+freshPage(
+  { GF_PRELUDE: HALLWAY },
+  `const log = () => run('hookLog.join(",")');
+const key = (k, extra = {}) => events.keydown({ key: k, target: {}, repeat: false, preventDefault: () => {}, ...extra });
+assert.ok(log().startsWith('install,loaded:0'), 'hallwayInstall runs before the first room loads: ' + log());
+assert.equal(run('rooms.length'), 7);
+assert.equal(run('ARCADE_COUNT'), 6);
+assert.equal(run('state.medals.length'), 6);
+assert.equal(run('isArcadeRoom(6)'), false);
+assert.equal((nodes.departmentGrid.innerHTML.match(/data-room=/g) || []).length, 6, 'no department card for the hallway');
+run('begin();hud();renderMap();renderHall();renderDaily()');
+assert.equal((nodes.passport.innerHTML.match(/passport-row/g) || []).length, 6, 'the passport lists six arcades');
+assert.ok(!/Hallway/.test(nodes.hallStats.innerHTML), 'no grudge for the hallway');
+for (let d = 1; d < 120; d++) assert.ok(run('dailyPick("2027-01-" + ' + d + ').id') < 6);
+run('hookLog=[];loadRoom(6)');
+assert.equal(run('hookLog.at(-1)'), 'loaded:6', 'onRoomLoaded runs after loadRoom');
+assert.match(nodes.sceneTag.textContent, /HALLWAY/);
+assert.equal(run('tryOpenArcade(6)'), false, 'no arcade in the hallway');
+assert.equal(run('mini.open'), false);
+run('hookLog=[];drawWorld()');
+const draw = run('hookLog.join(",")');
+assert.equal(draw, 'bg,renderables,extraDraw,overlay', 'background, depth-sorted extras, then the overlay');
+run('hookLog=[];advanceSimulation(1/60)');
+assert.ok(run('hookLog.includes("update")'), 'updateRoomExtras runs every step');
+// The wide room: camera and walls follow its width.
+run('player.x=3000;player.y=420;for(let i=0;i<120;i++)drawWorld()');
+assert.ok(run('cameraX') > 2000, 'the camera scrolls a wide room');
+assert.equal(run('collides(3100, 400)'), false);
+assert.equal(run('collides(3170, 400)'), true, 'the far wall sits at the room width');
+assert.equal(run('collides(980, 400)'), false, 'the 1000 px wall is gone');
+// Actions go to the extras first; a claimed action does not reach Macy.
+run('player.z=0;player.vz=0;player.jumpCd=0;extrasClaim="jump";hookLog=[]');
+key('j');
+assert.equal(run('player.z'), 0, 'a claimed jump does not jump');
+assert.ok(run('hookLog.includes("action:jump")'));
+run('extrasClaim=""');
+key('j');
+assert.ok(run('player.z') > 0, 'an unclaimed jump jumps');
+run('extrasClaim="tap";hookLog=[];state.controls="tap";cameraX=0;wardCameraY=0');
+nodes.game.events.pointerdown({ pointerId: 7, pointerType: 'touch', button: 0, clientX: 300, clientY: 400, preventDefault() {} });
+assert.ok(run('hookLog.includes("action:tap")'), 'the tap goes to the extras with its point');
+assert.equal(run('wardGoal'), null, 'a claimed tap does not walk');
+nodes.game.events.pointerup({ pointerId: 7, pointerType: 'touch', button: 0, clientX: 300, clientY: 400, preventDefault() {} });
+run('extrasClaim="enter";hookLog=[]');
+key('Enter');
+assert.ok(run('hookLog.includes("action:enter")'));
+run('extrasClaim="attack";hookLog=[];player.attack=0;player.attackCd=0');
+key(' ');
+assert.equal(run('player.attack'), 0, 'a claimed Space does not swing');
+run('keys.clear();extrasClaim=""');
+// The MAP corner goes to the hallway when it exists.
+run('loadRoom(1);enemies=[];player.x=950;player.y=190;hookLog=[];updateWorld(1/60)');
+assert.ok(run('hookLog.includes("enter:1")'), 'the exit corner calls hallwayEnter');
+assert.equal(nodes.mapDialog.open, false, 'instead of the map');`
+);
+console.log('PASS: hallway hooks run in order, a room without an arcade is tolerated, and a wide room scrolls.');

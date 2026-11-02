@@ -19,6 +19,12 @@ Six arcade games with three levels each, a ward that fights back properly, a bos
 
 Every game shows its full briefing once. After that you get a 1.2-second GO card with the one-line rule and a 1.5-second countdown. Reduced-motion settings keep the longer reading time.
 
+The game opens on a proper title screen: the hospital at dusk, gremlin eyes in the dark windows, one START. Any key or any tap starts it, and a saved game picks up where you left off. The pause menu has Quit to title.
+
+Each arcade is the canvas plus the minimum, on phones and on laptops: three pills for progress, time and lives along the canvas edge, the instructions as a short toast, and one row of controls under the canvas (or a column beside it when that leaves a bigger game).
+
+The map is a drawn floor plan of the fourth floor: tap a room to go there, tap PLAY to start its arcade, and the Daily Dose, gift shop and exit sit where you would expect them. Walk the hallway between rooms and talk to visitors.
+
 ## The ward fights back
 
 Four departments have gremlins. Each has three waves, and the first wave of your first visit is a teaching wave with hints. Clear a ward once to unlock its arcade. Clear it again and Ralph's grudge rises: more gremlins, faster, bigger payout. Fights persist if you leave mid-wave, and a cleared room stays calm when you come back.
@@ -41,23 +47,26 @@ Jump over low attacks; swing in the air to stomp on landing. Dash through a grem
 
 **Ralph** waits in your room once your passport is complete. Phase 1 is a spit barrage you deflect back at him. Phase 2 is charges that leave him dizzy when he hits the bed, plus minions. Phase 3 is leaping slams that shake the room. Beat him to get discharged.
 
-## Phone and desktop controls
+## Phone, tablet and desktop controls
 
-| Action | Phone | Keyboard |
-| --- | --- | --- |
-| Move | Left joystick | WASD / arrows |
-| Attack | Tap SWING / THROW / LOB; drag it to aim | Space |
-| Jump | JUMP | Shift / J |
-| Dash | DASH | Q |
-| Ability | SPIN / SHIELD / TRAP | E |
-| Equip | SWAP or inventory cards | 1 / 2 / 3 |
-| Nutrient | Drink / eat | F |
-| Map | Hospital map | M |
-| Nearby arcade | Play button or the beacon | Enter |
-| Pause | Pause button | Escape |
-| Fullscreen | Fullscreen button | Fullscreen button |
+On phones and tablets the room is the controller ("Tap the room", the default). A joystick and a full button column are one switch away in the pause menu or the help, and the choice is saved.
 
-Fullscreen ("arcade mode") pins the game to the screen. Phones enter it on the first start; the controls float over the canvas in landscape and sit below it in portrait. iPhones use a CSS fallback because Safari has no fullscreen API for pages.
+| Action | Tap the room | Joystick scheme | Keyboard |
+| --- | --- | --- | --- |
+| Move | Tap the floor; drag to steer | Left joystick | WASD / arrows |
+| Attack | Tap a gremlin (hold to keep swinging) | SWING / THROW / LOB; hold to repeat, drag to aim | Space |
+| Jump | Two-finger tap, or JUMP | JUMP | Shift / J |
+| Dash | Flick | DASH | Q |
+| Ability | Long-press the floor, or the ability button | SPIN / SHIELD / TRAP | E |
+| Equip | Weapon strip | Weapon strip | 1 / 2 / 3, C for the next one |
+| Nutrient | EAT (shows how many you carry) | EAT | F |
+| Map | Map button | Map button | M |
+| Nearby arcade | Tap the beacon, or the play button | Same | Enter |
+| Pause | Pause button | Pause button | Escape |
+
+Every touch button acts the moment your finger lands, so JUMP works with a thumb on the joystick. The buttons ride the right edge of the screen: the weapon strip at the top (the canvas flashes the new weapon when you switch), then EAT, the ability, DASH, JUMP and the big attack at the bottom. In portrait they sit under the room.
+
+Fullscreen ("arcade mode") pins the game to the screen, and phones and tablets enter it when you press START. iPad Safari uses the real fullscreen API; iPhones use a CSS fallback because Safari has none for pages. Tablets get bigger buttons, and the lobby and results use the width.
 
 Arcade controls:
 
@@ -79,7 +88,7 @@ Medals are bronze, silver and gold, worth 1, 2 and 3 discharge stars. Discharge 
 - **Gift shop:** eight permanent upgrades (grippy socks, pillow reach, longer shield, thick skin, pocket snacks, Ralph repellent, arcade pass, a lucky scrunchie for a sixth heart) and three wardrobe looks for Macy.
 - **Hall of Nonsense:** gremlins evicted, best chain, ward clears, lifetime coins, runs played, daily streak.
 
-Nutrients restore one heart. Zero hearts sends Macy to mandatory IV recovery, always at level 1. Failing that is where the organs come out. All medical mechanics are fictional arcade jokes.
+Nutrients restore one heart. Zero hearts sends Macy to one IV phase; each time it is harder, until a medal elsewhere resets the count. Failing it is where the organs come out. All medical mechanics are fictional arcade jokes.
 
 ## Sound
 
@@ -95,7 +104,7 @@ node gut-feeling/tests/run-all.cjs
 
 That builds `index.html` from `src/` and runs every test file. `python3 gut-feeling/build.py` builds on its own. Run from the repository root and commit `src/` and the generated `index.html` together.
 
-Tests: `verify.cjs` (saves, run lifecycle, idle failure in all 54 combinations, discharge), `combat.cjs` (ward rules, Ralph, and a check that a button-masher dies while a dodging bot wins), `audio.cjs`, `smoke.cjs`, one `game-<name>.cjs` per arcade, and `playthrough.cjs`, which drives an input-only bot from `tests/bots/` through every game, level and prescription. They establish rules and solvability. Human playtesting still decides whether the quotas feel right.
+Tests: `verify.cjs` (saves, run lifecycle, idle failure in all 54 combinations, discharge, the title screen, touch controls, run-screen sizing, the hallway hooks), `map.cjs` (the floor plan), `combat.cjs` (ward rules, Ralph, and a check that a button-masher dies while a dodging bot wins), `audio.cjs`, `smoke.cjs`, one `game-<name>.cjs` per arcade, and `playthrough.cjs`, which drives an input-only bot from `tests/bots/` through every game, level and prescription. They establish rules and solvability. Human playtesting still decides whether the quotas feel right.
 
 The code layout, the game registry and the rules for editing are in [ARCHITECTURE.md](ARCHITECTURE.md).
 

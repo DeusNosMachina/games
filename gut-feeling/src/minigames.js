@@ -48,7 +48,7 @@ function dailyHash(text) {
 
 function dailyPick(key = dailyToday()) {
   const h = dailyHash('gut-feeling/' + key);
-  return { date: key, id: h % rooms.length, tier: Math.floor(h / rooms.length) % 3, seed: dailyHash(key + '/seed') };
+  return { date: key, id: h % ARCADE_COUNT, tier: Math.floor(h / ARCADE_COUNT) % 3, seed: dailyHash(key + '/seed') };
 }
 
 // mulberry32: tiny, fast, and good enough for gremlin placement.
@@ -154,13 +154,106 @@ function miniPortraitWanted() {
   return !!(mini.open && $('miniDialog').open && def && def.portraitCanvas && upright);
 }
 
-// Sizes #miniCanvas to the active canvas and tells CSS its shape (data-portrait, --mini-a).
+// Sizes #miniCanvas to the active canvas, tells CSS its shape (data-portrait, --mini-a) and lays out
+// the run screen around it.
 function fitMiniCanvas() {
   const { w, h } = activeCanvas(),
     dialog = $('miniDialog');
   configureCanvas($('miniCanvas'), w, h);
   dialog.dataset.portrait = mini.portrait ? '1' : '';
   dialog.style.setProperty('--mini-a', (w / h).toFixed(4));
+  applyMiniFrame();
+}
+
+// ---- The run screen ----
+// A run is the canvas plus the minimum: three pills on its top edge, and the controls in one row under
+// it or a column beside it, whichever leaves the bigger canvas. In arcade mode the frame is the whole
+// screen less the safe areas; otherwise the dialog hugs the canvas inside 96% × 94% of the window, so
+// there is no empty panel around it. Sizes are CSS pixels; CSS reads them as variables.
+const MINI_FRAME_SIZES = {
+  phone: { row: 66, col: 140, hud: 44, btn: 52 },
+  tablet: { row: 84, col: 200, hud: 50, btn: 62 },
+  desktop: { row: 72, col: 190, hud: 46, btn: 48 }
+};
+
+function miniFrameSizes() {
+  const w = window.innerWidth || 1280,
+    h = window.innerHeight || 800;
+  if (!matchMedia('(pointer: coarse)').matches) return MINI_FRAME_SIZES.desktop;
+  return Math.min(w, h) >= 600 ? MINI_FRAME_SIZES.tablet : MINI_FRAME_SIZES.phone;
+}
+
+// Pure geometry. aspect is canvas width / height; inset is the safe area in arcade mode.
+function miniFrame(viewW, viewH, aspect, arcade, sizes, inset = { t: 0, r: 0, b: 0, l: 0 }) {
+  const boxW = arcade ? viewW - inset.l - inset.r : Math.floor(viewW * 0.96),
+    boxH = arcade ? viewH - inset.t - inset.b : Math.floor(viewH * 0.94),
+    fit = (w, h) => {
+      const fw = Math.max(1, Math.min(w, h * aspect));
+      return { w: fw, h: fw / aspect };
+    },
+    row = fit(boxW, boxH - sizes.row),
+    col = fit(boxW - sizes.col, boxH),
+    side = col.w * col.h > row.w * row.h * 1.04 ? 'col' : 'row',
+    f = side === 'col' ? col : row,
+    frameW = arcade ? boxW : Math.ceil(f.w + (side === 'col' ? sizes.col : 0)),
+    frameH = arcade ? boxH : Math.ceil(f.h + (side === 'row' ? sizes.row : 0)),
+    areaW = side === 'col' ? frameW - sizes.col : frameW,
+    areaH = side === 'row' ? frameH - sizes.row : frameH,
+    slack = Math.max(0, areaH - f.h),
+    band = Math.min(sizes.hud, slack),
+    cvT = band + (slack - band) / 2,
+    cvL = Math.max(0, (areaW - f.w) / 2);
+  return {
+    side,
+    frameW,
+    frameH,
+    fitW: f.w,
+    fitH: f.h,
+    cvL,
+    cvT,
+    hudT: cvT - band,
+    // Pause and close: on the canvas's top-right corner in a row layout, atop the column otherwise.
+    topX: inset.r + (side === 'row' ? cvL + 6 : 8),
+    topY: inset.t + (side === 'row' ? cvT - band + 6 : 6),
+    hudPadR: side === 'row' ? 100 : 8
+  };
+}
+
+function miniSafeInsets(dialog) {
+  if (!inArcade() || typeof getComputedStyle !== 'function') return { t: 0, r: 0, b: 0, l: 0 };
+  const cs = getComputedStyle(dialog),
+    px = v => parseFloat(v) || 0;
+  return { t: px(cs.paddingTop), r: px(cs.paddingRight), b: px(cs.paddingBottom), l: px(cs.paddingLeft) };
+}
+
+// Writes the frame for the current run and window onto #miniDialog.
+function applyMiniFrame() {
+  const dialog = $('miniDialog'),
+    { w, h } = activeCanvas(),
+    sizes = miniFrameSizes(),
+    arcade = inArcade(),
+    f = miniFrame(window.innerWidth || 1280, window.innerHeight || 800, w / h, arcade, sizes, miniSafeInsets(dialog)),
+    px = v => Math.round(v * 10) / 10 + 'px',
+    vars = {
+      '--frame-w': f.frameW,
+      '--frame-h': f.frameH,
+      '--fit-w': f.fitW,
+      '--fit-h': f.fitH,
+      '--cv-l': f.cvL,
+      '--cv-t': f.cvT,
+      '--hud-t': f.hudT,
+      '--hud-h': sizes.hud,
+      '--hud-pad-r': f.hudPadR,
+      '--top-x': f.topX,
+      '--top-y': f.topY,
+      '--ctl': sizes.row,
+      '--ctl-w': sizes.col,
+      '--ctl-btn': sizes.btn
+    };
+  for (const k in vars) dialog.style.setProperty(k, px(vars[k]));
+  dialog.dataset.side = f.side;
+  mini.frame = f;
+  return f;
 }
 
 // resize() calls this while the dialog is open. Returns true when the run flipped canvases.
@@ -177,11 +270,15 @@ function miniScene(g, id, w, h) {
   games[id].scene(g, w, h);
 }
 
+const MINI_RECOVERY_LINE = 'Finish one IV phase to get out of bed. Each collapse makes the next one harder.';
+
 function openMini(id, forced = false) {
   clearHeld();
   if ($('mapDialog').open) $('mapDialog').close();
+  // A forced recovery runs the level games/iv.js plans for this collapse (it climbs with each one).
+  const plan = forced && typeof ivRecoveryPlan === 'function' ? ivRecoveryPlan() : null;
   let next = state.medals[id].findIndex(m => !m),
-    tier = forced ? 0 : next < 0 ? 2 : next;
+    tier = forced ? (plan ? clamp(Math.floor(plan.level) || 0, 0, 2) : 0) : next < 0 ? 2 : next;
   mini = {
     open: true,
     screen: 'lobby',
@@ -225,7 +322,7 @@ function showLobby() {
   $('tierGrid').innerHTML = tiers
     .map((t, i) => {
       const medal = state.medals[mini.id][i],
-        locked = mini.daily ? i !== mini.tier : i > 0 && (!state.medals[mini.id][i - 1] || mini.forced);
+        locked = mini.daily || mini.forced ? i !== mini.tier : i > 0 && !state.medals[mini.id][i - 1];
       return (
         `<button class="tier-card ${mini.tier === i ? 'selected' : ''}" data-tier="${i}" ${locked ? 'disabled' : ''}>` +
         `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : 'The real deal'}</span>` +
@@ -255,9 +352,7 @@ function showLobby() {
     : mini.forced
       ? 'Start the recovery →'
       : 'Let’s make poor decisions →';
-  $('miniRewardInfo').textContent = mini.forced
-    ? 'Finish all three stages to get out of bed.'
-    : 'Bronze 1★ · Silver 2★ · Gold 3★.';
+  $('miniRewardInfo').textContent = mini.forced ? MINI_RECOVERY_LINE : '';
   $('miniBest').textContent = 'Best here: ' + (state.records[mini.id][mini.tier] || 'nothing yet') + '.';
   $('miniDifficulty').textContent = 'Chaos prescription: ' + cfg().name + ' ↗';
   miniScene($('miniPreview').getContext('2d'), mini.id, 420, 240);
@@ -500,6 +595,8 @@ function arcadeQuality(penalty = 0) {
 }
 
 function grantReward(id, tier, grade, quality, multiplier, arcadeScore = 0) {
+  // A medal outside a recovery resets the recovery escalation; a won recovery keeps counting.
+  if (!mini.forced) state.recoveries = 0;
   const old = state.medals[id][tier],
     delta = Math.max(0, grade - old);
   state.medals[id][tier] = Math.max(old, grade);
@@ -561,7 +658,7 @@ function resolveMiniResult(win, reason) {
       `<strong>+${reward.pay}</strong><small>COINS EARNED</small></div><div>` +
       `<strong>+${reward.delta} ★</strong><small>NEW DISCHARGE STARS</small></div>`;
     $('resultJourney').textContent =
-      `${stars()}/12 stars · ${stamps()}/${rooms.length} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins paid.'}`;
+      `${stars()}/12 stars · ${stamps()}/${ARCADE_COUNT} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins paid.'}`;
     sfx('win');
     $('miniDialog').classList.remove('gory');
   } else {
@@ -583,7 +680,7 @@ function resolveMiniResult(win, reason) {
       `<small>COINS THIS RUN</small></div><div><strong>${stars()} ★</strong>` +
       `<small>STARS PRESERVED</small></div>`;
     $('resultJourney').textContent = mini.forced
-      ? 'Still in bed. Reassemble, then finish all three IV phases.'
+      ? 'Still in bed. ' + MINI_RECOVERY_LINE
       : 'One heart lost (you keep at least one). Retry or go bother another department.';
     sfx('lose');
   }
@@ -644,7 +741,7 @@ function leaveMini() {
 // Discharge needs 12 stars, a medal in all six arcades, a level 2 medal, and Ralph out of the way.
 // Until combat reports state.ralph, a complete passport only sends Ralph to Macy's room.
 function checkDischarge() {
-  if (state.won || !(stars() >= 12 && stamps() === rooms.length && levelTwo())) return;
+  if (state.won || !(stars() >= 12 && stamps() === ARCADE_COUNT && levelTwo())) return;
   if (!state.ralph) {
     if (!state.ralphReady) {
       state.ralphReady = true;
