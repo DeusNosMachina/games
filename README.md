@@ -8,7 +8,7 @@ Small browser games, built to play on a phone or a laptop. Each game lives in it
 
 | Game | What it is | Play | Project guide |
 | --- | --- | --- | --- |
-| **Operation: Gut Feeling** | Macy's hospital adventure: gut gremlins, five arcade games, fifteen escalating challenges, and a discharge passport. | [Play](https://deusnosmachina.github.io/games/gut-feeling/) | [README](gut-feeling/README.md) |
+| **Operation: Gut Feeling** | Macy's hospital adventure: gut gremlins, six arcade games, eighteen escalating challenges, and a discharge passport. | [Play](https://deusnosmachina.github.io/games/gut-feeling/) | [README](gut-feeling/README.md) |
 
 ## Repository index
 
@@ -21,7 +21,7 @@ gut-feeling/
   README.md            Controls, mechanics, development, and limitations
   build.py             Combines the editable source into index.html
   src/                 HTML, CSS, canvas art, and game logic
-  tests/verify.cjs     Dependency-free gameplay regression checks
+  tests/               Regression checks and complete-run simulations
 ```
 
 ## Run locally
@@ -42,4 +42,4 @@ For a new game, create another folder with an `index.html`, add a project README
 
 ## Current status
 
-Operation: Gut Feeling is a playable v0.4 prototype. Progress is stored in the player's browser; there is no account, backend, cloud save, analytics, or paid content. A physical phone playtest is still useful for tuning touch feel and performance across devices.
+Operation: Gut Feeling is a playable v0.5 prototype. Progress is stored in the player's browser; there is no account, backend, cloud save, analytics, or paid content. A physical phone playtest is still useful for tuning touch feel and performance across devices.

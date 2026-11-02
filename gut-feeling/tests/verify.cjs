@@ -1,84 +1,66 @@
-const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8'),script=html.match(/<script>([\s\S]*)<\/script>/)[1];
-const noop=()=>{};let nodes={},events={},store={};
-const ctx=new Proxy({createRadialGradient:()=>({addColorStop:noop}),createLinearGradient:()=>({addColorStop:noop})},{get:(t,k)=>t[k]||noop,set:(t,k,v)=>{t[k]=v;return true}});
-function node(id){return nodes[id]??={id,open:false,textContent:'',innerHTML:'',value:'',width:1000,height:625,style:{},dataset:{},events:{},classList:{add:noop,remove:noop,toggle:noop,contains:()=>false},setAttribute:noop,getContext:()=>ctx,querySelector:()=>node(id+'child'),addEventListener(type,fn){this.events[type]=fn},getBoundingClientRect:()=>({width:1000,height:625,left:0,top:0}),showModal(){this.open=true},close(){this.open=false;this.events.close?.()},focus:noop,scrollIntoView:noop,setPointerCapture:noop};}
-const dialogs=[...html.matchAll(/<dialog id="([^"]+)"/g)].map(m=>node(m[1]));
-const items=[0,1,2].map(i=>({...node('item'+i),dataset:{item:String(i)}}));
-let cacheCount=0;const doc={createElement:()=>node("cache"+(cacheCount++)),getElementById:node,body:node('body'),hidden:false,addEventListener:noop,querySelectorAll:s=>s==='dialog'?dialogs:s==='dialog[open]'?dialogs.filter(d=>d.open):s==='[data-item]'?items:[]};
-const box={document:doc,window:{addEventListener:(t,f)=>events[t]=f},localStorage:{getItem:k=>store[k]||null,setItem:(k,v)=>store[k]=v},matchMedia:()=>({matches:false}),ResizeObserver:class{observe(){}},requestAnimationFrame:noop,HTMLInputElement:class{},Math,console};vm.createContext(box);vm.runInContext(script,box);const run=s=>vm.runInContext(s,box);const close=()=>run('mini.open=false;mini.screen="lobby";for(const d of $$("dialog"))d.close();state.paused=false;');
-assert.equal(run('rooms.length'),5);assert.equal(run('roomProps.length'),5);assert.equal(run('cfg().name'),'Questionable Decisions');
-run('begin();drawWorld()');assert.equal(run('enemies.length'),0);assert.equal(run('collides(160,220)'),true);assert.equal(run('collides(505,470)'),false);
-// Nutrients can be collected only once, capped at 3, and cannot be wasted at full health.
-run('player.x=381;player.y=463;updateWorld(.016)');assert.equal(run('state.food'),1);run('loadRoom(0);player.x=381;player.y=463;updateWorld(.016)');assert.equal(run('state.food'),1);run('eat()');assert.equal(run('state.food'),1);run('state.hp=3;eat()');assert.equal(run('state.hp'),4);assert.equal(run('state.food'),0);
-// Directional attacks, ranged deflections, invulnerability and visible vomiting.
-run('loadRoom(1);player.x=500;player.y=420;enemies=[{id:"test",x:560,y:420,hp:2,hit:0,wind:0,type:0}];attack()');assert.equal(run('enemies[0].hp'),1);run('player.attackCd=0;enemies[0].hit=0;enemies[0].x=player.x+60;attack()');assert.equal(run('enemies.length'),0);const coinsAfterKill=run('state.coins');run('loadRoom(1);player.inv=0;player.shield=0;damage("blob",{x:600,y:400})');assert.equal(run('player.vomit'),1.15);assert.equal(run('puddles.length'),1);assert.equal(run('state.hp'),3);run('damage("blob",{x:600,y:400})');assert.equal(run('state.hp'),3);
-run('player.attackCd=0;player.vomit=0;projectiles=[{x:player.x+30,y:player.y-40,vx:-100,vy:0,life:4,friendly:false}];attack()');assert.equal(run('projectiles[0].friendly'),true);
-// Mandatory recovery waits for the vomit animation, then cannot be closed while unresolved.
-run('player.inv=0;state.hp=1;damage("blob",{x:600,y:400})');assert.equal(run('mini.open'),false);run('updateWorld(1.31)');assert.equal(run('mini.forced'),true);run('leaveMini()');assert.equal(nodes.miniDialog.open,true);close();
-// Rewards only advance stars when a personal best improves; replay coins are still earned.
-run('state.medals=Array.from({length:5},()=>[0,0,0]);state.coins=0');assert.equal(run('grantReward(0,0,2,80,1).delta'),2);assert.equal(run('grantReward(0,0,1,60,1).delta'),0);assert.equal(run('stars()'),2);assert.equal(run('grantReward(0,0,3,95,1).delta'),1);assert.equal(run('stars()'),3);assert.ok(run('state.coins')>0);
-// Perfect inputs must beat every game/tier/prescription/approach without hidden shortcuts.
-run(`function driveTest(id,tier,difficulty,approach=0){
- state.difficulty=difficulty;openMini(id);mini.tier=tier;mini.approach=approach;startMini();let n=0,briefings=0;
- while(['briefing','intro','play','outro'].includes(mini.screen)&&n++<40000){
-  if(mini.screen==='briefing'){briefings++;launchMini()}
-  if(mini.screen==='play'){
-   if(id===0){if(mini.phase===0&&Math.abs(mini.pos-mini.target)<.006)miniAction('tap');
-    else if(mini.phase===1){let d=mini.drops.filter(d=>!d.done).sort((a,b)=>b.y-a.y)[0];if(d){if(d.bad){if(mini.lane===d.lane)miniAction('lane'+((d.lane+1)%3))}else if(d.kind===mini.recipe)miniAction('lane'+d.lane)}}
-    else if(mini.phase===2)mini.held=mini.pressure+mini.velocity*.16<mini.pressureTarget;
-   }
-   if(id===1){mini.held=mini.cycle<mini.green-.03;if(mini.scan==='warn'&&mini.velocity>0)miniAction('brake')}
-   if(id===2&&mini.mode==='input')miniAction('pad'+mini.answer[mini.input]);
-   if(id===3){let row=mini.rows.find(r=>!r.done);if(row)mini.lane=row.safe}
-   if(id===4&&mini.reveal<=0){if(mini.probe<0){let target=mini.targets.find(x=>!mini.found.includes(x));if(target!==undefined)miniAction('cell'+target)}else if(Math.abs(mini.lockPos-mini.lockTarget)<.006)miniAction('tag')}
-  }
-  updateMini(.016);
- }
- const result={id,tier,difficulty,approach,win:mini.win,miss:mini.miss,time:mini.total,grade:mini.grade,phase:mini.phase,briefings,score:mini.score};
- mini.open=false;$("miniDialog").close();return result;
-}`);
-let results=[];for(let d=0;d<3;d++)for(let id=0;id<5;id++)for(let tier=0;tier<3;tier++)for(let a=0;a<2;a++){
- const result=run(`driveTest(${id},${tier},${d},${a})`);results.push(result);assert.equal(result.win,true,JSON.stringify(result));assert.ok(result.score>0);assert.ok(result.briefings>=3);
+const {run,nodes,events,close,assert}=require('./harness.cjs');
+run('let rng=1873;Math.random=()=>{rng=(rng*1664525+1013904223)>>>0;return rng/4294967296}');
+assert.equal(run('rooms.length'),6);
+run('begin();drawWorld();state.hp=5;player.x=381;player.y=463;updateWorld(.016)');assert.equal(run('state.food'),1);
+run('loadRoom(0);player.x=381;player.y=463;updateWorld(.016);eat()');assert.equal(run('state.food'),1);
+run('state.hp=3;eat()');assert.equal(run('state.hp'),4);assert.equal(run('state.food'),0);
+// Equipped attacks take genuinely different paths. Pillow damage lands after wind-up.
+run('loadRoom(1);encounter.rest=0;player.x=500;player.y=420;player.attackCd=0;enemies=[makeEnemy(0,560,420)];equip(0);attack()');
+assert.equal(run('enemies[0].hp'),3);run('updateWorld(.17)');assert.equal(run('enemies[0].hp'),2);
+run('player.attackCd=0;equip(1);attack()');assert.equal(run('projectiles.at(-1).kind'),'bag');assert.equal(run('player.attackKind'),1);
+run('player.attackCd=0;equip(2);attack()');assert.equal(run('projectiles.at(-1).kind'),'brick');assert.equal(run('player.attackKind'),2);
+run('enemies=[makeEnemy(3,570,430)];hitEnemy(enemies[0]);enemies=enemies.filter(e=>e.hp>0)');assert.equal(run('enemies.length'),2);assert.ok(run('enemies.every(e=>e.small&&e.hp===2)'));
+run('player.inv=0;player.shield=0;player.z=30;damage("blob",{x:600,y:420})');assert.equal(run('state.hp'),4);
+run('player.z=0;damage("blob",{x:600,y:420})');assert.equal(run('state.hp'),3);assert.ok(run('player.vomit>0'));
+run('player.vomit=0;player.jumpCd=0;jump()');assert.ok(run('player.vz')>0);for(let i=0;i<100;i++)run('updateCombat(.01)');assert.equal(run('player.z'),0);
+run('enemies=[];encounter={wave:3,rest:0,complete:false};state.room=1;updateCombat(.01)');assert.ok(run('encounter.complete'));const paidWard=run('state.coins');run('updateCombat(.01)');assert.equal(run('state.coins'),paidWard);
+console.log('PASS: nutrients, equipped weapon dispatch, delayed swings, multi-hit enemies, splitting, jumping, vomiting and ward completion.');
+// Input actions and simulation clocks cannot run through briefings, pause or results.
+run('openMini(2);startMini()');assert.equal(run('mini.screen'),'briefing');run('updateMini(10)');assert.equal(run('mini.phaseTime'),0);
+run('launchMini();updateMini(3.1)');assert.equal(run('mini.screen'),'intro');run('updateMini(.11)');assert.equal(run('mini.screen'),'play');
+run('arcadeDown({x:300,y:548});arcadeMove({x:200,y:598});arcadeUp()');assert.equal(run('mini.shot'),1);assert.ok(run('mini.queue')>0);
+run('updateMini(.1);pauseMini()');const frozen=run('mini.phaseTime');run('updateMini(30)');assert.equal(run('mini.phaseTime'),frozen);run('pauseMini()');
+run('finishMini(true)');const money=run('state.coins');run('miniAction("assist");leaveMini();updateMini(2)');assert.equal(run('mini.screen'),'outro');assert.equal(run('state.coins'),money);
+run('updateMini(.21)');assert.equal(run('mini.screen'),'result');const paid=run('state.coins');run('resolveMiniResult(true)');assert.equal(run('state.coins'),paid);close();
+// A cancelled or paused aim must never launch a volley.
+run('openMini(2);startMini();launchMini();updateMini(3.3);arcadeDown({x:300,y:548});arcadeMove({x:200,y:598});arcadeUp(true)');assert.equal(run('mini.shot'),0);close();
+// Magnet polarity changes force, and untouched drifting orbs cannot score by accident.
+run('openMini(1);startMini();launchMini();updateMini(3.3);mini.orbs=[{id:1,x:300,y:300,vx:0,vy:0,kind:0,bad:false,touched:false,r:19,cool:0}];Object.assign(mini.magnet,{x:400,y:300,on:true,mode:1});updateMagnet(.02)');assert.ok(run('mini.orbs[0].vx')>0);
+run('mini.orbs[0].vx=0;mini.magnet.mode=-1;updateMagnet(.02)');assert.ok(run('mini.orbs[0].vx')<0);close();
+// Swipe helmets require two strokes; bombs never become successful cuts; blue splits.
+run('openMini(4);startMini();launchMini();updateMini(3.3);mini.gels=[{id:1,x:300,y:250,r:27,hp:2,armor:true,stroke:-1,bomb:false}];arcadeDown({x:250,y:250});arcadeMove({x:350,y:250});arcadeMove({x:250,y:250})');assert.equal(run('mini.gels[0].hp'),1);
+run('arcadeUp();arcadeDown({x:250,y:250});arcadeMove({x:350,y:250});arcadeUp()');assert.equal(run('mini.got'),1);
+run('mini.gels=[{id:2,x:300,y:250,r:27,hp:1,split:true,stroke:-1,bomb:false,vx:0}];arcadeDown({x:250,y:250});arcadeMove({x:350,y:250});arcadeUp()');assert.equal(run('mini.gels.filter(g=>!g.dead).length'),2);
+run('mini.gels=[{id:3,x:300,y:250,r:28,hp:1,bomb:true,stroke:-1}];arcadeDown({x:250,y:250});arcadeMove({x:350,y:250});arcadeUp()');assert.equal(run('mini.miss'),1);close();
+// Runner requires the right move, not an invincible jump or a universal attack.
+run('openMini(3);startMini();launchMini();updateMini(3.3);mini.rows=[{y:489,done:false,objects:[{lane:1,kind:"crate"}]}];mini.jump=35;updateRace(.02)');assert.equal(run('mini.miss'),0);
+run('mini.rows=[{y:489,done:false,objects:[{lane:1,kind:"wall"}]}];updateRace(.02)');assert.equal(run('mini.miss'),1);close();
+// Every tier and prescription has valid geometry, finite physics and an idle failure.
+for(let d=0;d<3;d++)for(let id=1;id<6;id++)for(let tier=0;tier<3;tier++){
+ run(`state.difficulty=${d};openMini(${id});mini.tier=${tier};startMini();drawMini();launchMini();updateMini(3.3)`);
+ assert.ok(run('mini.limit')>=90);
+ for(let n=0;n<2500&&run('mini.screen')==='play';n++)run('updateMini(.1)');
+ if(run('mini.screen')==='outro')run('updateMini(2.3)');
+ assert.equal(run('mini.screen'),'result',`${id}/${tier}/${d}`);assert.equal(run('mini.win'),false,`${id}/${tier}/${d} idle won`);close();
 }
-// Idle play never awards a medal, including runner survival without token quotas.
-for(let id=0;id<5;id++){
- run(`openMini(${id});startMini();launchMini();updateMini(INTRO_SECONDS);for(let i=0;i<50000&&mini.screen==='play';i++)updateMini(.016);updateMini(OUTRO_SECONDS)`);
- assert.equal(run('mini.win'),false,'Idle game '+id+' must fail');close();
-}
-// Wrong inputs, pressure extremes, scan momentum and traffic hazards cause real penalties.
-run('openMini(0,true);startMini();launchMini();updateMini(INTRO_SECONDS);for(let i=0;i<mini.rules.misses;i++){mini.beatLock=0;mini.pos=0;ivTap()}updateMini(OUTRO_SECONDS)');assert.equal(run('mini.win'),false);assert.equal(run('gore.length'),190);close();
-run('openMini(2);startMini();launchMini();updateMini(INTRO_SECONDS);mini.mode="input";mini.inputLock=0;memoryTap((mini.answer[0]+1)%4)');assert.equal(run('mini.miss'),1);assert.equal(run('mini.screen'),'briefing');close();
-run('openMini(4);startMini();launchMini();updateMini(INTRO_SECONDS);mini.reveal=0;echoTap([0,1,2,3,4,5,6,7,8].find(n=>!mini.targets.includes(n)))');assert.equal(run('mini.miss'),1);close();
-run('openMini(1);startMini();launchMini();updateMini(INTRO_SECONDS);mini.cycle=mini.green+mini.warning;mini.velocity=60;mini.held=true;updateMini(.016)');assert.equal(run('mini.miss'),1);close();
-run('openMini(3);startMini();launchMini();updateMini(INTRO_SECONDS);mini.rows=[{z:.909,done:false,safe:0,blocked:[1,2],foam:1}];mini.cartX=400;mini.lane=1;miniAction("swat");updateMini(.03)');assert.equal(run('mini.tokens'),3);assert.equal(run('mini.miss'),0);close();
-run('openMini(3);startMini();launchMini();updateMini(INTRO_SECONDS);mini.rows=[{z:.909,done:false,safe:0,blocked:[1,2],foam:2}];mini.cartX=400;mini.lane=1;miniAction("swat");updateMini(.03)');assert.equal(run('mini.tokens'),0);assert.equal(run('mini.miss'),1);close();
-// Assists have a run-wide budget and a visible scoring cost; Show-off has none.
-run('openMini(0);startMini();launchMini();updateMini(INTRO_SECONDS);miniAction("assist");miniAction("assist");miniAction("assist")');assert.equal(run('mini.helps'),0);assert.equal(run('mini.helpUsed'),2);assert.equal(run('mini.quality'),90);close();
-run('openMini(0);mini.approach=1;startMini();launchMini();updateMini(INTRO_SECONDS);miniAction("assist")');assert.equal(run('mini.helpUsed'),0);assert.equal(run('mini.rules.coins'),run('cfg().coins*1.25'));close();
-// Transform rules use a fresh pattern and enforce their actual answers.
-run('openMini(2);mini.tier=2;startMini();mini.round=2;memoryRound(true)');assert.equal(run('mini.transform'),'mirror');assert.deepEqual(Array.from(run('mini.answer')),Array.from(run('mini.sequence.map(x=>3-x)')));close();
-run('openMini(2);mini.tier=1;startMini();mini.round=1;memoryRound(true)');assert.equal(run('mini.transform'),'reverse');assert.deepEqual(Array.from(run('mini.answer')),Array.from(run('[...mini.sequence].reverse()')));close();
-run('openMini(3);startMini();launchMini();updateMini(INTRO_SECONDS);mini.paused=true;updateMini(10)');assert.equal(run('mini.total'),0);close();
-// All three discharge conditions are enforced.
-run('state.won=false;state.medals=[[3,3,3],[3,0,0],[0,0,0],[0,0,0],[0,0,0]];checkDischarge()');assert.equal(run('state.won'),false);run('state.medals=[[3,0,0],[3,0,0],[3,0,0],[3,0,0],[3,0,0]];checkDischarge()');assert.equal(run('state.won'),false);run('state.medals[0][1]=1;checkDischarge()');assert.equal(run('state.won'),true);close();
-for(let id=0;id<5;id++)run(`loadRoom(${id});canvas.width=700;drawWorld();canvas.width=1000;drawWorld()`);
-assert.ok(!/<script[^>]+src=|<link[^>]+href="https?:|<img[^>]+src="https?:/.test(html));
-console.log('PASS: 90 game/tier/difficulty/approach combinations; world combat, recovery, limited health, rewards and discharge; no idle wins; skill actions, penalties, transforms and assist budgets.');
-close();run('state.difficulty=1;openMini(0);startMini()');
-assert.equal(run('mini.screen'),'briefing');run('updateMini(30);miniAction("tap")');assert.equal(run('mini.phaseTime'),0);assert.equal(run('mini.miss'),0);
-run('launchMini();updateMini(2.9)');assert.equal(run('mini.screen'),'intro');assert.equal(run('mini.phaseTime'),0);run('updateMini(.31)');assert.equal(run('mini.screen'),'play');
-run('mini.good=mini.required-1;mini.pos=mini.target;mini.beatLock=0;ivTap()');assert.equal(run('mini.phase'),1);assert.equal(run('mini.screen'),'briefing');run('updateMini(30)');assert.equal(run('mini.spawned'),0);assert.equal(run('mini.phaseTime'),0);
-run('launchMini();updateMini(INTRO_SECONDS);mini.phase=2;mini.pressure=.55;mini.stable=mini.need=14;mini.precision=[1,1,1,1];mini.phaseTime=25;finishMini(true)');assert.equal(run('mini.screen'),'outro');const money=run('state.coins');run('miniAction("tap");leaveMini();updateMini(2)');assert.equal(run('mini.screen'),'outro');assert.equal(run('state.coins'),money);run('updateMini(.21)');assert.equal(run('mini.screen'),'result');const paid=run('state.coins');run('updateMini(2);resolveMiniResult(true)');assert.equal(run('state.coins'),paid);close();
-let xs=[];for(const hz of [30,60,120]){run('state.started=true;loadRoom(0);player.x=430;player.y=480;player.vomit=0;player.dash=0;keys.clear();keys.add("d")');for(let i=0;i<hz;i++)run(`advanceSimulation(${1/hz})`);xs.push(run('player.x'));}assert.ok(Math.max(...xs)-Math.min(...xs)<.01,JSON.stringify(xs));run('keys.clear();viewport.w=700;drawWorld();viewport.w=1000;drawWorld()');
-for(let id=0;id<5;id++){run(`openMini(${id});startMini();drawMini()`);close()}
-console.log('PASS: manual stage briefings, 3.2s countdown, 2.2s finish, frozen clocks, one-time rewards, rendering and frame-rate-independent movement.');
-console.log('Perfect-input active play ranges (seconds; briefings/countdowns excluded):',JSON.stringify([0,1,2,3,4].map(id=>{const times=results.filter(r=>r.id===id).map(r=>r.time);return {game:id,min:Math.round(Math.min(...times)),max:Math.round(Math.max(...times))}})));
-// Keyboard bindings and multi-touch must reach the same skill actions.
-run('openMini(3);startMini();launchMini();updateMini(INTRO_SECONDS)');events.keydown({key:' ',target:{},repeat:false,preventDefault:noop});assert.ok(run('mini.swat')>0);events.keydown({key:'e',target:{},repeat:false,preventDefault:noop});assert.equal(run('mini.helps'),1);close();
-run('openMini(1);startMini();launchMini();updateMini(INTRO_SECONDS);mini.velocity=60');events.keydown({key:'b',target:{},repeat:false,preventDefault:noop});assert.equal(run('mini.velocity'),0);
-const holdButton={dataset:{action:'hold'},setPointerCapture:noop,classList:{add:noop}};
-nodes.miniControls.events.pointerdown({target:{closest:()=>holdButton},pointerId:3,preventDefault:noop});assert.equal(run('mini.held'),true);
-nodes.miniControls.events.pointerup({pointerId:9});assert.equal(run('mini.held'),true,'A second finger must not release the held movement control');
-nodes.miniControls.events.pointerup({pointerId:3});assert.equal(run('mini.held'),false);close();
-console.log('PASS: keyboard skill bindings and independent multi-touch hold/release.');
+console.log('PASS: paused briefings/countdowns, single reward payout, aim cancellation, polarity, swipe armor/split/bomb rules, runner obstacle rules, all 45 idle tier/difficulty combinations.');
+// 30/60/120 Hz must produce the same movement distance; touch pointers remain independent.
+let xs=[];for(const hz of [30,60,120]){run('state.started=true;loadRoom(0);player.x=430;player.y=480;player.vomit=0;player.dash=0;keys.clear();keys.add("d")');for(let i=0;i<hz;i++)run(`advanceSimulation(${1/hz})`);xs.push(run('player.x'));}assert.ok(Math.max(...xs)-Math.min(...xs)<.01);run('keys.clear()');
+run('openMini(0);startMini();launchMini();updateMini(3.3);mini.phase=2');
+const holdButton={dataset:{action:'hold'},setPointerCapture:()=>{},classList:{add:()=>{}}};
+nodes.miniControls.events.pointerdown({target:{closest:()=>holdButton},pointerId:3,preventDefault:()=>{}});nodes.miniControls.events.pointerup({pointerId:9});assert.equal(run('mini.held'),true);nodes.miniControls.events.pointerup({pointerId:3});assert.equal(run('mini.held'),false);close();
+run('loadRoom(0);player.attackCd=0;player.vomit=0');events.keydown({key:'2',target:{},repeat:false,preventDefault:()=>{}});assert.equal(run('state.item'),1);events.keydown({key:' ',target:{},repeat:false,preventDefault:()=>{}});run('updateWorld(.01)');assert.equal(run('projectiles.at(-1).kind'),'bag');run('keys.clear()');
+console.log('PASS: frame-rate-independent movement, multi-touch release, number-key equipment and Space dispatch.');
+
+// Bedside shooting uses the center sight, consumes ammo, rewards headshots, and reloads.
+run('openMini(5);startMini();launchMini();updateMini(3.3);mini.targets=[{id:1,x:850,y:268,hp:3,maxHp:3,kind:2,mode:"crawl",hit:0}];fireBlaster()');assert.equal(run('mini.targets[0].hp'),1);assert.equal(run('mini.ammo'),6);assert.equal(run('mini.headshots'),1);
+run('mini.shotCd=0;mini.targets[0].x=1300;fireBlaster()');assert.equal(run('mini.targets[0].hp'),1);assert.equal(run('mini.ammo'),5);
+run('reloadBlaster();mini.targets=[];updateMini(1.6)');assert.equal(run('mini.ammo'),7);
+run('mini.targets=[{id:2,x:850,y:270,hp:1,kind:0,mode:"leap",leap:.95,leapDuration:1,stun:0,hit:0}];updateShooter(.1)');assert.equal(run('mini.miss'),1);
+run('mini.targets=[{id:3,x:850,y:270,hp:1,kind:0,mode:"wind",wind:.2,stun:0,hit:0}];miniAction("assist");updateShooter(.3)');assert.equal(run('mini.targets[0].mode'),'wind');assert.ok(run('mini.targets[0].stun')>0);close();
+console.log('PASS: sight hit testing, misses, headshots, magazines, reload, camera leaps and flashlight stun.');
+// The sixth passport stamp participates in discharge, while mandatory IV cannot be skipped.
+run('state.won=false;state.medals=rooms.map((_,i)=>i<5?[3,i===0?1:0,0]:[0,0,0]);checkDischarge()');assert.equal(run('state.won'),false);
+run('state.medals[5][0]=1;checkDischarge()');assert.equal(run('state.won'),true);close();
+run('loadRoom(0);state.hp=1;player.z=0;player.inv=0;player.shield=0;damage("blob",{x:600,y:450});updateWorld(1.31)');assert.equal(run('mini.forced'),true);run('leaveMini()');assert.equal(nodes.miniDialog.open,true);close();
+console.log('PASS: six-game passport and mandatory recovery gates.');

@@ -1,6 +1,7 @@
 // Motion preferences change animation, never the time provided to read or prepare.
 const INTRO_SECONDS=3.2,OUTRO_SECONDS=2.2;
 function lesson(){
+ if(mini.id>0)return arcadeLesson();
  if(mini.id===0)return [
  {title:'1 / Prime the pump',goal:'Land '+mini.required+' precise taps.',control:'Tap TAP THE DRIP or Space in the mint window. The sweep changes direction after each tap.',avoid:'The gold center scores more. Missed taps and missed sweeps cost an oops. Higher levels move the window.',demo:'timing',cue:'Tap mint · center earns precision points'},
  {title:'2 / Follow the recipe',goal:'Catch '+mini.catchNeed+' matching nutrients.',control:'Choose a lane with LEFT / MIDDLE / RIGHT or A / S / D. Match the requested gold or pink flavor.',avoid:'The recipe changes every 4 catches. Green skulls hurt. The wrong flavor costs style points.',demo:'catch',cue:'Match the recipe · avoid green skulls'},

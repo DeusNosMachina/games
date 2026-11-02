@@ -2,7 +2,7 @@ const viewport={w:1000,h:625,dpr:Math.min(2,window.devicePixelRatio||1)};
 let renderDelta=1/60,frameCount=0,fpsStart=0;
 function configureCanvas(cv,w,h){const d=viewport.dpr;cv.width=Math.ceil(w*d);cv.height=Math.ceil(h*d);const ctx=cv.getContext('2d');ctx.setTransform(d,0,0,d,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';return ctx}
 function setupIllustrations(){configureCanvas($('portrait'),80,112);configureCanvas($('miniPreview'),420,240);configureCanvas($('resultArt'),800,220);$$('[data-mini]').forEach(cv=>{configureCanvas(cv,260,135);miniScene(cv.getContext('2d'),+cv.dataset.mini,260,135)})}
-resize=function(){const r=$('stage').getBoundingClientRect();viewport.w=Math.min(1000,625*r.width/r.height);configureCanvas(canvas,viewport.w,625);configureCanvas($('miniCanvas'),800,450)};
+resize=function(){const r=$('stage').getBoundingClientRect();viewport.w=Math.min(1000,625*r.width/r.height);configureCanvas(canvas,viewport.w,625);configureCanvas($('miniCanvas'),mini.open&&mini.id>0?600:800,mini.open&&mini.id>0?600:450)};
 // Only moving actors are redrawn as geometry. Cache the lit room background once per room.
 const roomIllustration=roomBg,roomImages=new Map();
 roomBg=function(g,id){let cv=roomImages.get(id);if(!cv){cv=document.createElement('canvas');const cg=configureCanvas(cv,1000,625);roomIllustration(cg,id);roomImages.set(id,cv)}g.drawImage(cv,0,0,1000,625)};

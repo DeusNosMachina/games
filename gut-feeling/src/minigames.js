@@ -32,17 +32,14 @@ function showLobby(){
  miniScene($('miniPreview').getContext('2d'),mini.id,420,240);
 }
 function startMini(){
- const{id,tier,forced,approach=0}=mini;clearHeld();
+ const{id,tier,forced,approach=0}=mini;clearHeld();$('miniLivesLabel').textContent='OOPS ALLOWANCE';
  mini={open:true,screen:'play',id,tier,forced,approach,rules:{...cfg(),misses:cfg().misses+2,coins:cfg().coins*approaches[approach].multiplier},
  paused:false,held:false,t:0,total:0,phaseTime:0,phase:0,round:0,miss:0,quality:100,flash:0,flashText:'',
  countdown:0,initialized:false,hudClock:0,limit:60,score:0,combo:0,maxCombo:0,helps:approaches[approach].helps,helpTime:0,helpUsed:0,precisions:[],inputLock:0};
  $('miniLobby').classList.add('hidden');$('miniPlay').classList.remove('hidden');$('miniResult').classList.add('hidden');
  $('miniPaused').classList.add('hidden');$('miniDialog').classList.remove('gory');
  if(id===0){mini.good=0;mini.precision=[];ivPhase(0)}
- if(id===1){mini.cleanTotal=0;mriRound()}
- if(id===2){mini.rounds=6+tier;memoryRound(true)}
- if(id===3){mini.allTokens=0;mini.rowsResolved=0;mini.swats=0;runnerRound()}
- if(id===4){mini.rounds=6+tier;mini.correct=0;mini.pings=0;echoRound()}
+ if(id>0)initArcade();else{configureCanvas($('miniCanvas'),800,450);$('miniDialog').dataset.arcade='iv'}
  mini.initialized=true;prepareBriefing();updateMiniHUD();drawMini();
 }
 function setInstructions(t){$('miniInstruction').textContent=t}
@@ -167,6 +164,7 @@ function echoTag(){
 }
 function miniAction(a){
  if(mini.screen!=='play'||mini.paused||mini.countdown>0)return;
+ if(mini.id>0){arcadeAction(a);return}
  if(a==='assist'){useAssist();return}
  if(mini.id===0){
   if(a==='tap')ivTap();
@@ -193,28 +191,8 @@ function updateMini(dt){
  mini.flash=Math.max(0,mini.flash-dt);mini.inputLock=Math.max(0,mini.inputLock-dt);mini.helpTime=Math.max(0,mini.helpTime-dt);
  mini.t+=dt;mini.total+=dt;mini.phaseTime+=dt;mini.hudClock-=dt;
  if(mini.id===0)updateIVGame(dt);
- if(mini.id===1)updateMRI(dt);
- if(mini.id===2){
-  if(mini.mode==='show'){
-   mini.revealTime+=dt;const beat=Math.max(.6,(.96-mini.round*.025-mini.tier*.045)/mini.rules.mini),idx=Math.floor(mini.revealTime/beat);
-   mini.activePad=idx<mini.sequence.length&&mini.revealTime%beat<beat*.65?mini.sequence[idx]:-1;
-   if(mini.revealTime>(mini.sequence.length+.7)*beat){mini.mode='input';mini.activePad=-1;setInstructions('YOUR TURN · '+memoryRule())}
-  }else{mini.padFlash=Math.max(0,mini.padFlash-dt);if(!mini.padFlash)mini.activePad=-1}
- }
- if(mini.id===3)updateRunner(dt);
- if(mini.id===4){
-  mini.reveal=Math.max(0,mini.reveal-dt);
-  if(mini.probe>=0){
-   mini.lockPos+=dt*(.42+mini.tier*.055)*mini.rules.mini;
-   if(mini.tier===2)mini.lockTarget=mini.lockBase+Math.sin(mini.phaseTime*1.2)*.06;
-   if(mini.lockPos>1){mini.lockPos=0;miniOops('TAG WINDOW MISSED')}
-  }
- }
- if(mini.screen==='play'&&mini.phaseTime>=mini.limit){
-  if(mini.id===3&&mini.tokens>=mini.quota){
-   mini.round++;if(mini.round>=3)finishMini(true);else{runnerRound();prepareBriefing()}
-  }else finishMini(false,mini.id===3?'Survived, but missed the token quota. Take the gold route or time a blue-foam swat.':'The clock called. It wants its seconds back.');
- }
+ if(mini.id>0)updateArcade(dt);
+ if(mini.id===0&&mini.screen==='play'&&mini.phaseTime>=mini.limit)finishMini(false,'The clock called. It wants its seconds back.');
  if(mini.hudClock<=0){updateMiniHUD();mini.hudClock=.08}
 }
 function updateIVGame(dt){
@@ -293,6 +271,7 @@ function updateRunner(dt){
  mini.rows=mini.rows.filter(r=>r.z<1.15);
 }
 function updateMiniHUD(){
+ if(mini.id>0&&mini.initialized&&['play','briefing','intro'].includes(mini.screen)){updateArcadeHUD();return}
  if(!['play','briefing','intro'].includes(mini.screen))return;
  let str='';
  if(mini.id===0)str=mini.phase===0?mini.good+'/'+mini.required+' drips':mini.phase===1?mini.caught+'/'+mini.catchNeed+' catches':mini.stable.toFixed(1)+'/'+mini.need+'s steady';
@@ -310,6 +289,7 @@ function updateMiniHUD(){
 }
 function assistLabel(){return mini.id===0?['WIDEN WINDOW','FILTER GUNK','RESET PRESSURE'][mini.phase]:['','EMERGENCY STOP','REPLAY PATTERN','SHIELD','REPLAY SCAN'][mini.id]}
 function qualityScore(){
+ if(mini.id>0)return Math.round(clamp(65+Math.min(35,Math.max(0,mini.got/mini.goal-1)*40+mini.maxCombo*.65)-mini.miss*7-mini.helpUsed*3-(mini.sortErrors||0)*1.2-(mini.id===5?Math.max(0,.65-mini.shotsHit/Math.max(1,mini.shotsFired))*40:0),0,100));
  let q=mini.quality;
  if(mini.id===0||mini.id===4){
   const p=mini.id===0?mini.precision:mini.precisions;
@@ -322,8 +302,8 @@ function qualityScore(){
 
 function grantReward(id,tier,grade,quality,multiplier,arcadeScore=0){const old=state.medals[id][tier],delta=Math.max(0,grade-old);state.medals[id][tier]=Math.max(old,grade);let pay=Math.round((18+grade*18+tier*12+quality*.2+Math.min(70,arcadeScore/120))*multiplier)+delta*20;state.coins+=pay;save();hud();return{delta,pay,old}}
 function resolveMiniResult(win,reason){if(mini.screen!=='outro')return;mini.screen='result';$('miniDialog').dataset.screen='result';$('miniClose').disabled=false;mini.held=false;clearHeld();mini.resultT=0;mini.win=win;gore=[];$('miniPlay').classList.add('hidden');$('miniLobby').classList.add('hidden');$('miniResult').classList.remove('hidden');$('miniPauseBtn').classList.add('hidden');$('miniBack').classList.toggle('hidden',mini.forced&&!win);$('miniRetry').textContent=win?'Improve / next level':'Reassemble. Try again.';
-if(win){mini.qualityFinal=qualityScore();mini.grade=mini.qualityFinal>=88?3:mini.qualityFinal>=68?2:1;const previousBest=state.records[mini.id][mini.tier];state.records[mini.id][mini.tier]=Math.max(previousBest,mini.score);const reward=grantReward(mini.id,mini.tier,mini.grade,mini.qualityFinal,mini.rules.coins,mini.score);mini.reward=reward;if(mini.id===0){state.hp=Math.max(state.hp,2+mini.grade);player.vomit=0;save();hud()}$('resultMedal').textContent='★'.repeat(mini.grade);$('resultHeading').textContent=medalNames[mini.grade].toUpperCase()+'. LEGENDARY NONSENSE.';$('resultText').textContent=mini.id===0?`${state.hp} hearts restored. The nutrients have entered the chat.`:pick(['Ralph is disputing this result. His appeal has been eaten.','The hospital applauds. The gremlins are filing a complaint.','Excellent work. Terrible bedside manner.','That pillow swat had a little volleyball energy.']);$('resultNumbers').innerHTML=`<div><strong>${mini.score}</strong><small>ARCADE SCORE · BEST ${state.records[mini.id][mini.tier]}</small></div><div><strong>${mini.qualityFinal}%</strong><small>PERFORMANCE</small></div><div><strong>+${reward.pay}</strong><small>COINS EARNED</small></div><div><strong>+${reward.delta} ★</strong><small>NEW DISCHARGE STARS</small></div>`;$('resultJourney').textContent=`${stars()}/12 stars · ${stamps()}/5 departments · ${levelTwo()?'Level 2 stamped':'Level 2 stamp still needed'}. ${reward.delta?'New personal best.':'Your best medal stays. Replay coins awarded.'}`;tone(784,.35);$('miniDialog').classList.remove('gory')}
+if(win){mini.qualityFinal=qualityScore();mini.grade=mini.qualityFinal>=88?3:mini.qualityFinal>=68?2:1;const previousBest=state.records[mini.id][mini.tier];state.records[mini.id][mini.tier]=Math.max(previousBest,mini.score);const reward=grantReward(mini.id,mini.tier,mini.grade,mini.qualityFinal,mini.rules.coins,mini.score);mini.reward=reward;if(mini.id===0){state.hp=Math.max(state.hp,2+mini.grade);player.vomit=0;save();hud()}$('resultMedal').textContent='★'.repeat(mini.grade);$('resultHeading').textContent=medalNames[mini.grade].toUpperCase()+'. LEGENDARY NONSENSE.';$('resultText').textContent=mini.id===0?`${state.hp} hearts restored. The nutrients have entered the chat.`:pick(['Ralph is disputing this result. His appeal has been eaten.','The hospital applauds. The gremlins are filing a complaint.','Excellent work. Terrible bedside manner.','That pillow swat had a little volleyball energy.']);$('resultNumbers').innerHTML=`<div><strong>${mini.score}</strong><small>ARCADE SCORE · BEST ${state.records[mini.id][mini.tier]}</small></div><div><strong>${mini.qualityFinal}%</strong><small>PERFORMANCE</small></div><div><strong>+${reward.pay}</strong><small>COINS EARNED</small></div><div><strong>+${reward.delta} ★</strong><small>NEW DISCHARGE STARS</small></div>`;$('resultJourney').textContent=`${stars()}/12 stars · ${stamps()}/${rooms.length} arcades · ${levelTwo()?'Level 2 stamped':'Level 2 stamp still needed'}. ${reward.delta?'New personal best.':'Your best medal stays. Replay coins awarded.'}`;tone(784,.35);$('miniDialog').classList.remove('gory')}
 else{mini.grade=0;if(!mini.forced){state.hp=Math.max(1,state.hp-1);save();hud()}const splat=mini.id===0;$('miniDialog').classList.toggle('gory',splat);$('resultMedal').textContent=splat?'✚':'…';$('resultHeading').textContent=splat?'SOME ASSEMBLY REQUIRED.':'A MEDICALLY IMPRESSIVE MESS.';$('resultText').textContent=reason||(splat?'Your insides have become outsides. Housekeeping has been notified.':'The gremlins won this round. Your best medals remain intact.');$('resultNumbers').innerHTML=`<div><strong>${mini.miss}</strong><small>OOPS RECORDED</small></div><div><strong>0</strong><small>COINS THIS RUN</small></div><div><strong>${stars()} ★</strong><small>STARS PRESERVED</small></div>`;$('resultJourney').textContent=mini.forced?'You’re still in bed. Reassemble, then complete all three IV phases.':'One heart lost (minimum one). Retry or explore another department.';if(splat)for(let i=0;i<190;i++)gore.push({x:395,y:100,vx:rand(-430,430),vy:rand(-280,50),size:rand(4,12),col:['#a72045','#dd3b55','#ef7a77','#7d183b'][i%4]});tone(65,.4,'sawtooth')}
 drawResultArt();$('miniResult').scrollIntoView({block:'nearest'});}
 function leaveMini(){if(mini.screen==='outro')return;if(mini.forced&&!(mini.screen==='result'&&mini.win))return;let recovered=mini.forced;mini.open=false;clearHeld();$('miniDialog').close();state.paused=false;if(recovered){loadRoom(0);player.inv=2;hud()}checkDischarge();canvas.focus({preventScroll:true})}
-function checkDischarge(){if(!state.won&&stars()>=12&&stamps()===5&&levelTwo()){state.won=true;save();$('winScore').textContent=`${state.name||'Macy'} earned ${stars()} discharge stars across all five departments. Your arcade passport is complete.`;modalOpen($('winDialog'))}}
+function checkDischarge(){if(!state.won&&stars()>=12&&stamps()===rooms.length&&levelTwo()){state.won=true;save();$('winScore').textContent=`${state.name||'Macy'} earned ${stars()} discharge stars across all six arcade challenges. Your arcade passport is complete.`;modalOpen($('winDialog'))}}
