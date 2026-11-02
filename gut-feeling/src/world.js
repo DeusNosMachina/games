@@ -233,7 +233,8 @@ function loadRoom(id) {
   if (state.started) {
     wardIris = reduced ? 0 : ROOM_IRIS_SECONDS;
     // Combat may announce its own wave or boss on entry; the room line only fills silence.
-    if (toastSerial === toastsBefore) toast(roomToast(id), 3);
+    // Rooms without an arcade (the hallway) do their own greeting.
+    if (toastSerial === toastsBefore && !rooms[id].noArcade) toast(roomToast(id), 3);
   }
   if (typeof onRoomLoaded === 'function') onRoomLoaded(id);
 }

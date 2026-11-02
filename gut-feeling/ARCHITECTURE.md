@@ -6,7 +6,7 @@ One self-contained `index.html`, built from plain scripts that share globals. No
 
 `python3 gut-feeling/build.py` inlines `src/v2.css` into `src/template.html`, appends `src/dialogs.html`, then concatenates the scripts into one `<script>` in this order:
 
-`state` → `art` → `audio` → `world` → `combat` → `minigames` → `transitions` → `games/iv` → `games/magnet` → `games/bricks` → `games/race` → `games/slice` → `games/blaster` → `map` → `input`
+`state` → `art` → `audio` → `world` → `combat` → `hallway` → `minigames` → `transitions` → `games/iv` → `games/magnet` → `games/bricks` → `games/race` → `games/slice` → `games/blaster` → `map` → `input`
 
 At load time a file may only use names from earlier files (each game calls `registerGame` from `state.js`). Everything else runs at runtime, after `input.js` boots the page. No file reassigns another file's functions. Commit `src/` and the rebuilt `index.html` together.
 
@@ -82,9 +82,9 @@ Game-owned: `limit` (set it in `init`; the HUD clock and default `timeUp` use it
 
 `audio.js` synthesizes everything with the Web Audio API; there are no audio files. `audio.unlock()` runs on the first gesture (registered by both audio.js and input.js), `audio.toggle()` / `audio.setEnabled(bool)` / `audio.enabled` / `audio.volume` control it, and `state.sound` (default true) is the persisted preference.
 
-`sfx(name, opts)` names: `ui select back hit swing jump dash hurt coin pickup eat enemyDie split blob throw bounce explode shot reload slice bomb combo fever drip catch pump wave clear win lose countdown go stun shield trap miss headshot leap boss bossHit bossDie wallSplat organ squelch ricochet powerup lock unlock daily`. Unknown names play a generic blip. `opts.combo` and `opts.count` raise pitch for swing/slice/combo/drip; `opts.pan` (-1..1) and `opts.vol` work everywhere. Loud effects duck the music briefly.
+`sfx(name, opts)` names: `ui select back hit swing jump dash hurt coin pickup eat enemyDie split blob throw bounce explode shot reload slice bomb combo fever drip catch pump wave clear win lose countdown go stun shield trap miss headshot leap boss bossHit bossDie wallSplat organ squelch ricochet powerup lock unlock daily talk` (`talk` takes `opts.voice`: dad, brother, grandma, grandpa, cousin, doctor, nurse, ensure, macy, rowdy). Unknown names play a generic blip. `opts.combo` and `opts.count` raise pitch for swing/slice/combo/drip; `opts.pan` (-1..1) and `opts.vol` work everywhere. Loud effects duck the music briefly.
 
-`music(name)` crossfades between looped tracks: `room:0` to `room:5`, `game:0` to `game:5`, `boss`, and the one-shot stings `result:win` and `result:lose`; `music(null)` stops. `loadRoom` plays the room track before `startEncounter` so a boss intro can take over, `launchMini` plays the game track, results play a sting, and `leaveMini` returns to the room.
+`music(name)` crossfades between looped tracks: `title`, `room:0` to `room:6` (6 is the hallway), `game:0` to `game:5`, `boss`, and the one-shot stings `result:win` and `result:lose`; `music(null)` stops. `loadRoom` plays the room track before `startEncounter` so a boss intro can take over, `launchMini` plays the game track, results play a sting, and `leaveMini` returns to the room.
 
 ## Saved state
 

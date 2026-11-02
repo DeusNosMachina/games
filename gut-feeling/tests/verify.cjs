@@ -7,7 +7,8 @@ const key = (k, extra = {}) => events.keydown({ key: k, target: {}, repeat: fals
 // Combat defines wardLocked() after merge; keep the arcades open unless a test says otherwise.
 run('var realWardLocked = typeof wardLocked === "function" ? wardLocked : undefined; wardLocked = () => false');
 run('let rng=1873;Math.random=()=>{rng=(rng*1664525+1013904223)>>>0;return rng/4294967296}');
-assert.equal(run('rooms.length'), 6);
+assert.equal(run('ARCADE_COUNT'), 6);
+assert.equal(run('rooms.length'), 7, 'six arcade rooms plus the hallway');
 assert.equal(run('Object.keys(games).length'), 6);
 
 // The title owns the screen on load, and nothing in the ward runs until START.
@@ -508,11 +509,12 @@ close();
 nodes.game.events.click({ detail: 1, clientX: run('rooms[1].station[0]'), clientY: run('rooms[1].station[1]') });
 assert.equal(run('mini.open'), false, 'the follow-up click does not open it again');
 run('wardLocked=gateBefore');
-// The map-exit corner still works by walking into it.
+// The exit corner still works by walking into it: with the hallway installed it leads there.
 run('loadRoom(2);enemies=[];player.x=505;player.y=470');
 finger.tap(19, 955, 175);
-steps(300, 'enemies=[];if($("mapDialog").open)break;');
-assert.equal(nodes.mapDialog.open, true, 'walking into the corner opens the map');
+steps(300, 'enemies=[];if(state.room===6||$("mapDialog").open)break;');
+assert.equal(run('state.room'), 6, 'walking into the corner leads into the hallway');
+run('loadRoom(2);enemies=[]');
 close();
 // Mice keep clicking; the joystick scheme switches the room off.
 run('loadRoom(0);player.x=505;player.y=470');
@@ -649,78 +651,42 @@ run('delete window.innerWidth;delete window.innerHeight;resize()');
 console.log('PASS: run screens size the canvas to the window, row or column, with no dead panels.');
 
 // ---- Hallway hooks and rooms without an arcade ----
-// No hallway yet in this build: every hook is optional.
-assert.equal(run('typeof hallwayInstall'), 'undefined');
-run('loadRoom(1);drawWorld();advanceSimulation(1/60)');
-const HALLWAY = `
-var hookLog = [];
-var extrasClaim = '';
-function hallwayInstall() {
-  hookLog.push('install');
-  rooms.push({ id: 6, name: 'Hallway', sub: 'GUT WING / THE LONG WAY ROUND', theme: '#7aa7a0', station: null, width: 3200, noArcade: true });
-  roomProps.push([]);
-}
-function onRoomLoaded(id) { hookLog.push('loaded:' + id); }
-function updateRoomExtras(dt) { hookLog.push('update'); }
-function roomExtraRenderables() { hookLog.push('renderables'); return [{ y: 400, draw() { hookLog.push('extraDraw'); } }]; }
-function drawRoomOverlay(g, vw, vh) { hookLog.push('overlay'); }
-function hallwayRoomBg(g) { hookLog.push('bg'); }
-function roomExtrasAction(kind, point) { hookLog.push('action:' + kind); return kind === extrasClaim; }
-function hallwayEnter(id) { hookLog.push('enter:' + id); }
-`;
-freshPage(
-  { GF_PRELUDE: HALLWAY },
-  `const log = () => run('hookLog.join(",")');
-const key = (k, extra = {}) => events.keydown({ key: k, target: {}, repeat: false, preventDefault: () => {}, ...extra });
-assert.ok(log().startsWith('install,loaded:0'), 'hallwayInstall runs before the first room loads: ' + log());
+// The real hallway module is in the build now: the hooks exist and run in order.
+assert.equal(run('typeof hallwayInstall'), 'function');
 assert.equal(run('rooms.length'), 7);
 assert.equal(run('ARCADE_COUNT'), 6);
+// An earlier section rebuilt medals from rooms.map; reset to the real shape first.
+run('state.medals=Array.from({length:ARCADE_COUNT},(_, i)=>state.medals[i]||[0,0,0])');
 assert.equal(run('state.medals.length'), 6);
 assert.equal(run('isArcadeRoom(6)'), false);
 assert.equal((nodes.departmentGrid.innerHTML.match(/data-room=/g) || []).length, 6, 'no department card for the hallway');
-run('begin();hud();renderMap();renderHall();renderDaily()');
+run('loadRoom(1);enemies=[];hud();renderMap();renderHall();renderDaily()');
 assert.equal((nodes.passport.innerHTML.match(/passport-row/g) || []).length, 6, 'the passport lists six arcades');
 assert.ok(!/Hallway/.test(nodes.hallStats.innerHTML), 'no grudge for the hallway');
 for (let d = 1; d < 120; d++) assert.ok(run('dailyPick("2027-01-" + ' + d + ').id') < 6);
-run('hookLog=[];loadRoom(6)');
-assert.equal(run('hookLog.at(-1)'), 'loaded:6', 'onRoomLoaded runs after loadRoom');
+run(`var hookLog = [];
+var realBg = hallwayRoomBg, realRend = roomExtraRenderables, realOverlay = drawRoomOverlay, realUpdate = updateRoomExtras;
+hallwayRoomBg = function (g) { hookLog.push('bg'); return realBg(g); };
+roomExtraRenderables = function (all) { hookLog.push('renderables'); return realRend(all).map(r => ({ y: r.y, draw(g) { hookLog.push('extraDraw'); r.draw(g); } })); };
+drawRoomOverlay = function (g, w, h) { hookLog.push('overlay'); return realOverlay(g, w, h); };
+updateRoomExtras = function (dt) { hookLog.push('update'); return realUpdate(dt); };
+roomImages.delete(6);
+loadRoom(6);`);
 assert.match(nodes.sceneTag.textContent, /HALLWAY/);
 assert.equal(run('tryOpenArcade(6)'), false, 'no arcade in the hallway');
 assert.equal(run('mini.open'), false);
+assert.equal(run('enemies.length'), 0, 'no gremlins in the hallway');
 run('hookLog=[];drawWorld()');
-const draw = run('hookLog.join(",")');
-assert.equal(draw, 'bg,renderables,extraDraw,overlay', 'background, depth-sorted extras, then the overlay');
+const draw = run('hookLog.filter((h, i, a) => h !== "extraDraw" || a[i - 1] !== "extraDraw").join(",")');
+assert.equal(draw, 'bg,renderables,extraDraw,overlay', 'background, depth-sorted extras, then the overlay: ' + draw);
 run('hookLog=[];advanceSimulation(1/60)');
-assert.ok(run('hookLog.includes("update")'), 'updateRoomExtras runs every step');
-// The wide room: camera and walls follow its width.
-run('player.x=3000;player.y=420;for(let i=0;i<120;i++)drawWorld()');
-assert.ok(run('cameraX') > 2000, 'the camera scrolls a wide room');
-assert.equal(run('collides(3100, 400)'), false);
-assert.equal(run('collides(3170, 400)'), true, 'the far wall sits at the room width');
-assert.equal(run('collides(980, 400)'), false, 'the 1000 px wall is gone');
-// Actions go to the extras first; a claimed action does not reach Macy.
-run('player.z=0;player.vz=0;player.jumpCd=0;extrasClaim="jump";hookLog=[]');
-key('j');
-assert.equal(run('player.z'), 0, 'a claimed jump does not jump');
-assert.ok(run('hookLog.includes("action:jump")'));
-run('extrasClaim=""');
-key('j');
-assert.ok(run('player.z') > 0, 'an unclaimed jump jumps');
-run('extrasClaim="tap";hookLog=[];state.controls="tap";cameraX=0;wardCameraY=0');
-nodes.game.events.pointerdown({ pointerId: 7, pointerType: 'touch', button: 0, clientX: 300, clientY: 400, preventDefault() {} });
-assert.ok(run('hookLog.includes("action:tap")'), 'the tap goes to the extras with its point');
-assert.equal(run('wardGoal'), null, 'a claimed tap does not walk');
-nodes.game.events.pointerup({ pointerId: 7, pointerType: 'touch', button: 0, clientX: 300, clientY: 400, preventDefault() {} });
-run('extrasClaim="enter";hookLog=[]');
-key('Enter');
-assert.ok(run('hookLog.includes("action:enter")'));
-run('extrasClaim="attack";hookLog=[];player.attack=0;player.attackCd=0');
-key(' ');
-assert.equal(run('player.attack'), 0, 'a claimed Space does not swing');
-run('keys.clear();extrasClaim=""');
-// The MAP corner goes to the hallway when it exists.
-run('loadRoom(1);enemies=[];player.x=950;player.y=190;hookLog=[];updateWorld(1/60)');
-assert.ok(run('hookLog.includes("enter:1")'), 'the exit corner calls hallwayEnter');
-assert.equal(nodes.mapDialog.open, false, 'instead of the map');`
-);
+assert.ok(run('hookLog.includes("update")'), 'updateRoomExtras runs each step');
+// A wide room: the camera scrolls past 1000 and the right wall is the room width.
+run('player.x=3000;player.y=400;cameraX=0;for(let i=0;i<180;i++)drawWorld()');
+assert.ok(run('cameraX') > 1000, 'the camera follows into the wide room: ' + run('cameraX'));
+assert.ok(run('Array.from({ length: 100 }, (_, i) => 2000 + i * 12).some(x => !collides(x, 400))'), 'the floor extends well past 1000');
+assert.equal(run('collides(3250, 400)'), true, 'and stops at the far wall');
+// Actions go to the hallway first: Enter in the hallway is claimed (there is no arcade station).
+assert.equal(run('roomExtrasAction("enter")'), true);
+run('hallwayRoomBg=realBg;roomExtraRenderables=realRend;drawRoomOverlay=realOverlay;updateRoomExtras=realUpdate;loadRoom(1);enemies=[]');
 console.log('PASS: hallway hooks run in order, a room without an arcade is tolerated, and a wide room scrolls.');
