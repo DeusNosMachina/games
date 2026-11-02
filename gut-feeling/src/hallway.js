@@ -1,7 +1,9 @@
-// The fourth-floor hallway (room 6): the long way between department doors, full of people who like
-// Macy. No combat, no damage. Visitors stroll, pause, turn to face her, and talk in a typed speech box
-// with voice blips; Barb from Dietary rides the elevator up every few minutes with a tray of Ensure,
-// and Rowdy the Ram (src/rowdy.js) cheers from the nurses' station.
+// The seventh-floor hallway at Valley Hospital (room 6): the long way between department doors, full of
+// people who like Macy. No combat, no damage. Visitors stroll, pause, turn to face her, and talk in a
+// typed speech box with voice blips; Barb from Dietary rides the elevator up every few minutes with a
+// tray of Ensure, and Rowdy the Ram (src/rowdy.js) cheers from the nurses' station. Every finished
+// conversation leaves a get-well card for the wall over Macy's bed (state.cards) and bumps the sticker
+// counters (state.stats); see "Get-well cards and counters" below.
 //
 // Framework contract (world.js and input.js call these when they exist):
 //   hallwayInstall()             adds room 6 to rooms and its furniture to roomProps (idempotent)
@@ -36,10 +38,14 @@ const HALLWAY_ID = 6,
   HALLWAY_SHOP_X = 2570,
   HALLWAY_EXIT_X = 3100,
   HALLWAY_MAX_BOTTLES = 9,
+  // Where Macy actually is: Valley Hospital in Paramus, seventh floor, Room 5.
+  HALLWAY_FLOOR = '7',
+  HALLWAY_STRIPE = 'VALLEY · 7F · PEDIATRICS',
+  HALLWAY_STRIPE_X = [400, 1300, 2200],
   HALLWAY_ROOM = {
     id: 6,
     name: 'Hallway',
-    sub: 'FOURTH FLOOR / THE LONG WAY ROUND',
+    sub: 'SEVENTH FLOOR / THE LONG WAY ROUND',
     theme: '#cfdcd6',
     station: null,
     width: 3200,
@@ -48,14 +54,15 @@ const HALLWAY_ID = 6,
 
 // Doors along the back wall. The night version of Macy's room uses the same door: it is still her room.
 const HALLWAY_DOORS = [
-  { room: 0, x: 600, name: 'Your room', plate: 'ROOM 412' },
+  { room: 0, x: 600, name: 'Your room', plate: 'ROOM 5' },
   { room: 1, x: 1080, name: 'MRI', plate: 'MRI' },
   { room: 2, x: 1560, name: 'Family lounge', plate: 'FAMILY LOUNGE', double: true },
   { room: 3, x: 2010, name: 'CT scan', plate: 'CT SCAN' },
   { room: 4, x: 2430, name: 'Ultrasound', plate: 'ULTRASOUND' }
 ];
 
-// Voice ids for sfx('talk', {voice}); audio.js defines each one.
+// Voice ids for sfx('talk', {voice}); audio.js defines each one. Mimi speaks with the 'grandma' voice
+// and Dodo with 'grandpa': those are audio.js's ids, not names anyone sees.
 const HALLWAY_VOICES = ['dad', 'brother', 'grandma', 'grandpa', 'cousin', 'doctor', 'nurse', 'ensure', 'macy', 'rowdy'];
 
 const HALLWAY_FLAVORS = ['#7a4b33', '#e9d39a', '#ef9fb0'],
@@ -134,7 +141,7 @@ const HALLWAY_LINES = {
       }
     ]
   },
-  grandma: {
+  mimi: {
     whoa: 'Whoa! My heart, sweetie.',
     barks: ['My girl!', 'Have you eaten? Oh. Right.', 'You look taller!'],
     talks: [
@@ -145,7 +152,7 @@ const HALLWAY_LINES = {
           ['npc', "The cookies'."]
         ]
       },
-      { say: [['npc', 'Your grandfather proposed to me in a hospital cafeteria. Terrible Jell-O. Wonderful man.']] },
+      { say: [['npc', 'Dodo proposed to me in a hospital cafeteria. Terrible Jell-O. Wonderful man.']] },
       { say: [['npc', 'I lit a candle for you at church. And one for the Cubs. Yours is working better.']] },
       { say: [['npc', "The nurses say you're brave and polite. Your father bit a nurse once. He was four."]] },
       { say: [['npc', "Is there a cafeteria up here? I'd like to complain to someone in person."]] },
@@ -154,14 +161,14 @@ const HALLWAY_LINES = {
       {
         when: hallwayCleared,
         say: [
-          ['npc', "Your grandfather says you're fighting monsters in here."],
+          ['npc', "Dodo says you're fighting monsters in here."],
           ['macy', 'I am.'],
           ['npc', 'Good. Hit one for me.']
         ]
       }
     ]
   },
-  grandpa: {
+  dodo: {
     whoa: 'Whoa there. Easy.',
     barks: ['Atta girl.', 'Keep moving, kiddo.', "There's my slugger."],
     talks: [
@@ -172,7 +179,7 @@ const HALLWAY_LINES = {
       },
       {
         say: [
-          ['npc', "Your grandmother brought cookies. I've been guarding them."],
+          ['npc', "Mimi brought cookies. I've been guarding them."],
           ['macy', 'From who?'],
           ['npc', 'Mostly me.']
         ]
@@ -190,7 +197,7 @@ const HALLWAY_LINES = {
         when: hallwayRalphWaiting,
         say: [
           ['npc', 'This Ralph fella in your room. Want me to have a word?'],
-          ['macy', 'Grandpa.'],
+          ['macy', 'Dodo.'],
           ['npc', 'A strongly worded word.']
         ]
       },
@@ -235,7 +242,7 @@ const HALLWAY_LINES = {
       },
       { say: [['npc', "Coach says you're still batting cleanup when you're back. No pressure. Some pressure."]] },
       { say: [['npc', "We lost Saturday. I'm not saying it's because you're in here. But you're in here."]] },
-      { say: [['npc', "Grandma tried to give me a cookie from your tin. I said no. I'm loyal. I'm also starving."]] },
+      { say: [['npc', "Mimi tried to give me a cookie from your tin. I said no. I'm loyal. I'm also starving."]] },
       { when: hallwayCleared, say: [['npc', "You cleared a whole ward of gremlins? That's basically a triple play."]] },
       { when: hallwayWon, say: [['npc', "Discharged! First game back, I'm buying the sunflower seeds."]] }
     ]
@@ -279,7 +286,7 @@ const HALLWAY_LINES = {
   },
   nurse: {
     whoa: 'Whoa! Walking feet!',
-    barks: ['Look at you go!', 'Lap queen!', 'Bravest on the floor.', "That's my favorite patient. Don't tell 409."],
+    barks: ['Look at you go!', 'Lap queen!', 'Bravest on seven.', "That's my favorite patient. Don't tell Room 6."],
     talks: [
       { say: [['npc', "You're the bravest one on the floor and I've seen a biker cry at a shot."]] },
       { say: [['npc', 'Vitals look good. Attitude is a little spicy. Also good.']] },
@@ -287,7 +294,7 @@ const HALLWAY_LINES = {
       { say: [['npc', 'If you need anything, press the button. If you need gossip, find me.']] },
       {
         say: [
-          ['npc', 'The man in 409 asked about you. He is eighty and he wants to talk volleyball.'],
+          ['npc', 'The man in Room 8 asked about you. He is eighty and he wants to talk volleyball.'],
           ['macy', 'Is he any good?'],
           ['npc', 'He says he invented the spike.']
         ]
@@ -407,7 +414,7 @@ const HALLWAY_DAD_CHEERS = [
   "You've got a whole team in this hallway, plus one very tall assistant coach.",
   "Whatever today throws at you, you've got the better arm.",
   "You don't have to be okay all the time. You just have to be you, and you're nailing it.",
-  'Grandma has told every person in the cafeteria about you. Every. Person.',
+  'Mimi has told every person in the cafeteria about you. Every. Person.',
   "You're getting stronger. I can tell because you're arguing with me again.",
   'Home soon. Not doctor soon. Dad soon. I already vacuumed the car.',
   'I love you, kid. Okay. Now the important part.',
@@ -587,14 +594,14 @@ const HALLWAY_DAD_JOKES = [
   // Cafeteria and snacks.
   "The cafeteria has a dish called Chef's Surprise. The surprise is there's no chef.",
   "I'd tell you a joke about the cafeteria, but nothing on that menu is funny. Or entirely food.",
-  "Why did the cookie go to the hospital? It was feeling crummy. Grandma's cookies are on standby for when you're allowed.",
+  "Why did the cookie go to the hospital? It was feeling crummy. Mimi's cookies are on standby for when you're allowed.",
   "Why did the banana go to the doctor? It wasn't peeling well.",
   // Hospital life.
   "I asked for a pillow that doesn't crinkle. The nurse laughed for a full minute. Then she brought me a crinkly one.",
   "Every hand sanitizer here makes the same noise. Pfft. It's the hospital's laugh track. It goes off after all my jokes.",
   "I got lost on the way to the cafeteria. A nurse said I was in the wrong wing. I said I'm a dad, I'm always winging it.",
   'Your bed goes up, down and folds in half. It has more moves than I do at a wedding.',
-  'The TV in your room gets four channels: news, weather, the hospital channel, and me standing in front of it.',
+  'The lounge TV is seventy-five inches. Four channels: news, weather, the hospital channel, and me standing in front of it. I still block all of it.',
   "I asked if they have Wi-Fi. They said the password is 'getwellsoon.' Very manipulative. It worked.",
   "I made you a hospital playlist. 'Under Pressure,' 'Don't Stop Me Now,' and anything called 'Home.' That's a hint.",
   "Hospital socks have grips on both sides so you can't put them on wrong. Finally, a dad-proof design.",
@@ -625,7 +632,7 @@ const HALLWAY_DAD_GROANS = [
   'Ten out of ten. On the groan scale.',
   "I'm going to need an Ensure. No. Not an Ensure.",
   'How long did you sit on that one?',
-  'Grandpa told it better.'
+  'Dodo told it better.'
 ];
 
 let hallwayDad = null;
@@ -706,6 +713,125 @@ function hallwayDadConvo(npc) {
   npc.count++;
   hallwayDadSave();
   return lines;
+}
+
+// ---- Get-well cards and counters ----
+// The first finished conversation with each visitor leaves a card on the wall over Macy's bed:
+// state.cards gets {who, name, text, day}. The room's owner draws and saves the cards; this file only
+// adds them. who is the cast id, with all three nurses sharing 'nurse'. The text is picked from the
+// visitor's list by a hash of who and the day, so it never touches the random stream. A conversation
+// counts once the last bubble is done, or when it is closed after at least one whole bubble.
+// state.stats feeds the stickers: talks, dadJokes, ensureRefused, cheers (a Rowdy cheer Macy stayed
+// within his watch radius for, on his timer or in a talk) and metEveryone (1 once every cast member
+// has a card).
+const HALLWAY_CARDS = {
+  // Dad's card is an encouragement, never a joke: the owner's own three lines.
+  dad: HALLWAY_DAD_CHEERS.slice(0, 3),
+  brother: [
+    'Get well. Mom made me write this. I mean it anyway.',
+    'Your room is still yours. For now. Hurry up.',
+    "The fish says hi. I'm translating."
+  ],
+  mimi: [
+    'The cookies are waiting. So am I. Love you, sweetheart.',
+    'Eat when they say. Then eat my cookies.',
+    "I've bragged about you to the whole cafeteria. Get well, my girl."
+  ],
+  dodo: [
+    'Brave is getting up anyway. You do it every day. Proud of you, slugger.',
+    'Home by the weekend. I told the doctor. Twice.',
+    "Atta girl. Keep walking. I'm guarding the cookies."
+  ],
+  kenzie: [
+    "Your spot on the court is saved. Nobody's allowed to stand there.",
+    'Practice is too quiet. Come back and yell MINE at us.',
+    'Back before playoffs. Not a guess. I asked a doctor. Kind of.'
+  ],
+  bri: [
+    "Your glove is safe. I haven't touched it. I'm loyal.",
+    "Cleanup spot's still yours, cuz. Get well.",
+    'First game back, the sunflower seeds are on me.'
+  ],
+  doctor: [
+    'Rx: more laps, fewer days. Refills: unlimited.',
+    "I don't say soon unless I mean it. Soon.",
+    "Annoyed means you're getting better. You're doing great."
+  ],
+  nurse: [
+    'Bravest patient on seven. We have data.',
+    'Press the button for help. Find me for gossip.',
+    'Every lap is one less day in here. Keep walking.'
+  ],
+  // Barb's card is a coupon. It is, of course, for Ensure.
+  barb: [
+    'COUPON: one free Ensure. Valid the day your doctor says yes.',
+    'Good for one strawberry Ensure. We found strawberry. Expires never.',
+    'Redeem for one Ensure, any flavor. No expiration. No pressure. Some pressure.'
+  ],
+  rowdy: [
+    'Two bits! Four bits! Six bits! A dollar! All for {name}, stand up and holler!',
+    "We got spirit, yes we do! Get well, {name}, we're cheering for you!",
+    'Blue and gold, ready to roll! Get well, {name}! GO RAMS!'
+  ]
+};
+
+const hallwayCardWho = npc => (/^nurse\d*$/.test(npc.id) ? 'nurse' : npc.id);
+
+// Today as YYYY-MM-DD in local time, the same shape as the Daily Dose key.
+function hallwayDay(d = new Date()) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function hallwayCardText(who, day) {
+  const list = HALLWAY_CARDS[who] || HALLWAY_CARDS.nurse;
+  let h = 7;
+  for (const ch of who + '|' + day) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return hallwayFill(list[h % list.length]);
+}
+
+function hallwayStats() {
+  if (!state.stats || typeof state.stats !== 'object') state.stats = {};
+  return state.stats;
+}
+
+function hallwayBump(key, n = 1) {
+  const s = hallwayStats();
+  s[key] = (Number(s[key]) || 0) + n;
+  return s[key];
+}
+
+function hallwaySave() {
+  if (typeof save === 'function') save();
+}
+
+// A bubble comes up: Dad's joke (once per talk, however many bubbles it takes) and Macy's no to Barb.
+function hallwayBubble(tk) {
+  const line = tk.lines[tk.i];
+  if (!line) return;
+  if (Number.isInteger(line.joke) && !tk.joked) {
+    tk.joked = true;
+    hallwayBump('dadJokes');
+  }
+  if (tk.npc.ensure && line.who === 'macy' && !tk.refused) {
+    tk.refused = true;
+    hallwayBump('ensureRefused');
+  }
+}
+
+// A conversation that counts: the counters, the card (first time only), then the save.
+function hallwayTalked(npc, tk, finished) {
+  hallwayBump('talks');
+  if (npc.rowdy && finished && tk.lines[0] && tk.lines[0].cheer && dist(npc, player) <= npc.spec.timing.watchRadius)
+    hallwayBump('cheers');
+  if (!Array.isArray(state.cards)) state.cards = [];
+  const who = hallwayCardWho(npc);
+  if (!state.cards.some(c => c && c.who === who)) {
+    const day = hallwayDay();
+    state.cards.push({ who, name: npc.name, text: hallwayCardText(who, day), day });
+  }
+  const met = new Set(state.cards.map(c => c && c.who));
+  if (hallwayCast.length && hallwayCast.every(n => met.has(hallwayCardWho(n)))) hallwayStats().metEveryone = 1;
+  hallwaySave();
 }
 
 // ---- Hallway state ----
@@ -853,7 +979,7 @@ const HALLWAY_LOOKS = {
       shoeAccent: '#d9534f',
       item: 'chips'
     }),
-  grandma: () =>
+  mimi: () =>
     npcLook({
       leg: 22,
       torso: 28,
@@ -881,7 +1007,7 @@ const HALLWAY_LOOKS = {
       glasses: '#8a6d5a',
       pearls: true
     }),
-  grandpa: () =>
+  dodo: () =>
     npcLook({
       leg: 33,
       torso: 34,
@@ -1110,8 +1236,8 @@ function hallwayResetCast() {
     hallwayNpc('dad', 'Dad', 'dad', HALLWAY_LOOKS.dad(), 700, 300, [420, 1050], 48, { tag: '#f3d38b' }),
     nurse(0, 880, 280, [620, 1200]),
     hallwayNpc('doctor', 'Dr. Reyes', 'doctor', HALLWAY_LOOKS.doctor(), 1260, 390, [1000, 1700], 58, { tag: '#cfe3ee' }),
-    hallwayNpc('grandma', 'Grandma', 'grandma', HALLWAY_LOOKS.grandma(), 1500, 330, [1350, 1800], 32, { tag: '#ddc8ec' }),
-    hallwayNpc('grandpa', 'Grandpa', 'grandpa', HALLWAY_LOOKS.grandpa(), 1650, 365, [1300, 1850], 30, { tag: '#cfe0b4' }),
+    hallwayNpc('mimi', 'Mimi', 'grandma', HALLWAY_LOOKS.mimi(), 1500, 330, [1350, 1800], 32, { tag: '#ddc8ec' }),
+    hallwayNpc('dodo', 'Dodo', 'grandpa', HALLWAY_LOOKS.dodo(), 1650, 365, [1300, 1850], 30, { tag: '#cfe0b4' }),
     hallwayNpc('kenzie', 'Kenzie', 'cousin', HALLWAY_LOOKS.kenzie(), 2060, 320, [1850, 2350], 60, {
       lines: 'teammate',
       tag: '#b4cbf2'
@@ -1494,8 +1620,14 @@ function hallwayRowdyStep(npc, dt) {
       x: clamp(player.x, HALLWAY_LEFT + 70, HALLWAY_RIGHT - 70),
       y: clamp(player.y, HALLWAY_TOP, HALLWAY_BOTTOM)
     },
+    cheering = npc.mode === 'cheer' && !!npc.cheer,
     said = spec.tick(npc, dt, { macy, entered: npc.entered, st: state });
   npc.entered = false;
+  // A timer cheer that ran to the end with Macy inside his watch radius counts for the stickers.
+  if (cheering && npc.mode === 'idle' && !npc.cheer && npc.watched) {
+    hallwayBump('cheers');
+    hallwaySave();
+  }
   if (said) hallwayRowdyBark(npc, said.text);
   else if (!npc.say && npc.bark && !npc.bark.whoa) npc.bark = null;
   if (player.dash > 0 && dist(npc, player) < 44 && npc.whoaCd <= 0 && npc.mode === 'idle') {
@@ -1552,6 +1684,7 @@ function hallwayNextConvo(npc) {
 
 function hallwayOpenTalk(npc) {
   hallwayTalk = { npc, lines: hallwayNextConvo(npc), i: 0, shown: 0, acc: 0, pause: 0, voiced: 0, age: 0, blipAt: -1 };
+  hallwayBubble(hallwayTalk);
   npc.mode = npc.rowdy ? 'talk' : 'idle';
   npc.moving = false;
   npc.bark = null;
@@ -1571,7 +1704,9 @@ function hallwayEndTalk(finished, walked = false) {
   const tk = hallwayTalk;
   if (!tk) return false;
   hallwayTalk = null;
-  const npc = tk.npc;
+  const npc = tk.npc,
+    line = tk.lines[tk.i],
+    seen = finished ? tk.lines.length : tk.i + (line && tk.shown >= line.text.length ? 1 : 0);
   npc.wait = rand(1.2, 2.5);
   npc.barkCd = Math.max(npc.barkCd, 20);
   if (npc.rowdy) {
@@ -1596,6 +1731,7 @@ function hallwayEndTalk(finished, walked = false) {
     hallwayEnsureDrop(npc, false);
     hallwayEnsure.phase = 'leaving';
   }
+  if (seen > 0) hallwayTalked(npc, tk, finished);
   return true;
 }
 
@@ -1617,6 +1753,7 @@ function hallwayAdvance() {
   tk.pause = 0;
   tk.voiced = 0;
   if (tk.i >= tk.lines.length) hallwayEndTalk(true);
+  else hallwayBubble(tk);
 }
 
 function hallwayTalkStep(dt) {
@@ -2267,7 +2404,7 @@ function npcHold(g, k, shY, t) {
   ellipse(g, hx + 1.5, hy, 3.1, 3.7, k.skin);
 }
 
-// Two hands: Barb's tray of Ensure, Grandma's cookie tin.
+// Two hands: Barb's tray of Ensure, Mimi's cookie tin.
 function npcHoldBoth(g, k, shY, t) {
   const S = k.shoulder,
     T = k.torso,
@@ -2603,7 +2740,7 @@ function npcHair(g, k, hy, hr, hry, fx) {
     ellipse(g, -hr + 0.5, hy - 1, 3, 3.4, k.hair);
     ellipse(g, hr + 0.8, hy - 1.5, 2.8, 3.2, k.hair);
   } else if (style === 'cap') {
-    // Grandpa: white fringe over the ears under a tweed flat cap.
+    // Dodo: white fringe over the ears under a tweed flat cap.
     ellipse(g, -hr + 1, hy - 1, 3.2, 4.5, k.hair);
     ellipse(g, hr + 0.4, hy - 1, 3, 4.2, k.hair);
     path(
@@ -2785,6 +2922,11 @@ function hallwayRoomBg(g) {
   for (let x = 80; x < w; x += 160) rr(g, x - 2, 101, 4, 6, 1, '#b69a72');
   rr(g, 0, 129, w, 12, 2, '#edf1d8');
   rect(g, 0, 141, w, 12, '#527f8744');
+  // The wall stripe says where we are, between the doors, about once a screen.
+  for (const x of HALLWAY_STRIPE_X) {
+    for (const side of [-1, 1]) line(g, [[x + side * 96, 135], [x + side * 112, 135]], '#7fb8aa', 2);
+    label(g, HALLWAY_STRIPE, x, 138.5, 9, '#476c66', 'center');
+  }
   for (let yy = 155; yy < h; yy += 58) line(g, [[0, yy], [w, yy]], '#487c7920', 1);
   for (let xx = 0; xx < w; xx += 80) line(g, [[xx, 155], [xx, h]], '#487c7920', 1);
   // Ceiling lights pool on the floor; daylight falls in from each window.
@@ -2876,7 +3018,7 @@ function hallwayElevatorFrame(g, x) {
   ellipse(g, x + 112, 93, 4, 4, '#f6d36b');
   ellipse(g, x + 112, 107, 4, 4, '#e6ecea');
   rr(g, x + 126, 70, 44, 42, 6, '#3f7887', '#e9f2ea', 1);
-  label(g, '4', x + 148, 96, 22, '#f6f3df', 'center');
+  label(g, HALLWAY_FLOOR, x + 148, 96, 22, '#f6f3df', 'center');
   label(g, 'FLOOR', x + 148, 107, 8, '#cfe6e3', 'center');
 }
 
@@ -3033,6 +3175,10 @@ function hallwayStation(g) {
   rr(g, x + 8, 176, w - 16, 9, 4, '#7fb8aa');
   rr(g, x + 4, 222, w - 8, 8, 3, '#9a7f68');
   heart(g, x + w / 2 - 7, 194, 1.1, '#ef9f9a');
+  // A small brass plaque: where this counter, and Macy, actually are.
+  rr(g, x + 142, 191, 86, 23, 3, gradient(g, 0, 191, 0, 23, '#f1e3b4', '#d8c08a'), '#9a7f58', 1);
+  label(g, 'VALLEY HOSPITAL', x + 185, 202, 7.5, '#5b4a2e', 'center');
+  label(g, 'PARAMUS · 7TH FLOOR', x + 185, 210.5, 5.5, '#7a6544', 'center');
   rr(g, x + 47, 147, 10, 6, 2, '#678d98');
   rr(g, x + 28, 120, 48, 30, 5, gradient(g, 0, 120, 0, 30, '#82a6ac', '#4a7284'), '#c3d5cf', 1.2);
   rr(g, x + 32, 124, 40, 21, 3, '#153b50');

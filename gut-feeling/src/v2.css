@@ -46,7 +46,9 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 
 @media(max-width:700px){body.playing .game-layout{margin-top:12px}}
 
-.department-grid{grid-template-columns:repeat(3,1fr)}@media(max-width:700px){.department-grid{grid-template-columns:repeat(2,1fr)}}
+.department-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:900px){.department-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:540px){.department-grid{grid-template-columns:minmax(0,1fr)}}
+/* Department cards: the art keeps the 260 × 135 shape it is drawn at; the copy sits under it. */
+.dept-card{display:flex;flex-direction:column;align-items:stretch;min-width:0}.dept-card canvas{flex:0 0 auto;width:100%;height:auto;aspect-ratio:260/135}.dept-copy{flex:1 1 auto}
 
 
 /* v0.6: arcade (fullscreen) mode, faster starts, meta progression, and a HUD that leaves the signs alone. */
@@ -2331,3 +2333,420 @@ html:has(.title-screen[data-state='up']) {
 
 /* While a hallway conversation is open, the ward strip pill gets out of the speech box's way. */
 body.talking .ward-strip{display:none}
+
+/* ==== Medal ceremony (minigames.js) ====
+   A win shows a cream passport card; the medal canvas drops onto it (JS writes its transform), an ink
+   ring lands with it, the tiles count up and their NEW BEST / NEW STARS chips pop. data-medal on
+   #miniResult (0 for a loss, 1 to 3) carries the bronze, silver or gold wash. #ceremonyFx is the
+   confetti layer over the art and the verdict. */
+#miniResult {
+  --medal: transparent;
+  border-radius: var(--r-lg);
+}
+#miniResult[data-medal='1'] {
+  --medal: #e59a5c;
+}
+#miniResult[data-medal='2'] {
+  --medal: #d3e0e5;
+}
+#miniResult[data-medal='3'] {
+  --medal: #ffd760;
+}
+#miniResult:not([data-medal='0']) {
+  background: radial-gradient(ellipse at 28% 0, color-mix(in srgb, var(--medal) 24%, transparent), transparent 62%);
+}
+#miniDialog:has(#miniResult[data-medal='3']:not(.hidden)) {
+  border-color: #e9c45c;
+}
+#miniDialog .result-hero {
+  position: relative;
+}
+#miniResult:not([data-medal='0']) .result-verdict .medal-big {
+  display: none;
+}
+.ceremony-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.result-stamp {
+  position: relative;
+  width: min(340px, 100%);
+  margin: 4px auto 6px;
+}
+.stamp-page {
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  min-height: 92px;
+  padding: 10px 104px 10px 16px;
+  border-radius: var(--r-md);
+  background: var(--cream);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: 0 5px 0 #09131c66;
+  transform: rotate(-1.2deg);
+}
+.stamp-kicker {
+  font: 800 9px/1.3 var(--mono);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #b0614c;
+}
+.stamp-page strong {
+  font-size: 17px;
+  line-height: 1.15;
+  letter-spacing: -0.3px;
+}
+.stamp-line {
+  font: 700 10px/1.4 var(--mono);
+  color: #4f6c65;
+}
+.stamp-stars {
+  color: #c79a2e;
+  letter-spacing: 1px;
+}
+.stamp-share {
+  margin-top: 4px;
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--cream);
+  font: 800 11px var(--mono);
+  letter-spacing: 0.5px;
+}
+.stamp-share:hover {
+  background: #24485a;
+}
+.stamp-ink {
+  position: absolute;
+  top: calc(50% - 43px);
+  right: 9px;
+  width: 86px;
+  height: 86px;
+  border: 3px dashed #c8664f;
+  border-color: color-mix(in srgb, var(--medal) 70%, #8a5230);
+  border-radius: 50%;
+  opacity: 0;
+  transform: rotate(-10deg) scale(1.25);
+  pointer-events: none;
+}
+.result-stamp[data-stamped='1'] .stamp-ink {
+  opacity: 0.6;
+  transform: rotate(-10deg) scale(1);
+  transition: opacity 0.18s, transform 0.18s;
+}
+.stamp-medal {
+  position: absolute;
+  top: calc(50% - 46px);
+  right: 8px;
+  z-index: 2;
+  width: 88px;
+  height: 88px;
+  transform-origin: 50% 85%;
+  pointer-events: none;
+}
+#miniDialog .result-numbers div {
+  position: relative;
+}
+.tile-pop {
+  position: absolute;
+  top: -9px;
+  right: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--coral);
+  color: var(--ink);
+  font: 800 9px/1.2 var(--mono);
+  font-style: normal;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  box-shadow: 0 3px 0 #09131c66;
+  opacity: 0;
+  transform: scale(0.3) rotate(-12deg);
+  transition: transform 0.3s cubic-bezier(0.3, 1.8, 0.5, 1), opacity 0.15s;
+  pointer-events: none;
+}
+#resultPop3 {
+  background: var(--yellow);
+}
+.tile-pop[data-on='1'] {
+  opacity: 1;
+  transform: scale(1) rotate(-4deg);
+}
+@media (max-width: 540px), (max-height: 560px) {
+  .result-stamp {
+    margin: 0 auto 2px;
+  }
+  .stamp-page {
+    min-height: 78px;
+    padding: 7px 88px 7px 13px;
+  }
+  .stamp-page strong {
+    font-size: 15px;
+  }
+  .stamp-share {
+    min-height: 26px;
+    margin-top: 2px;
+  }
+  .stamp-ink {
+    top: calc(50% - 37px);
+    width: 74px;
+    height: 74px;
+  }
+  .stamp-medal {
+    top: calc(50% - 39px);
+    width: 76px;
+    height: 76px;
+  }
+}
+
+/* ==== Sticker pop (stickers.js) ====
+   A badge toast in the top layer (popover) so it shows over an open dialog. */
+.sticker-pop {
+  position: fixed;
+  inset: max(12px, env(safe-area-inset-top)) auto auto 50%;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  height: auto;
+  margin: 0;
+  padding: 7px 18px 7px 7px;
+  overflow: visible;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cream);
+  color: var(--ink);
+  box-shadow: 0 0 0 3px var(--yellow), 0 12px 30px #0008;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.sticker-pop.show {
+  display: flex;
+  animation: stickerPopIn 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.sticker-pop canvas {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+}
+.sticker-pop small {
+  display: block;
+  font: 800 9px/1.3 var(--mono);
+  letter-spacing: 1.6px;
+  color: #b0614c;
+}
+.sticker-pop strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.2;
+  letter-spacing: -0.2px;
+}
+@keyframes stickerPopIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-16px) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sticker-pop.show {
+    animation: none;
+  }
+}
+
+/* ==== Sticker card (sidebar) ==== */
+.sticker-card {
+  display: grid;
+  gap: 10px;
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--card);
+}
+.sticker-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sticker-card h3 {
+  margin: 0;
+  font: var(--kicker);
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+#stickerCardCount {
+  font: 800 14px var(--mono);
+  color: var(--yellow);
+}
+.sticker-card-track,
+.sticker-progress {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--card-low);
+  overflow: hidden;
+}
+#stickerCardBar,
+#stickerBar {
+  width: 0;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--mint), var(--yellow), var(--coral));
+  transition: width 0.5s;
+}
+.sticker-strip {
+  display: flex;
+  gap: 8px;
+}
+.sticker-strip canvas,
+.sticker-slot {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+}
+.sticker-slot {
+  border: 2px dashed #ffffff24;
+  border-radius: 50%;
+}
+.sticker-card-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.sticker-open {
+  justify-content: center;
+}
+/* The Hall and the sticker card share the hall column, stacked, in every layout. */
+.game-layout .sidebar > .sidebar-col {
+  display: grid;
+  grid-area: hall;
+  align-content: start;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+@media (max-width: 700px) {
+  .game-layout .sidebar > .sidebar-col {
+    gap: var(--sp-3);
+  }
+}
+
+/* ==== Sticker sheet ==== */
+.sticker-sheet {
+  width: min(900px, 94vw);
+}
+.sticker-progress {
+  height: 6px;
+  margin: 0 0 var(--sp-3);
+}
+.sticker-spot {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: center;
+  margin: 0 0 var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, #2c4e5e, var(--card));
+}
+.sticker-spot canvas {
+  width: 120px;
+  height: 120px;
+}
+.sticker-spot .card-kicker {
+  margin-bottom: 4px;
+  color: var(--yellow);
+}
+.sticker-spot h3 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.4px;
+}
+.sticker-spot p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d3e2dd;
+}
+.sticker-spot .primary {
+  min-height: 40px;
+  padding: 9px 16px;
+}
+.sticker-group {
+  margin: 16px 0 8px;
+}
+.sticker-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-2);
+}
+.sticker-tile {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  padding: 10px 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--card);
+  text-align: center;
+}
+.sticker-tile:hover {
+  background: var(--card-hi);
+}
+.sticker-tile.selected {
+  border-color: var(--mint);
+  box-shadow: inset 0 0 0 1px var(--mint);
+}
+.sticker-tile[data-earned='0'] {
+  background: var(--card-low);
+}
+.sticker-tile canvas {
+  width: 64px;
+  height: 64px;
+}
+.sticker-tile strong {
+  font-size: 12px;
+  line-height: 1.25;
+}
+.sticker-tile[data-earned='0'] strong {
+  color: #8fa5a8;
+}
+.sticker-tile small {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+@media (max-width: 540px) {
+  .sticker-spot {
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+  .sticker-spot canvas {
+    width: 84px;
+    height: 84px;
+  }
+  .sticker-spot h3 {
+    font-size: 18px;
+  }
+  .sticker-spot p {
+    font-size: 12px;
+  }
+  .sticker-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

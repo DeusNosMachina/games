@@ -6,7 +6,7 @@ One self-contained `index.html`, built from plain scripts that share globals. No
 
 `python3 gut-feeling/build.py` inlines `src/v2.css` into `src/template.html`, appends `src/dialogs.html`, then concatenates the scripts into one `<script>` in this order:
 
-`state` → `art` → `rowdy` → `audio` → `world` → `combat` → `hallway` → `minigames` → `transitions` → `games/iv` → `games/magnet` → `games/bricks` → `games/race` → `games/slice` → `games/blaster` → `map` → `input`
+`state` → `art` → `rowdy` → `audio` → `world` → `combat` → `hallway` → `minigames` → `transitions` → `games/iv` → `games/magnet` → `games/bricks` → `games/race` → `games/slice` → `games/blaster` → `map` → `stickers` → `input`
 
 At load time a file may only use names from earlier files (each game calls `registerGame` from `state.js`). Everything else runs at runtime, after `input.js` boots the page. No file reassigns another file's functions. Commit `src/` and the rebuilt `index.html` together.
 

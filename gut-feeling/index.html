@@ -12,11 +12,11 @@
 <meta name="description" content="Operation: Gut Feeling. A delightfully unhinged hospital adventure. A self-contained playable concept for phones and desktops.">
 <title>Operation: Gut Feeling. A hospital adventure.</title>
 <style>
-:root{--bg:#101e29;--panel:#172a35;--line:#30444e;--cream:#f8efd9;--muted:#a8bdbe;--mint:#b5e8c5;--yellow:#ffda79;--coral:#ffa48e;--ink:#17313a;--shadow:0 6px 0 #09131c;--mono:ui-monospace,SFMono-Regular,Consolas,monospace}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--cream);font-family:Arial,Helvetica,sans-serif;background-image:radial-gradient(ellipse at 85% 0, #25444455,transparent 45%)}button,input{font:inherit}button{cursor:pointer;color:inherit}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--yellow);outline-offset:4px}button:disabled{opacity:.45;cursor:default}button{touch-action:manipulation}svg{width:22px;height:22px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.wrap{width:min(1400px,94%);margin:auto}header{height:80px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:12px}.brand{display:flex;align-items:center;gap:12px;text-transform:uppercase;font-size:12px;letter-spacing:1.8px;font-weight:800}.brandmark{height:35px;width:35px;background:var(--mint);color:var(--ink);display:grid;place-items:center;box-shadow:3px 3px 0 #749f8c;transform:rotate(-5deg)}.header-actions{display:flex;gap:8px;align-items:center}.iconbtn,.smallbtn{border:1px solid var(--line);background:transparent;border-radius:6px;padding:10px 12px;display:inline-flex;gap:8px;align-items:center;font-size:12px;font-weight:700}.iconbtn:hover,.smallbtn:hover{background:#28424c}.version{font:10px var(--mono);color:var(--muted);margin-right:16px;text-transform:uppercase;letter-spacing:1px}.eyebrow{font:10px var(--mono);letter-spacing:2px;font-weight:700;color:var(--mint);margin:0 0 13px;text-transform:uppercase}.eyebrow .dot{display:inline-block;width:6px;height:6px;background:var(--mint);margin-right:7px;box-shadow:0 0 12px #b5e8c555}h1{font-size:clamp(34px,4.1vw,60px);font-weight:900;line-height:.95;letter-spacing:-2.5px;margin:0}h1 .operation{display:block;font-size:13px;letter-spacing:7px;font-weight:700;margin-bottom:11px;color:var(--coral)}h1 em{font-style:normal;color:var(--mint)}.game-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:22px;align-items:start}.cabinet{border:1px solid #4a646b;background:#142730;border-radius:10px;box-shadow:var(--shadow);overflow:hidden}.gamebar{height:58px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#203740;border-bottom:1px solid #567174}.room-label{display:flex;gap:11px;align-items:center}.room-label>span{display:grid;place-items:center;background:#b5e8c520;color:var(--mint);padding:7px;border-radius:4px}.room-label strong{font-size:13px}.room-label small{display:block;font:9px var(--mono);letter-spacing:1px;color:var(--muted);margin-top:4px}.gamebar .smallbtn{border-color:#4a626b;padding:8px 10px;font-size:11px}.stage{position:relative;aspect-ratio:1.6;background:#29434e;isolation:isolate;overflow:hidden}#game{width:100%;height:100%;display:block;image-rendering:auto;outline:none;touch-action:none}.hud{position:absolute;inset:15px 15px auto;display:flex;justify-content:space-between;gap:10px;pointer-events:none}.hud-card{background:#162b35ed;border:1px solid #516c71;border-radius:4px;padding:10px 12px;box-shadow:3px 3px 0 #0c1d2866}.health-name{font:9px var(--mono);text-transform:uppercase;letter-spacing:1.2px;color:#c5d8d0;margin-bottom:6px}.hearts{display:flex;gap:5px;color:var(--coral)}.hearts svg{width:18px;height:18px;fill:currentColor;stroke:none}.hearts .empty{color:#47616a}.score{font:700 18px var(--mono);color:var(--yellow);text-align:right;white-space:nowrap}.score small{font-size:8px;letter-spacing:1px;color:#bfd0c9;display:block;margin-bottom:5px}.scene-tag{position:absolute;right:16px;bottom:16px;font:9px var(--mono);letter-spacing:1.1px;color:#fff6d4;background:#122b34c9;padding:7px 9px;border:1px solid #71928c66;pointer-events:none}.primary{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:var(--mint);border:1px solid #17313a;border-radius:4px;box-shadow:0 3px 0 #17313a;color:var(--ink);font-size:12px;font-weight:800;padding:11px 16px}.primary:hover{filter:brightness(1.07);transform:translateY(-1px)}.primary:active{transform:translateY(2px);box-shadow:none}.primary.coral{background:var(--coral)}.primary.yellow{background:var(--yellow)}.toast{position:absolute;top:100px;left:50%;transform:translateX(-50%);background:var(--cream);color:var(--ink);border:2px solid #17313a;box-shadow:3px 3px 0 #17313a;font:700 11px var(--mono);padding:11px 16px;text-align:center;width:max-content;max-width:80%;opacity:0;pointer-events:none;transition:opacity .15s}.toast.show{opacity:1}.controlbar{background:#203740;min-height:65px;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;gap:10px}.key-guide{color:var(--muted);font:10px var(--mono);display:flex;gap:14px;align-items:center}.key-guide b{display:inline-block;color:var(--cream);border:1px solid #678087;background:#142a34;border-radius:3px;padding:4px 6px;font-size:9px;box-shadow:0 2px 0 #0c1d28;margin-right:4px}.play-status{display:flex;align-items:center;gap:6px;color:var(--mint);font:9px var(--mono);white-space:nowrap}.play-status i{width:5px;height:5px;background:var(--mint);border-radius:50%}.touch-controls{display:none;justify-content:space-between;align-items:center;width:100%;gap:10px;user-select:none}.joystick{width:100px;height:100px;border-radius:50%;border:1px solid #6c8a8a;background:#152c35;position:relative;touch-action:none;box-shadow:inset 0 0 0 10px #1d3741;flex-shrink:0}.joystick:before,.joystick:after{content:'';position:absolute;background:#526f74;opacity:.5}.joystick:before{width:1px;height:70px;left:49px;top:14px}.joystick:after{height:1px;width:70px;top:49px;left:14px}.stick{position:absolute;width:42px;height:42px;left:28px;top:28px;background:#94b9b3;border-radius:50%;border:3px solid #c0dcd0;box-shadow:0 4px 0 #0b202a;z-index:2;pointer-events:none}.touch-actions{display:flex;align-items:center;gap:10px}.touch-actions button{border-radius:50%;width:62px;height:62px;border:2px solid #101e29;box-shadow:0 4px 0 #0c1d28;background:var(--mint);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:700 8px var(--mono);touch-action:none}.touch-actions .attack{width:78px;height:78px;background:var(--coral)}.touch-actions .cycle{width:44px;height:44px;background:#38515a;color:var(--cream);border:1px solid #6d8588}.sidebar{display:flex;flex-direction:column;gap:18px}.questcard{background:var(--cream);color:var(--ink);border-radius:7px;padding:22px;box-shadow:0 5px 0 #09131c;position:relative}.questcard:before{content:'';position:absolute;width:65px;height:15px;left:calc(50% - 32px);top:-7px;background:#b8d1b3aa;transform:rotate(-4deg)}.section-kicker{font:9px var(--mono);font-weight:700;letter-spacing:1.6px;text-transform:uppercase}.questcard h2{font-size:23px;line-height:1.06;letter-spacing:-.6px;margin:13px 0 8px}.questcard>p{font-size:11px;line-height:1.65;color:#62716c}.quest-list{list-style:none;margin:19px 0;padding:0;display:grid;gap:17px}.quest-list li{display:flex;gap:10px}.quest-list i{font:11px var(--mono);font-style:normal;min-width:22px;height:22px;border:1px solid #809186;display:grid;place-items:center;border-radius:3px}.quest-list .done i{background:#d0e3c7}.quest-list strong{font-size:11px;display:block;line-height:1.5}.quest-list small{font-size:10px;line-height:1.5;color:#718077;display:block;margin-top:2px}.progress-label{display:flex;justify-content:space-between;font:9px var(--mono);color:#547266}.progress-track{height:5px;background:#d7dcc8;margin-top:9px;border-radius:3px}.progress-track div{height:100%;width:0;background:#527e62;transition:width .5s}.inventory{padding:0 3px}.inventory h3{font:10px var(--mono);color:var(--muted);letter-spacing:1.7px;display:flex;justify-content:space-between;margin:1px 0 12px}.item{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:#172e38;border:1px solid #324d56;padding:10px;border-radius:5px;margin-bottom:7px}.item.selected{border-color:var(--mint);background:#203c42}.item-icon{width:38px;height:38px;flex-shrink:0;background:#f6eddb;color:#345661;border-radius:3px;display:grid;place-items:center}.item:nth-of-type(2) .item-icon{background:#ffe2ab}.item:nth-of-type(3) .item-icon{background:#e9bad0}.item-icon svg{width:25px;height:25px}.item strong{display:block;font-size:11px;margin-bottom:5px}.item small{color:var(--muted);font-size:9px}.item kbd{margin-left:auto;font:9px var(--mono);border:1px solid #536c74;padding:4px;color:var(--muted)}.aside-note{display:flex;gap:10px;padding:0 6px;color:#9fb7b6;font-size:10px;line-height:1.6}.aside-note svg{flex-shrink:0;width:16px;color:var(--coral)}.below{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:20px 0 32px;font-size:11px;color:var(--muted)}.below span{color:var(--coral)}.textbtn{background:none;border:0;color:var(--mint);padding:5px 0;font:11px var(--mono)}.world-section{border-top:1px solid var(--line);padding:30px 0 35px}.world-heading{display:flex;align-items:end;justify-content:space-between;gap:10px;margin-bottom:19px}.world-heading h2{font-size:25px;letter-spacing:-.8px;margin:0}.world-heading p{font:10px var(--mono);color:var(--muted);margin:0 0 4px}.department-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.dept-card{padding:0;text-align:left;border:1px solid #38525b;border-radius:6px;overflow:hidden;background:#1b303a;transition:transform .2s}.dept-card:hover{transform:translateY(-4px);border-color:var(--mint)}.dept-card canvas{display:block;width:100%;height:105px;image-rendering:auto;background:#25424b}.dept-copy{padding:13px 13px 15px}.dept-copy>div{display:flex;justify-content:space-between;font:8px var(--mono);letter-spacing:.8px;color:var(--mint);margin-bottom:7px}.dept-card h3{font-size:13px;margin:0 0 7px}.dept-card p{font-size:10px;line-height:1.5;color:var(--muted);margin:0}.dept-copy .soon{color:var(--coral)}footer{display:flex;justify-content:space-between;align-items:center;padding:20px 0 30px;border-top:1px solid var(--line);font:9px var(--mono);letter-spacing:1px;color:#8ea6a9;gap:12px}footer strong{color:var(--cream);font-size:10px}dialog{border:1px solid #58717a;border-radius:12px;color:var(--cream);background:#142a35;box-shadow:0 20px 100px #0009;width:min(640px,94vw);padding:0;max-height:90dvh}dialog::backdrop{background:#07121bd9;backdrop-filter:blur(6px)}.modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #38505a}.modal-head h2{font-size:20px;letter-spacing:-.5px;margin:0}.close{background:transparent;border:1px solid #536d75;padding:6px;border-radius:4px;color:var(--cream);line-height:1}.modal-body{padding:24px}.modal-body>p{color:var(--muted);font-size:13px;line-height:1.7}.modal-note{color:#91a9ab;font:10px var(--mono);line-height:1.7;margin:18px 0 0}.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:20px 0}.help-grid div{background:#203b44;padding:15px;border-radius:5px}.help-grid strong{display:block;color:var(--mint);font-size:12px;margin-bottom:8px}.help-grid p{font-size:11px;color:#c1d1cf;line-height:1.7;margin:0}.name-row{display:flex;gap:10px;align-items:center;margin:20px 0}.name-row input{min-width:0;width:100%;background:#0c202b;border:1px solid #557279;border-radius:4px;padding:12px;color:var(--cream)}label{font-size:12px;color:var(--muted)}.iv-visual{height:150px;position:relative;background:#213b46;border:1px solid #46616c;border-radius:6px;overflow:hidden;display:grid;place-items:center}.iv-visual canvas{width:100%;height:100%;image-rendering:auto}.iv-text{text-align:center}.iv-text h3{font-size:24px;margin:18px 0 9px}.iv-text p{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:20px}.rhythm-track{height:48px;background:#0a202c;border:2px solid #65848a;border-radius:5px;position:relative;overflow:hidden;margin:18px 0}.sweetspot{position:absolute;left:36%;width:28%;height:100%;background:#b5e8c55c;border-left:2px solid var(--mint);border-right:2px solid var(--mint)}.beat-marker{position:absolute;left:0;width:7px;top:4px;bottom:4px;background:var(--yellow);box-shadow:0 0 10px #ffda79aa}.iv-status{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--muted)}.iv-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:20px}.iv-actions .primary{min-height:48px;padding:14px 25px}.recovery-pips{color:var(--mint);font:18px var(--mono);letter-spacing:8px}.splatter-screen{position:absolute;inset:0;pointer-events:none}.result-copy{text-align:center}.result-copy h3{font-size:34px;line-height:1;letter-spacing:-1px;color:var(--coral);margin:20px 0 10px}.result-copy p{color:var(--muted);font-size:12px;line-height:1.7}.result-copy .primary{margin:14px 0}.puzzle-options{display:flex;justify-content:center;gap:12px;margin:22px 0}.puzzle-options button{width:72px;height:72px;background:var(--mint);border:2px solid #0c202a;box-shadow:0 4px 0 #0c202a;border-radius:5px;font-size:25px;color:var(--ink)}.puzzle-options button:nth-child(2){background:var(--coral)}.puzzle-options button:nth-child(3){background:var(--yellow)}.puzzle-pattern{font:700 28px var(--mono);letter-spacing:12px;color:var(--mint);text-align:center;padding:20px;background:#0c202a;border-radius:5px}.hidden{display:none!important}
+:root{--bg:#101e29;--panel:#172a35;--line:#30444e;--cream:#f8efd9;--muted:#a8bdbe;--mint:#b5e8c5;--yellow:#ffda79;--coral:#ffa48e;--ink:#17313a;--shadow:0 6px 0 #09131c;--mono:ui-monospace,SFMono-Regular,Consolas,monospace}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--cream);font-family:Arial,Helvetica,sans-serif;background-image:radial-gradient(ellipse at 85% 0, #25444455,transparent 45%)}button,input{font:inherit}button{cursor:pointer;color:inherit}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--yellow);outline-offset:4px}button:disabled{opacity:.45;cursor:default}button{touch-action:manipulation}svg{width:22px;height:22px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.wrap{width:min(1400px,94%);margin:auto}header{height:80px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:12px}.brand{display:flex;align-items:center;gap:12px;text-transform:uppercase;font-size:12px;letter-spacing:1.8px;font-weight:800}.brandmark{height:35px;width:35px;background:var(--mint);color:var(--ink);display:grid;place-items:center;box-shadow:3px 3px 0 #749f8c;transform:rotate(-5deg)}.header-actions{display:flex;gap:8px;align-items:center}.iconbtn,.smallbtn{border:1px solid var(--line);background:transparent;border-radius:6px;padding:10px 12px;display:inline-flex;gap:8px;align-items:center;font-size:12px;font-weight:700}.iconbtn:hover,.smallbtn:hover{background:#28424c}.version{font:10px var(--mono);color:var(--muted);margin-right:16px;text-transform:uppercase;letter-spacing:1px}.eyebrow{font:10px var(--mono);letter-spacing:2px;font-weight:700;color:var(--mint);margin:0 0 13px;text-transform:uppercase}.eyebrow .dot{display:inline-block;width:6px;height:6px;background:var(--mint);margin-right:7px;box-shadow:0 0 12px #b5e8c555}h1{font-size:clamp(34px,4.1vw,60px);font-weight:900;line-height:.95;letter-spacing:-2.5px;margin:0}h1 .operation{display:block;font-size:13px;letter-spacing:7px;font-weight:700;margin-bottom:11px;color:var(--coral)}h1 em{font-style:normal;color:var(--mint)}.game-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:22px;align-items:start}.cabinet{border:1px solid #4a646b;background:#142730;border-radius:10px;box-shadow:var(--shadow);overflow:hidden}.gamebar{height:58px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#203740;border-bottom:1px solid #567174}.room-label{display:flex;gap:11px;align-items:center}.room-label>span{display:grid;place-items:center;background:#b5e8c520;color:var(--mint);padding:7px;border-radius:4px}.room-label strong{font-size:13px}.room-label small{display:block;font:9px var(--mono);letter-spacing:1px;color:var(--muted);margin-top:4px}.gamebar .smallbtn{border-color:#4a626b;padding:8px 10px;font-size:11px}.stage{position:relative;aspect-ratio:1.6;background:#29434e;isolation:isolate;overflow:hidden}#game{width:100%;height:100%;display:block;image-rendering:auto;outline:none;touch-action:none}.hud{position:absolute;inset:15px 15px auto;display:flex;justify-content:space-between;gap:10px;pointer-events:none}.hud-card{background:#162b35ed;border:1px solid #516c71;border-radius:4px;padding:10px 12px;box-shadow:3px 3px 0 #0c1d2866}.health-name{font:9px var(--mono);text-transform:uppercase;letter-spacing:1.2px;color:#c5d8d0;margin-bottom:6px}.hearts{display:flex;gap:5px;color:var(--coral)}.hearts svg{width:18px;height:18px;fill:currentColor;stroke:none}.hearts .empty{color:#47616a}.score{font:700 18px var(--mono);color:var(--yellow);text-align:right;white-space:nowrap}.score small{font-size:8px;letter-spacing:1px;color:#bfd0c9;display:block;margin-bottom:5px}.scene-tag{position:absolute;right:16px;bottom:16px;font:9px var(--mono);letter-spacing:1.1px;color:#fff6d4;background:#122b34c9;padding:7px 9px;border:1px solid #71928c66;pointer-events:none}.primary{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:var(--mint);border:1px solid #17313a;border-radius:4px;box-shadow:0 3px 0 #17313a;color:var(--ink);font-size:12px;font-weight:800;padding:11px 16px}.primary:hover{filter:brightness(1.07);transform:translateY(-1px)}.primary:active{transform:translateY(2px);box-shadow:none}.primary.coral{background:var(--coral)}.primary.yellow{background:var(--yellow)}.toast{position:absolute;top:100px;left:50%;transform:translateX(-50%);background:var(--cream);color:var(--ink);border:2px solid #17313a;box-shadow:3px 3px 0 #17313a;font:700 11px var(--mono);padding:11px 16px;text-align:center;width:max-content;max-width:80%;opacity:0;pointer-events:none;transition:opacity .15s}.toast.show{opacity:1}.controlbar{background:#203740;min-height:65px;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;gap:10px}.key-guide{color:var(--muted);font:10px var(--mono);display:flex;gap:14px;align-items:center}.key-guide b{display:inline-block;color:var(--cream);border:1px solid #678087;background:#142a34;border-radius:3px;padding:4px 6px;font-size:9px;box-shadow:0 2px 0 #0c1d28;margin-right:4px}.play-status{display:flex;align-items:center;gap:6px;color:var(--mint);font:9px var(--mono);white-space:nowrap}.play-status i{width:5px;height:5px;background:var(--mint);border-radius:50%}.touch-controls{display:none;justify-content:space-between;align-items:center;width:100%;gap:10px;user-select:none}.joystick{width:100px;height:100px;border-radius:50%;border:1px solid #6c8a8a;background:#152c35;position:relative;touch-action:none;box-shadow:inset 0 0 0 10px #1d3741;flex-shrink:0}.joystick:before,.joystick:after{content:'';position:absolute;background:#526f74;opacity:.5}.joystick:before{width:1px;height:70px;left:49px;top:14px}.joystick:after{height:1px;width:70px;top:49px;left:14px}.stick{position:absolute;width:42px;height:42px;left:28px;top:28px;background:#94b9b3;border-radius:50%;border:3px solid #c0dcd0;box-shadow:0 4px 0 #0b202a;z-index:2;pointer-events:none}.touch-actions{display:flex;align-items:center;gap:10px}.touch-actions button{border-radius:50%;width:62px;height:62px;border:2px solid #101e29;box-shadow:0 4px 0 #0c1d28;background:var(--mint);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:700 8px var(--mono);touch-action:none}.touch-actions .attack{width:78px;height:78px;background:var(--coral)}.touch-actions .cycle{width:44px;height:44px;background:#38515a;color:var(--cream);border:1px solid #6d8588}.sidebar{display:flex;flex-direction:column;gap:18px}.questcard{background:var(--cream);color:var(--ink);border-radius:7px;padding:22px;box-shadow:0 5px 0 #09131c;position:relative}.questcard:before{content:'';position:absolute;width:65px;height:15px;left:calc(50% - 32px);top:-7px;background:#b8d1b3aa;transform:rotate(-4deg)}.section-kicker{font:9px var(--mono);font-weight:700;letter-spacing:1.6px;text-transform:uppercase}.questcard h2{font-size:23px;line-height:1.06;letter-spacing:-.6px;margin:13px 0 8px}.questcard>p{font-size:11px;line-height:1.65;color:#62716c}.quest-list{list-style:none;margin:19px 0;padding:0;display:grid;gap:17px}.quest-list li{display:flex;gap:10px}.quest-list i{font:11px var(--mono);font-style:normal;min-width:22px;height:22px;border:1px solid #809186;display:grid;place-items:center;border-radius:3px}.quest-list .done i{background:#d0e3c7}.quest-list strong{font-size:11px;display:block;line-height:1.5}.quest-list small{font-size:10px;line-height:1.5;color:#718077;display:block;margin-top:2px}.progress-label{display:flex;justify-content:space-between;font:9px var(--mono);color:#547266}.progress-track{height:5px;background:#d7dcc8;margin-top:9px;border-radius:3px}.progress-track div{height:100%;width:0;background:#527e62;transition:width .5s}.inventory{padding:0 3px}.inventory h3{font:10px var(--mono);color:var(--muted);letter-spacing:1.7px;display:flex;justify-content:space-between;margin:1px 0 12px}.item{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:#172e38;border:1px solid #324d56;padding:10px;border-radius:5px;margin-bottom:7px}.item.selected{border-color:var(--mint);background:#203c42}.item-icon{width:38px;height:38px;flex-shrink:0;background:#f6eddb;color:#345661;border-radius:3px;display:grid;place-items:center}.item:nth-of-type(2) .item-icon{background:#ffe2ab}.item:nth-of-type(3) .item-icon{background:#e9bad0}.item-icon svg{width:25px;height:25px}.item strong{display:block;font-size:11px;margin-bottom:5px}.item small{color:var(--muted);font-size:9px}.item kbd{margin-left:auto;font:9px var(--mono);border:1px solid #536c74;padding:4px;color:var(--muted)}.aside-note{display:flex;gap:10px;padding:0 6px;color:#9fb7b6;font-size:10px;line-height:1.6}.aside-note svg{flex-shrink:0;width:16px;color:var(--coral)}.below{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:20px 0 32px;font-size:11px;color:var(--muted)}.below span{color:var(--coral)}.textbtn{background:none;border:0;color:var(--mint);padding:5px 0;font:11px var(--mono)}.world-section{border-top:1px solid var(--line);padding:30px 0 35px}.world-heading{display:flex;align-items:end;justify-content:space-between;gap:10px;margin-bottom:19px}.world-heading h2{font-size:25px;letter-spacing:-.8px;margin:0}.world-heading p{font:10px var(--mono);color:var(--muted);margin:0 0 4px}.department-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.dept-card{padding:0;text-align:left;border:1px solid #38525b;border-radius:6px;overflow:hidden;background:#1b303a;transition:transform .2s}.dept-card:hover{transform:translateY(-4px);border-color:var(--mint)}.dept-card canvas{display:block;width:100%;height:auto;aspect-ratio:260/135;image-rendering:auto;background:#25424b}.dept-copy{padding:13px 13px 15px}.dept-copy>div{display:flex;justify-content:space-between;font:8px var(--mono);letter-spacing:.8px;color:var(--mint);margin-bottom:7px}.dept-card h3{font-size:13px;margin:0 0 7px}.dept-card p{font-size:10px;line-height:1.5;color:var(--muted);margin:0}.dept-copy .soon{color:var(--coral)}footer{display:flex;justify-content:space-between;align-items:center;padding:20px 0 30px;border-top:1px solid var(--line);font:9px var(--mono);letter-spacing:1px;color:#8ea6a9;gap:12px}footer strong{color:var(--cream);font-size:10px}dialog{border:1px solid #58717a;border-radius:12px;color:var(--cream);background:#142a35;box-shadow:0 20px 100px #0009;width:min(640px,94vw);padding:0;max-height:90dvh}dialog::backdrop{background:#07121bd9;backdrop-filter:blur(6px)}.modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #38505a}.modal-head h2{font-size:20px;letter-spacing:-.5px;margin:0}.close{background:transparent;border:1px solid #536d75;padding:6px;border-radius:4px;color:var(--cream);line-height:1}.modal-body{padding:24px}.modal-body>p{color:var(--muted);font-size:13px;line-height:1.7}.modal-note{color:#91a9ab;font:10px var(--mono);line-height:1.7;margin:18px 0 0}.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:20px 0}.help-grid div{background:#203b44;padding:15px;border-radius:5px}.help-grid strong{display:block;color:var(--mint);font-size:12px;margin-bottom:8px}.help-grid p{font-size:11px;color:#c1d1cf;line-height:1.7;margin:0}.name-row{display:flex;gap:10px;align-items:center;margin:20px 0}.name-row input{min-width:0;width:100%;background:#0c202b;border:1px solid #557279;border-radius:4px;padding:12px;color:var(--cream)}label{font-size:12px;color:var(--muted)}.iv-visual{height:150px;position:relative;background:#213b46;border:1px solid #46616c;border-radius:6px;overflow:hidden;display:grid;place-items:center}.iv-visual canvas{width:100%;height:100%;image-rendering:auto}.iv-text{text-align:center}.iv-text h3{font-size:24px;margin:18px 0 9px}.iv-text p{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:20px}.rhythm-track{height:48px;background:#0a202c;border:2px solid #65848a;border-radius:5px;position:relative;overflow:hidden;margin:18px 0}.sweetspot{position:absolute;left:36%;width:28%;height:100%;background:#b5e8c55c;border-left:2px solid var(--mint);border-right:2px solid var(--mint)}.beat-marker{position:absolute;left:0;width:7px;top:4px;bottom:4px;background:var(--yellow);box-shadow:0 0 10px #ffda79aa}.iv-status{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--muted)}.iv-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:20px}.iv-actions .primary{min-height:48px;padding:14px 25px}.recovery-pips{color:var(--mint);font:18px var(--mono);letter-spacing:8px}.splatter-screen{position:absolute;inset:0;pointer-events:none}.result-copy{text-align:center}.result-copy h3{font-size:34px;line-height:1;letter-spacing:-1px;color:var(--coral);margin:20px 0 10px}.result-copy p{color:var(--muted);font-size:12px;line-height:1.7}.result-copy .primary{margin:14px 0}.puzzle-options{display:flex;justify-content:center;gap:12px;margin:22px 0}.puzzle-options button{width:72px;height:72px;background:var(--mint);border:2px solid #0c202a;box-shadow:0 4px 0 #0c202a;border-radius:5px;font-size:25px;color:var(--ink)}.puzzle-options button:nth-child(2){background:var(--coral)}.puzzle-options button:nth-child(3){background:var(--yellow)}.puzzle-pattern{font:700 28px var(--mono);letter-spacing:12px;color:var(--mint);text-align:center;padding:20px;background:#0c202a;border-radius:5px}.hidden{display:none!important}
 #ivDialog.gory{background:radial-gradient(ellipse at 4% 5%,#79233b88 0 6%,transparent 6.4%),radial-gradient(ellipse at 93% 70%,#a62d4b55 0 9%,transparent 9.4%),radial-gradient(ellipse at 19% 93%,#a62d4b55 0 5%,transparent 5.4%),#211e2d;border-color:#aa5260}#ivDialog.gory::backdrop{background:radial-gradient(circle at 12% 20%,#a82f49cc 0 2%,transparent 2.2%),radial-gradient(ellipse at 83% 12%,#a82f49cc 0 4%,transparent 4.2%),radial-gradient(ellipse at 22% 82%,#a82f49cc 0 5%,transparent 5.2%),radial-gradient(ellipse at 88% 75%,#b52f4ac9 0 3%,transparent 3.2%),#180e1ce6}#ivDialog.gory .iv-visual{height:190px;border-color:#95465a}
 @media(pointer:coarse){.touch-controls{display:flex}.key-guide,.play-status{display:none}}
 @media(max-width:1100px){.game-layout{grid-template-columns:minmax(0,1fr) 235px;gap:16px}.questcard{padding:18px}.key-guide{gap:8px;font-size:9px}.gamebar{padding:0 12px}.department-grid{gap:9px}.dept-copy{padding:11px}}
-@media(max-width:800px){.wrap{width:94%}header{height:62px}.version{display:none}.game-layout{display:block}.sidebar{display:grid;grid-template-columns:1fr 1fr;margin-top:26px;gap:18px}.aside-note{grid-column:1/-1}.questcard{padding:20px}.inventory{padding-top:5px}.department-grid{grid-template-columns:repeat(5,180px);overflow-x:auto;padding-bottom:12px;scroll-snap-type:x mandatory}.dept-card{scroll-snap-align:start}.world-heading{align-items:start;flex-direction:column;gap:10px}.dept-card canvas{height:112px}.below{margin-top:18px}.key-guide{font-size:10px;gap:15px}.scene-tag{font-size:8px}}
+@media(max-width:800px){.wrap{width:94%}header{height:62px}.version{display:none}.game-layout{display:block}.sidebar{display:grid;grid-template-columns:1fr 1fr;margin-top:26px;gap:18px}.aside-note{grid-column:1/-1}.questcard{padding:20px}.inventory{padding-top:5px}.world-heading{align-items:start;flex-direction:column;gap:10px}.below{margin-top:18px}.key-guide{font-size:10px;gap:15px}.scene-tag{font-size:8px}}
 @media(max-width:540px){.brand{font-size:9px;letter-spacing:1px;gap:9px}.brandmark{width:28px;height:28px}.header-actions{gap:6px}.header-actions button{padding:8px}.header-actions button span{display:none}h1{font-size:42px;letter-spacing:-1.8px}h1 .operation{font-size:11px;letter-spacing:5px}.eyebrow{font-size:8px;letter-spacing:1.5px}.gamebar{height:54px;padding:0 10px}.room-label{gap:8px}.room-label strong{font-size:11px}.room-label small{font-size:8px}.room-label>span{padding:5px}.gamebar .smallbtn{padding:8px;font-size:10px}.gamebar .smallbtn svg{width:16px;height:16px}.stage{aspect-ratio:1.12}.hud{inset:9px 9px auto}.hud-card{padding:8px}.health-name{font-size:7px}.hearts{gap:3px}.hearts svg{width:14px;height:14px}.score{font-size:14px}.score small{font-size:7px}.scene-tag{right:9px;bottom:9px;font-size:6px}.toast{font-size:9px;top:76px;padding:10px;max-width:90%}.controlbar{padding:13px 18px;min-height:128px}.touch-controls{display:flex}.key-guide,.play-status{display:none}.joystick{width:88px;height:88px}.joystick:before{left:43px;top:13px;height:60px}.joystick:after{top:43px;left:13px;width:60px}.stick{left:22px;top:22px}.touch-actions{gap:8px}.touch-actions button{width:54px;height:54px}.touch-actions .attack{width:68px;height:68px}.touch-actions .cycle{width:35px;height:35px}.sidebar{grid-template-columns:1fr;gap:22px}.questcard{display:none}.inventory{padding:0}.inventory h3{font-size:9px}.items{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.item{flex-direction:column;text-align:center;padding:12px 5px;gap:10px;margin:0}.item strong{font-size:10px}.item small{font-size:8px;line-height:1.4;display:block}.item kbd{display:none}.item-icon{width:35px;height:35px}.aside-note{font-size:10px}.below{font-size:10px;align-items:start}.below>div{max-width:240px;line-height:1.6}.below .textbtn{font-size:9px;white-space:nowrap}.world-section{padding:24px 0}.world-heading h2{font-size:23px}footer{font-size:8px;line-height:1.8}footer strong{font-size:9px}.modal-head{padding:17px}.modal-body{padding:18px}.modal-head h2{font-size:18px}.help-grid{gap:8px}.help-grid div{padding:11px}.help-grid p{font-size:10px}}
 @media(max-width:370px){.touch-actions{gap:6px}.touch-actions .attack{width:58px;height:58px}.touch-actions button{width:47px;height:47px}.controlbar{padding:12px}.joystick{transform:scale(.9)}h1{font-size:37px}.brand{letter-spacing:0}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
@@ -68,7 +68,9 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 
 @media(max-width:700px){body.playing .game-layout{margin-top:12px}}
 
-.department-grid{grid-template-columns:repeat(3,1fr)}@media(max-width:700px){.department-grid{grid-template-columns:repeat(2,1fr)}}
+.department-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:900px){.department-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:540px){.department-grid{grid-template-columns:minmax(0,1fr)}}
+/* Department cards: the art keeps the 260 × 135 shape it is drawn at; the copy sits under it. */
+.dept-card{display:flex;flex-direction:column;align-items:stretch;min-width:0}.dept-card canvas{flex:0 0 auto;width:100%;height:auto;aspect-ratio:260/135}.dept-copy{flex:1 1 auto}
 
 
 /* v0.6: arcade (fullscreen) mode, faster starts, meta progression, and a HUD that leaves the signs alone. */
@@ -2354,6 +2356,423 @@ html:has(.title-screen[data-state='up']) {
 /* While a hallway conversation is open, the ward strip pill gets out of the speech box's way. */
 body.talking .ward-strip{display:none}
 
+/* ==== Medal ceremony (minigames.js) ====
+   A win shows a cream passport card; the medal canvas drops onto it (JS writes its transform), an ink
+   ring lands with it, the tiles count up and their NEW BEST / NEW STARS chips pop. data-medal on
+   #miniResult (0 for a loss, 1 to 3) carries the bronze, silver or gold wash. #ceremonyFx is the
+   confetti layer over the art and the verdict. */
+#miniResult {
+  --medal: transparent;
+  border-radius: var(--r-lg);
+}
+#miniResult[data-medal='1'] {
+  --medal: #e59a5c;
+}
+#miniResult[data-medal='2'] {
+  --medal: #d3e0e5;
+}
+#miniResult[data-medal='3'] {
+  --medal: #ffd760;
+}
+#miniResult:not([data-medal='0']) {
+  background: radial-gradient(ellipse at 28% 0, color-mix(in srgb, var(--medal) 24%, transparent), transparent 62%);
+}
+#miniDialog:has(#miniResult[data-medal='3']:not(.hidden)) {
+  border-color: #e9c45c;
+}
+#miniDialog .result-hero {
+  position: relative;
+}
+#miniResult:not([data-medal='0']) .result-verdict .medal-big {
+  display: none;
+}
+.ceremony-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.result-stamp {
+  position: relative;
+  width: min(340px, 100%);
+  margin: 4px auto 6px;
+}
+.stamp-page {
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  min-height: 92px;
+  padding: 10px 104px 10px 16px;
+  border-radius: var(--r-md);
+  background: var(--cream);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: 0 5px 0 #09131c66;
+  transform: rotate(-1.2deg);
+}
+.stamp-kicker {
+  font: 800 9px/1.3 var(--mono);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #b0614c;
+}
+.stamp-page strong {
+  font-size: 17px;
+  line-height: 1.15;
+  letter-spacing: -0.3px;
+}
+.stamp-line {
+  font: 700 10px/1.4 var(--mono);
+  color: #4f6c65;
+}
+.stamp-stars {
+  color: #c79a2e;
+  letter-spacing: 1px;
+}
+.stamp-share {
+  margin-top: 4px;
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--cream);
+  font: 800 11px var(--mono);
+  letter-spacing: 0.5px;
+}
+.stamp-share:hover {
+  background: #24485a;
+}
+.stamp-ink {
+  position: absolute;
+  top: calc(50% - 43px);
+  right: 9px;
+  width: 86px;
+  height: 86px;
+  border: 3px dashed #c8664f;
+  border-color: color-mix(in srgb, var(--medal) 70%, #8a5230);
+  border-radius: 50%;
+  opacity: 0;
+  transform: rotate(-10deg) scale(1.25);
+  pointer-events: none;
+}
+.result-stamp[data-stamped='1'] .stamp-ink {
+  opacity: 0.6;
+  transform: rotate(-10deg) scale(1);
+  transition: opacity 0.18s, transform 0.18s;
+}
+.stamp-medal {
+  position: absolute;
+  top: calc(50% - 46px);
+  right: 8px;
+  z-index: 2;
+  width: 88px;
+  height: 88px;
+  transform-origin: 50% 85%;
+  pointer-events: none;
+}
+#miniDialog .result-numbers div {
+  position: relative;
+}
+.tile-pop {
+  position: absolute;
+  top: -9px;
+  right: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--coral);
+  color: var(--ink);
+  font: 800 9px/1.2 var(--mono);
+  font-style: normal;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  box-shadow: 0 3px 0 #09131c66;
+  opacity: 0;
+  transform: scale(0.3) rotate(-12deg);
+  transition: transform 0.3s cubic-bezier(0.3, 1.8, 0.5, 1), opacity 0.15s;
+  pointer-events: none;
+}
+#resultPop3 {
+  background: var(--yellow);
+}
+.tile-pop[data-on='1'] {
+  opacity: 1;
+  transform: scale(1) rotate(-4deg);
+}
+@media (max-width: 540px), (max-height: 560px) {
+  .result-stamp {
+    margin: 0 auto 2px;
+  }
+  .stamp-page {
+    min-height: 78px;
+    padding: 7px 88px 7px 13px;
+  }
+  .stamp-page strong {
+    font-size: 15px;
+  }
+  .stamp-share {
+    min-height: 26px;
+    margin-top: 2px;
+  }
+  .stamp-ink {
+    top: calc(50% - 37px);
+    width: 74px;
+    height: 74px;
+  }
+  .stamp-medal {
+    top: calc(50% - 39px);
+    width: 76px;
+    height: 76px;
+  }
+}
+
+/* ==== Sticker pop (stickers.js) ====
+   A badge toast in the top layer (popover) so it shows over an open dialog. */
+.sticker-pop {
+  position: fixed;
+  inset: max(12px, env(safe-area-inset-top)) auto auto 50%;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  height: auto;
+  margin: 0;
+  padding: 7px 18px 7px 7px;
+  overflow: visible;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cream);
+  color: var(--ink);
+  box-shadow: 0 0 0 3px var(--yellow), 0 12px 30px #0008;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.sticker-pop.show {
+  display: flex;
+  animation: stickerPopIn 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.sticker-pop canvas {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+}
+.sticker-pop small {
+  display: block;
+  font: 800 9px/1.3 var(--mono);
+  letter-spacing: 1.6px;
+  color: #b0614c;
+}
+.sticker-pop strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.2;
+  letter-spacing: -0.2px;
+}
+@keyframes stickerPopIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-16px) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sticker-pop.show {
+    animation: none;
+  }
+}
+
+/* ==== Sticker card (sidebar) ==== */
+.sticker-card {
+  display: grid;
+  gap: 10px;
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--card);
+}
+.sticker-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sticker-card h3 {
+  margin: 0;
+  font: var(--kicker);
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+#stickerCardCount {
+  font: 800 14px var(--mono);
+  color: var(--yellow);
+}
+.sticker-card-track,
+.sticker-progress {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--card-low);
+  overflow: hidden;
+}
+#stickerCardBar,
+#stickerBar {
+  width: 0;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--mint), var(--yellow), var(--coral));
+  transition: width 0.5s;
+}
+.sticker-strip {
+  display: flex;
+  gap: 8px;
+}
+.sticker-strip canvas,
+.sticker-slot {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+}
+.sticker-slot {
+  border: 2px dashed #ffffff24;
+  border-radius: 50%;
+}
+.sticker-card-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.sticker-open {
+  justify-content: center;
+}
+/* The Hall and the sticker card share the hall column, stacked, in every layout. */
+.game-layout .sidebar > .sidebar-col {
+  display: grid;
+  grid-area: hall;
+  align-content: start;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+@media (max-width: 700px) {
+  .game-layout .sidebar > .sidebar-col {
+    gap: var(--sp-3);
+  }
+}
+
+/* ==== Sticker sheet ==== */
+.sticker-sheet {
+  width: min(900px, 94vw);
+}
+.sticker-progress {
+  height: 6px;
+  margin: 0 0 var(--sp-3);
+}
+.sticker-spot {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: center;
+  margin: 0 0 var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, #2c4e5e, var(--card));
+}
+.sticker-spot canvas {
+  width: 120px;
+  height: 120px;
+}
+.sticker-spot .card-kicker {
+  margin-bottom: 4px;
+  color: var(--yellow);
+}
+.sticker-spot h3 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.4px;
+}
+.sticker-spot p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d3e2dd;
+}
+.sticker-spot .primary {
+  min-height: 40px;
+  padding: 9px 16px;
+}
+.sticker-group {
+  margin: 16px 0 8px;
+}
+.sticker-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-2);
+}
+.sticker-tile {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  padding: 10px 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--card);
+  text-align: center;
+}
+.sticker-tile:hover {
+  background: var(--card-hi);
+}
+.sticker-tile.selected {
+  border-color: var(--mint);
+  box-shadow: inset 0 0 0 1px var(--mint);
+}
+.sticker-tile[data-earned='0'] {
+  background: var(--card-low);
+}
+.sticker-tile canvas {
+  width: 64px;
+  height: 64px;
+}
+.sticker-tile strong {
+  font-size: 12px;
+  line-height: 1.25;
+}
+.sticker-tile[data-earned='0'] strong {
+  color: #8fa5a8;
+}
+.sticker-tile small {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+@media (max-width: 540px) {
+  .sticker-spot {
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+  .sticker-spot canvas {
+    width: 84px;
+    height: 84px;
+  }
+  .sticker-spot h3 {
+    font-size: 18px;
+  }
+  .sticker-spot p {
+    font-size: 12px;
+  }
+  .sticker-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 </style>
 </head>
 <body>
@@ -2384,16 +2803,16 @@ body.talking .ward-strip{display:none}
 <div class="hud"><div class="hud-card"><div class="health-name" id="healthName">Queasiness resistance</div><div class="hearts-row"><div class="hearts" id="hearts" role="img"></div><button id="hudEat" class="hud-eat" aria-label="Eat a nutrient">+♥ 0</button></div></div><div class="hud-card score"><small>POCKET MONEY</small><span id="score">00000</span></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="scene-tag" id="sceneTag">COZY ROOM / CHAOTIC ENERGY</div>
-<div class="ward-pause hidden" id="wardPaused" role="group" aria-labelledby="wardPausedTitle"><div class="ward-pause-card"><strong id="wardPausedTitle">Paused.</strong><p>The gremlins are pretending to be furniture.</p><button class="primary coral" id="wardResume">Resume</button><div class="ward-pause-grid"><button class="smallbtn" id="pauseMap">Map</button><button class="smallbtn" id="pauseShop">Gift shop</button><button class="smallbtn" id="pauseHelp">How to play</button><button class="smallbtn" id="pauseSound">Sound on</button><button class="smallbtn" id="pauseFull">Fullscreen</button><button class="smallbtn" id="pauseControls">Controls: Tap the room</button><button class="smallbtn" id="pauseQuit">Quit to title</button></div></div></div>
+<div class="ward-pause hidden" id="wardPaused" role="group" aria-labelledby="wardPausedTitle"><div class="ward-pause-card"><strong id="wardPausedTitle">Paused.</strong><p>The gremlins are pretending to be furniture.</p><button class="primary coral" id="wardResume">Resume</button><div class="ward-pause-grid"><button class="smallbtn" id="pauseMap">Map</button><button class="smallbtn" id="pauseShop">Gift shop</button><button class="smallbtn" id="pauseStickers">Stickers</button><button class="smallbtn" id="pauseHelp">How to play</button><button class="smallbtn" id="pauseSound">Sound on</button><button class="smallbtn" id="pauseFull">Fullscreen</button><button class="smallbtn" id="pauseControls">Controls: Tap the room</button><button class="smallbtn" id="pauseQuit">Quit to title</button></div></div></div>
 </div>
 <div class="ward-strip"><span id="wardStatus">HOME BASE</span><button id="rematchBtn" class="smallbtn hidden">Another round ↻</button></div><div id="weaponReadout" class="weapon-readout"></div><div class="controlbar"><div class="key-guide"><span><b>W A S D</b> move</span><span><b>SPACE</b> attack</span><span><b>E</b> ability</span><span><b>Q</b> dash</span><span><b>SHIFT</b> jump</span><span><b>1–3 / C</b> equip</span><span><b>F</b> eat</span></div><div class="play-status"><i></i><span id="playStatus">READY WHEN YOU ARE</span></div><div class="touch-controls"><div class="joystick" id="joystick" role="group" aria-label="Movement joystick"><div class="stick" id="stick"></div></div><div class="touch-actions" id="touchActions"><div class="weapon-strip" id="weaponStrip" role="group" aria-label="Weapons" data-active="0"><button class="wslot selected" id="wslot0" data-item="0" aria-label="Equip the pillow" aria-pressed="true"><svg><use href="#i-pillow"/></svg></button><button class="wslot" id="wslot1" data-item="1" aria-label="Equip the barf bag" aria-pressed="false"><svg><use href="#i-bag"/></svg></button><button class="wslot" id="wslot2" data-item="2" aria-label="Equip the brick" aria-pressed="false"><svg><use href="#i-brick"/></svg></button></div><button class="act eat" id="touchEat" aria-label="Eat a nutrient. 0 carried." disabled><span class="act-icon" aria-hidden="true">+♥</span><small>EAT</small><b class="act-badge" id="touchEatCount">0</b></button><button class="act" id="useBtn" aria-label="Use your ability"><svg id="useIcon"><use href="#i-pillow"/></svg><span>SPIN</span></button><button class="act" id="dashBtn" aria-label="Dash"><span class="act-icon" aria-hidden="true">»</span><small>DASH</small></button><button class="act" id="jumpBtn" aria-label="Jump"><span class="act-icon" aria-hidden="true">↑</span><small>JUMP</small></button><button class="attack" id="attackBtn" aria-label="Attack with equipped weapon"><svg><use href="#i-pillow"/></svg><span>SWING</span></button></div></div></div>
 <div class="turn-hint" id="turnHint"><span>Turn your phone sideways for the full ward.</span><button id="turnHintClose" aria-label="Hide this hint">✕</button></div>
 </div>
 <div class="supplybar"><button id="eatBtn" class="smallbtn">♧ Drink / eat <span id="foodCount">0 / 3</span></button><span id="supplyNote">Find glowing nutrients. Each restores one heart.</span><button id="difficultyBtn" class="smallbtn">Questionable Decisions ⚙</button></div>
-</div><aside class="sidebar"><section class="daily-card" id="dailyCard" aria-label="Daily Dose"></section><section class="questcard"><div class="section-kicker">✚ Macy’s discharge passport</div><h2>Play your <br>way home.</h2><p>Better medals. Bigger rewards.<br>One very dramatic exit.</p><div id="passport"></div><div class="progress-label"><span>DISCHARGE STARS</span><span id="progressLabel">0 / 12</span></div><div class="progress-track"><div id="progressBar"></div></div><p id="dischargeRules" class="rules"></p><button id="shopBtn" class="textbtn">Visit the questionable gift shop ↗</button></section><section class="inventory"><h3>YOUR VERY SERIOUS ARSENAL <span>↓</span></h3><div class="items"><button class="item selected" data-item="0"><span class="item-icon"><svg><use href="#i-pillow"/></svg></span><span><strong>Pillow of destiny</strong><small>Swing combos. E = spin.</small></span><kbd>1</kbd></button><button class="item" data-item="1"><span class="item-icon"><svg><use href="#i-bag"/></svg></span><span><strong>Emergency barf bag</strong><small>Bouncing throws. E = shield.</small></span><kbd>2</kbd></button><button class="item" data-item="2"><span class="item-icon"><svg><use href="#i-brick"/></svg></span><span><strong>Brick-based revenge</strong><small>Stunning lobs. E = trap.</small></span><kbd>3</kbd></button></div></section><section class="hall-panel" aria-labelledby="hallTitle"><h3 id="hallTitle">HALL OF NONSENSE</h3><div id="hallStats" class="hall"></div></section><div class="aside-note"><svg><use href="#i-spark"/></svg><div>The court and the field miss Macy.<br>Her homework is being less subtle.</div></div></aside></div>
+</div><aside class="sidebar"><section class="daily-card" id="dailyCard" aria-label="Daily Dose"></section><section class="questcard"><div class="section-kicker">✚ Macy’s discharge passport</div><h2>Play your <br>way home.</h2><p>Better medals. Bigger rewards.<br>One very dramatic exit.</p><div id="passport"></div><div class="progress-label"><span>DISCHARGE STARS</span><span id="progressLabel">0 / 12</span></div><div class="progress-track"><div id="progressBar"></div></div><p id="dischargeRules" class="rules"></p><button id="shopBtn" class="textbtn">Visit the questionable gift shop ↗</button></section><section class="inventory"><h3>YOUR VERY SERIOUS ARSENAL <span>↓</span></h3><div class="items"><button class="item selected" data-item="0"><span class="item-icon"><svg><use href="#i-pillow"/></svg></span><span><strong>Pillow of destiny</strong><small>Swing combos. E = spin.</small></span><kbd>1</kbd></button><button class="item" data-item="1"><span class="item-icon"><svg><use href="#i-bag"/></svg></span><span><strong>Emergency barf bag</strong><small>Bouncing throws. E = shield.</small></span><kbd>2</kbd></button><button class="item" data-item="2"><span class="item-icon"><svg><use href="#i-brick"/></svg></span><span><strong>Brick-based revenge</strong><small>Stunning lobs. E = trap.</small></span><kbd>3</kbd></button></div></section><div class="sidebar-col"><section class="hall-panel" aria-labelledby="hallTitle"><h3 id="hallTitle">HALL OF NONSENSE</h3><div id="hallStats" class="hall"></div></section><section class="sticker-card" aria-labelledby="stickerCardTitle"><div class="sticker-card-top"><h3 id="stickerCardTitle">STICKER SHEET</h3><span id="stickerCardCount">0 / 0</span></div><div class="sticker-card-track" aria-hidden="true"><div id="stickerCardBar"></div></div><div class="sticker-strip" id="stickerCardStrip"></div><p id="stickerCardNote" class="sticker-card-note"></p><button id="stickerBtn" class="smallbtn sticker-open">Open the sticker sheet ↗</button></section></div><div class="aside-note"><svg><use href="#i-spark"/></svg><div>The court and the field miss Macy.<br>Her homework is being less subtle.</div></div></aside></div>
 <section class="world-section"><div class="world-heading"><div><p class="eyebrow" style="margin-bottom:9px">Pick a department. Pick your problem.</p><h2>The hospital is your arcade.</h2></div><p>6 MINI GAMES · 3 LEVELS EACH · PERFORMANCE MATTERS</p></div><div class="department-grid" id="departmentGrid"></div></section>
 </main><footer><strong>EXPLORE → PLAY → EARN → UPGRADE → DISCHARGE.</strong><span>ONE HTML FILE · PHONE + LAPTOP · MADE WITH LOVE & BAD JOKES</span></footer></div>
-<dialog id="mapDialog" class="sheet map-sheet"><div class="modal-head"><div><small class="modal-kicker">Gut wing · floor 4</small><h2>The hospital arcade.</h2></div><button class="close" data-close aria-label="Close map"><svg><use href="#i-close"/></svg></button></div><div class="modal-body">
+<dialog id="mapDialog" class="sheet map-sheet"><div class="modal-head"><div><small class="modal-kicker">Valley Hospital · Pediatrics · floor 7</small><h2>The hospital arcade.</h2></div><button class="close" data-close aria-label="Close map"><svg><use href="#i-close"/></svg></button></div><div class="modal-body">
 <div class="map-plan" id="mapGrid"></div>
 <p id="mapPassport" class="map-passport"></p>
 <div class="map-cards"><div id="mapDaily" class="daily-card"></div><section class="hall-card" aria-labelledby="mapHallTitle"><h3 id="mapHallTitle" class="card-kicker">Hall of Nonsense</h3><div id="mapHall" class="hall"></div></section></div>
@@ -2423,9 +2842,16 @@ body.talking .ward-strip{display:none}
 <div id="miniBriefCard" class="brief-card"><span id="miniBriefKicker" class="brief-kicker">GET YOUR BEARINGS · THE CLOCK IS PAUSED</span><h3 id="miniBriefTitle"></h3><div id="miniDemo" class="control-demo"><i></i><i></i><i></i><b></b></div><div class="brief-rule"><span>GOAL</span><strong id="miniBriefGoal"></strong></div><div class="brief-rule"><span>CONTROLS</span><p id="miniBriefControl"></p></div><div class="brief-rule"><span>WATCH OUT</span><p id="miniBriefAvoid"></p></div><button id="miniReadyBtn" class="primary coral">Ready. Count me in →</button></div>
 <button id="miniGo" class="go-card hidden" aria-label="Start now"><span class="brief-kicker">YOU KNOW THIS ONE · TAP TO SKIP</span><strong id="miniGoTitle"></strong><span id="miniGoCue" class="go-cue"></span><span class="go-track"><span id="miniGoBar"></span></span></button>
 </div></div>
-<div id="miniResult" class="result-panel hidden"><div class="result-hero"><canvas id="resultArt" class="mini-result-art" width="800" height="220"></canvas><div class="result-verdict"><div id="resultMedal" class="medal-big"></div><h3 id="resultHeading"></h3><p id="resultText"></p></div></div><div class="result-side"><div class="result-numbers" id="resultNumbers"></div><p id="resultJourney"></p><div class="result-buttons"><button class="primary coral" id="miniRetry">One more round</button><button class="primary" id="miniBack">Back to the hospital</button></div></div></div>
+<div id="miniResult" class="result-panel hidden" data-medal="0"><div class="result-hero"><canvas id="resultArt" class="mini-result-art" width="800" height="220"></canvas><div class="result-verdict"><div id="resultStamp" class="result-stamp hidden"><div class="stamp-page"><small class="stamp-kicker">Discharge passport</small><strong id="stampRoom"></strong><span class="stamp-line"><span id="stampLevel"></span> <span id="stampStars" class="stamp-stars" aria-hidden="true"></span></span><button class="stamp-share" id="resultShare" type="button" aria-label="Share this medal as a picture">Share ↗</button></div><span class="stamp-ink" aria-hidden="true"></span><canvas id="resultMedalArt" class="stamp-medal" width="88" height="88" aria-hidden="true"></canvas></div><div id="resultMedal" class="medal-big"></div><h3 id="resultHeading"></h3><p id="resultText"></p></div><canvas id="ceremonyFx" class="ceremony-fx" aria-hidden="true"></canvas></div><div class="result-side"><div class="result-numbers" id="resultNumbers"></div><p id="resultJourney"></p><div class="result-buttons"><button class="primary coral" id="miniRetry">One more round</button><button class="primary" id="miniBack">Back to the hospital</button></div></div></div>
 </div></dialog>
 <dialog id="winDialog" class="sheet"><div class="modal-head"><div><small class="modal-kicker">Passport complete</small><h2>The most dramatic discharge.</h2></div><button class="close" data-close aria-label="Close discharge"><svg><use href="#i-close"/></svg></button></div><div class="modal-body result-copy"><h3 style="color:var(--mint)">GET THE HECK HOME.</h3><p id="winScore"></p><p>Next stops: the volleyball court and the softball field. School has also invited itself.<br>Ralph left a one-star review on his way out.</p><p class="modal-note">The arcade’s discharge is complete. Real-life discharge remains the job of people with actual medical degrees.</p><button class="primary" data-close>Chase more gold medals →</button></div></dialog>
+<dialog id="stickerDialog" class="sheet sticker-sheet"><div class="modal-head"><div><small class="modal-kicker">Sticker sheet</small><h2 id="stickerTitle">Stickers.</h2></div><button class="close" data-close aria-label="Close sticker sheet"><svg><use href="#i-close"/></svg></button></div><div class="modal-body">
+<div class="sticker-progress" aria-hidden="true"><div id="stickerBar"></div></div>
+<section class="sticker-spot" aria-live="polite"><canvas id="stickerSpotArt" width="120" height="120" aria-hidden="true"></canvas><div><small id="stickerSpotKicker" class="card-kicker"></small><h3 id="stickerSpotName"></h3><p id="stickerSpotText"></p><button class="primary yellow" id="stickerShare" type="button">Share this sticker ↗</button></div></section>
+<div id="stickerGrid" class="sticker-grid"></div>
+<p class="modal-note">Stickers save in this browser with the rest of your progress. Tap one to see it big. Earned ones share as a picture card.</p>
+</div></dialog>
+<div id="stickerPop" class="sticker-pop" popover="manual" role="status" aria-live="polite"><canvas id="stickerPopArt" width="48" height="48" aria-hidden="true"></canvas><div><small id="stickerPopKicker">STICKER</small><strong id="stickerPopName"></strong></div></div>
 <script>
 'use strict';
 
@@ -8978,7 +9404,7 @@ function updateWardHUD() {
   if (encounter.boss && wardBoss && !encounter.complete)
     text = `RALPH · PHASE ${wardBoss.phase || 1}/3 · ${Math.max(0, Math.ceil(wardBoss.hp))} HP OF NONSENSE`;
   else if (encounter.boss && ralphRetreated) text = "HOME BASE · RALPH RETREATED. HE'LL BE BACK";
-  else if (room === 6) text = 'FOURTH FLOOR · NO GREMLINS. JUST YOUR PEOPLE';
+  else if (room === 6) text = 'SEVENTH FLOOR · NO GREMLINS. JUST YOUR PEOPLE';
   else if (!wardCombatRoom(room))
     text = room === 0 && state.ralph ? 'HOME BASE · RALPH EVICTED. ENJOY THE QUIET' : 'HOME BASE · SAFE TO BREATHE';
   else if (encounter.complete)
@@ -11989,10 +12415,12 @@ function wardDrawHint(g, vw) {
   g.globalAlpha = 1;
 }
 
-// The fourth-floor hallway (room 6): the long way between department doors, full of people who like
-// Macy. No combat, no damage. Visitors stroll, pause, turn to face her, and talk in a typed speech box
-// with voice blips; Barb from Dietary rides the elevator up every few minutes with a tray of Ensure,
-// and Rowdy the Ram (src/rowdy.js) cheers from the nurses' station.
+// The seventh-floor hallway at Valley Hospital (room 6): the long way between department doors, full of
+// people who like Macy. No combat, no damage. Visitors stroll, pause, turn to face her, and talk in a
+// typed speech box with voice blips; Barb from Dietary rides the elevator up every few minutes with a
+// tray of Ensure, and Rowdy the Ram (src/rowdy.js) cheers from the nurses' station. Every finished
+// conversation leaves a get-well card for the wall over Macy's bed (state.cards) and bumps the sticker
+// counters (state.stats); see "Get-well cards and counters" below.
 //
 // Framework contract (world.js and input.js call these when they exist):
 //   hallwayInstall()             adds room 6 to rooms and its furniture to roomProps (idempotent)
@@ -12027,10 +12455,14 @@ const HALLWAY_ID = 6,
   HALLWAY_SHOP_X = 2570,
   HALLWAY_EXIT_X = 3100,
   HALLWAY_MAX_BOTTLES = 9,
+  // Where Macy actually is: Valley Hospital in Paramus, seventh floor, Room 5.
+  HALLWAY_FLOOR = '7',
+  HALLWAY_STRIPE = 'VALLEY · 7F · PEDIATRICS',
+  HALLWAY_STRIPE_X = [400, 1300, 2200],
   HALLWAY_ROOM = {
     id: 6,
     name: 'Hallway',
-    sub: 'FOURTH FLOOR / THE LONG WAY ROUND',
+    sub: 'SEVENTH FLOOR / THE LONG WAY ROUND',
     theme: '#cfdcd6',
     station: null,
     width: 3200,
@@ -12039,14 +12471,15 @@ const HALLWAY_ID = 6,
 
 // Doors along the back wall. The night version of Macy's room uses the same door: it is still her room.
 const HALLWAY_DOORS = [
-  { room: 0, x: 600, name: 'Your room', plate: 'ROOM 412' },
+  { room: 0, x: 600, name: 'Your room', plate: 'ROOM 5' },
   { room: 1, x: 1080, name: 'MRI', plate: 'MRI' },
   { room: 2, x: 1560, name: 'Family lounge', plate: 'FAMILY LOUNGE', double: true },
   { room: 3, x: 2010, name: 'CT scan', plate: 'CT SCAN' },
   { room: 4, x: 2430, name: 'Ultrasound', plate: 'ULTRASOUND' }
 ];
 
-// Voice ids for sfx('talk', {voice}); audio.js defines each one.
+// Voice ids for sfx('talk', {voice}); audio.js defines each one. Mimi speaks with the 'grandma' voice
+// and Dodo with 'grandpa': those are audio.js's ids, not names anyone sees.
 const HALLWAY_VOICES = ['dad', 'brother', 'grandma', 'grandpa', 'cousin', 'doctor', 'nurse', 'ensure', 'macy', 'rowdy'];
 
 const HALLWAY_FLAVORS = ['#7a4b33', '#e9d39a', '#ef9fb0'],
@@ -12125,7 +12558,7 @@ const HALLWAY_LINES = {
       }
     ]
   },
-  grandma: {
+  mimi: {
     whoa: 'Whoa! My heart, sweetie.',
     barks: ['My girl!', 'Have you eaten? Oh. Right.', 'You look taller!'],
     talks: [
@@ -12136,7 +12569,7 @@ const HALLWAY_LINES = {
           ['npc', "The cookies'."]
         ]
       },
-      { say: [['npc', 'Your grandfather proposed to me in a hospital cafeteria. Terrible Jell-O. Wonderful man.']] },
+      { say: [['npc', 'Dodo proposed to me in a hospital cafeteria. Terrible Jell-O. Wonderful man.']] },
       { say: [['npc', 'I lit a candle for you at church. And one for the Cubs. Yours is working better.']] },
       { say: [['npc', "The nurses say you're brave and polite. Your father bit a nurse once. He was four."]] },
       { say: [['npc', "Is there a cafeteria up here? I'd like to complain to someone in person."]] },
@@ -12145,14 +12578,14 @@ const HALLWAY_LINES = {
       {
         when: hallwayCleared,
         say: [
-          ['npc', "Your grandfather says you're fighting monsters in here."],
+          ['npc', "Dodo says you're fighting monsters in here."],
           ['macy', 'I am.'],
           ['npc', 'Good. Hit one for me.']
         ]
       }
     ]
   },
-  grandpa: {
+  dodo: {
     whoa: 'Whoa there. Easy.',
     barks: ['Atta girl.', 'Keep moving, kiddo.', "There's my slugger."],
     talks: [
@@ -12163,7 +12596,7 @@ const HALLWAY_LINES = {
       },
       {
         say: [
-          ['npc', "Your grandmother brought cookies. I've been guarding them."],
+          ['npc', "Mimi brought cookies. I've been guarding them."],
           ['macy', 'From who?'],
           ['npc', 'Mostly me.']
         ]
@@ -12181,7 +12614,7 @@ const HALLWAY_LINES = {
         when: hallwayRalphWaiting,
         say: [
           ['npc', 'This Ralph fella in your room. Want me to have a word?'],
-          ['macy', 'Grandpa.'],
+          ['macy', 'Dodo.'],
           ['npc', 'A strongly worded word.']
         ]
       },
@@ -12226,7 +12659,7 @@ const HALLWAY_LINES = {
       },
       { say: [['npc', "Coach says you're still batting cleanup when you're back. No pressure. Some pressure."]] },
       { say: [['npc', "We lost Saturday. I'm not saying it's because you're in here. But you're in here."]] },
-      { say: [['npc', "Grandma tried to give me a cookie from your tin. I said no. I'm loyal. I'm also starving."]] },
+      { say: [['npc', "Mimi tried to give me a cookie from your tin. I said no. I'm loyal. I'm also starving."]] },
       { when: hallwayCleared, say: [['npc', "You cleared a whole ward of gremlins? That's basically a triple play."]] },
       { when: hallwayWon, say: [['npc', "Discharged! First game back, I'm buying the sunflower seeds."]] }
     ]
@@ -12270,7 +12703,7 @@ const HALLWAY_LINES = {
   },
   nurse: {
     whoa: 'Whoa! Walking feet!',
-    barks: ['Look at you go!', 'Lap queen!', 'Bravest on the floor.', "That's my favorite patient. Don't tell 409."],
+    barks: ['Look at you go!', 'Lap queen!', 'Bravest on seven.', "That's my favorite patient. Don't tell Room 6."],
     talks: [
       { say: [['npc', "You're the bravest one on the floor and I've seen a biker cry at a shot."]] },
       { say: [['npc', 'Vitals look good. Attitude is a little spicy. Also good.']] },
@@ -12278,7 +12711,7 @@ const HALLWAY_LINES = {
       { say: [['npc', 'If you need anything, press the button. If you need gossip, find me.']] },
       {
         say: [
-          ['npc', 'The man in 409 asked about you. He is eighty and he wants to talk volleyball.'],
+          ['npc', 'The man in Room 8 asked about you. He is eighty and he wants to talk volleyball.'],
           ['macy', 'Is he any good?'],
           ['npc', 'He says he invented the spike.']
         ]
@@ -12398,7 +12831,7 @@ const HALLWAY_DAD_CHEERS = [
   "You've got a whole team in this hallway, plus one very tall assistant coach.",
   "Whatever today throws at you, you've got the better arm.",
   "You don't have to be okay all the time. You just have to be you, and you're nailing it.",
-  'Grandma has told every person in the cafeteria about you. Every. Person.',
+  'Mimi has told every person in the cafeteria about you. Every. Person.',
   "You're getting stronger. I can tell because you're arguing with me again.",
   'Home soon. Not doctor soon. Dad soon. I already vacuumed the car.',
   'I love you, kid. Okay. Now the important part.',
@@ -12578,14 +13011,14 @@ const HALLWAY_DAD_JOKES = [
   // Cafeteria and snacks.
   "The cafeteria has a dish called Chef's Surprise. The surprise is there's no chef.",
   "I'd tell you a joke about the cafeteria, but nothing on that menu is funny. Or entirely food.",
-  "Why did the cookie go to the hospital? It was feeling crummy. Grandma's cookies are on standby for when you're allowed.",
+  "Why did the cookie go to the hospital? It was feeling crummy. Mimi's cookies are on standby for when you're allowed.",
   "Why did the banana go to the doctor? It wasn't peeling well.",
   // Hospital life.
   "I asked for a pillow that doesn't crinkle. The nurse laughed for a full minute. Then she brought me a crinkly one.",
   "Every hand sanitizer here makes the same noise. Pfft. It's the hospital's laugh track. It goes off after all my jokes.",
   "I got lost on the way to the cafeteria. A nurse said I was in the wrong wing. I said I'm a dad, I'm always winging it.",
   'Your bed goes up, down and folds in half. It has more moves than I do at a wedding.',
-  'The TV in your room gets four channels: news, weather, the hospital channel, and me standing in front of it.',
+  'The lounge TV is seventy-five inches. Four channels: news, weather, the hospital channel, and me standing in front of it. I still block all of it.',
   "I asked if they have Wi-Fi. They said the password is 'getwellsoon.' Very manipulative. It worked.",
   "I made you a hospital playlist. 'Under Pressure,' 'Don't Stop Me Now,' and anything called 'Home.' That's a hint.",
   "Hospital socks have grips on both sides so you can't put them on wrong. Finally, a dad-proof design.",
@@ -12616,7 +13049,7 @@ const HALLWAY_DAD_GROANS = [
   'Ten out of ten. On the groan scale.',
   "I'm going to need an Ensure. No. Not an Ensure.",
   'How long did you sit on that one?',
-  'Grandpa told it better.'
+  'Dodo told it better.'
 ];
 
 let hallwayDad = null;
@@ -12697,6 +13130,125 @@ function hallwayDadConvo(npc) {
   npc.count++;
   hallwayDadSave();
   return lines;
+}
+
+// ---- Get-well cards and counters ----
+// The first finished conversation with each visitor leaves a card on the wall over Macy's bed:
+// state.cards gets {who, name, text, day}. The room's owner draws and saves the cards; this file only
+// adds them. who is the cast id, with all three nurses sharing 'nurse'. The text is picked from the
+// visitor's list by a hash of who and the day, so it never touches the random stream. A conversation
+// counts once the last bubble is done, or when it is closed after at least one whole bubble.
+// state.stats feeds the stickers: talks, dadJokes, ensureRefused, cheers (a Rowdy cheer Macy stayed
+// within his watch radius for, on his timer or in a talk) and metEveryone (1 once every cast member
+// has a card).
+const HALLWAY_CARDS = {
+  // Dad's card is an encouragement, never a joke: the owner's own three lines.
+  dad: HALLWAY_DAD_CHEERS.slice(0, 3),
+  brother: [
+    'Get well. Mom made me write this. I mean it anyway.',
+    'Your room is still yours. For now. Hurry up.',
+    "The fish says hi. I'm translating."
+  ],
+  mimi: [
+    'The cookies are waiting. So am I. Love you, sweetheart.',
+    'Eat when they say. Then eat my cookies.',
+    "I've bragged about you to the whole cafeteria. Get well, my girl."
+  ],
+  dodo: [
+    'Brave is getting up anyway. You do it every day. Proud of you, slugger.',
+    'Home by the weekend. I told the doctor. Twice.',
+    "Atta girl. Keep walking. I'm guarding the cookies."
+  ],
+  kenzie: [
+    "Your spot on the court is saved. Nobody's allowed to stand there.",
+    'Practice is too quiet. Come back and yell MINE at us.',
+    'Back before playoffs. Not a guess. I asked a doctor. Kind of.'
+  ],
+  bri: [
+    "Your glove is safe. I haven't touched it. I'm loyal.",
+    "Cleanup spot's still yours, cuz. Get well.",
+    'First game back, the sunflower seeds are on me.'
+  ],
+  doctor: [
+    'Rx: more laps, fewer days. Refills: unlimited.',
+    "I don't say soon unless I mean it. Soon.",
+    "Annoyed means you're getting better. You're doing great."
+  ],
+  nurse: [
+    'Bravest patient on seven. We have data.',
+    'Press the button for help. Find me for gossip.',
+    'Every lap is one less day in here. Keep walking.'
+  ],
+  // Barb's card is a coupon. It is, of course, for Ensure.
+  barb: [
+    'COUPON: one free Ensure. Valid the day your doctor says yes.',
+    'Good for one strawberry Ensure. We found strawberry. Expires never.',
+    'Redeem for one Ensure, any flavor. No expiration. No pressure. Some pressure.'
+  ],
+  rowdy: [
+    'Two bits! Four bits! Six bits! A dollar! All for {name}, stand up and holler!',
+    "We got spirit, yes we do! Get well, {name}, we're cheering for you!",
+    'Blue and gold, ready to roll! Get well, {name}! GO RAMS!'
+  ]
+};
+
+const hallwayCardWho = npc => (/^nurse\d*$/.test(npc.id) ? 'nurse' : npc.id);
+
+// Today as YYYY-MM-DD in local time, the same shape as the Daily Dose key.
+function hallwayDay(d = new Date()) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function hallwayCardText(who, day) {
+  const list = HALLWAY_CARDS[who] || HALLWAY_CARDS.nurse;
+  let h = 7;
+  for (const ch of who + '|' + day) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return hallwayFill(list[h % list.length]);
+}
+
+function hallwayStats() {
+  if (!state.stats || typeof state.stats !== 'object') state.stats = {};
+  return state.stats;
+}
+
+function hallwayBump(key, n = 1) {
+  const s = hallwayStats();
+  s[key] = (Number(s[key]) || 0) + n;
+  return s[key];
+}
+
+function hallwaySave() {
+  if (typeof save === 'function') save();
+}
+
+// A bubble comes up: Dad's joke (once per talk, however many bubbles it takes) and Macy's no to Barb.
+function hallwayBubble(tk) {
+  const line = tk.lines[tk.i];
+  if (!line) return;
+  if (Number.isInteger(line.joke) && !tk.joked) {
+    tk.joked = true;
+    hallwayBump('dadJokes');
+  }
+  if (tk.npc.ensure && line.who === 'macy' && !tk.refused) {
+    tk.refused = true;
+    hallwayBump('ensureRefused');
+  }
+}
+
+// A conversation that counts: the counters, the card (first time only), then the save.
+function hallwayTalked(npc, tk, finished) {
+  hallwayBump('talks');
+  if (npc.rowdy && finished && tk.lines[0] && tk.lines[0].cheer && dist(npc, player) <= npc.spec.timing.watchRadius)
+    hallwayBump('cheers');
+  if (!Array.isArray(state.cards)) state.cards = [];
+  const who = hallwayCardWho(npc);
+  if (!state.cards.some(c => c && c.who === who)) {
+    const day = hallwayDay();
+    state.cards.push({ who, name: npc.name, text: hallwayCardText(who, day), day });
+  }
+  const met = new Set(state.cards.map(c => c && c.who));
+  if (hallwayCast.length && hallwayCast.every(n => met.has(hallwayCardWho(n)))) hallwayStats().metEveryone = 1;
+  hallwaySave();
 }
 
 // ---- Hallway state ----
@@ -12844,7 +13396,7 @@ const HALLWAY_LOOKS = {
       shoeAccent: '#d9534f',
       item: 'chips'
     }),
-  grandma: () =>
+  mimi: () =>
     npcLook({
       leg: 22,
       torso: 28,
@@ -12872,7 +13424,7 @@ const HALLWAY_LOOKS = {
       glasses: '#8a6d5a',
       pearls: true
     }),
-  grandpa: () =>
+  dodo: () =>
     npcLook({
       leg: 33,
       torso: 34,
@@ -13101,8 +13653,8 @@ function hallwayResetCast() {
     hallwayNpc('dad', 'Dad', 'dad', HALLWAY_LOOKS.dad(), 700, 300, [420, 1050], 48, { tag: '#f3d38b' }),
     nurse(0, 880, 280, [620, 1200]),
     hallwayNpc('doctor', 'Dr. Reyes', 'doctor', HALLWAY_LOOKS.doctor(), 1260, 390, [1000, 1700], 58, { tag: '#cfe3ee' }),
-    hallwayNpc('grandma', 'Grandma', 'grandma', HALLWAY_LOOKS.grandma(), 1500, 330, [1350, 1800], 32, { tag: '#ddc8ec' }),
-    hallwayNpc('grandpa', 'Grandpa', 'grandpa', HALLWAY_LOOKS.grandpa(), 1650, 365, [1300, 1850], 30, { tag: '#cfe0b4' }),
+    hallwayNpc('mimi', 'Mimi', 'grandma', HALLWAY_LOOKS.mimi(), 1500, 330, [1350, 1800], 32, { tag: '#ddc8ec' }),
+    hallwayNpc('dodo', 'Dodo', 'grandpa', HALLWAY_LOOKS.dodo(), 1650, 365, [1300, 1850], 30, { tag: '#cfe0b4' }),
     hallwayNpc('kenzie', 'Kenzie', 'cousin', HALLWAY_LOOKS.kenzie(), 2060, 320, [1850, 2350], 60, {
       lines: 'teammate',
       tag: '#b4cbf2'
@@ -13485,8 +14037,14 @@ function hallwayRowdyStep(npc, dt) {
       x: clamp(player.x, HALLWAY_LEFT + 70, HALLWAY_RIGHT - 70),
       y: clamp(player.y, HALLWAY_TOP, HALLWAY_BOTTOM)
     },
+    cheering = npc.mode === 'cheer' && !!npc.cheer,
     said = spec.tick(npc, dt, { macy, entered: npc.entered, st: state });
   npc.entered = false;
+  // A timer cheer that ran to the end with Macy inside his watch radius counts for the stickers.
+  if (cheering && npc.mode === 'idle' && !npc.cheer && npc.watched) {
+    hallwayBump('cheers');
+    hallwaySave();
+  }
   if (said) hallwayRowdyBark(npc, said.text);
   else if (!npc.say && npc.bark && !npc.bark.whoa) npc.bark = null;
   if (player.dash > 0 && dist(npc, player) < 44 && npc.whoaCd <= 0 && npc.mode === 'idle') {
@@ -13543,6 +14101,7 @@ function hallwayNextConvo(npc) {
 
 function hallwayOpenTalk(npc) {
   hallwayTalk = { npc, lines: hallwayNextConvo(npc), i: 0, shown: 0, acc: 0, pause: 0, voiced: 0, age: 0, blipAt: -1 };
+  hallwayBubble(hallwayTalk);
   npc.mode = npc.rowdy ? 'talk' : 'idle';
   npc.moving = false;
   npc.bark = null;
@@ -13562,7 +14121,9 @@ function hallwayEndTalk(finished, walked = false) {
   const tk = hallwayTalk;
   if (!tk) return false;
   hallwayTalk = null;
-  const npc = tk.npc;
+  const npc = tk.npc,
+    line = tk.lines[tk.i],
+    seen = finished ? tk.lines.length : tk.i + (line && tk.shown >= line.text.length ? 1 : 0);
   npc.wait = rand(1.2, 2.5);
   npc.barkCd = Math.max(npc.barkCd, 20);
   if (npc.rowdy) {
@@ -13587,6 +14148,7 @@ function hallwayEndTalk(finished, walked = false) {
     hallwayEnsureDrop(npc, false);
     hallwayEnsure.phase = 'leaving';
   }
+  if (seen > 0) hallwayTalked(npc, tk, finished);
   return true;
 }
 
@@ -13608,6 +14170,7 @@ function hallwayAdvance() {
   tk.pause = 0;
   tk.voiced = 0;
   if (tk.i >= tk.lines.length) hallwayEndTalk(true);
+  else hallwayBubble(tk);
 }
 
 function hallwayTalkStep(dt) {
@@ -14258,7 +14821,7 @@ function npcHold(g, k, shY, t) {
   ellipse(g, hx + 1.5, hy, 3.1, 3.7, k.skin);
 }
 
-// Two hands: Barb's tray of Ensure, Grandma's cookie tin.
+// Two hands: Barb's tray of Ensure, Mimi's cookie tin.
 function npcHoldBoth(g, k, shY, t) {
   const S = k.shoulder,
     T = k.torso,
@@ -14594,7 +15157,7 @@ function npcHair(g, k, hy, hr, hry, fx) {
     ellipse(g, -hr + 0.5, hy - 1, 3, 3.4, k.hair);
     ellipse(g, hr + 0.8, hy - 1.5, 2.8, 3.2, k.hair);
   } else if (style === 'cap') {
-    // Grandpa: white fringe over the ears under a tweed flat cap.
+    // Dodo: white fringe over the ears under a tweed flat cap.
     ellipse(g, -hr + 1, hy - 1, 3.2, 4.5, k.hair);
     ellipse(g, hr + 0.4, hy - 1, 3, 4.2, k.hair);
     path(
@@ -14776,6 +15339,11 @@ function hallwayRoomBg(g) {
   for (let x = 80; x < w; x += 160) rr(g, x - 2, 101, 4, 6, 1, '#b69a72');
   rr(g, 0, 129, w, 12, 2, '#edf1d8');
   rect(g, 0, 141, w, 12, '#527f8744');
+  // The wall stripe says where we are, between the doors, about once a screen.
+  for (const x of HALLWAY_STRIPE_X) {
+    for (const side of [-1, 1]) line(g, [[x + side * 96, 135], [x + side * 112, 135]], '#7fb8aa', 2);
+    label(g, HALLWAY_STRIPE, x, 138.5, 9, '#476c66', 'center');
+  }
   for (let yy = 155; yy < h; yy += 58) line(g, [[0, yy], [w, yy]], '#487c7920', 1);
   for (let xx = 0; xx < w; xx += 80) line(g, [[xx, 155], [xx, h]], '#487c7920', 1);
   // Ceiling lights pool on the floor; daylight falls in from each window.
@@ -14867,7 +15435,7 @@ function hallwayElevatorFrame(g, x) {
   ellipse(g, x + 112, 93, 4, 4, '#f6d36b');
   ellipse(g, x + 112, 107, 4, 4, '#e6ecea');
   rr(g, x + 126, 70, 44, 42, 6, '#3f7887', '#e9f2ea', 1);
-  label(g, '4', x + 148, 96, 22, '#f6f3df', 'center');
+  label(g, HALLWAY_FLOOR, x + 148, 96, 22, '#f6f3df', 'center');
   label(g, 'FLOOR', x + 148, 107, 8, '#cfe6e3', 'center');
 }
 
@@ -15024,6 +15592,10 @@ function hallwayStation(g) {
   rr(g, x + 8, 176, w - 16, 9, 4, '#7fb8aa');
   rr(g, x + 4, 222, w - 8, 8, 3, '#9a7f68');
   heart(g, x + w / 2 - 7, 194, 1.1, '#ef9f9a');
+  // A small brass plaque: where this counter, and Macy, actually are.
+  rr(g, x + 142, 191, 86, 23, 3, gradient(g, 0, 191, 0, 23, '#f1e3b4', '#d8c08a'), '#9a7f58', 1);
+  label(g, 'VALLEY HOSPITAL', x + 185, 202, 7.5, '#5b4a2e', 'center');
+  label(g, 'PARAMUS · 7TH FLOOR', x + 185, 210.5, 5.5, '#7a6544', 'center');
   rr(g, x + 47, 147, 10, 6, 2, '#678d98');
   rr(g, x + 28, 120, 48, 30, 5, gradient(g, 0, 120, 0, 30, '#82a6ac', '#4a7284'), '#c3d5cf', 1.2);
   rr(g, x + 32, 124, 40, 21, 3, '#153b50');
@@ -15728,6 +16300,7 @@ function openMini(id, forced = false) {
   const plan = forced && typeof ivRecoveryPlan === 'function' ? ivRecoveryPlan() : null;
   let next = state.medals[id].findIndex(m => !m),
     tier = forced ? (plan ? clamp(Math.floor(plan.level) || 0, 0, 2) : 0) : next < 0 ? 2 : next;
+  ceremonyStop();
   mini = {
     open: true,
     screen: 'lobby',
@@ -15752,6 +16325,7 @@ function showLobby() {
   mini.screen = 'lobby';
   mini.held = false;
   clearHeld();
+  ceremonyStop();
   $('miniDialog').dataset.screen = 'lobby';
   $('miniClose').disabled = false;
   $('miniLobby').classList.remove('hidden');
@@ -15811,6 +16385,7 @@ function startMini() {
   const { id, tier, forced, approach = 0, daily = false, dailyDate = '', dailySeed = 0 } = mini,
     def = games[id];
   clearHeld();
+  ceremonyStop();
   $('miniLivesLabel').textContent = 'OOPS ALLOWANCE';
   mini = {
     open: true,
@@ -15961,6 +16536,7 @@ function updateMini(dt) {
   syncMiniTip();
   if (updateTransition(dt)) return;
   if (mini.screen === 'result') {
+    ceremonyUpdate(dt);
     // Result splatter (spawned by a game's onLose) keeps falling on the result art.
     if (gore.length) {
       mini.resultT += dt;
@@ -16075,6 +16651,9 @@ function resolveMiniResult(win, reason) {
   $('miniPauseBtn').classList.add('hidden');
   $('miniBack').classList.toggle('hidden', mini.forced && !win);
   $('miniRetry').textContent = mini.daily ? 'Run it back' : win ? 'Improve / next level' : 'Reassemble. Try again.';
+  $('miniResult').dataset.medal = '0';
+  $('resultStamp').classList.add('hidden');
+  let tiles = null;
   if (win) {
     mini.qualityFinal = qualityScore();
     mini.grade = mini.qualityFinal >= 88 ? 3 : mini.qualityFinal >= 68 ? 2 : 1;
@@ -16089,6 +16668,7 @@ function resolveMiniResult(win, reason) {
       mini.score
     );
     mini.reward = reward;
+    stickerCountRun(mini);
     const winText = def.onWin ? def.onWin() : undefined;
     $('resultMedal').textContent = '★'.repeat(mini.grade);
     $('resultHeading').textContent = medalNames[mini.grade].toUpperCase() + '. LEGENDARY NONSENSE.';
@@ -16100,15 +16680,35 @@ function resolveMiniResult(win, reason) {
         'Excellent work. Terrible bedside manner.',
         'That pillow swat had a little volleyball energy.'
       ]);
-    $('resultNumbers').innerHTML =
-      `<div><strong>${mini.score}</strong>` +
-      `<small>ARCADE SCORE · BEST ${state.records[mini.id][mini.tier]}</small></div><div>` +
-      `<strong>${mini.qualityFinal}%</strong><small>PERFORMANCE</small></div><div>` +
-      `<strong>+${reward.pay}</strong><small>COINS EARNED</small></div><div>` +
-      `<strong>+${reward.delta} ★</strong><small>NEW DISCHARGE STARS</small></div>`;
+    // The ceremony counts these up from zero; NEW BEST and NEW STARS pop on their tiles.
+    tiles = [
+      {
+        to: mini.score,
+        pre: '',
+        post: '',
+        label: `ARCADE SCORE · BEST ${state.records[mini.id][mini.tier]}`,
+        pop: previousBest > 0 && mini.score > previousBest ? 'NEW BEST' : ''
+      },
+      { to: mini.qualityFinal, pre: '', post: '%', label: 'PERFORMANCE', pop: '' },
+      { to: reward.pay, pre: '+', post: '', label: 'COINS EARNED', pop: '' },
+      { to: reward.delta, pre: '+', post: ' ★', label: 'NEW DISCHARGE STARS', pop: reward.delta > 0 ? 'NEW STARS' : '' }
+    ];
+    $('resultNumbers').innerHTML = tiles
+      .map(
+        (t, i) =>
+          `<div><strong id="resultNum${i}">${t.pre}${t.to}${t.post}</strong><small>${t.label}</small>` +
+          (t.pop ? `<em class="tile-pop" id="resultPop${i}">${t.pop}</em>` : '') +
+          '</div>'
+      )
+      .join('');
+    $('resultStamp').classList.remove('hidden');
+    $('stampRoom').textContent = rooms[mini.id].name;
+    $('stampLevel').textContent = `Level ${mini.tier + 1} · ${tiers[mini.tier]}`;
+    $('stampStars').textContent = '★'.repeat(mini.grade) + '☆'.repeat(3 - mini.grade);
+    $('miniResult').dataset.medal = String(mini.grade);
     $('resultJourney').textContent =
       `${stars()}/12 stars · ${stamps()}/${ARCADE_COUNT} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins paid.'}`;
-    sfx('win');
+    // The ceremony plays the thud and the win sting when the medal lands.
     $('miniDialog').classList.remove('gory');
   } else {
     mini.grade = 0;
@@ -16141,9 +16741,11 @@ function resolveMiniResult(win, reason) {
   }
   save();
   music('result:' + (win ? 'win' : 'lose'));
+  if (win) ceremonyStart(mini.grade, tiles);
   drawResultArt();
   // Show the result art in full under the sticky header instead of scrolling it half out of view.
   $('miniDialog').scrollTop = 0;
+  stickerCheck();
 }
 
 function drawResultArt() {
@@ -16159,14 +16761,359 @@ function drawResultArt() {
   poster(g, 654, 12, 1);
   plant(g, 113, 201, 1.2);
   const def = games[mini.id];
-  // A game may paint its own foreground over the shared bedside scene.
-  if (def.resultArt && def.resultArt(g)) return;
-  if (mini.win) {
-    for (let i = 0; i < mini.grade; i++) spark(g, 353 + i * 42, 44, '#fff0ab', 1.15);
-    label(g, 'STATUS: STILL A TOTAL LEGEND', 400, 26, 11, '#426d62', 'center');
-  } else {
-    gremlin(g, 630, 190, 1.5, 1, time);
-    label(g, 'THE GREMLINS ARE BEING VERY SMUG.', 400, 29, 12, '#dfe2b9', 'center');
+  // A game may paint its own foreground over the shared bedside scene; the ceremony goes on top.
+  if (!(def.resultArt && def.resultArt(g))) {
+    if (mini.win) {
+      for (let i = 0; i < mini.grade; i++) spark(g, 353 + i * 42, 44, '#fff0ab', 1.15);
+      label(g, 'STATUS: STILL A TOTAL LEGEND', 400, 26, 11, '#426d62', 'center');
+    } else {
+      gremlin(g, 630, 190, 1.5, 1, time);
+      label(g, 'THE GREMLINS ARE BEING VERY SMUG.', 400, 29, 12, '#dfe2b9', 'center');
+    }
+  }
+  ceremonyArt(g);
+}
+
+// ---- Medal ceremony ----
+// After a win the medal drops onto the passport card (squash, thud, win sting), confetti bursts from
+// it over the result art, the number tiles count up, NEW BEST and NEW STARS pop on their tiles, and a
+// gold sends Rowdy galloping across the art to cheer. It all fits in CEREMONY_SECONDS. A tap skips to
+// the end; reduced motion starts there, with no confetti and Rowdy already cheering. updateMini moves
+// the clock, drawMini paints it, and #miniResult[data-medal] keeps the bronze, silver or gold wash.
+const CEREMONY_DROP = 0.36,
+  CEREMONY_WIN_SFX = 0.46,
+  CEREMONY_SQUASH = 0.62,
+  CEREMONY_COUNT = 1.5,
+  CEREMONY_POP_AT = [1.58, 1.8],
+  CEREMONY_RUN = [0.2, 1.85],
+  CEREMONY_ROWDY_X = 700,
+  CEREMONY_WASH = 0.8,
+  CEREMONY_SECONDS = 2.4;
+
+const CEREMONY_PHASES = [
+  ['drop', 0],
+  ['stamp', CEREMONY_DROP],
+  ['count', CEREMONY_SQUASH],
+  ['pop', CEREMONY_COUNT],
+  ['done', CEREMONY_SECONDS]
+];
+
+// Bronze, silver, gold: the disc's light, mid and deep tones, and the color of the wash.
+const CEREMONY_METALS = [
+  null,
+  { light: '#ffe0c2', mid: '#d38d55', deep: '#8a5230', wash: '#e59a5c' },
+  { light: '#ffffff', mid: '#c3cfd5', deep: '#6b7f88', wash: '#d9e6ea' },
+  { light: '#fff6bd', mid: '#f2c14e', deep: '#a8771f', wash: '#ffd760' }
+];
+
+const CEREMONY_CONFETTI = ['#b5e8c5', '#ffa48e', '#ffda79', '#f8efd9', '#8fd3c2', '#ef8f89'];
+
+let ceremony = null;
+
+// A medal with ribbon tails, centered on its disc at (x, y); r is the disc radius.
+function ceremonyMedal(g, x, y, r, grade) {
+  const m = CEREMONY_METALS[clamp(Math.round(grade) || 1, 1, 3)],
+    k = r / 40;
+  g.save();
+  g.translate(x, y);
+  g.scale(k, k);
+  for (const [side, col] of [
+    [-1, '#8fd3c2'],
+    [1, '#ffa48e']
+  ]) {
+    const tail = [
+      [side * 4, 20],
+      [side * 23, 12],
+      [side * 27, 52],
+      [side * 18, 45],
+      [side * 9, 55]
+    ];
+    poly(g, tail, col);
+    line(g, [...tail, tail[0]], '#17313a', 2.2);
+  }
+  ellipse(g, 0, 4, 41, 41, '#08192459');
+  path(g, p => p.arc(0, 0, 40, 0, Math.PI * 2), gradient(g, -30, -40, 50, 80, m.light, m.deep), '#17313a', 3);
+  path(g, p => p.arc(0, 0, 31, 0, Math.PI * 2), gradient(g, 25, 30, -45, -60, m.light, m.mid), m.deep, 2.5);
+  stickerStar(g, 0, 1, 20, m.light, m.deep, 2.4);
+  path(g, p => p.arc(0, 0, 35, Math.PI * 1.08, Math.PI * 1.42), null, '#ffffffb0', 4);
+  ellipse(g, -21, -25, 2.6, 2.6, '#ffffffd0');
+  g.restore();
+}
+
+function ceremonyRunning() {
+  return !!ceremony && ceremony.t < CEREMONY_SECONDS;
+}
+
+function ceremonyPhaseAt(t) {
+  let name = CEREMONY_PHASES[0][0];
+  for (const [n, at] of CEREMONY_PHASES) if (t >= at) name = n;
+  return name;
+}
+
+// The medal's drop, then a squash and stretch that settles to rest.
+function ceremonyStampAt(t) {
+  if (t >= CEREMONY_SQUASH) return { y: 0, sx: 1, sy: 1, rot: 0, o: 1 };
+  if (t < CEREMONY_DROP) {
+    const k = t / CEREMONY_DROP,
+      e = k * k,
+      s = 2.3 - 1.3 * e;
+    return { y: -110 * (1 - e), sx: s, sy: s, rot: -14 * (1 - k), o: Math.min(1, k * 3) };
+  }
+  const u = (t - CEREMONY_DROP) / (CEREMONY_SQUASH - CEREMONY_DROP),
+    w = (1 - u) * Math.cos(u * 7);
+  return { y: 0, sx: 1 + 0.32 * w, sy: 1 - 0.28 * w, rot: 0, o: 1 };
+}
+
+// 0 to 1 across the count-up, easing out.
+function ceremonyCountAt(t) {
+  const k = clamp((t - CEREMONY_SQUASH) / (CEREMONY_COUNT - CEREMONY_SQUASH), 0, 1);
+  return 1 - Math.pow(1 - k, 3);
+}
+
+// grade is 1 to 3; tiles are the result tiles {to, pre, post, pop}.
+function ceremonyStart(grade, tiles) {
+  const pops = [];
+  tiles.forEach((t, i) => {
+    if (t.pop) pops.push({ i, at: CEREMONY_POP_AT[pops.length], on: false });
+  });
+  ceremony = {
+    grade,
+    tiles,
+    pops,
+    t: 0,
+    clock: 0,
+    phase: CEREMONY_PHASES[0][0],
+    seen: [CEREMONY_PHASES[0][0]],
+    sounds: { hit: false, win: false, coin: false },
+    fx: [],
+    rng: dailyRandom((Math.imul(state.runs + 1, 2654435761) ^ grade) >>> 0),
+    fxW: 0,
+    fxH: 0,
+    ox: 0,
+    oy: 0,
+    shown: tiles.map(() => 0),
+    appliedT: -1,
+    artDirty: true,
+    fxDirty: false
+  };
+  // Drawn at the drop's peak scale, so the medal stays crisp while it is big.
+  const cv = $('resultMedalArt'),
+    hi = viewport.dpr * 2.3,
+    g = cv.getContext('2d');
+  cv.width = Math.ceil(88 * hi);
+  cv.height = Math.ceil(88 * hi);
+  g.setTransform(hi, 0, 0, hi, 0, 0);
+  g.clearRect(0, 0, 88, 88);
+  ceremonyMedal(g, 44, 37, 33, grade);
+  try {
+    if (typeof macyCelebrate === 'function') macyCelebrate(grade);
+  } catch {}
+  if (reduced) ceremonyFinish();
+  else ceremonyApply();
+}
+
+// Sizes the confetti canvas to the result hero and finds the medal's center on it.
+function ceremonyFit() {
+  const c = ceremony,
+    cv = $('ceremonyFx'),
+    medal = $('resultMedalArt'),
+    flight = medal.style.transform;
+  // Measure where the medal rests, not where its drop has it this frame.
+  medal.style.transform = '';
+  const r = cv.getBoundingClientRect(),
+    m = medal.getBoundingClientRect();
+  medal.style.transform = flight;
+  c.fxW = Math.max(1, Math.round(r.width));
+  c.fxH = Math.max(1, Math.round(r.height));
+  configureCanvas(cv, c.fxW, c.fxH);
+  c.ox = m.left + m.width / 2 - r.left;
+  c.oy = m.top + m.height / 2 - r.top;
+}
+
+// Confetti in the game palette with a few flecks of the medal's metal, from the medal outward.
+function ceremonyBurst() {
+  ceremonyFit();
+  const c = ceremony,
+    rng = c.rng,
+    n = 46 + c.grade * 14,
+    metal = CEREMONY_METALS[c.grade].wash;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (rng() - 0.5) * 2.6,
+      sp = 240 + rng() * 520;
+    c.fx.push({
+      x: c.ox,
+      y: c.oy,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp - 60,
+      rot: rng() * Math.PI * 2,
+      vr: (rng() - 0.5) * 16,
+      w: 5 + rng() * 6,
+      h: 3 + rng() * 4,
+      col: i % 4 === 3 ? metal : CEREMONY_CONFETTI[i % CEREMONY_CONFETTI.length],
+      life: 1.1 + rng() * 0.85,
+      round: i % 6 === 0
+    });
+  }
+}
+
+function ceremonyUpdate(dt) {
+  const c = ceremony;
+  if (!c) return;
+  c.clock += dt;
+  for (const p of c.fx) {
+    p.vy += 900 * dt;
+    p.vx *= 1 - Math.min(1, 1.6 * dt);
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.rot += p.vr * dt;
+    p.life -= dt;
+  }
+  if (c.fx.length) c.fx = c.fx.filter(p => p.life > 0);
+  if (c.t >= CEREMONY_SECONDS) return;
+  c.t = Math.min(CEREMONY_SECONDS, c.t + dt);
+  if (!c.sounds.hit && c.t >= CEREMONY_DROP) {
+    c.sounds.hit = true;
+    sfx('hit');
+    ceremonyBurst();
+  }
+  if (!c.sounds.win && c.t >= CEREMONY_WIN_SFX) {
+    c.sounds.win = true;
+    sfx('win');
+  }
+  if (!c.sounds.coin && c.t >= CEREMONY_COUNT) {
+    c.sounds.coin = true;
+    sfx('coin', { vol: 0.6 });
+  }
+  c.pops.forEach((pop, i) => {
+    if (pop.on || c.t < pop.at) return;
+    pop.on = true;
+    sfx('combo', { combo: 3 + i * 2 });
+  });
+  ceremonyPhase();
+}
+
+// Moves to the phase the clock is in; the last one shows the final state and readies the share card.
+function ceremonyPhase() {
+  const c = ceremony,
+    phase = ceremonyPhaseAt(c.t);
+  if (phase === c.phase) return;
+  c.phase = phase;
+  c.seen.push(phase);
+  ceremonyApply();
+  if (phase === 'done') sharePrepare(shareResultSpec());
+}
+
+// Jumps to the end: each sound not yet played plays once, the pops show, the confetti goes.
+function ceremonyFinish() {
+  const c = ceremony;
+  if (!c || c.t >= CEREMONY_SECONDS) return;
+  if (!c.sounds.hit) sfx('hit');
+  if (!c.sounds.win) sfx('win');
+  c.sounds = { hit: true, win: true, coin: true };
+  const late = c.pops.filter(p => !p.on);
+  late.forEach(p => (p.on = true));
+  if (late.length) sfx('combo', { combo: 3 });
+  c.fx = [];
+  c.t = CEREMONY_SECONDS;
+  c.clock = Math.max(c.clock, CEREMONY_SECONDS);
+  c.artDirty = true;
+  c.fxDirty = true;
+  ceremonyPhase();
+}
+
+// A tap or key on the result screen: true when it cut the ceremony short.
+function ceremonySkip() {
+  if (!ceremonyRunning()) return false;
+  ceremonyFinish();
+  ceremonyDraw();
+  return true;
+}
+
+function ceremonyStop() {
+  if (!ceremony) return;
+  ceremony = null;
+  const cv = $('ceremonyFx'),
+    medal = $('resultMedalArt');
+  cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+  medal.style.transform = '';
+  medal.style.opacity = '';
+  $('resultStamp').dataset.stamped = '';
+}
+
+// Writes the clock's moment into the DOM: the stamp, the tiles, the pops.
+function ceremonyApply() {
+  const c = ceremony;
+  if (!c || c.appliedT === c.t) return;
+  c.appliedT = c.t;
+  const s = ceremonyStampAt(c.t),
+    medal = $('resultMedalArt'),
+    k = ceremonyCountAt(c.t);
+  medal.style.transform =
+    c.t >= CEREMONY_SQUASH
+      ? ''
+      : `translateY(${s.y.toFixed(1)}px) rotate(${s.rot.toFixed(2)}deg) scale(${s.sx.toFixed(3)}, ${s.sy.toFixed(3)})`;
+  medal.style.opacity = s.o >= 1 ? '' : s.o.toFixed(2);
+  $('resultStamp').dataset.stamped = c.t >= CEREMONY_DROP ? '1' : '';
+  c.shown = c.tiles.map((tile, i) => {
+    const v = k >= 1 ? tile.to : Math.round(tile.to * k);
+    $('resultNum' + i).textContent = tile.pre + v + tile.post;
+    return v;
+  });
+  for (const pop of c.pops) $('resultPop' + pop.i).dataset.on = pop.on ? '1' : '';
+}
+
+// Gold only: Rowdy gallops in from the left, then turns to cheer at the foot of the bed.
+function ceremonyArt(g) {
+  const c = ceremony;
+  if (!c || c.grade !== 3) return;
+  const [a, b] = CEREMONY_RUN;
+  if (c.t < a) return;
+  if (c.t < b) {
+    const k = (c.t - a) / (b - a);
+    drawRowdy(g, -70 + (CEREMONY_ROWDY_X + 70) * k, 212, 1.5, 'gallop', c.t, { face: 1 });
+    return;
+  }
+  drawRowdy(g, CEREMONY_ROWDY_X, 212, 1.5, 'cheer', reduced ? 0.5 : c.clock - b, { face: -1 });
+}
+
+// Paints one frame: the DOM moment, the result art while anything on it moves, then the confetti.
+function ceremonyDraw() {
+  const c = ceremony;
+  if (!c) return;
+  ceremonyApply();
+  const live = c.t < CEREMONY_SECONDS || (c.grade === 3 && !reduced);
+  if ((live || c.artDirty) && !gore.length) {
+    c.artDirty = false;
+    drawResultArt();
+  }
+  ceremonyPaintFx();
+}
+
+function ceremonyPaintFx() {
+  const c = ceremony,
+    since = c.t - CEREMONY_DROP,
+    wash = !reduced && since >= 0 && since < CEREMONY_WASH ? 1 - since / CEREMONY_WASH : 0,
+    g = $('ceremonyFx').getContext('2d');
+  if (!c.fx.length && !wash) {
+    if (c.fxDirty) g.clearRect(0, 0, c.fxW, c.fxH);
+    c.fxDirty = false;
+    return;
+  }
+  c.fxDirty = true;
+  g.clearRect(0, 0, c.fxW, c.fxH);
+  if (wash) {
+    g.globalAlpha = 0.6 * wash;
+    glow(g, c.ox, c.oy, Math.max(c.fxW, c.fxH) * 0.85, CEREMONY_METALS[c.grade].wash);
+    g.globalAlpha = 1;
+  }
+  for (const p of c.fx) {
+    g.save();
+    g.globalAlpha = Math.min(1, p.life * 2.5);
+    g.translate(p.x, p.y);
+    g.rotate(p.rot);
+    if (p.round) ellipse(g, 0, 0, p.w * 0.45, p.w * 0.45, p.col);
+    else rect(g, -p.w / 2, -p.h / 2, p.w, p.h, p.col);
+    g.restore();
   }
 }
 
@@ -16176,6 +17123,7 @@ function leaveMini() {
   let recovered = mini.forced;
   mini.open = false;
   clearHeld();
+  ceremonyStop();
   $('miniDialog').close();
   state.paused = false;
   if (recovered) {
@@ -16211,6 +17159,10 @@ function checkDischarge() {
 
 // Paints the current game, then either its own overlay or the shared arcade overlays.
 function drawMini() {
+  if (mini.screen === 'result') {
+    ceremonyDraw();
+    return;
+  }
   if (!['briefing', 'intro', 'play', 'outro'].includes(mini.screen)) return;
   const def = games[mini.id],
     size = activeCanvas(),
@@ -26929,11 +27881,12 @@ function blasterSplat(g) {
   }
 }
 
-// Hospital map: a drawn floor plan of the fourth floor for the map dialog.
+// Hospital map: a drawn floor plan of the seventh floor at Valley Hospital for the map dialog.
 // hospitalMapDraw(g, w, h) paints it into any 2D context and picks a layout for the box: 'wide'
 // (desktop), 'strip' (phone landscape) or 'portrait' (phone portrait). hospitalMapHit(x, y, w, h)
 // says what sits under a point. mountHospitalMap(el) puts a live, tappable canvas inside el plus a
-// visually hidden button list for keyboards and screen readers. hospitalMapInvalidate() redraws.
+// visually hidden button list for keyboards and screen readers, and writes the dialog's header line
+// (HOSPITAL_MAP_COPY.header) into its .modal-kicker. hospitalMapInvalidate() redraws.
 // Every global here starts with hospitalMap or HOSPITAL_MAP; nothing reassigns another file's names.
 
 // Plans in design units. A plan stretches up to 30% to fill its box, then letterboxes.
@@ -27132,7 +28085,8 @@ const HOSPITAL_MAP_PLANS = {
     daily: [157, 298, 46, 52],
     dailyStand: true,
     wet: [172, 450],
-    floorText: [180, 120],
+    // Centered between the elevator (ends at 64) and the Daily Dose stand (starts at 298).
+    floorText: [180, 181],
     plants: [[202, 92, 0.34]],
     places: [
       { kind: 'lift', r: [146, 10, 68, 54], door: ['b', 'lift'] },
@@ -27217,10 +28171,14 @@ const HOSPITAL_MAP_PLANS = {
 };
 
 const HOSPITAL_MAP_COPY = {
+  header: 'VALLEY HOSPITAL · FLOOR 7',
   station: ['Nurses’ station', 'ASK NICELY'],
   restroom: ['Restroom', 'OCCUPIED. ALWAYS.'],
   shop: 'Gift shop',
-  floor: 'GUT WING · 4F',
+  floor: 'VALLEY · 7F · PEDIATRICS',
+  lift: '7',
+  // Macy's room is Room 5. Its plate keeps the name "Your room" and puts the number underneath.
+  home: 'ROOM 5',
   you: 'YOU',
   nope: 'NOPE.',
   exit: 'EXIT',
@@ -27952,7 +28910,7 @@ function hospitalMapDrawLift(g, place, L) {
     1
   );
   rr(g, cx - size * 1.1, cy - size * 0.85, size * 2.2, size * 1.7, 4 * k, '#162c38', '#9fb7bd', 1);
-  hospitalMapText(g, '4', cx, cy + size * 0.36, size, '#ffd36e', 'center');
+  hospitalMapText(g, HOSPITAL_MAP_COPY.lift, cx, cy + size * 0.36, size, '#ffd36e', 'center');
   poly(g, [[cx - size * 0.85, cy + size * 0.1], [cx - size * 0.62, cy - size * 0.3], [cx - size * 0.4, cy + size * 0.1]], '#9fe3b9');
   poly(g, [[cx + size * 0.4, cy - size * 0.1], [cx + size * 0.62, cy + size * 0.3], [cx + size * 0.85, cy - size * 0.1]], '#f2a28c');
 }
@@ -28281,6 +29239,10 @@ function hospitalMapPlaceCopy(place) {
   if (place.kind === 'room') {
     const night = place.id === 0 && state.room === 5,
       parts = String(rooms[night ? 5 : place.id].sub || '').split(' / ');
+    if (place.id === 0) {
+      const tail = night ? parts[1] || parts[0] : parts[0];
+      return { name: rooms[0].name, sub: HOSPITAL_MAP_COPY.home, subLong: tail ? HOSPITAL_MAP_COPY.home + ' · ' + tail : '' };
+    }
     return { name: rooms[place.id].name, sub: parts[0], subLong: parts.length > 1 ? parts[0] + ' · ' + parts[1] : '' };
   }
   if (place.kind === 'station') return { name: HOSPITAL_MAP_COPY.station[0], sub: HOSPITAL_MAP_COPY.station[1] };
@@ -28680,7 +29642,7 @@ function hospitalMapTargets() {
     if (r.noArcade) continue;
     if (r.id === 5) continue;
     const info = hospitalMapRoomState(r.id);
-    let text = `${r.name}: ${hospitalMapGame(r.id)}.`;
+    let text = `${r.name}${r.id === 0 ? ' (Room 5)' : ''}: ${hospitalMapGame(r.id)}.`;
     if (info.here) text += cur === 5 ? ' You are here, after dark.' : ' You are here.';
     if (info.locked) text += ' Arcade locked until the gremlins are cleared.';
     else if (info.grudge) text += ` Grudge level ${info.grudge}.`;
@@ -28822,6 +29784,15 @@ function hospitalMapInvalidate() {
   if (v.el) hospitalMapStart();
 }
 
+// The map dialog's header line. The dialog markup ships its own; the map keeps it on the right floor.
+function hospitalMapHeader(el) {
+  const doc = typeof document !== 'undefined' && typeof document.getElementById === 'function' ? document : null,
+    dialog = (el && typeof el.closest === 'function' && el.closest('dialog')) || (doc && doc.getElementById('mapDialog')),
+    kicker = dialog && typeof dialog.querySelector === 'function' ? dialog.querySelector('.modal-kicker') : null;
+  if (kicker && kicker.textContent !== HOSPITAL_MAP_COPY.header) kicker.textContent = HOSPITAL_MAP_COPY.header;
+  return kicker;
+}
+
 function mountHospitalMap(el) {
   if (!el) return null;
   const v = hospitalMapView,
@@ -28854,11 +29825,1426 @@ function mountHospitalMap(el) {
   v.list = list;
   v.hover = '';
   v.press = '';
+  hospitalMapHeader(el);
   list.innerHTML = hospitalMapButtonsHtml();
   v.dirty = true;
   hospitalMapRender(true);
   hospitalMapStart();
   return cv;
+}
+
+// Stickers and share cards. A sticker is an achievement with a drawn badge: STICKERS is the table,
+// stickerCheck() awards them (once a second from its own frame loop, and on every arcade result),
+// a badge pop announces each new one, and #stickerDialog is the sheet. Share cards are 1080 × 1350
+// PNGs of a result or a sticker, drawn with the art primitives so they render fully offline.
+//
+// Counters live in state.stats (other files keep most of them). This file writes five of its own,
+// all plain numbers: days and lastDay (YYYYMMDD) here, and flawless, ivClutch and recovered from the
+// arcade result in minigames.js.
+
+state.stats ||= {};
+state.stickers ||= [];
+
+const STICKER_POP_SECONDS = 2.6,
+  STICKER_POP_GAP = 0.3,
+  STICKER_POP_BUNDLE = 3,
+  STICKER_DAYS = 5,
+  // Everyone Macy can talk to in the hallway. Nurses count as one (there are several, all named).
+  STICKER_CAST = ['dad', 'brother', 'grandma', 'grandpa', 'kenzie', 'bri', 'doctor', 'nurse', 'barb', 'rowdy'];
+
+const stickerStat = (st, key) => Math.max(0, Number(st && st.stats && st.stats[key]) || 0),
+  stickerMedals = st => (Array.isArray(st && st.medals) ? st.medals.slice(0, ARCADE_COUNT) : []),
+  stickerAllArcades = (st, ok) => {
+    const m = stickerMedals(st);
+    return m.length === ARCADE_COUNT && m.every(row => Array.isArray(row) && ok(row));
+  },
+  stickerAnyMedal = (st, ok) => stickerMedals(st).some(row => Array.isArray(row) && row.some(ok)),
+  stickerClears = (st, id) => Math.max(0, Number(st && Array.isArray(st.wardClears) && st.wardClears[id]) || 0),
+  stickerStars = st => stickerMedals(st).flat().reduce((a, b) => a + (Number(b) || 0), 0),
+  stickerHas = (list, ids) => Array.isArray(list) && ids.every(id => list.includes(id));
+
+// How many of the hallway cast Macy has talked to. Reads state.stats.talked (or talkedTo, or talks)
+// as a list of ids or an {id: count} map; a plain number counts conversations instead.
+function stickerTalkedCount(st) {
+  const stats = (st && st.stats) || {},
+    raw = stats.talked ?? stats.talkedTo ?? stats.talks;
+  if (typeof raw === 'number') return Number.isFinite(raw) ? Math.max(0, raw) : 0;
+  let ids = [];
+  if (Array.isArray(raw)) ids = raw;
+  else if (raw && typeof raw === 'object') ids = Object.keys(raw).filter(k => raw[k]);
+  const seen = new Set(ids.map(id => (/^nurse/.test(String(id)) ? 'nurse' : String(id))));
+  return STICKER_CAST.filter(id => seen.has(id)).length;
+}
+
+// The sticker table. tone is mint, coral or yellow; shape is round or shield; icon names a painter in
+// STICKER_ICONS (arg is passed to it). blurb is the earned line; hint says how to earn it.
+const STICKERS = [
+  {
+    id: 'first-medal',
+    group: 'Arcade',
+    name: 'Fridge-Worthy',
+    blurb: 'First medal. The fridge has been notified.',
+    hint: 'Win any arcade run.',
+    tone: 'mint',
+    shape: 'round',
+    icon: 'medal',
+    arg: 1,
+    test: st => stickerAnyMedal(st, m => m > 0)
+  },
+  {
+    id: 'first-gold',
+    group: 'Arcade',
+    name: 'Solid Gold Patient',
+    blurb: 'First gold. Ralph has requested a recount.',
+    hint: 'Get a gold medal anywhere.',
+    tone: 'yellow',
+    shape: 'round',
+    icon: 'medal',
+    arg: 3,
+    test: st => stickerAnyMedal(st, m => m === 3)
+  },
+  {
+    id: 'gold-everywhere',
+    group: 'Arcade',
+    name: 'Midas Touch, Medically',
+    blurb: 'Gold in all six arcades. The gift shop wants an autograph.',
+    hint: 'Get gold in every arcade.',
+    tone: 'yellow',
+    shape: 'shield',
+    icon: 'crown',
+    test: st => stickerAllArcades(st, row => row.includes(3))
+  },
+  {
+    id: 'code-brown',
+    group: 'Arcade',
+    name: 'Code Brown Survivor',
+    blurb: 'A level 3 medal in every arcade. Nobody explains Code Brown. Nobody needs to.',
+    hint: 'Earn a level 3 medal in all six arcades.',
+    tone: 'coral',
+    shape: 'shield',
+    icon: 'three',
+    test: st => stickerAllArcades(st, row => row[2] > 0)
+  },
+  {
+    id: 'twelve-stars',
+    group: 'Arcade',
+    name: 'Twelve Star General',
+    blurb: 'Twelve discharge stars. The passport is getting heavy.',
+    hint: 'Earn 12 discharge stars.',
+    tone: 'mint',
+    shape: 'round',
+    icon: 'star',
+    arg: '12',
+    test: st => stickerStars(st) >= 12
+  },
+  {
+    id: 'chain-10',
+    group: 'Arcade',
+    name: 'Spike of the Week',
+    blurb: 'A 10 chain. Pure volleyball energy, minus the net.',
+    hint: 'Land a 10 chain in any arcade.',
+    tone: 'mint',
+    shape: 'round',
+    icon: 'volleyball',
+    test: st => (Number(st && st.bestChain) || 0) >= 10
+  },
+  {
+    id: 'chain-25',
+    group: 'Arcade',
+    name: 'Grand Slam Chain',
+    blurb: 'Twenty-five in a row. The dugout is losing its mind.',
+    hint: 'Land a 25 chain in any arcade.',
+    tone: 'coral',
+    shape: 'round',
+    icon: 'softball',
+    test: st => (Number(st && st.bestChain) || 0) >= 25
+  },
+  {
+    id: 'flawless',
+    group: 'Arcade',
+    name: 'Not a Scratch',
+    blurb: 'A whole run with zero oops. Suspiciously competent.',
+    hint: 'Win a run without a single oops or strike.',
+    tone: 'mint',
+    shape: 'shield',
+    icon: 'sparkle',
+    test: st => stickerStat(st, 'flawless') > 0
+  },
+  {
+    id: 'iv-clutch',
+    group: 'Arcade',
+    name: 'Three-Strike Survivor',
+    blurb: 'Won an IV run on two strikes. Heart rate: also two strikes.',
+    hint: 'Win Drip or Die with two strikes on the board.',
+    tone: 'coral',
+    shape: 'shield',
+    icon: 'ivbag',
+    test: st => stickerStat(st, 'ivClutch') > 0
+  },
+  {
+    id: 'frequent-flyer',
+    group: 'Arcade',
+    name: 'Frequent Flyer',
+    blurb: 'Five IV recoveries. The bed has your shape memorized.',
+    hint: 'Climb out of bed after five collapses.',
+    tone: 'yellow',
+    shape: 'round',
+    icon: 'bed',
+    test: st => stickerStat(st, 'recovered') >= 5 || (Number(st && st.recoveries) || 0) >= 5
+  },
+  {
+    id: 'arcade-rat',
+    group: 'Arcade',
+    name: 'Arcade Rat',
+    blurb: 'Fifty arcade runs. The machines know your footsteps.',
+    hint: 'Play 50 arcade runs.',
+    tone: 'mint',
+    shape: 'round',
+    icon: 'joystick',
+    test: st => (Number(st && st.runs) || 0) >= 50
+  },
+  {
+    id: 'evict-100',
+    group: 'Ward',
+    name: 'Eviction Notice',
+    blurb: 'A hundred gremlins shown the door. Some of them took the door.',
+    hint: 'Evict 100 gremlins in the wards.',
+    tone: 'mint',
+    shape: 'shield',
+    icon: 'gremlin',
+    arg: 0,
+    test: st => (Number(st && st.evictions) || 0) >= 100
+  },
+  {
+    id: 'evict-500',
+    group: 'Ward',
+    name: 'Landlord From Heck',
+    blurb: 'Five hundred evicted. The security deposit is not coming back.',
+    hint: 'Evict 500 gremlins.',
+    tone: 'coral',
+    shape: 'shield',
+    icon: 'gremlin',
+    arg: 1,
+    test: st => (Number(st && st.evictions) || 0) >= 500
+  },
+  {
+    id: 'ward-mri',
+    group: 'Ward',
+    name: 'Donut Whisperer',
+    blurb: 'MRI room cleared. The loud donut is quiet now.',
+    hint: 'Clear the MRI room ward.',
+    tone: 'mint',
+    shape: 'round',
+    icon: 'donut',
+    arg: 0,
+    test: st => stickerClears(st, 1) > 0
+  },
+  {
+    id: 'ward-lounge',
+    group: 'Ward',
+    name: 'Lounge Lizard',
+    blurb: 'Family lounge cleared. The vending machine owes you one.',
+    hint: 'Clear the Family lounge ward.',
+    tone: 'coral',
+    shape: 'round',
+    icon: 'brick',
+    test: st => stickerClears(st, 2) > 0
+  },
+  {
+    id: 'ward-ct',
+    group: 'Ward',
+    name: 'Drift Queen of CT',
+    blurb: 'CT scan cleared. Donut drifting may resume.',
+    hint: 'Clear the CT scan ward.',
+    tone: 'yellow',
+    shape: 'round',
+    icon: 'donut',
+    arg: 1,
+    test: st => stickerClears(st, 3) > 0
+  },
+  {
+    id: 'ward-ultrasound',
+    group: 'Ward',
+    name: 'Sonogram Sheriff',
+    blurb: 'Ultrasound cleared. It’s a... clean room!',
+    hint: 'Clear the Ultrasound ward.',
+    tone: 'mint',
+    shape: 'round',
+    icon: 'wave',
+    test: st => stickerClears(st, 4) > 0
+  },
+  {
+    id: 'grudge-3',
+    group: 'Ward',
+    name: 'Holds a Grudge',
+    blurb: 'Grudge level 3 in one ward. The gremlins wrote your name down too.',
+    hint: 'Clear any one ward three times.',
+    tone: 'coral',
+    shape: 'shield',
+    icon: 'flame',
+    test: st => [1, 2, 3, 4].some(id => stickerClears(st, id) >= 3)
+  },
+  {
+    id: 'ralph-who',
+    group: 'Ward',
+    name: 'Ralph Who?',
+    blurb: 'Ralph evicted. He left a one-star review on his way out.',
+    hint: 'Beat Ralph.',
+    tone: 'yellow',
+    shape: 'shield',
+    icon: 'ralph',
+    test: st => !!(st && st.ralph)
+  },
+  {
+    id: 'discharged',
+    group: 'Ward',
+    name: 'Discharged With Honors',
+    blurb: 'Passport complete. Home is the next level.',
+    hint: 'Get discharged.',
+    tone: 'mint',
+    shape: 'shield',
+    icon: 'house',
+    test: st => !!(st && st.won)
+  },
+  {
+    id: 'dad-10',
+    group: 'Hallway',
+    name: 'Groan Tolerance',
+    blurb: 'Survived ten Dad jokes. Barely.',
+    hint: 'Hear 10 of Dad’s jokes in the hallway.',
+    tone: 'yellow',
+    shape: 'round',
+    icon: 'haha',
+    arg: 'HA',
+    test: st => stickerStat(st, 'dadJokes') >= 10
+  },
+  {
+    id: 'dad-50',
+    group: 'Hallway',
+    name: 'Dad Joke Immunity',
+    blurb: 'Fifty Dad jokes and still standing. Science is baffled.',
+    hint: 'Hear 50 Dad jokes.',
+    tone: 'coral',
+    shape: 'shield',
+    icon: 'haha',
+    arg: 'HA!',
+    test: st => stickerStat(st, 'dadJokes') >= 50
+  },
+  {
+    id: 'ensure-5',
+    group: 'Hallway',
+    name: 'Hard Pass',
+    blurb: 'Turned down Ensure five times. Barb is taking it personally.',
+    hint: 'Refuse Barb’s Ensure 5 times.',
+    tone: 'mint',
+    shape: 'round',
+    icon: 'ensure',
+    test: st => stickerStat(st, 'ensureRefused') >= 5
+  },
+  {
+    id: 'ensure-20',
+    group: 'Hallway',
+    name: 'Ensure-ly Not',
+    blurb: 'Twenty refusals. Barb has started a support group.',
+    hint: 'Refuse 20 Ensures.',
+    tone: 'coral',
+    shape: 'shield',
+    icon: 'ensure',
+    test: st => stickerStat(st, 'ensureRefused') >= 20
+  },
+  {
+    id: 'rowdy-fan',
+    group: 'Hallway',
+    name: 'Rowdy’s Number One Fan',
+    blurb: 'Watched ten Rowdy cheers. We are... RAMSEY!',
+    hint: 'Watch Rowdy cheer 10 times.',
+    tone: 'yellow',
+    shape: 'round',
+    icon: 'rowdy',
+    test: st => stickerStat(st, 'cheers') >= 10
+  },
+  {
+    id: 'socialite',
+    group: 'Hallway',
+    name: 'Hallway Socialite',
+    blurb: 'Talked to everyone in the hallway. Even the nurses know your name now.',
+    hint: 'Talk to everyone in the hallway.',
+    tone: 'mint',
+    shape: 'round',
+    icon: 'bubbles',
+    // The hallway sets stats.metEveryone once every cast member has a get-well card.
+    test: st => !!(st && st.stats && st.stats.metEveryone) || stickerTalkedCount(st) >= STICKER_CAST.length
+  },
+  {
+    id: 'cat-cam',
+    group: 'Hallway',
+    name: 'Cat Cam Addict',
+    blurb: 'Checked the cat cam five times. The cat did not check back.',
+    hint: 'Watch the cat cam 5 times.',
+    tone: 'coral',
+    shape: 'round',
+    icon: 'cat',
+    test: st => stickerStat(st, 'catCam') >= 5
+  },
+  {
+    id: 'pillow-fort',
+    group: 'Hallway',
+    name: 'Pillow Fort Champion',
+    blurb: 'Let Macy chill ten times. Resting is a competitive sport.',
+    hint: 'Leave Macy idle until she gets bored, 10 times.',
+    tone: 'mint',
+    shape: 'round',
+    icon: 'pillow',
+    test: st => stickerStat(st, 'idles') >= 10
+  },
+  {
+    id: 'mogul',
+    group: 'Life',
+    name: 'Pocket Money Mogul',
+    blurb: 'A thousand lifetime coins. None of it for medical bills.',
+    hint: 'Earn 1,000 coins in all.',
+    tone: 'yellow',
+    shape: 'round',
+    icon: 'coins',
+    test: st => (Number(st && st.coinsEarned) || 0) >= 1000
+  },
+  {
+    id: 'gift-shop-royalty',
+    group: 'Life',
+    name: 'Gift Shop Royalty',
+    blurb: 'Bought every upgrade. The gift shop named a mug after you.',
+    hint: 'Buy every upgrade in the gift shop.',
+    tone: 'coral',
+    shape: 'shield',
+    icon: 'bag',
+    test: st => stickerHas(st && st.upgrades, SHOP_UPGRADE_IDS)
+  },
+  {
+    id: 'fit-check',
+    group: 'Life',
+    name: 'Full Fit Check',
+    blurb: 'Every look at once. Fashion, but make it hospital.',
+    hint: 'Wear all three looks at the same time.',
+    tone: 'mint',
+    shape: 'shield',
+    icon: 'hoodie',
+    test: st => stickerHas(st && st.cosmetics && st.cosmetics.worn, SHOP_LOOK_IDS)
+  },
+  {
+    id: 'daily-3',
+    group: 'Life',
+    name: 'Daily Dose Regular',
+    blurb: 'Three days in a row. That’s a habit now.',
+    hint: 'Keep a 3-day Daily Dose streak.',
+    tone: 'mint',
+    shape: 'round',
+    icon: 'calendar',
+    arg: '3',
+    test: st => (Number(st && st.daily && st.daily.streak) || 0) >= 3
+  },
+  {
+    id: 'daily-7',
+    group: 'Life',
+    name: 'Prescription Strength',
+    blurb: 'A seven-day streak. The pharmacist is impressed.',
+    hint: 'Keep a 7-day Daily Dose streak.',
+    tone: 'coral',
+    shape: 'shield',
+    icon: 'calendar',
+    arg: '7',
+    test: st => (Number(st && st.daily && st.daily.streak) || 0) >= 7
+  },
+  {
+    id: 'regular',
+    group: 'Life',
+    name: 'Regular Patient',
+    blurb: 'Played on five different days. The nurses saved your seat.',
+    hint: 'Play on 5 different days.',
+    tone: 'yellow',
+    shape: 'round',
+    icon: 'sun',
+    arg: '5',
+    test: st => stickerStat(st, 'days') >= STICKER_DAYS
+  }
+];
+
+const STICKER_GROUPS = ['Arcade', 'Ward', 'Hallway', 'Life'];
+
+const stickerById = id => STICKERS.find(s => s.id === id) || null,
+  stickerEarned = id => Array.isArray(state.stickers) && state.stickers.includes(id);
+
+// ---- Awarding ----
+// The local date as YYYYMMDD, a plain number so it saves as a counter.
+function stickerDayNumber(d = new Date()) {
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+// Counts the day once, the first time a check runs on it while Macy is out of the title screen.
+function stickerMarkDay() {
+  if (!state.started) return false;
+  const today = stickerDayNumber();
+  if (state.stats.lastDay === today) return false;
+  state.stats.lastDay = today;
+  state.stats.days = stickerStat(state, 'days') + 1;
+  return true;
+}
+
+// A won arcade run (minigames.js calls this from the result): flawless wins, IV wins on two
+// strikes, and finished recoveries are lifetime counts the stickers read.
+function stickerCountRun(run) {
+  state.stats ||= {};
+  const add = key => (state.stats[key] = stickerStat(state, key) + 1);
+  if (!run.miss) add('flawless');
+  if (run.id === 0 && run.miss >= 2) add('ivClutch');
+  if (run.forced) add('recovered');
+}
+
+// Awards every sticker whose test now passes. Idempotent: an earned sticker is never queued twice.
+// Returns the ids earned by this call.
+function stickerCheck() {
+  state.stats ||= {};
+  state.stickers ||= [];
+  const dayChanged = stickerMarkDay(),
+    fresh = [];
+  for (const s of STICKERS) {
+    if (state.stickers.includes(s.id)) continue;
+    let ok = false;
+    try {
+      ok = s.test(state) === true;
+    } catch {
+      ok = false;
+    }
+    if (ok) fresh.push(s.id);
+  }
+  state.stickers.push(...fresh);
+  if (fresh.length || dayChanged) save();
+  if (fresh.length) {
+    stickerQueueFresh(fresh);
+    stickerRenderCard();
+    if ($('stickerDialog').open) stickerRenderSheet();
+  }
+  return fresh;
+}
+
+// ---- The badge pop ----
+// One pop at a time. A big haul (a returning player's first check) becomes a single pop.
+let stickerQueue = [],
+  stickerPopNow = null,
+  stickerPopT = 0,
+  stickerPopGap = 0;
+
+function stickerQueueFresh(ids) {
+  if (ids.length > STICKER_POP_BUNDLE) stickerQueue.push({ ids: ids.slice() });
+  else for (const id of ids) stickerQueue.push({ ids: [id] });
+}
+
+// Pops wait while the title is up, during an arcade run, and while the medal ceremony plays.
+function stickerPopHeld() {
+  if (typeof titleUp !== 'undefined' && titleUp) return true;
+  if (mini.open && ['briefing', 'intro', 'play', 'outro'].includes(mini.screen)) return true;
+  return typeof ceremonyRunning === 'function' && ceremonyRunning();
+}
+
+function stickerPopText(pop) {
+  if (pop.ids.length > 1) return pop.ids.length + ' new on your sheet';
+  const s = stickerById(pop.ids[0]);
+  return s ? s.name : 'Something shiny';
+}
+
+function stickerTick(dt) {
+  if (stickerPopNow) {
+    stickerPopT -= dt;
+    if (stickerPopT <= 0) stickerPopHide();
+    return;
+  }
+  stickerPopGap = Math.max(0, stickerPopGap - dt);
+  if (stickerPopGap > 0 || !stickerQueue.length || stickerPopHeld()) return;
+  stickerPopShow(stickerQueue.shift());
+}
+
+function stickerPopShow(pop) {
+  stickerPopNow = pop;
+  stickerPopT = STICKER_POP_SECONDS;
+  const el = $('stickerPop'),
+    many = pop.ids.length > 1;
+  $('stickerPopKicker').textContent = many ? 'STICKERS' : 'STICKER';
+  $('stickerPopName').textContent = stickerPopText(pop);
+  el.setAttribute('aria-label', (many ? 'Stickers: ' : 'Sticker: ') + stickerPopText(pop));
+  const g = configureCanvas($('stickerPopArt'), 48, 48);
+  g.clearRect(0, 0, 48, 48);
+  stickerBadge(g, 24, 24, 21, stickerById(pop.ids[0]), true);
+  el.classList.add('show');
+  // Top layer, above any open dialog. Older browsers keep the fixed-position element in the page.
+  if (typeof el.showPopover === 'function') {
+    try {
+      if (typeof el.hidePopover === 'function' && el.matches && el.matches(':popover-open')) el.hidePopover();
+      el.showPopover();
+    } catch {}
+  }
+  sfx('daily');
+}
+
+function stickerPopHide() {
+  const el = $('stickerPop');
+  el.classList.remove('show');
+  if (typeof el.hidePopover === 'function') {
+    try {
+      el.hidePopover();
+    } catch {}
+  }
+  stickerPopNow = null;
+  stickerPopGap = STICKER_POP_GAP;
+}
+
+function stickerPopClear() {
+  stickerQueue = [];
+  if (stickerPopNow) stickerPopHide();
+  stickerPopGap = 0;
+}
+
+// Its own frame loop: the pop clock every frame, the sticker check once a second while playing.
+let stickerLast = 0,
+  stickerAcc = 0;
+
+function stickerFrame(now) {
+  const dt = stickerLast ? Math.min(0.25, Math.max(0, (now - stickerLast) / 1000)) : 0;
+  stickerLast = now;
+  stickerTick(dt);
+  stickerAcc += dt;
+  if (stickerAcc >= 1) {
+    stickerAcc = 0;
+    if (state.started) stickerCheck();
+  }
+  requestAnimationFrame(stickerFrame);
+}
+
+requestAnimationFrame(stickerFrame);
+
+// ---- Badge art ----
+const STICKER_TONES = {
+  mint: { fill: '#b5e8c5', deep: '#5f9f86', light: '#e6f8ea' },
+  coral: { fill: '#ffa48e', deep: '#c8664f', light: '#ffdcd2' },
+  yellow: { fill: '#ffda79', deep: '#c49a35', light: '#fff2c9' }
+};
+
+const STICKER_INK = '#17313a';
+
+function stickerShape(g, shape) {
+  g.beginPath();
+  if (shape === 'shield') {
+    g.moveTo(-23, -27);
+    g.quadraticCurveTo(0, -33, 23, -27);
+    g.quadraticCurveTo(27, -26, 27, -21);
+    g.lineTo(27, -2);
+    g.bezierCurveTo(27, 16, 12, 26, 0, 32);
+    g.bezierCurveTo(-12, 26, -27, 16, -27, -2);
+    g.lineTo(-27, -21);
+    g.quadraticCurveTo(-27, -26, -23, -27);
+    g.closePath();
+  } else g.arc(0, 0, 29, 0, Math.PI * 2);
+}
+
+// A five-point star centered at (x, y).
+function stickerStar(g, x, y, r, fill, stroke = null, lw = 1) {
+  path(
+    g,
+    p => {
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5,
+          k = i % 2 ? r * 0.45 : r;
+        if (i) p.lineTo(x + Math.cos(a) * k, y + Math.sin(a) * k);
+        else p.moveTo(x + Math.cos(a) * k, y + Math.sin(a) * k);
+      }
+      p.closePath();
+    },
+    fill,
+    stroke,
+    lw
+  );
+}
+
+// Bold centered text with a dark outline: the badge numerals.
+function stickerNumeral(g, text, x, y, size, fill = '#fffaf0', edge = STICKER_INK) {
+  g.font = `900 ${size}px "Trebuchet MS", Arial, sans-serif`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.lineJoin = 'round';
+  g.lineWidth = Math.max(2, size * 0.2);
+  g.strokeStyle = edge;
+  g.strokeText(text, x, y);
+  g.fillStyle = fill;
+  g.fillText(text, x, y);
+  g.textAlign = 'left';
+  g.textBaseline = 'alphabetic';
+}
+
+// Icon painters draw inside a 40-unit box around (0, 0).
+const STICKER_ICONS = {
+  medal: (g, grade) => ceremonyMedal(g, 0, 4, 15, grade),
+  crown: g => {
+    ceremonyMedal(g, 0, 8, 12, 3);
+    poly(g, [[-15, -6], [-15, -20], [-8, -12], [0, -23], [8, -12], [15, -20], [15, -6]], '#f6c64a');
+    path(g, p => p.rect(-15, -9, 30, 4), '#e2a92c');
+    ellipse(g, 0, -15, 2.4, 2.4, '#ef8f89');
+    ellipse(g, -9, -11, 1.8, 1.8, '#8fd3c2');
+    ellipse(g, 9, -11, 1.8, 1.8, '#8fd3c2');
+    line(g, [[-15, -6], [-15, -20], [-8, -12], [0, -23], [8, -12], [15, -20], [15, -6], [-15, -6]], STICKER_INK, 1.4);
+  },
+  three: g => {
+    ellipse(g, 9, 12, 9, 5, '#8a5a3c');
+    ellipse(g, 9, 8, 6, 4, '#a3704c');
+    ellipse(g, 9, 4.5, 3, 2.5, '#b8845e');
+    stickerNumeral(g, '3', -3, 0, 30);
+  },
+  star: (g, text) => {
+    stickerStar(g, 0, 1, 19, '#fff3b8', STICKER_INK, 1.6);
+    stickerNumeral(g, text, 0, 3, 13);
+  },
+  volleyball: g => {
+    ellipse(g, 0, 0, 16, 16, '#fbf6ea');
+    path(g, p => p.arc(0, 0, 16, 0, Math.PI * 2), null, STICKER_INK, 1.4);
+    path(g, p => {
+      p.moveTo(-15, -5);
+      p.quadraticCurveTo(-2, -2, 4, -15);
+    }, null, '#2f5f9e', 2.2);
+    path(g, p => {
+      p.moveTo(-2, 1);
+      p.quadraticCurveTo(10, -2, 15, 6);
+    }, null, '#e3a83a', 2.2);
+    path(g, p => {
+      p.moveTo(-2, 1);
+      p.quadraticCurveTo(-6, 10, -1, 16);
+    }, null, '#2f5f9e', 2.2);
+    stickerNumeral(g, '10', 11, 13, 10);
+  },
+  softball: g => {
+    softball(g, 0, 0, 16);
+    stickerNumeral(g, '25', 11, 13, 10);
+  },
+  sparkle: g => {
+    spark(g, -2, 0, '#fffaf0', 1.7);
+    spark(g, 12, -11, '#fffaf0', 0.6);
+    spark(g, -13, 11, '#fffaf0', 0.5);
+    path(g, p => {
+      p.moveTo(-2, -17);
+      p.quadraticCurveTo(0, -3, 15, 0);
+      p.quadraticCurveTo(0, 3, -2, 17);
+      p.quadraticCurveTo(-4, 3, -19, 0);
+      p.quadraticCurveTo(-4, -3, -2, -17);
+    }, null, STICKER_INK, 1.2);
+  },
+  ivbag: g => {
+    line(g, [[0, -21], [0, -16]], STICKER_INK, 2);
+    rr(g, -10, -16, 20, 24, 6, '#eef7f6', STICKER_INK, 1.4);
+    rr(g, -7, -5, 14, 10, 3, '#b8e3ef');
+    line(g, [[0, 8], [0, 13], [6, 19]], '#5d8f9b', 2);
+    stickerNumeral(g, '✕✕', 0, -10, 7, '#ef8f89', '#7a2c34');
+  },
+  bed: g => {
+    rr(g, -18, -12, 5, 22, 2, '#7a9aa2', STICKER_INK, 1.2);
+    rr(g, -15, 0, 33, 8, 3, '#eef6f2', STICKER_INK, 1.2);
+    rr(g, -12, -5, 10, 6, 3, '#ffffff', STICKER_INK, 1);
+    rr(g, -2, -4, 19, 6, 3, '#9ccfe0', STICKER_INK, 1);
+    line(g, [[-15, 8], [-15, 13]], STICKER_INK, 2);
+    line(g, [[16, 8], [16, 13]], STICKER_INK, 2);
+    stickerNumeral(g, '5', 11, -12, 11);
+  },
+  joystick: g => {
+    rr(g, -16, 4, 32, 12, 5, '#38515a', STICKER_INK, 1.4);
+    line(g, [[0, 6], [-3, -10]], STICKER_INK, 4);
+    ellipse(g, -3, -12, 7, 7, '#ef8f89');
+    ellipse(g, -5, -14, 2.2, 2, '#ffffff99');
+    ellipse(g, 10, 8, 2.6, 2.6, '#ffda79');
+  },
+  gremlin: (g, type) => {
+    gremlin(g, 0, 14, 0.62, type, 0);
+    stickerNumeral(g, type ? '500' : '100', 0, 16, 10);
+  },
+  donut: (g, drift) => {
+    if (drift) {
+      line(g, [[-19, -4], [-12, -4]], '#ffffffaa', 2);
+      line(g, [[-20, 3], [-13, 3]], '#ffffffaa', 2);
+    }
+    ellipse(g, 2, 0, 17, 17, '#eef2ef');
+    path(g, p => p.arc(2, 0, 17, 0, Math.PI * 2), null, STICKER_INK, 1.4);
+    ellipse(g, 2, 0, 8, 8, '#4d6f78');
+    path(g, p => p.arc(2, 0, 8, 0, Math.PI * 2), null, STICKER_INK, 1.2);
+    rr(g, -6, 12, 16, 4, 2, drift ? '#dab180' : '#72aebc');
+  },
+  brick: g => {
+    brick(g, 0, 4, '#e19a83', 1.25);
+  },
+  wave: g => {
+    rr(g, -17, -13, 34, 24, 5, '#183a46', STICKER_INK, 1.4);
+    path(g, p => {
+      p.moveTo(-13, 0);
+      for (let x = -13; x <= 13; x += 2) p.lineTo(x, Math.sin(x * 0.55) * 5 * Math.cos(x * 0.12));
+    }, null, '#9ff0c8', 1.8);
+    rr(g, -4, 11, 8, 6, 2, '#5d8f9b');
+  },
+  flame: g => {
+    path(g, p => {
+      p.moveTo(0, -20);
+      p.bezierCurveTo(14, -6, 16, 4, 12, 11);
+      p.quadraticCurveTo(0, 21, -12, 11);
+      p.bezierCurveTo(-16, 3, -8, -4, -6, -10);
+      p.quadraticCurveTo(-3, -4, -2, -2);
+      p.quadraticCurveTo(2, -10, 0, -20);
+    }, '#ff8a5b', STICKER_INK, 1.4);
+    path(g, p => {
+      p.moveTo(0, -4);
+      p.bezierCurveTo(7, 3, 7, 9, 4, 12);
+      p.quadraticCurveTo(0, 15, -4, 12);
+      p.bezierCurveTo(-7, 8, -3, 3, 0, -4);
+    }, '#ffe08a');
+    stickerNumeral(g, '3', 0, 9, 11);
+  },
+  ralph: g => {
+    gremlin(g, 0, 15, 0.6, 2, 0);
+    line(g, [[-8, -7], [-3, -2]], STICKER_INK, 1.6);
+    line(g, [[-3, -7], [-8, -2]], STICKER_INK, 1.6);
+    line(g, [[3, -7], [8, -2]], STICKER_INK, 1.6);
+    line(g, [[8, -7], [3, -2]], STICKER_INK, 1.6);
+    g.save();
+    g.translate(11, -16);
+    g.rotate(0.5);
+    poly(g, [[-6, 3], [-6, -4], [-2, 0], [0, -6], [2, 0], [6, -4], [6, 3]], '#f6c64a');
+    g.restore();
+  },
+  house: g => {
+    poly(g, [[-17, -2], [0, -18], [17, -2]], '#ef8f89');
+    line(g, [[-17, -2], [0, -18], [17, -2]], STICKER_INK, 1.6);
+    rr(g, -13, -3, 26, 20, 2, '#fbf3e3', STICKER_INK, 1.4);
+    rr(g, -4, 5, 9, 12, 2, '#5b9f8e');
+    ellipse(g, 3, 11, 1, 1, '#ffda79');
+    rr(g, -11, 0, 6, 6, 1, '#b8e3ef');
+    heart(g, 3, -13, 0.42, '#fffaf0');
+  },
+  haha: (g, text) => {
+    path(g, p => {
+      p.roundRect(-18, -15, 36, 24, 9);
+      p.moveTo(-6, 9);
+      p.lineTo(-10, 17);
+      p.lineTo(2, 9);
+    }, '#fffaf0', STICKER_INK, 1.4);
+    stickerNumeral(g, text, 0, -3, 13, '#ef8f89', '#7a2c34');
+  },
+  ensure: g => {
+    rr(g, -7, -19, 14, 6, 2, '#c9b18a', STICKER_INK, 1.2);
+    rr(g, -9, -14, 18, 32, 6, '#efe2c4', STICKER_INK, 1.4);
+    rr(g, -9, -4, 18, 10, 1, '#8f6a4a');
+    label(g, 'ENS', -6.5, 4, 6, '#fff3d6');
+    line(g, [[-17, -15], [17, 17]], '#d94a52', 4);
+    line(g, [[-17, -15], [17, 17]], '#ffffffaa', 1.2);
+  },
+  rowdy: g => {
+    g.save();
+    g.beginPath();
+    g.arc(0, 0, 22, 0, Math.PI * 2);
+    g.clip();
+    drawRowdyPortrait(g, 0, -1, 38, 1.3);
+    g.restore();
+  },
+  bubbles: g => {
+    rr(g, -18, -15, 24, 17, 7, '#fffaf0', STICKER_INK, 1.4);
+    poly(g, [[-12, 1], [-15, 8], [-6, 1]], '#fffaf0');
+    rr(g, -4, -3, 22, 16, 7, '#9ccfe0', STICKER_INK, 1.4);
+    poly(g, [[11, 12], [15, 18], [6, 12]], '#9ccfe0');
+    for (const x of [-12, -6, 0]) ellipse(g, x, -7, 1.6, 1.6, STICKER_INK);
+    heart(g, 3, 1, 0.5, '#ef8f89');
+  },
+  cat: g => {
+    poly(g, [[-14, -6], [-12, -19], [-4, -11]], '#f1b77a');
+    poly(g, [[14, -6], [12, -19], [4, -11]], '#f1b77a');
+    ellipse(g, 0, 1, 15, 13, '#f1b77a');
+    path(g, p => p.ellipse(0, 1, 15, 13, 0, 0, Math.PI * 2), null, STICKER_INK, 1.4);
+    ellipse(g, -5, -1, 2, 3, STICKER_INK);
+    ellipse(g, 5, -1, 2, 3, STICKER_INK);
+    poly(g, [[-2, 4], [2, 4], [0, 6]], '#ef8f89');
+    line(g, [[-4, 6], [-13, 4]], STICKER_INK, 0.9);
+    line(g, [[4, 6], [13, 4]], STICKER_INK, 0.9);
+    ellipse(g, 13, -15, 3.5, 3.5, '#e2434f');
+    label(g, 'REC', 2, -16, 5, STICKER_INK);
+  },
+  pillow: g => {
+    path(g, p => {
+      p.moveTo(-18, -6);
+      p.quadraticCurveTo(0, -12, 18, -6);
+      p.quadraticCurveTo(21, 4, 18, 12);
+      p.quadraticCurveTo(0, 7, -18, 12);
+      p.quadraticCurveTo(-21, 4, -18, -6);
+    }, '#fbf6ea', STICKER_INK, 1.4);
+    line(g, [[-10, 2], [8, 1]], '#d7cdb4', 1.2);
+    label(g, 'z', 6, -12, 9, STICKER_INK);
+    label(g, 'z', 12, -18, 7, STICKER_INK);
+  },
+  coins: g => {
+    for (let i = 0; i < 4; i++) {
+      ellipse(g, -3, 12 - i * 6, 13, 4.5, '#c49a35');
+      ellipse(g, -3, 10 - i * 6, 13, 4.5, '#ffd86b');
+      path(g, p => p.ellipse(-3, 10 - i * 6, 13, 4.5, 0, 0, Math.PI * 2), null, STICKER_INK, 1);
+    }
+    ellipse(g, 11, -9, 7, 7, '#ffd86b');
+    path(g, p => p.arc(11, -9, 7, 0, Math.PI * 2), null, STICKER_INK, 1.2);
+    label(g, '¢', 8.5, -5.5, 9, '#a5772a');
+  },
+  bag: g => {
+    path(g, p => {
+      p.moveTo(-7, -9);
+      p.quadraticCurveTo(-7, -19, 0, -19);
+      p.quadraticCurveTo(7, -19, 7, -9);
+    }, null, STICKER_INK, 2);
+    rr(g, -14, -10, 28, 27, 4, '#8fd3c2', STICKER_INK, 1.4);
+    heart(g, 0, -2, 0.75, '#ef8f89');
+  },
+  hoodie: g => {
+    path(g, p => {
+      p.moveTo(-8, -17);
+      p.lineTo(-18, -12);
+      p.lineTo(-21, 6);
+      p.lineTo(-14, 7);
+      p.lineTo(-13, 17);
+      p.lineTo(13, 17);
+      p.lineTo(14, 7);
+      p.lineTo(21, 6);
+      p.lineTo(18, -12);
+      p.lineTo(8, -17);
+      p.quadraticCurveTo(0, -10, -8, -17);
+    }, '#7d5bbd', STICKER_INK, 1.4);
+    line(g, [[-13, 13], [13, 13]], '#e8c35a', 2);
+    stickerNumeral(g, '22', 0, 2, 13, '#ffe7a0', '#3e2a6e');
+  },
+  calendar: (g, text) => {
+    rr(g, -16, -14, 32, 30, 4, '#fffaf0', STICKER_INK, 1.4);
+    rr(g, -16, -14, 32, 9, 4, '#ef8f89');
+    line(g, [[-9, -18], [-9, -11]], STICKER_INK, 2);
+    line(g, [[9, -18], [9, -11]], STICKER_INK, 2);
+    stickerNumeral(g, text, 0, 5, 17, '#5b9f8e', STICKER_INK);
+  },
+  sun: (g, text) => {
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      line(g, [[Math.cos(a) * 13, Math.sin(a) * 13], [Math.cos(a) * 19, Math.sin(a) * 19]], '#f0a63a', 2.4);
+    }
+    ellipse(g, 0, 0, 11, 11, '#ffe08a');
+    path(g, p => p.arc(0, 0, 11, 0, Math.PI * 2), null, STICKER_INK, 1.3);
+    stickerNumeral(g, text, 0, 1, 13);
+  }
+};
+
+// A sticker badge, centered at (x, y), r is roughly the radius. Locked badges are grey outlines.
+function stickerBadge(g, x, y, r, s, earned) {
+  if (!s) return;
+  g.save();
+  g.translate(x, y);
+  g.scale(r / 30, r / 30);
+  if (!earned) {
+    g.setLineDash([5, 4]);
+    stickerShape(g, s.shape);
+    g.fillStyle = '#ffffff08';
+    g.fill();
+    g.strokeStyle = '#7f979c';
+    g.lineWidth = 2;
+    g.stroke();
+    g.setLineDash([]);
+    stickerNumeral(g, '?', 0, 1, 24, '#8fa5a8', '#203b44');
+    g.restore();
+    return;
+  }
+  const tone = STICKER_TONES[s.tone] || STICKER_TONES.mint;
+  g.save();
+  g.translate(0, 2.6);
+  stickerShape(g, s.shape);
+  g.fillStyle = '#081a2459';
+  g.fill();
+  g.restore();
+  stickerShape(g, s.shape);
+  g.fillStyle = gradient(g, -20, -28, 30, 56, tone.light, tone.fill);
+  g.fill();
+  g.strokeStyle = STICKER_INK;
+  g.lineWidth = 2.4;
+  g.stroke();
+  // Stitched inner edge: a sticker, not a coin.
+  g.save();
+  g.scale(0.84, 0.84);
+  g.setLineDash([3, 3]);
+  stickerShape(g, s.shape);
+  g.strokeStyle = tone.deep;
+  g.lineWidth = 1.3;
+  g.stroke();
+  g.setLineDash([]);
+  g.restore();
+  const icon = STICKER_ICONS[s.icon];
+  if (icon) {
+    g.save();
+    g.scale(0.9, 0.9);
+    icon(g, s.arg);
+    g.restore();
+  }
+  // A little shine.
+  path(
+    g,
+    p => {
+      p.moveTo(-20, -12);
+      p.quadraticCurveTo(-17, -22, -6, -25);
+    },
+    null,
+    '#ffffffb0',
+    3
+  );
+  ellipse(g, -4, -25.5, 1.6, 1.6, '#ffffffc0');
+  g.restore();
+}
+
+// ---- The sheet ----
+let stickerSelected = '';
+
+function stickerCount() {
+  return STICKERS.filter(s => stickerEarned(s.id)).length;
+}
+
+// The most recent earned sticker, or '' when the sheet is empty.
+function stickerLatest() {
+  const list = (state.stickers || []).filter(id => stickerById(id));
+  return list.length ? list[list.length - 1] : '';
+}
+
+function stickerTile(s) {
+  const earned = stickerEarned(s.id);
+  return (
+    `<button class="sticker-tile${stickerSelected === s.id ? ' selected' : ''}" data-sticker="${s.id}" ` +
+    `data-earned="${earned ? 1 : 0}" aria-pressed="${stickerSelected === s.id}" ` +
+    `aria-label="${earned ? s.name + '. ' + s.blurb : 'Locked. ' + s.hint}">` +
+    `<canvas data-sticker-art="${s.id}" width="72" height="72" aria-hidden="true"></canvas>` +
+    `<strong>${earned ? s.name : 'Locked'}</strong><small>${earned ? s.blurb : s.hint}</small></button>`
+  );
+}
+
+function stickerPaintAll(root) {
+  if (!root || typeof root.querySelectorAll !== 'function') return;
+  root.querySelectorAll('[data-sticker-art]').forEach(cv => {
+    const s = stickerById(cv.dataset.stickerArt),
+      g = configureCanvas(cv, 64, 64);
+    g.clearRect(0, 0, 64, 64);
+    stickerBadge(g, 32, 33, 27, s, stickerEarned(s.id));
+  });
+}
+
+function stickerRenderSpot() {
+  const id = stickerSelected || stickerLatest(),
+    s = stickerById(id),
+    earned = !!s && stickerEarned(s.id),
+    g = configureCanvas($('stickerSpotArt'), 120, 120);
+  g.clearRect(0, 0, 120, 120);
+  if (s) stickerBadge(g, 60, 61, 52, s, earned);
+  else {
+    const blank = { shape: 'round', tone: 'mint' };
+    stickerBadge(g, 60, 61, 52, blank, false);
+  }
+  $('stickerSpotKicker').textContent = s ? (earned ? 'Earned · ' + s.group : 'Locked · ' + s.group) : 'Nothing yet';
+  $('stickerSpotName').textContent = s ? (earned ? s.name : 'Still a mystery') : 'Your sheet is empty.';
+  $('stickerSpotText').textContent = s ? (earned ? s.blurb : s.hint) : 'Win a run, clear a ward, or hear a Dad joke. Stickers find you.';
+  $('stickerShare').disabled = !earned;
+  $('stickerShare').textContent = 'Share this sticker ↗';
+  $('stickerShare').dataset.sticker = earned ? s.id : '';
+}
+
+function stickerRenderSheet() {
+  const n = stickerCount();
+  $('stickerTitle').textContent = `${n} of ${STICKERS.length} stickers.`;
+  $('stickerBar').style.width = Math.round((n / STICKERS.length) * 100) + '%';
+  $('stickerGrid').innerHTML = STICKER_GROUPS.map(group => {
+    const list = STICKERS.filter(s => s.group === group),
+      got = list.filter(s => stickerEarned(s.id)).length;
+    return (
+      `<h3 class="card-kicker sticker-group">${group} · ${got}/${list.length}</h3>` +
+      `<div class="sticker-tiles">${list.map(stickerTile).join('')}</div>`
+    );
+  }).join('');
+  stickerPaintAll($('stickerGrid'));
+  stickerRenderSpot();
+}
+
+function stickerOpenSheet() {
+  stickerSelected = stickerLatest();
+  stickerRenderSheet();
+  modalOpen($('stickerDialog'));
+  if (stickerSelected) sharePrepare(shareStickerSpec(stickerSelected));
+  sfx('select');
+}
+
+function stickerSelect(id) {
+  if (!stickerById(id)) return;
+  stickerSelected = id;
+  stickerRenderSheet();
+  if (stickerEarned(id)) sharePrepare(shareStickerSpec(id));
+  sfx('ui');
+}
+
+// The sidebar card: a count, a bar, and the four latest badges.
+function stickerRenderCard() {
+  const n = stickerCount(),
+    recent = (state.stickers || []).filter(id => stickerById(id)).slice(-4).reverse();
+  $('stickerCardCount').textContent = `${n} / ${STICKERS.length}`;
+  $('stickerCardBar').style.width = Math.round((n / STICKERS.length) * 100) + '%';
+  $('stickerCardStrip').innerHTML = [0, 1, 2, 3]
+    .map(i =>
+      recent[i]
+        ? `<canvas data-sticker-art="${recent[i]}" width="48" height="48" aria-label="${stickerById(recent[i]).name}"></canvas>`
+        : '<span class="sticker-slot" aria-hidden="true"></span>'
+    )
+    .join('');
+  $('stickerCardNote').textContent = n
+    ? 'Latest: ' + stickerById(recent[0]).name + '.'
+    : 'Thirty-some ways to show off. None of them medical.';
+  stickerPaintAll($('stickerCardStrip'));
+}
+
+// ---- Share cards ----
+// 1080 × 1350 (4:5, the size phones and feeds like). Drawn with art.js, so no fonts or network.
+const SHARE_W = 1080,
+  SHARE_H = 1350;
+
+let shareCache = null;
+
+function shareDateLabel(d = new Date()) {
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
+}
+
+// A result card for the run on the result screen (or the given numbers).
+function shareResultSpec(over = {}) {
+  const id = mini.id,
+    def = games[id];
+  return {
+    kind: 'result',
+    id,
+    game: def ? def.info.game : 'The arcade',
+    room: rooms[id] ? rooms[id].name : 'The hospital',
+    theme: rooms[id] ? rooms[id].theme : '#73ac98',
+    tier: mini.tier || 0,
+    grade: mini.grade || 1,
+    score: mini.score || 0,
+    quality: mini.qualityFinal || 0,
+    name: state.name || 'Macy',
+    date: shareDateLabel(),
+    ...over
+  };
+}
+
+function shareStickerSpec(id, over = {}) {
+  const s = stickerById(id) || STICKERS[0];
+  return {
+    kind: 'sticker',
+    sticker: s.id,
+    theme: s.tone === 'coral' ? '#c98a8a' : s.tone === 'yellow' ? '#dab180' : '#73ac98',
+    count: stickerCount(),
+    name: state.name || 'Macy',
+    date: shareDateLabel(),
+    ...over
+  };
+}
+
+function shareKey(spec) {
+  return JSON.stringify(spec);
+}
+
+function shareSlug(text) {
+  return (
+    String(text)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'card'
+  );
+}
+
+function shareFileName(spec) {
+  if (spec.kind === 'sticker') return `gut-feeling-sticker-${shareSlug(spec.sticker)}.png`;
+  return `gut-feeling-${shareSlug(spec.game)}-${shareSlug(medalNames[spec.grade] || 'medal')}.png`;
+}
+
+function shareText(spec) {
+  if (spec.kind === 'sticker') {
+    const s = stickerById(spec.sticker);
+    return `I earned the ${s ? s.name : 'mystery'} sticker in Operation: Gut Feeling.`;
+  }
+  return `${medalNames[spec.grade] || 'A'} medal in ${spec.game}. Score ${spec.score}. Operation: Gut Feeling.`;
+}
+
+// Text width, with an estimate for contexts that cannot measure.
+function shareMeasure(g, text, size) {
+  g.font = `700 ${size}px "Trebuchet MS", Arial, sans-serif`;
+  const m = typeof g.measureText === 'function' ? g.measureText(text) : null;
+  return m && Number.isFinite(m.width) ? m.width : String(text).length * size * 0.56;
+}
+
+// The largest size (down to min) that keeps text inside maxW.
+function shareFit(g, text, maxW, size, min = 18) {
+  let s = size;
+  while (s > min && shareMeasure(g, text, s) > maxW) s -= 2;
+  return s;
+}
+
+function shareWrap(g, text, x, y, maxW, size, color, lineH = size * 1.3, maxLines = 3) {
+  const words = String(text).split(/\s+/),
+    lines = [];
+  let cur = '';
+  for (const w of words) {
+    const next = cur ? cur + ' ' + w : w;
+    if (cur && shareMeasure(g, next, size) > maxW) {
+      lines.push(cur);
+      cur = w;
+    } else cur = next;
+  }
+  if (cur) lines.push(cur);
+  lines.slice(0, maxLines).forEach((l, i) => label(g, l, x, y + i * lineH, size, color, 'center'));
+  return Math.min(lines.length, maxLines);
+}
+
+// Macy with her 22 on the hoodie, feet at (x, y).
+function shareMacy(g, x, y, k) {
+  girl(g, x, y, k, 0, 1, false, true);
+  g.save();
+  g.translate(x, y);
+  g.scale(k, k);
+  rr(g, -8, -44, 17, 13, 4, '#ffffff22');
+  stickerNumeral(g, '22', 0.5, -37, 11, '#fffaf0', '#2c4d58');
+  g.restore();
+}
+
+// The wordmark across the top: OPERATION: over GUT FEELING.
+function shareWordmark(g, y) {
+  label(g, 'OPERATION:', SHARE_W / 2, y, 34, '#ffa48e', 'center');
+  const size = 92,
+    parts = [
+      ['GUT ', '#f8efd9'],
+      ['FEELING', '#b5e8c5'],
+      ['.', '#ffa48e']
+    ],
+    total = parts.reduce((a, [t]) => a + shareMeasure(g, t, size), 0);
+  let x = SHARE_W / 2 - total / 2;
+  for (const [t, col] of parts) {
+    label(g, t, x, y + 92, size, col);
+    x += shareMeasure(g, t, size);
+  }
+}
+
+// The room scene: wall, floor stripes and a window, in the room's palette.
+function shareScene(g, x, y, w, h, theme) {
+  g.save();
+  rr(g, x, y, w, h, 44, null);
+  g.clip();
+  rect(g, x, y, w, h, theme);
+  rect(g, x, y, w, h * 0.5, '#ffffff26');
+  rect(g, x, y + h * 0.5, w, 10, '#3b6970');
+  rect(g, x, y + h * 0.5 + 10, w, h * 0.5, '#5f8c86');
+  for (let i = 0; i < w; i += 70) rect(g, x + i, y + h * 0.5 + 10, 2, h * 0.5, '#d1ddba30');
+  windowArt(g, x + 70, y + 60, 230, 150);
+  glow(g, x + w * 0.72, y + h * 0.3, 330, '#fff2c444');
+  g.restore();
+  rr(g, x, y, w, h, 44, null, '#ffffff30', 3);
+}
+
+// One stat tile: big value over a small kicker.
+function shareTile(g, x, y, w, value, kicker, col = '#b5e8c5') {
+  rr(g, x, y, w, 124, 26, '#1f3f4d');
+  const size = shareFit(g, value, w - 30, 54, 26);
+  label(g, value, x + w / 2, y + 70, size, col, 'center');
+  label(g, kicker, x + w / 2, y + 104, 20, '#a8bdbe', 'center');
+}
+
+// Draws the whole card on g. Returns its size, so callers (and tests) can check it.
+function shareCardDraw(g, spec) {
+  const W = SHARE_W,
+    H = SHARE_H,
+    sticker = spec.kind === 'sticker' ? stickerById(spec.sticker) : null,
+    grade = clamp(Math.round(spec.grade || 1), 1, 3);
+  g.save();
+  rect(g, 0, 0, W, H, '#101e29');
+  g.fillStyle = gradient(g, 0, 0, 0, H, '#1b3a4a', '#0d1923');
+  g.fillRect(0, 0, W, H);
+  glow(g, W * 0.85, 120, 520, (spec.theme || '#73ac98') + '55');
+  glow(g, 120, H - 160, 420, '#ffa48e22');
+  shareWordmark(g, 112);
+  // The scene: Macy on the left, the badge top right, Rowdy or a gremlin as the flourish.
+  const sx = 60,
+    sy = 270,
+    sw = W - 120,
+    sh = 600;
+  shareScene(g, sx, sy, sw, sh, spec.theme || '#73ac98');
+  shareMacy(g, 330, sy + sh - 54, 4.6);
+  if (sticker || grade === 3) drawRowdy(g, 750, sy + sh - 44, 3, sticker ? 'flex' : 'cheer', 0.6, { face: -1 });
+  else gremlin(g, 780, sy + sh - 60, 3, (spec.id || 0) % 4, 1.1);
+  const bx = W - 230,
+    by = sy + 140;
+  glow(g, bx, by, 220, '#fff4c455');
+  if (sticker) stickerBadge(g, bx, by, 124, sticker, true);
+  else ceremonyMedal(g, bx, by - 8, 104, grade);
+  // The words.
+  const ty = sy + sh + 90;
+  if (sticker) {
+    label(g, 'I EARNED THE', W / 2, ty, 30, '#ffa48e', 'center');
+    const size = shareFit(g, sticker.name, W - 140, 76, 40);
+    label(g, sticker.name, W / 2, ty + 82, size, '#f8efd9', 'center');
+    label(g, `STICKER · ${spec.count || 1} OF ${STICKERS.length} COLLECTED`, W / 2, ty + 130, 28, '#b5e8c5', 'center');
+    shareWrap(g, sticker.blurb, W / 2, ty + 200, W - 200, 32, '#cfe0da', 42, 2);
+  } else {
+    const medal = (medalNames[grade] || 'Gold').toUpperCase(),
+      size = shareFit(g, spec.game, W - 140, 74, 40);
+    label(g, spec.game, W / 2, ty + 2, size, '#f8efd9', 'center');
+    label(
+      g,
+      `${String(spec.room).toUpperCase()} · LEVEL ${(spec.tier || 0) + 1} · ${tiers[spec.tier || 0].toUpperCase()}`,
+      W / 2,
+      ty + 54,
+      26,
+      '#b5e8c5',
+      'center'
+    );
+    const tw = (W - 120 - 40) / 3,
+      cols = ['#ffda79', '#b5e8c5', grade === 3 ? '#ffda79' : grade === 2 ? '#dfe7ea' : '#f0b98a'];
+    shareTile(g, 60, ty + 96, tw, String(spec.score), 'SCORE', cols[0]);
+    shareTile(g, 60 + tw + 20, ty + 96, tw, spec.quality + '%', 'PERFORMANCE', cols[1]);
+    shareTile(g, 60 + (tw + 20) * 2, ty + 96, tw, medal, 'MEDAL', cols[2]);
+    label(g, '★'.repeat(grade) + '☆'.repeat(3 - grade), W / 2, ty + 268, 34, '#ffda79', 'center');
+  }
+  // Footer: name and number on the left, the date on the right, the tri-color bar under both.
+  label(g, `${String(spec.name || 'Macy').toUpperCase()} · #22`, 70, H - 62, 26, '#f8efd9');
+  label(g, spec.date || shareDateLabel(), W - 70, H - 62, 26, '#a8bdbe', 'right');
+  rect(g, 0, H - 22, W / 3, 22, '#b5e8c5');
+  rect(g, W / 3, H - 22, W / 3, 22, '#ffa48e');
+  rect(g, (W / 3) * 2, H - 22, W / 3, 22, '#ffda79');
+  g.restore();
+  return { w: W, h: H, kind: spec.kind };
+}
+
+// A fresh canvas with the card drawn on it.
+function shareRender(spec) {
+  const cv = document.createElement('canvas');
+  cv.width = SHARE_W;
+  cv.height = SHARE_H;
+  const g = cv.getContext('2d');
+  shareCardDraw(g, spec);
+  return cv;
+}
+
+// A PNG blob without waiting: the fallback when a tap arrives before toBlob has finished.
+function shareBlobSync(cv) {
+  if (typeof cv.toDataURL !== 'function' || typeof Blob !== 'function' || typeof atob !== 'function') return null;
+  const data = cv.toDataURL('image/png'),
+    bin = atob(data.split(',')[1] || ''),
+    bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: 'image/png' });
+}
+
+// Draws the card and encodes it with toBlob in the background, so a later tap can share at once
+// (iOS only opens the share sheet inside the tap itself).
+function sharePrepare(spec) {
+  const key = shareKey(spec);
+  if (shareCache && shareCache.key === key) return shareCache;
+  const entry = { key, spec, blob: null };
+  shareCache = entry;
+  const cv = shareRender(spec);
+  if (typeof cv.toBlob === 'function') cv.toBlob(b => (entry.blob = b), 'image/png');
+  else entry.blob = shareBlobSync(cv);
+  return entry;
+}
+
+// Briefly relabels the button that asked, then puts its label back.
+function shareSay(btn, text) {
+  if (!btn) return;
+  const before = btn.dataset.label || btn.textContent;
+  btn.dataset.label = before;
+  btn.textContent = text;
+  if (typeof setTimeout !== 'function') return;
+  setTimeout(() => {
+    btn.textContent = btn.dataset.label;
+    delete btn.dataset.label;
+  }, 1800);
+}
+
+// Saves the PNG: a download on laptops, a new tab on touch screens (long-press to save), and a
+// download again if the new tab was blocked.
+function shareSave(blob, name, btn) {
+  if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+    shareSay(btn, 'Cannot save here');
+    return 'none';
+  }
+  const url = URL.createObjectURL(blob),
+    a = document.createElement('a');
+  if (typeof setTimeout === 'function') setTimeout(() => URL.revokeObjectURL(url), 60000);
+  if (matchMedia('(pointer: coarse)').matches || !('download' in a)) {
+    const tab = typeof window.open === 'function' ? window.open(url, '_blank') : null;
+    if (tab) {
+      shareSay(btn, 'Opened ✓');
+      return 'tab';
+    }
+  }
+  a.href = url;
+  a.download = name;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  if (typeof document.body.appendChild === 'function') document.body.appendChild(a);
+  if (typeof a.click === 'function') a.click();
+  if (typeof a.remove === 'function') a.remove();
+  shareSay(btn, 'Saved ✓');
+  return 'download';
+}
+
+// Shares the PNG with the system sheet where files can be shared (iOS, Android, Safari on a Mac),
+// else saves it. Returns which path it took.
+function shareDeliver(blob, name, text, btn) {
+  if (!blob) {
+    shareSay(btn, 'Could not draw it');
+    return 'none';
+  }
+  let file = null;
+  try {
+    file = typeof File === 'function' ? new File([blob], name, { type: 'image/png' }) : null;
+  } catch {
+    file = null;
+  }
+  const nav = typeof navigator !== 'undefined' ? navigator : null;
+  let canFiles = false;
+  try {
+    canFiles =
+      !!file && !!nav && typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: [file] });
+  } catch {
+    canFiles = false;
+  }
+  if (canFiles) {
+    nav
+      .share({ files: [file], title: 'Operation: Gut Feeling', text })
+      .then(() => shareSay(btn, 'Shared ✓'))
+      .catch(err => {
+        if (!err || err.name !== 'AbortError') shareSave(blob, name, btn);
+      });
+    return 'share';
+  }
+  return shareSave(blob, name, btn);
+}
+
+// The Share buttons: the prepared PNG if it is ready, else one drawn and encoded right now.
+function shareCard(spec, btn) {
+  const key = shareKey(spec);
+  let blob = shareCache && shareCache.key === key ? shareCache.blob : null;
+  if (!blob) {
+    const cv = shareRender(spec);
+    blob = shareBlobSync(cv);
+    shareCache = { key, spec, blob };
+  }
+  sfx('select');
+  return shareDeliver(blob, shareFileName(spec), shareText(spec), btn);
+}
+
+function shareResult() {
+  if (mini.screen !== 'result' || !mini.win) return 'none';
+  return shareCard(shareResultSpec(), $('resultShare'));
+}
+
+function shareSticker(id = $('stickerShare').dataset.sticker) {
+  if (!id || !stickerEarned(id)) return 'none';
+  return shareCard(shareStickerSpec(id), $('stickerShare'));
 }
 
 // DOM wiring: shop, difficulty, dialogs, arcade (fullscreen) mode, touch controls, keyboard, and startup.
@@ -29191,6 +31577,12 @@ $('miniResume').addEventListener('click', pauseMini);
 $('miniSound').addEventListener('click', uiToggleSound);
 $('miniBack').addEventListener('click', leaveMini);
 $('miniClose').addEventListener('click', leaveMini);
+$('resultShare').addEventListener('click', shareResult);
+
+// A tap anywhere on the result screen, except its buttons, skips the medal ceremony to the end.
+$('miniResult').addEventListener('pointerdown', e => {
+  if (!e.target.closest('button')) ceremonySkip();
+});
 
 $('miniRetry').addEventListener('click', () => {
   if (mini.forced && mini.win) {
@@ -29473,6 +31865,8 @@ window.addEventListener('keydown', e => {
     if (def.key) dailyScoped(() => def.key(k, e));
     return;
   }
+  // Any key on the result screen skips the medal ceremony (Escape still leaves through the dialog).
+  if (mini.open && mini.screen === 'result' && ceremonySkip()) return;
   if (isModal()) return;
   if (k === 'escape') {
     if (!e.repeat) setWardPause(!state.paused);
@@ -29628,6 +32022,7 @@ $('pauseBtn').addEventListener('click', () => setWardPause(!state.paused));
 $('wardResume').addEventListener('click', () => setWardPause(false));
 $('pauseMap').addEventListener('click', openMap);
 $('pauseShop').addEventListener('click', showShop);
+$('pauseStickers').addEventListener('click', stickerOpenSheet);
 $('pauseHelp').addEventListener('click', () => modalOpen($('helpDialog')));
 $('pauseSound').addEventListener('click', uiToggleSound);
 $('pauseFull').addEventListener('click', toggleArcade);
@@ -29651,6 +32046,14 @@ function dailyClick(e) {
 
 $('dailyCard').addEventListener('click', dailyClick);
 $('mapDaily').addEventListener('click', dailyClick);
+
+// Sticker sheet: the sidebar card opens it, a tile shows its sticker big, Share makes the card.
+$('stickerBtn').addEventListener('click', stickerOpenSheet);
+$('stickerGrid').addEventListener('click', e => {
+  const b = e.target.closest('[data-sticker]');
+  if (b) stickerSelect(b.dataset.sticker);
+});
+$('stickerShare').addEventListener('click', () => shareSticker());
 
 $('departmentGrid').addEventListener('click', e => {
   let b = e.target.closest('[data-room]');
@@ -29697,6 +32100,9 @@ $('resetBtn').addEventListener('click', () => {
   state.ralph = false;
   state.briefed = [];
   state.daily = { last: '', best: 0, streak: 0 };
+  state.stats = {};
+  state.stickers = [];
+  stickerPopClear();
   state.started = false;
   document.body.classList.remove('playing');
   state.paused = false;
@@ -29704,6 +32110,7 @@ $('resetBtn').addEventListener('click', () => {
   $$('dialog[open]').forEach(d => d.close());
   loadRoom(0);
   hud();
+  stickerRenderCard();
   drawPortrait();
   titleShow();
   $('resetBtn').textContent = 'Start a fresh adventure';
@@ -29726,6 +32133,7 @@ buildDepartments();
 setupIllustrations();
 loadRoom(0);
 hud();
+stickerRenderCard();
 equip(0);
 drawPortrait();
 uiRenderSound();
