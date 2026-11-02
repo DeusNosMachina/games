@@ -427,6 +427,8 @@ run('globalThis.updateDream = undefined; advanceSimulation(0.1); drawWorld()');
 console.log('PASS: dream hooks run in order when stubbed, and a missing one is tolerated.');
 
 // ---- The 3 AM channel (src/tvlate.js), stubbed ----
+// tvlate.js is in the build now; hide it first to prove the room copes without it.
+run('var realTvLate = [tvLateDraw, tvLateTick, tvLateCaption]; globalThis.tvLateDraw = undefined; globalThis.tvLateTick = undefined; globalThis.tvLateCaption = undefined');
 run('loadRoom(5); tvChannels[0] = 0; player.x = 705; player.y = 252');
 assert.equal(run('tvChannelCount(5)'), 3, 'no tvlate.js, no 3 AM');
 for (let i = 0; i < 3; i++) run('roomAction("attack")');

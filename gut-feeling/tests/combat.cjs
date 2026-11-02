@@ -354,7 +354,8 @@ reseed(5150);
 const plain = ensureCensus();
 assert.equal(plain.carriers, 0, 'no bottles when Macy has never refused one');
 assert.equal(plain.gluggers + plain.beige, 0, 'and no glugging bruisers or beige spitters');
-assert.equal(run('state.stats'), undefined, 'the ward leaves state.stats alone at zero');
+// state.js always keeps a stats object now; the ward must not add Ensure keys to it at zero.
+assert.equal(run('state.stats && state.stats.ensureSeen'), undefined, 'the ward leaves state.stats alone at zero');
 ensureAt(9);
 reseed(5150);
 assert.equal(ensureCensus().carriers, 0, 'still none at 9');
