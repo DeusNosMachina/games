@@ -4,20 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101e29">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gut Feeling">
+<meta name="format-detection" content="telephone=no">
 <meta name="description" content="Operation: Gut Feeling. A delightfully unhinged hospital adventure. A self-contained playable concept for phones and desktops.">
-<title>Operation: Gut Feeling — A hospital adventure</title>
+<title>Operation: Gut Feeling. A hospital adventure.</title>
 <style>
-:root{--bg:#101e29;--panel:#172a35;--line:#30444e;--cream:#f8efd9;--muted:#a8bdbe;--mint:#b5e8c5;--yellow:#ffda79;--coral:#ffa48e;--ink:#17313a;--shadow:0 6px 0 #09131c;--mono:ui-monospace,SFMono-Regular,Consolas,monospace}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--cream);font-family:Arial,Helvetica,sans-serif;background-image:radial-gradient(ellipse at 85% 0, #25444455,transparent 45%)}button,input{font:inherit}button{cursor:pointer;color:inherit}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--yellow);outline-offset:4px}button:disabled{opacity:.45;cursor:default}button{touch-action:manipulation}svg{width:22px;height:22px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.wrap{width:min(1400px,94%);margin:auto}header{height:80px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:12px}.brand{display:flex;align-items:center;gap:12px;text-transform:uppercase;font-size:12px;letter-spacing:1.8px;font-weight:800}.brandmark{height:35px;width:35px;background:var(--mint);color:var(--ink);display:grid;place-items:center;box-shadow:3px 3px 0 #749f8c;transform:rotate(-5deg)}.header-actions{display:flex;gap:8px;align-items:center}.iconbtn,.smallbtn{border:1px solid var(--line);background:transparent;border-radius:6px;padding:10px 12px;display:inline-flex;gap:8px;align-items:center;font-size:12px;font-weight:700}.iconbtn:hover,.smallbtn:hover{background:#28424c}.version{font:10px var(--mono);color:var(--muted);margin-right:16px;text-transform:uppercase;letter-spacing:1px}.intro{display:flex;align-items:center;justify-content:space-between;padding:35px 0 28px;gap:24px}.eyebrow{font:10px var(--mono);letter-spacing:2px;font-weight:700;color:var(--mint);margin:0 0 13px;text-transform:uppercase}.eyebrow .dot{display:inline-block;width:6px;height:6px;background:var(--mint);margin-right:7px;box-shadow:0 0 12px #b5e8c555}h1{font-size:clamp(34px,4.1vw,60px);font-weight:900;line-height:.95;letter-spacing:-2.5px;margin:0}h1 .operation{display:block;font-size:13px;letter-spacing:7px;font-weight:700;margin-bottom:11px;color:var(--coral)}h1 em{font-style:normal;color:var(--mint)}.intro p.desc{font-size:13px;color:var(--muted);line-height:1.6;margin:16px 0 0}.hero-tag{display:flex;gap:18px;align-items:center;transform:rotate(3deg);padding:12px 20px 12px 10px;border:1px solid #496255;border-radius:5px;background:#223b3b;max-width:320px}.hero-tag canvas{width:66px;height:94px;image-rendering:auto}.hero-tag strong{font:700 13px var(--mono);display:block;color:var(--mint);margin-bottom:8px}.hero-tag p{font-size:11px;line-height:1.55;margin:0;color:#c9dbce}.hero-tag .tiny{font:9px var(--mono);letter-spacing:1px;display:block;margin-top:10px;color:#8db6a1}.game-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:22px;align-items:start}.cabinet{border:1px solid #4a646b;background:#142730;border-radius:10px;box-shadow:var(--shadow);overflow:hidden}.gamebar{height:58px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#203740;border-bottom:1px solid #567174}.room-label{display:flex;gap:11px;align-items:center}.room-label>span{display:grid;place-items:center;background:#b5e8c520;color:var(--mint);padding:7px;border-radius:4px}.room-label strong{font-size:13px}.room-label small{display:block;font:9px var(--mono);letter-spacing:1px;color:var(--muted);margin-top:4px}.gamebar .smallbtn{border-color:#4a626b;padding:8px 10px;font-size:11px}.stage{position:relative;aspect-ratio:1.6;background:#29434e;isolation:isolate;overflow:hidden}#game{width:100%;height:100%;display:block;image-rendering:auto;outline:none;touch-action:none}.hud{position:absolute;inset:15px 15px auto;display:flex;justify-content:space-between;gap:10px;pointer-events:none}.hud-card{background:#162b35ed;border:1px solid #516c71;border-radius:4px;padding:10px 12px;box-shadow:3px 3px 0 #0c1d2866}.health-name{font:9px var(--mono);text-transform:uppercase;letter-spacing:1.2px;color:#c5d8d0;margin-bottom:6px}.hearts{display:flex;gap:5px;color:var(--coral)}.hearts svg{width:18px;height:18px;fill:currentColor;stroke:none}.hearts .empty{color:#47616a}.score{font:700 18px var(--mono);color:var(--yellow);text-align:right;white-space:nowrap}.score small{font-size:8px;letter-spacing:1px;color:#bfd0c9;display:block;margin-bottom:5px}.scene-tag{position:absolute;right:16px;bottom:16px;font:9px var(--mono);letter-spacing:1.1px;color:#fff6d4;background:#122b34c9;padding:7px 9px;border:1px solid #71928c66;pointer-events:none}.start-callout{position:absolute;bottom:25px;left:24px;max-width:300px;padding:17px 20px;background:var(--cream);color:var(--ink);border:2px solid #17313a;box-shadow:5px 5px 0 #17313a;transform:rotate(-1deg)}.start-callout small{font:9px var(--mono);color:#507769;letter-spacing:1px}.start-callout h2{font-size:22px;letter-spacing:-.8px;margin:7px 0}.start-callout p{font-size:11px;line-height:1.5;margin:0 0 12px;max-width:250px}.primary{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:var(--mint);border:1px solid #17313a;border-radius:4px;box-shadow:0 3px 0 #17313a;color:var(--ink);font-size:12px;font-weight:800;padding:11px 16px}.primary:hover{filter:brightness(1.07);transform:translateY(-1px)}.primary:active{transform:translateY(2px);box-shadow:none}.primary.coral{background:var(--coral)}.primary.yellow{background:var(--yellow)}.toast{position:absolute;top:100px;left:50%;transform:translateX(-50%);background:var(--cream);color:var(--ink);border:2px solid #17313a;box-shadow:3px 3px 0 #17313a;font:700 11px var(--mono);padding:11px 16px;text-align:center;width:max-content;max-width:80%;opacity:0;pointer-events:none;transition:opacity .15s}.toast.show{opacity:1}.controlbar{background:#203740;min-height:65px;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;gap:10px}.key-guide{color:var(--muted);font:10px var(--mono);display:flex;gap:14px;align-items:center}.key-guide b{display:inline-block;color:var(--cream);border:1px solid #678087;background:#142a34;border-radius:3px;padding:4px 6px;font-size:9px;box-shadow:0 2px 0 #0c1d28;margin-right:4px}.play-status{display:flex;align-items:center;gap:6px;color:var(--mint);font:9px var(--mono);white-space:nowrap}.play-status i{width:5px;height:5px;background:var(--mint);border-radius:50%}.touch-controls{display:none;justify-content:space-between;align-items:center;width:100%;gap:10px;user-select:none}.joystick{width:100px;height:100px;border-radius:50%;border:1px solid #6c8a8a;background:#152c35;position:relative;touch-action:none;box-shadow:inset 0 0 0 10px #1d3741;flex-shrink:0}.joystick:before,.joystick:after{content:'';position:absolute;background:#526f74;opacity:.5}.joystick:before{width:1px;height:70px;left:49px;top:14px}.joystick:after{height:1px;width:70px;top:49px;left:14px}.stick{position:absolute;width:42px;height:42px;left:28px;top:28px;background:#94b9b3;border-radius:50%;border:3px solid #c0dcd0;box-shadow:0 4px 0 #0b202a;z-index:2;pointer-events:none}.touch-actions{display:flex;align-items:center;gap:10px}.touch-actions button{border-radius:50%;width:62px;height:62px;border:2px solid #101e29;box-shadow:0 4px 0 #0c1d28;background:var(--mint);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:700 8px var(--mono);touch-action:none}.touch-actions .attack{width:78px;height:78px;background:var(--coral)}.touch-actions .cycle{width:44px;height:44px;background:#38515a;color:var(--cream);border:1px solid #6d8588}.sidebar{display:flex;flex-direction:column;gap:18px}.questcard{background:var(--cream);color:var(--ink);border-radius:7px;padding:22px;box-shadow:0 5px 0 #09131c;position:relative}.questcard:before{content:'';position:absolute;width:65px;height:15px;left:calc(50% - 32px);top:-7px;background:#b8d1b3aa;transform:rotate(-4deg)}.section-kicker{font:9px var(--mono);font-weight:700;letter-spacing:1.6px;text-transform:uppercase}.questcard h2{font-size:23px;line-height:1.06;letter-spacing:-.6px;margin:13px 0 8px}.questcard>p{font-size:11px;line-height:1.65;color:#62716c}.quest-list{list-style:none;margin:19px 0;padding:0;display:grid;gap:17px}.quest-list li{display:flex;gap:10px}.quest-list i{font:11px var(--mono);font-style:normal;min-width:22px;height:22px;border:1px solid #809186;display:grid;place-items:center;border-radius:3px}.quest-list .done i{background:#d0e3c7}.quest-list strong{font-size:11px;display:block;line-height:1.5}.quest-list small{font-size:10px;line-height:1.5;color:#718077;display:block;margin-top:2px}.progress-label{display:flex;justify-content:space-between;font:9px var(--mono);color:#547266}.progress-track{height:5px;background:#d7dcc8;margin-top:9px;border-radius:3px}.progress-track div{height:100%;width:0;background:#527e62;transition:width .5s}.inventory{padding:0 3px}.inventory h3{font:10px var(--mono);color:var(--muted);letter-spacing:1.7px;display:flex;justify-content:space-between;margin:1px 0 12px}.item{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:#172e38;border:1px solid #324d56;padding:10px;border-radius:5px;margin-bottom:7px}.item.selected{border-color:var(--mint);background:#203c42}.item-icon{width:38px;height:38px;flex-shrink:0;background:#f6eddb;color:#345661;border-radius:3px;display:grid;place-items:center}.item:nth-of-type(2) .item-icon{background:#ffe2ab}.item:nth-of-type(3) .item-icon{background:#e9bad0}.item-icon svg{width:25px;height:25px}.item strong{display:block;font-size:11px;margin-bottom:5px}.item small{color:var(--muted);font-size:9px}.item kbd{margin-left:auto;font:9px var(--mono);border:1px solid #536c74;padding:4px;color:var(--muted)}.aside-note{display:flex;gap:10px;padding:0 6px;color:#9fb7b6;font-size:10px;line-height:1.6}.aside-note svg{flex-shrink:0;width:16px;color:var(--coral)}.below{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:20px 0 32px;font-size:11px;color:var(--muted)}.below span{color:var(--coral)}.textbtn{background:none;border:0;color:var(--mint);padding:5px 0;font:11px var(--mono)}.world-section{border-top:1px solid var(--line);padding:30px 0 35px}.world-heading{display:flex;align-items:end;justify-content:space-between;gap:10px;margin-bottom:19px}.world-heading h2{font-size:25px;letter-spacing:-.8px;margin:0}.world-heading p{font:10px var(--mono);color:var(--muted);margin:0 0 4px}.department-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.dept-card{padding:0;text-align:left;border:1px solid #38525b;border-radius:6px;overflow:hidden;background:#1b303a;transition:transform .2s}.dept-card:hover{transform:translateY(-4px);border-color:var(--mint)}.dept-card canvas{display:block;width:100%;height:105px;image-rendering:auto;background:#25424b}.dept-copy{padding:13px 13px 15px}.dept-copy>div{display:flex;justify-content:space-between;font:8px var(--mono);letter-spacing:.8px;color:var(--mint);margin-bottom:7px}.dept-card h3{font-size:13px;margin:0 0 7px}.dept-card p{font-size:10px;line-height:1.5;color:var(--muted);margin:0}.dept-copy .soon{color:var(--coral)}footer{display:flex;justify-content:space-between;align-items:center;padding:20px 0 30px;border-top:1px solid var(--line);font:9px var(--mono);letter-spacing:1px;color:#8ea6a9;gap:12px}footer strong{color:var(--cream);font-size:10px}dialog{border:1px solid #58717a;border-radius:12px;color:var(--cream);background:#142a35;box-shadow:0 20px 100px #0009;width:min(640px,94vw);padding:0;max-height:90dvh}dialog::backdrop{background:#07121bd9;backdrop-filter:blur(6px)}.modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #38505a}.modal-head h2{font-size:20px;letter-spacing:-.5px;margin:0}.close{background:transparent;border:1px solid #536d75;padding:6px;border-radius:4px;color:var(--cream);line-height:1}.modal-body{padding:24px}.modal-body>p{color:var(--muted);font-size:13px;line-height:1.7}.map-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.map-room{border:1px solid #47616a;background:#203b44;padding:16px;text-align:left;border-radius:6px;min-height:105px}.map-room strong{display:block;margin:10px 0 6px;font-size:14px}.map-room small{font:9px var(--mono);color:var(--muted);line-height:1.5}.map-room .map-n{font:10px var(--mono);color:var(--mint)}.map-room.active{border-color:var(--mint)}.map-room.locked{background:#1b303a;border-style:dashed}.modal-note{color:#91a9ab;font:10px var(--mono);line-height:1.7;margin:18px 0 0}.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:20px 0}.help-grid div{background:#203b44;padding:15px;border-radius:5px}.help-grid strong{display:block;color:var(--mint);font-size:12px;margin-bottom:8px}.help-grid p{font-size:11px;color:#c1d1cf;line-height:1.7;margin:0}.name-row{display:flex;gap:10px;align-items:center;margin:20px 0}.name-row input{min-width:0;width:100%;background:#0c202b;border:1px solid #557279;border-radius:4px;padding:12px;color:var(--cream)}label{font-size:12px;color:var(--muted)}.iv-visual{height:150px;position:relative;background:#213b46;border:1px solid #46616c;border-radius:6px;overflow:hidden;display:grid;place-items:center}.iv-visual canvas{width:100%;height:100%;image-rendering:auto}.iv-text{text-align:center}.iv-text h3{font-size:24px;margin:18px 0 9px}.iv-text p{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:20px}.rhythm-track{height:48px;background:#0a202c;border:2px solid #65848a;border-radius:5px;position:relative;overflow:hidden;margin:18px 0}.sweetspot{position:absolute;left:36%;width:28%;height:100%;background:#b5e8c55c;border-left:2px solid var(--mint);border-right:2px solid var(--mint)}.beat-marker{position:absolute;left:0;width:7px;top:4px;bottom:4px;background:var(--yellow);box-shadow:0 0 10px #ffda79aa}.iv-status{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--muted)}.iv-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:20px}.iv-actions .primary{min-height:48px;padding:14px 25px}.recovery-pips{color:var(--mint);font:18px var(--mono);letter-spacing:8px}.splatter-screen{position:absolute;inset:0;pointer-events:none}.result-copy{text-align:center}.result-copy h3{font-size:34px;line-height:1;letter-spacing:-1px;color:var(--coral);margin:20px 0 10px}.result-copy p{color:var(--muted);font-size:12px;line-height:1.7}.result-copy .primary{margin:14px 0}.puzzle-options{display:flex;justify-content:center;gap:12px;margin:22px 0}.puzzle-options button{width:72px;height:72px;background:var(--mint);border:2px solid #0c202a;box-shadow:0 4px 0 #0c202a;border-radius:5px;font-size:25px;color:var(--ink)}.puzzle-options button:nth-child(2){background:var(--coral)}.puzzle-options button:nth-child(3){background:var(--yellow)}.puzzle-pattern{font:700 28px var(--mono);letter-spacing:12px;color:var(--mint);text-align:center;padding:20px;background:#0c202a;border-radius:5px}.hidden{display:none!important}.focus-mode .intro,.focus-mode .sidebar,.focus-mode .below,.focus-mode .world-section,.focus-mode footer{display:none}.focus-mode .game-layout{display:block;max-width:1200px;margin:18px auto}.focus-mode header{height:60px}.focus-mode .stage{max-height:calc(100dvh - 210px);aspect-ratio:1.6}.focus-mode .cabinet{max-width:calc((100dvh - 210px)*1.6);margin:auto}
+:root{--bg:#101e29;--panel:#172a35;--line:#30444e;--cream:#f8efd9;--muted:#a8bdbe;--mint:#b5e8c5;--yellow:#ffda79;--coral:#ffa48e;--ink:#17313a;--shadow:0 6px 0 #09131c;--mono:ui-monospace,SFMono-Regular,Consolas,monospace}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--cream);font-family:Arial,Helvetica,sans-serif;background-image:radial-gradient(ellipse at 85% 0, #25444455,transparent 45%)}button,input{font:inherit}button{cursor:pointer;color:inherit}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--yellow);outline-offset:4px}button:disabled{opacity:.45;cursor:default}button{touch-action:manipulation}svg{width:22px;height:22px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.wrap{width:min(1400px,94%);margin:auto}header{height:80px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:12px}.brand{display:flex;align-items:center;gap:12px;text-transform:uppercase;font-size:12px;letter-spacing:1.8px;font-weight:800}.brandmark{height:35px;width:35px;background:var(--mint);color:var(--ink);display:grid;place-items:center;box-shadow:3px 3px 0 #749f8c;transform:rotate(-5deg)}.header-actions{display:flex;gap:8px;align-items:center}.iconbtn,.smallbtn{border:1px solid var(--line);background:transparent;border-radius:6px;padding:10px 12px;display:inline-flex;gap:8px;align-items:center;font-size:12px;font-weight:700}.iconbtn:hover,.smallbtn:hover{background:#28424c}.version{font:10px var(--mono);color:var(--muted);margin-right:16px;text-transform:uppercase;letter-spacing:1px}.intro{display:flex;align-items:center;justify-content:space-between;padding:35px 0 28px;gap:24px}.eyebrow{font:10px var(--mono);letter-spacing:2px;font-weight:700;color:var(--mint);margin:0 0 13px;text-transform:uppercase}.eyebrow .dot{display:inline-block;width:6px;height:6px;background:var(--mint);margin-right:7px;box-shadow:0 0 12px #b5e8c555}h1{font-size:clamp(34px,4.1vw,60px);font-weight:900;line-height:.95;letter-spacing:-2.5px;margin:0}h1 .operation{display:block;font-size:13px;letter-spacing:7px;font-weight:700;margin-bottom:11px;color:var(--coral)}h1 em{font-style:normal;color:var(--mint)}.intro p.desc{font-size:13px;color:var(--muted);line-height:1.6;margin:16px 0 0}.hero-tag{display:flex;gap:18px;align-items:center;transform:rotate(3deg);padding:12px 20px 12px 10px;border:1px solid #496255;border-radius:5px;background:#223b3b;max-width:320px}.hero-tag canvas{width:66px;height:94px;image-rendering:auto}.hero-tag strong{font:700 13px var(--mono);display:block;color:var(--mint);margin-bottom:8px}.hero-tag p{font-size:11px;line-height:1.55;margin:0;color:#c9dbce}.hero-tag .tiny{font:9px var(--mono);letter-spacing:1px;display:block;margin-top:10px;color:#8db6a1}.game-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:22px;align-items:start}.cabinet{border:1px solid #4a646b;background:#142730;border-radius:10px;box-shadow:var(--shadow);overflow:hidden}.gamebar{height:58px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#203740;border-bottom:1px solid #567174}.room-label{display:flex;gap:11px;align-items:center}.room-label>span{display:grid;place-items:center;background:#b5e8c520;color:var(--mint);padding:7px;border-radius:4px}.room-label strong{font-size:13px}.room-label small{display:block;font:9px var(--mono);letter-spacing:1px;color:var(--muted);margin-top:4px}.gamebar .smallbtn{border-color:#4a626b;padding:8px 10px;font-size:11px}.stage{position:relative;aspect-ratio:1.6;background:#29434e;isolation:isolate;overflow:hidden}#game{width:100%;height:100%;display:block;image-rendering:auto;outline:none;touch-action:none}.hud{position:absolute;inset:15px 15px auto;display:flex;justify-content:space-between;gap:10px;pointer-events:none}.hud-card{background:#162b35ed;border:1px solid #516c71;border-radius:4px;padding:10px 12px;box-shadow:3px 3px 0 #0c1d2866}.health-name{font:9px var(--mono);text-transform:uppercase;letter-spacing:1.2px;color:#c5d8d0;margin-bottom:6px}.hearts{display:flex;gap:5px;color:var(--coral)}.hearts svg{width:18px;height:18px;fill:currentColor;stroke:none}.hearts .empty{color:#47616a}.score{font:700 18px var(--mono);color:var(--yellow);text-align:right;white-space:nowrap}.score small{font-size:8px;letter-spacing:1px;color:#bfd0c9;display:block;margin-bottom:5px}.scene-tag{position:absolute;right:16px;bottom:16px;font:9px var(--mono);letter-spacing:1.1px;color:#fff6d4;background:#122b34c9;padding:7px 9px;border:1px solid #71928c66;pointer-events:none}.start-callout{position:absolute;bottom:25px;left:24px;max-width:300px;padding:17px 20px;background:var(--cream);color:var(--ink);border:2px solid #17313a;box-shadow:5px 5px 0 #17313a;transform:rotate(-1deg)}.start-callout small{font:9px var(--mono);color:#507769;letter-spacing:1px}.start-callout h2{font-size:22px;letter-spacing:-.8px;margin:7px 0}.start-callout p{font-size:11px;line-height:1.5;margin:0 0 12px;max-width:250px}.primary{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:var(--mint);border:1px solid #17313a;border-radius:4px;box-shadow:0 3px 0 #17313a;color:var(--ink);font-size:12px;font-weight:800;padding:11px 16px}.primary:hover{filter:brightness(1.07);transform:translateY(-1px)}.primary:active{transform:translateY(2px);box-shadow:none}.primary.coral{background:var(--coral)}.primary.yellow{background:var(--yellow)}.toast{position:absolute;top:100px;left:50%;transform:translateX(-50%);background:var(--cream);color:var(--ink);border:2px solid #17313a;box-shadow:3px 3px 0 #17313a;font:700 11px var(--mono);padding:11px 16px;text-align:center;width:max-content;max-width:80%;opacity:0;pointer-events:none;transition:opacity .15s}.toast.show{opacity:1}.controlbar{background:#203740;min-height:65px;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;gap:10px}.key-guide{color:var(--muted);font:10px var(--mono);display:flex;gap:14px;align-items:center}.key-guide b{display:inline-block;color:var(--cream);border:1px solid #678087;background:#142a34;border-radius:3px;padding:4px 6px;font-size:9px;box-shadow:0 2px 0 #0c1d28;margin-right:4px}.play-status{display:flex;align-items:center;gap:6px;color:var(--mint);font:9px var(--mono);white-space:nowrap}.play-status i{width:5px;height:5px;background:var(--mint);border-radius:50%}.touch-controls{display:none;justify-content:space-between;align-items:center;width:100%;gap:10px;user-select:none}.joystick{width:100px;height:100px;border-radius:50%;border:1px solid #6c8a8a;background:#152c35;position:relative;touch-action:none;box-shadow:inset 0 0 0 10px #1d3741;flex-shrink:0}.joystick:before,.joystick:after{content:'';position:absolute;background:#526f74;opacity:.5}.joystick:before{width:1px;height:70px;left:49px;top:14px}.joystick:after{height:1px;width:70px;top:49px;left:14px}.stick{position:absolute;width:42px;height:42px;left:28px;top:28px;background:#94b9b3;border-radius:50%;border:3px solid #c0dcd0;box-shadow:0 4px 0 #0b202a;z-index:2;pointer-events:none}.touch-actions{display:flex;align-items:center;gap:10px}.touch-actions button{border-radius:50%;width:62px;height:62px;border:2px solid #101e29;box-shadow:0 4px 0 #0c1d28;background:var(--mint);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:700 8px var(--mono);touch-action:none}.touch-actions .attack{width:78px;height:78px;background:var(--coral)}.touch-actions .cycle{width:44px;height:44px;background:#38515a;color:var(--cream);border:1px solid #6d8588}.sidebar{display:flex;flex-direction:column;gap:18px}.questcard{background:var(--cream);color:var(--ink);border-radius:7px;padding:22px;box-shadow:0 5px 0 #09131c;position:relative}.questcard:before{content:'';position:absolute;width:65px;height:15px;left:calc(50% - 32px);top:-7px;background:#b8d1b3aa;transform:rotate(-4deg)}.section-kicker{font:9px var(--mono);font-weight:700;letter-spacing:1.6px;text-transform:uppercase}.questcard h2{font-size:23px;line-height:1.06;letter-spacing:-.6px;margin:13px 0 8px}.questcard>p{font-size:11px;line-height:1.65;color:#62716c}.quest-list{list-style:none;margin:19px 0;padding:0;display:grid;gap:17px}.quest-list li{display:flex;gap:10px}.quest-list i{font:11px var(--mono);font-style:normal;min-width:22px;height:22px;border:1px solid #809186;display:grid;place-items:center;border-radius:3px}.quest-list .done i{background:#d0e3c7}.quest-list strong{font-size:11px;display:block;line-height:1.5}.quest-list small{font-size:10px;line-height:1.5;color:#718077;display:block;margin-top:2px}.progress-label{display:flex;justify-content:space-between;font:9px var(--mono);color:#547266}.progress-track{height:5px;background:#d7dcc8;margin-top:9px;border-radius:3px}.progress-track div{height:100%;width:0;background:#527e62;transition:width .5s}.inventory{padding:0 3px}.inventory h3{font:10px var(--mono);color:var(--muted);letter-spacing:1.7px;display:flex;justify-content:space-between;margin:1px 0 12px}.item{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:#172e38;border:1px solid #324d56;padding:10px;border-radius:5px;margin-bottom:7px}.item.selected{border-color:var(--mint);background:#203c42}.item-icon{width:38px;height:38px;flex-shrink:0;background:#f6eddb;color:#345661;border-radius:3px;display:grid;place-items:center}.item:nth-of-type(2) .item-icon{background:#ffe2ab}.item:nth-of-type(3) .item-icon{background:#e9bad0}.item-icon svg{width:25px;height:25px}.item strong{display:block;font-size:11px;margin-bottom:5px}.item small{color:var(--muted);font-size:9px}.item kbd{margin-left:auto;font:9px var(--mono);border:1px solid #536c74;padding:4px;color:var(--muted)}.aside-note{display:flex;gap:10px;padding:0 6px;color:#9fb7b6;font-size:10px;line-height:1.6}.aside-note svg{flex-shrink:0;width:16px;color:var(--coral)}.below{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:20px 0 32px;font-size:11px;color:var(--muted)}.below span{color:var(--coral)}.textbtn{background:none;border:0;color:var(--mint);padding:5px 0;font:11px var(--mono)}.world-section{border-top:1px solid var(--line);padding:30px 0 35px}.world-heading{display:flex;align-items:end;justify-content:space-between;gap:10px;margin-bottom:19px}.world-heading h2{font-size:25px;letter-spacing:-.8px;margin:0}.world-heading p{font:10px var(--mono);color:var(--muted);margin:0 0 4px}.department-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.dept-card{padding:0;text-align:left;border:1px solid #38525b;border-radius:6px;overflow:hidden;background:#1b303a;transition:transform .2s}.dept-card:hover{transform:translateY(-4px);border-color:var(--mint)}.dept-card canvas{display:block;width:100%;height:105px;image-rendering:auto;background:#25424b}.dept-copy{padding:13px 13px 15px}.dept-copy>div{display:flex;justify-content:space-between;font:8px var(--mono);letter-spacing:.8px;color:var(--mint);margin-bottom:7px}.dept-card h3{font-size:13px;margin:0 0 7px}.dept-card p{font-size:10px;line-height:1.5;color:var(--muted);margin:0}.dept-copy .soon{color:var(--coral)}footer{display:flex;justify-content:space-between;align-items:center;padding:20px 0 30px;border-top:1px solid var(--line);font:9px var(--mono);letter-spacing:1px;color:#8ea6a9;gap:12px}footer strong{color:var(--cream);font-size:10px}dialog{border:1px solid #58717a;border-radius:12px;color:var(--cream);background:#142a35;box-shadow:0 20px 100px #0009;width:min(640px,94vw);padding:0;max-height:90dvh}dialog::backdrop{background:#07121bd9;backdrop-filter:blur(6px)}.modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #38505a}.modal-head h2{font-size:20px;letter-spacing:-.5px;margin:0}.close{background:transparent;border:1px solid #536d75;padding:6px;border-radius:4px;color:var(--cream);line-height:1}.modal-body{padding:24px}.modal-body>p{color:var(--muted);font-size:13px;line-height:1.7}.map-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.map-room{border:1px solid #47616a;background:#203b44;padding:16px;text-align:left;border-radius:6px;min-height:105px}.map-room strong{display:block;margin:10px 0 6px;font-size:14px}.map-room small{font:9px var(--mono);color:var(--muted);line-height:1.5}.map-room .map-n{font:10px var(--mono);color:var(--mint)}.map-room.active{border-color:var(--mint)}.map-room.locked{background:#1b303a;border-style:dashed}.modal-note{color:#91a9ab;font:10px var(--mono);line-height:1.7;margin:18px 0 0}.help-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:20px 0}.help-grid div{background:#203b44;padding:15px;border-radius:5px}.help-grid strong{display:block;color:var(--mint);font-size:12px;margin-bottom:8px}.help-grid p{font-size:11px;color:#c1d1cf;line-height:1.7;margin:0}.name-row{display:flex;gap:10px;align-items:center;margin:20px 0}.name-row input{min-width:0;width:100%;background:#0c202b;border:1px solid #557279;border-radius:4px;padding:12px;color:var(--cream)}label{font-size:12px;color:var(--muted)}.iv-visual{height:150px;position:relative;background:#213b46;border:1px solid #46616c;border-radius:6px;overflow:hidden;display:grid;place-items:center}.iv-visual canvas{width:100%;height:100%;image-rendering:auto}.iv-text{text-align:center}.iv-text h3{font-size:24px;margin:18px 0 9px}.iv-text p{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:20px}.rhythm-track{height:48px;background:#0a202c;border:2px solid #65848a;border-radius:5px;position:relative;overflow:hidden;margin:18px 0}.sweetspot{position:absolute;left:36%;width:28%;height:100%;background:#b5e8c55c;border-left:2px solid var(--mint);border-right:2px solid var(--mint)}.beat-marker{position:absolute;left:0;width:7px;top:4px;bottom:4px;background:var(--yellow);box-shadow:0 0 10px #ffda79aa}.iv-status{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--muted)}.iv-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:20px}.iv-actions .primary{min-height:48px;padding:14px 25px}.recovery-pips{color:var(--mint);font:18px var(--mono);letter-spacing:8px}.splatter-screen{position:absolute;inset:0;pointer-events:none}.result-copy{text-align:center}.result-copy h3{font-size:34px;line-height:1;letter-spacing:-1px;color:var(--coral);margin:20px 0 10px}.result-copy p{color:var(--muted);font-size:12px;line-height:1.7}.result-copy .primary{margin:14px 0}.puzzle-options{display:flex;justify-content:center;gap:12px;margin:22px 0}.puzzle-options button{width:72px;height:72px;background:var(--mint);border:2px solid #0c202a;box-shadow:0 4px 0 #0c202a;border-radius:5px;font-size:25px;color:var(--ink)}.puzzle-options button:nth-child(2){background:var(--coral)}.puzzle-options button:nth-child(3){background:var(--yellow)}.puzzle-pattern{font:700 28px var(--mono);letter-spacing:12px;color:var(--mint);text-align:center;padding:20px;background:#0c202a;border-radius:5px}.hidden{display:none!important}
 #ivDialog.gory{background:radial-gradient(ellipse at 4% 5%,#79233b88 0 6%,transparent 6.4%),radial-gradient(ellipse at 93% 70%,#a62d4b55 0 9%,transparent 9.4%),radial-gradient(ellipse at 19% 93%,#a62d4b55 0 5%,transparent 5.4%),#211e2d;border-color:#aa5260}#ivDialog.gory::backdrop{background:radial-gradient(circle at 12% 20%,#a82f49cc 0 2%,transparent 2.2%),radial-gradient(ellipse at 83% 12%,#a82f49cc 0 4%,transparent 4.2%),radial-gradient(ellipse at 22% 82%,#a82f49cc 0 5%,transparent 5.2%),radial-gradient(ellipse at 88% 75%,#b52f4ac9 0 3%,transparent 3.2%),#180e1ce6}#ivDialog.gory .iv-visual{height:190px;border-color:#95465a}
 @media(pointer:coarse){.touch-controls{display:flex}.key-guide,.play-status{display:none}}
-@media(max-width:1100px){.game-layout{grid-template-columns:minmax(0,1fr) 235px;gap:16px}.questcard{padding:18px}.key-guide{gap:8px;font-size:9px}.gamebar{padding:0 12px}.department-grid{gap:9px}.dept-copy{padding:11px}.hero-tag{margin-right:4px}.focus-mode .cabinet{max-width:none}.focus-mode .stage{max-height:none}}
+@media(max-width:1100px){.game-layout{grid-template-columns:minmax(0,1fr) 235px;gap:16px}.questcard{padding:18px}.key-guide{gap:8px;font-size:9px}.gamebar{padding:0 12px}.department-grid{gap:9px}.dept-copy{padding:11px}.hero-tag{margin-right:4px}}
 @media(max-width:800px){.wrap{width:94%}header{height:62px}.version{display:none}.intro{padding:28px 0 24px}.hero-tag{display:none}.game-layout{display:block}.sidebar{display:grid;grid-template-columns:1fr 1fr;margin-top:26px;gap:18px}.aside-note{grid-column:1/-1}.questcard{padding:20px}.inventory{padding-top:5px}.department-grid{grid-template-columns:repeat(5,180px);overflow-x:auto;padding-bottom:12px;scroll-snap-type:x mandatory}.dept-card{scroll-snap-align:start}.world-heading{align-items:start;flex-direction:column;gap:10px}.dept-card canvas{height:112px}.below{margin-top:18px}.key-guide{font-size:10px;gap:15px}.intro p.desc{font-size:12px}.scene-tag{font-size:8px}.start-callout{bottom:17px;left:17px}}
-@media(max-width:540px){.brand{font-size:9px;letter-spacing:1px;gap:9px}.brandmark{width:28px;height:28px}.header-actions{gap:6px}.header-actions button{padding:8px}.header-actions button span{display:none}h1{font-size:42px;letter-spacing:-1.8px}h1 .operation{font-size:11px;letter-spacing:5px}.eyebrow{font-size:8px;letter-spacing:1.5px}.intro{padding:23px 0}.intro p.desc{font-size:11px;margin-top:12px;max-width:310px}.gamebar{height:54px;padding:0 10px}.room-label{gap:8px}.room-label strong{font-size:11px}.room-label small{font-size:8px}.room-label>span{padding:5px}.gamebar .smallbtn{padding:8px;font-size:10px}.gamebar .smallbtn svg{width:16px;height:16px}.stage{aspect-ratio:1.12}.hud{inset:9px 9px auto}.hud-card{padding:8px}.health-name{font-size:7px}.hearts{gap:3px}.hearts svg{width:14px;height:14px}.score{font-size:14px}.score small{font-size:7px}.start-callout{max-width:230px;bottom:15px;left:13px;padding:13px 15px}.start-callout h2{font-size:19px}.start-callout p{font-size:10px}.start-callout .primary{padding:9px 12px}.scene-tag{right:9px;bottom:9px;font-size:6px}.toast{font-size:9px;top:76px;padding:10px;max-width:90%}.controlbar{padding:13px 18px;min-height:128px}.touch-controls{display:flex}.key-guide,.play-status{display:none}.joystick{width:88px;height:88px}.joystick:before{left:43px;top:13px;height:60px}.joystick:after{top:43px;left:13px;width:60px}.stick{left:22px;top:22px}.touch-actions{gap:8px}.touch-actions button{width:54px;height:54px}.touch-actions .attack{width:68px;height:68px}.touch-actions .cycle{width:35px;height:35px}.sidebar{grid-template-columns:1fr;gap:22px}.questcard{display:none}.inventory{padding:0}.inventory h3{font-size:9px}.items{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.item{flex-direction:column;text-align:center;padding:12px 5px;gap:10px;margin:0}.item strong{font-size:10px}.item small{font-size:8px;line-height:1.4;display:block}.item kbd{display:none}.item-icon{width:35px;height:35px}.aside-note{font-size:10px}.below{font-size:10px;align-items:start}.below>div{max-width:240px;line-height:1.6}.below .textbtn{font-size:9px;white-space:nowrap}.world-section{padding:24px 0}.world-heading h2{font-size:23px}footer{font-size:8px;line-height:1.8}footer strong{font-size:9px}.modal-head{padding:17px}.modal-body{padding:18px}.modal-head h2{font-size:18px}.help-grid{gap:8px}.help-grid div{padding:11px}.help-grid p{font-size:10px}.map-room{padding:12px}.map-room strong{font-size:12px}.focus-mode .stage{aspect-ratio:1.12}.focus-mode .game-layout{margin:12px auto}.focus-mode .controlbar{padding-top:10px;padding-bottom:10px}.focus-mode header{height:50px}}
+@media(max-width:540px){.brand{font-size:9px;letter-spacing:1px;gap:9px}.brandmark{width:28px;height:28px}.header-actions{gap:6px}.header-actions button{padding:8px}.header-actions button span{display:none}h1{font-size:42px;letter-spacing:-1.8px}h1 .operation{font-size:11px;letter-spacing:5px}.eyebrow{font-size:8px;letter-spacing:1.5px}.intro{padding:23px 0}.intro p.desc{font-size:11px;margin-top:12px;max-width:310px}.gamebar{height:54px;padding:0 10px}.room-label{gap:8px}.room-label strong{font-size:11px}.room-label small{font-size:8px}.room-label>span{padding:5px}.gamebar .smallbtn{padding:8px;font-size:10px}.gamebar .smallbtn svg{width:16px;height:16px}.stage{aspect-ratio:1.12}.hud{inset:9px 9px auto}.hud-card{padding:8px}.health-name{font-size:7px}.hearts{gap:3px}.hearts svg{width:14px;height:14px}.score{font-size:14px}.score small{font-size:7px}.start-callout{max-width:230px;bottom:15px;left:13px;padding:13px 15px}.start-callout h2{font-size:19px}.start-callout p{font-size:10px}.start-callout .primary{padding:9px 12px}.scene-tag{right:9px;bottom:9px;font-size:6px}.toast{font-size:9px;top:76px;padding:10px;max-width:90%}.controlbar{padding:13px 18px;min-height:128px}.touch-controls{display:flex}.key-guide,.play-status{display:none}.joystick{width:88px;height:88px}.joystick:before{left:43px;top:13px;height:60px}.joystick:after{top:43px;left:13px;width:60px}.stick{left:22px;top:22px}.touch-actions{gap:8px}.touch-actions button{width:54px;height:54px}.touch-actions .attack{width:68px;height:68px}.touch-actions .cycle{width:35px;height:35px}.sidebar{grid-template-columns:1fr;gap:22px}.questcard{display:none}.inventory{padding:0}.inventory h3{font-size:9px}.items{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.item{flex-direction:column;text-align:center;padding:12px 5px;gap:10px;margin:0}.item strong{font-size:10px}.item small{font-size:8px;line-height:1.4;display:block}.item kbd{display:none}.item-icon{width:35px;height:35px}.aside-note{font-size:10px}.below{font-size:10px;align-items:start}.below>div{max-width:240px;line-height:1.6}.below .textbtn{font-size:9px;white-space:nowrap}.world-section{padding:24px 0}.world-heading h2{font-size:23px}footer{font-size:8px;line-height:1.8}footer strong{font-size:9px}.modal-head{padding:17px}.modal-body{padding:18px}.modal-head h2{font-size:18px}.help-grid{gap:8px}.help-grid div{padding:11px}.help-grid p{font-size:10px}.map-room{padding:12px}.map-room strong{font-size:12px}}
 @media(max-width:370px){.touch-actions{gap:6px}.touch-actions .attack{width:58px;height:58px}.touch-actions button{width:47px;height:47px}.controlbar{padding:12px}.joystick{transform:scale(.9)}h1{font-size:37px}.brand{letter-spacing:0}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
-.intro{padding:23px 0}.intro h1{font-size:46px}.intro .desc{font-size:12px}.hero-tag{transform:rotate(2deg)}.version{color:#99b8b4}.arcade-launch{background:var(--mint)!important;color:var(--ink)!important;border-color:var(--mint)!important}.gamebar{gap:12px}.room-label{margin-right:auto}.supplybar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:17px 0}.supplybar>span{flex:1;font-size:10px;line-height:1.5;color:var(--muted)}#foodCount{background:#36534d;padding:3px 6px;border-radius:3px;color:var(--mint)}.rules{font:9px/1.7 var(--mono)!important;margin:14px 0!important}.passport-row{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:9px 0;border-bottom:1px solid #253b3920;font-size:10px}.passport-row span:last-child{color:#426c56;font:700 12px var(--mono)}#passport{margin:16px 0}.questcard .textbtn{color:#395e4e;font-size:9px;margin-top:10px}.world-heading p{font-size:9px}.dept-card p{min-height:28px}.stage{background:#1c3c43}.stage:after{content:'';position:absolute;inset:0;box-shadow:inset 0 0 60px #122a3920;pointer-events:none}.touch-actions .cycle{font-size:10px}.touch-actions .cycle small{font-size:6px}.mini-dialog{width:min(960px,96vw);max-height:96dvh}.mini-head{padding:15px 21px}.mini-head h2{font-size:21px}.mini-head small{display:block;font:9px var(--mono);color:var(--mint);letter-spacing:1px;margin-bottom:6px}.mini-topactions{display:flex;gap:8px}.mini-body{padding:20px}.game-intro{display:grid;grid-template-columns:1fr 1.05fr;gap:24px;align-items:center}.game-intro canvas{width:100%;image-rendering:auto;border:1px solid #4d7379;border-radius:6px}.game-intro h3{font-size:26px;letter-spacing:-.8px;line-height:1.1;margin:10px 0}.game-intro p{font-size:12px;line-height:1.75;color:var(--muted)}.genre{font:9px var(--mono);color:var(--coral);letter-spacing:1px}.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px 0 15px}.tier-card{background:#203b44;border:1px solid #42636b;border-radius:5px;padding:15px;text-align:left}.tier-card.selected{border-color:var(--mint);box-shadow:inset 0 0 0 1px var(--mint)}.tier-card strong{display:block;font-size:12px;margin:8px 0}.tier-card small{font:9px var(--mono);color:var(--muted);line-height:1.6}.tier-card .medals{font:17px var(--mono);color:var(--yellow);letter-spacing:3px;margin:10px 0 0}.launch-row{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:20px}.launch-row p{font:10px/1.65 var(--mono);color:var(--muted);margin:0;max-width:460px}.mini-hud{display:flex;gap:8px;justify-content:space-between;margin-bottom:10px}.mini-hud>div{background:#223c46;border:1px solid #45626b;border-radius:4px;padding:9px 12px;font:12px var(--mono)}.mini-hud small{display:block;font-size:8px;letter-spacing:1px;color:#9ebdbe;margin-bottom:4px}.mini-stage{position:relative;background:#102932;aspect-ratio:16/9;border:1px solid #567d83;border-radius:6px;overflow:hidden}#miniCanvas{width:100%;height:100%;display:block;image-rendering:auto;touch-action:none}.mini-instruction{text-align:center;min-height:35px;font-size:12px;line-height:1.6;margin:14px auto 10px;color:var(--cream)}.mini-controls{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;min-height:50px}.mini-controls button{min-width:70px;min-height:48px;padding:12px 20px;border:1px solid #0c1d28;border-radius:5px;box-shadow:0 3px 0 #0c1d28;background:var(--mint);color:var(--ink);font:700 12px var(--mono);touch-action:none;user-select:none}.mini-controls .hot{background:var(--yellow)}.mini-controls .pad{background:var(--pad);min-width:72px}.mini-controls button.active{filter:brightness(1.35);transform:translateY(2px);box-shadow:0 0 15px #ffe5a677}.mini-controls .muted{background:#304b56;color:#e9dfc6}.mini-pause{position:absolute;inset:0;background:#0c1d28e6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:2}.mini-pause strong{font-size:25px}.result-panel{text-align:center}.result-panel .medal-big{font-size:58px;color:var(--yellow);margin:12px 0}.result-panel h3{font-size:34px;letter-spacing:-1px;margin:5px 0 12px}.result-panel>p{font-size:12px;line-height:1.7;color:var(--muted);max-width:520px;margin:10px auto}.result-numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px auto;max-width:580px}.result-numbers div{background:#203a44;padding:17px 9px;border-radius:6px}.result-numbers strong{display:block;font:700 25px var(--mono);color:var(--mint)}.result-numbers small{display:block;font:9px var(--mono);color:var(--muted);margin-top:8px}.result-buttons{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:22px 0 6px}.difficulty-options{display:grid;gap:12px}.difficulty-option{text-align:left;background:#203b44;border:1px solid #47646b;border-radius:5px;padding:17px}.difficulty-option.selected{border:2px solid var(--mint)}.difficulty-option strong{display:block;font-size:17px;margin-bottom:8px;color:var(--mint)}.difficulty-option p{font-size:12px;line-height:1.6;color:var(--muted);margin:0}.difficulty-option small{display:block;margin-top:9px;font:10px var(--mono);color:var(--yellow)}.shop-item{display:flex;align-items:center;gap:14px;padding:18px 0;border-bottom:1px solid #38505a}.shop-item>div{flex:1}.shop-item strong{font-size:15px}.shop-item p{font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:0}.mini-dialog.gory{border-color:#b34558;background:radial-gradient(ellipse at 5% 5%,#941e3b77 0 10%,transparent 10.3%),radial-gradient(ellipse at 95% 70%,#bc304b66 0 10%,transparent 10.4%),#241d2b}.mini-dialog.gory::backdrop{background:radial-gradient(ellipse at 12% 30%,#a21c3caa 0 5%,transparent 5.4%),radial-gradient(ellipse at 83% 77%,#ad2642bb 0 8%,transparent 8.5%),#180e1ce6}.mini-result-art{width:100%;height:160px;object-fit:cover;image-rendering:auto;border-radius:5px;border:1px solid #526b70}.toast{z-index:2}.touch-actions{gap:8px}.key-guide{gap:8px;font-size:9px}.key-guide b{padding:4px}.focus-mode .supplybar{margin:0;padding:8px 0}.focus-mode .cabinet{max-width:calc((100dvh - 240px)*1.6)}.focus-mode .game-layout{max-width:1200px}.mini-dialog .modal-note{font-size:9px}#storageNote{display:none;color:var(--coral);font-size:10px;margin:8px 0}.map-room .medals{color:var(--yellow);font:12px var(--mono);display:block;margin-top:10px}button:active{transform:translateY(1px)}
-@media(max-width:800px){.mini-body{padding:16px}.questcard{display:block}.sidebar{grid-template-columns:1fr 1fr}.intro .hero-tag{display:none}.intro h1{font-size:43px}.gamebar{gap:7px}.gamebar .smallbtn{font-size:10px}.supplybar .smallbtn{font-size:10px;padding:10px}.supplybar>span{display:none}.supplybar{justify-content:space-between}.tier-card{padding:12px}.focus-mode .cabinet{max-width:none}}
-@media(max-width:540px){.intro{padding:18px 0}.intro .eyebrow{margin-bottom:12px}.intro h1{font-size:38px}.intro .desc{font-size:10px}.intro h1 .operation{font-size:9px;margin-bottom:7px}.gamebar{flex-wrap:wrap;height:auto;padding:9px;gap:8px}.room-label{flex:1;min-width:130px}.room-label small{font-size:6px;letter-spacing:.6px}.gamebar .smallbtn{font-size:9px;padding:8px}.gamebar .arcade-launch{order:3;width:100%;justify-content:center}.gamebar .smallbtn svg{width:15px}.controlbar{padding:12px 8px;min-height:112px}.touch-actions{gap:5px}.touch-actions .cycle{width:32px;height:38px;border-radius:8px}.touch-actions button{width:48px;height:48px}.touch-actions .attack{width:57px;height:57px}.joystick{width:78px;height:78px}.joystick:before{left:38px;top:10px;height:58px}.joystick:after{top:38px;left:10px;width:58px}.stick{left:17px;top:17px}.sidebar{grid-template-columns:1fr;margin-top:10px}.questcard{order:2;padding:18px}.questcard h2{font-size:23px}.questcard h2 br{display:none}.questcard>p{margin-bottom:6px}.passport-row{padding:8px 0}.aside-note{display:none}.game-intro{grid-template-columns:1fr;gap:13px}.game-intro canvas{height:120px;object-fit:cover}.game-intro h3{font-size:24px;margin:5px 0}.game-intro p{font-size:11px;margin-bottom:0}.tier-grid{gap:7px;margin-top:16px}.tier-card{padding:9px 7px}.tier-card strong{font-size:10px}.tier-card small{font-size:8px}.tier-card .medals{font-size:13px;letter-spacing:1px}.launch-row{flex-direction:column;align-items:stretch}.launch-row p{font-size:9px}.mini-head{padding:13px 15px}.mini-head h2{font-size:17px}.mini-head small{font-size:7px}.mini-body{padding:12px}.mini-hud{gap:5px}.mini-hud>div{padding:8px;font-size:11px;flex:1}.mini-hud small{font-size:7px}.mini-instruction{font-size:11px;min-height:34px}.mini-controls{gap:7px}.mini-controls button{padding:10px 14px;min-width:54px;font-size:10px}.mini-controls .pad{min-width:55px}.result-panel h3{font-size:27px}.result-numbers{gap:6px}.result-numbers strong{font-size:20px}.result-numbers small{font-size:7px}.result-panel>p{font-size:11px}.mini-result-art{height:130px}.mini-dialog{max-height:97dvh;width:97vw}.focus-mode .stage{aspect-ratio:1.12}.focus-mode .controlbar{padding:8px}.shop-item{gap:8px}.shop-item .primary{padding:10px;font-size:10px}.shop-item strong{font-size:13px}.shop-item p{font-size:10px}}
+.intro{padding:23px 0}.intro h1{font-size:46px}.intro .desc{font-size:12px}.hero-tag{transform:rotate(2deg)}.version{color:#99b8b4}.arcade-launch{background:var(--mint)!important;color:var(--ink)!important;border-color:var(--mint)!important}.gamebar{gap:12px}.room-label{margin-right:auto}.supplybar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:17px 0}.supplybar>span{flex:1;font-size:10px;line-height:1.5;color:var(--muted)}#foodCount{background:#36534d;padding:3px 6px;border-radius:3px;color:var(--mint)}.rules{font:9px/1.7 var(--mono)!important;margin:14px 0!important}.passport-row{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:9px 0;border-bottom:1px solid #253b3920;font-size:10px}.passport-row span:last-child{color:#426c56;font:700 12px var(--mono)}#passport{margin:16px 0}.questcard .textbtn{color:#395e4e;font-size:9px;margin-top:10px}.world-heading p{font-size:9px}.dept-card p{min-height:28px}.stage{background:#1c3c43}.stage:after{content:'';position:absolute;inset:0;box-shadow:inset 0 0 60px #122a3920;pointer-events:none}.touch-actions .cycle{font-size:10px}.touch-actions .cycle small{font-size:6px}.mini-dialog{width:min(960px,96vw);max-height:96dvh}.mini-head{padding:15px 21px}.mini-head h2{font-size:21px}.mini-head small{display:block;font:9px var(--mono);color:var(--mint);letter-spacing:1px;margin-bottom:6px}.mini-topactions{display:flex;gap:8px}.mini-body{padding:20px}.game-intro{display:grid;grid-template-columns:1fr 1.05fr;gap:24px;align-items:center}.game-intro canvas{width:100%;image-rendering:auto;border:1px solid #4d7379;border-radius:6px}.game-intro h3{font-size:26px;letter-spacing:-.8px;line-height:1.1;margin:10px 0}.game-intro p{font-size:12px;line-height:1.75;color:var(--muted)}.genre{font:9px var(--mono);color:var(--coral);letter-spacing:1px}.tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px 0 15px}.tier-card{background:#203b44;border:1px solid #42636b;border-radius:5px;padding:15px;text-align:left}.tier-card.selected{border-color:var(--mint);box-shadow:inset 0 0 0 1px var(--mint)}.tier-card strong{display:block;font-size:12px;margin:8px 0}.tier-card small{font:9px var(--mono);color:var(--muted);line-height:1.6}.tier-card .medals{font:17px var(--mono);color:var(--yellow);letter-spacing:3px;margin:10px 0 0}.launch-row{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:20px}.launch-row p{font:10px/1.65 var(--mono);color:var(--muted);margin:0;max-width:460px}.mini-hud{display:flex;gap:8px;justify-content:space-between;margin-bottom:10px}.mini-hud>div{background:#223c46;border:1px solid #45626b;border-radius:4px;padding:9px 12px;font:12px var(--mono)}.mini-hud small{display:block;font-size:8px;letter-spacing:1px;color:#9ebdbe;margin-bottom:4px}.mini-stage{position:relative;background:#102932;aspect-ratio:16/9;border:1px solid #567d83;border-radius:6px;overflow:hidden}#miniCanvas{width:100%;height:100%;display:block;image-rendering:auto;touch-action:none}.mini-instruction{text-align:center;min-height:35px;font-size:12px;line-height:1.6;margin:14px auto 10px;color:var(--cream)}.mini-controls{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;min-height:50px}.mini-controls button{min-width:70px;min-height:48px;padding:12px 20px;border:1px solid #0c1d28;border-radius:5px;box-shadow:0 3px 0 #0c1d28;background:var(--mint);color:var(--ink);font:700 12px var(--mono);touch-action:none;user-select:none}.mini-controls .hot{background:var(--yellow)}.mini-controls .pad{background:var(--pad);min-width:72px}.mini-controls button.active{filter:brightness(1.35);transform:translateY(2px);box-shadow:0 0 15px #ffe5a677}.mini-controls .muted{background:#304b56;color:#e9dfc6}.mini-pause{position:absolute;inset:0;background:#0c1d28e6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:2}.mini-pause strong{font-size:25px}.result-panel{text-align:center}.result-panel .medal-big{font-size:58px;color:var(--yellow);margin:12px 0}.result-panel h3{font-size:34px;letter-spacing:-1px;margin:5px 0 12px}.result-panel>p{font-size:12px;line-height:1.7;color:var(--muted);max-width:520px;margin:10px auto}.result-numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px auto;max-width:580px}.result-numbers div{background:#203a44;padding:17px 9px;border-radius:6px}.result-numbers strong{display:block;font:700 25px var(--mono);color:var(--mint)}.result-numbers small{display:block;font:9px var(--mono);color:var(--muted);margin-top:8px}.result-buttons{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:22px 0 6px}.difficulty-options{display:grid;gap:12px}.difficulty-option{text-align:left;background:#203b44;border:1px solid #47646b;border-radius:5px;padding:17px}.difficulty-option.selected{border:2px solid var(--mint)}.difficulty-option strong{display:block;font-size:17px;margin-bottom:8px;color:var(--mint)}.difficulty-option p{font-size:12px;line-height:1.6;color:var(--muted);margin:0}.difficulty-option small{display:block;margin-top:9px;font:10px var(--mono);color:var(--yellow)}.shop-item{display:flex;align-items:center;gap:14px;padding:18px 0;border-bottom:1px solid #38505a}.shop-item>div{flex:1}.shop-item strong{font-size:15px}.shop-item p{font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:0}.mini-dialog.gory{border-color:#b34558;background:radial-gradient(ellipse at 5% 5%,#941e3b77 0 10%,transparent 10.3%),radial-gradient(ellipse at 95% 70%,#bc304b66 0 10%,transparent 10.4%),#241d2b}.mini-dialog.gory::backdrop{background:radial-gradient(ellipse at 12% 30%,#a21c3caa 0 5%,transparent 5.4%),radial-gradient(ellipse at 83% 77%,#ad2642bb 0 8%,transparent 8.5%),#180e1ce6}.mini-result-art{width:100%;height:160px;object-fit:cover;image-rendering:auto;border-radius:5px;border:1px solid #526b70}.toast{z-index:2}.touch-actions{gap:8px}.key-guide{gap:8px;font-size:9px}.key-guide b{padding:4px}.mini-dialog .modal-note{font-size:9px}#storageNote{display:none;color:var(--coral);font-size:10px;margin:8px 0}.map-room .medals{color:var(--yellow);font:12px var(--mono);display:block;margin-top:10px}button:active{transform:translateY(1px)}
+@media(max-width:800px){.mini-body{padding:16px}.questcard{display:block}.sidebar{grid-template-columns:1fr 1fr}.intro .hero-tag{display:none}.intro h1{font-size:43px}.gamebar{gap:7px}.gamebar .smallbtn{font-size:10px}.supplybar .smallbtn{font-size:10px;padding:10px}.supplybar>span{display:none}.supplybar{justify-content:space-between}.tier-card{padding:12px}}
+@media(max-width:540px){.intro{padding:18px 0}.intro .eyebrow{margin-bottom:12px}.intro h1{font-size:38px}.intro .desc{font-size:10px}.intro h1 .operation{font-size:9px;margin-bottom:7px}.gamebar{flex-wrap:wrap;height:auto;padding:9px;gap:8px}.room-label{flex:1;min-width:130px}.room-label small{font-size:6px;letter-spacing:.6px}.gamebar .smallbtn{font-size:9px;padding:8px}.gamebar .arcade-launch{order:3;width:100%;justify-content:center}.gamebar .smallbtn svg{width:15px}.controlbar{padding:12px 8px;min-height:112px}.touch-actions{gap:5px}.touch-actions .cycle{width:32px;height:38px;border-radius:8px}.touch-actions button{width:48px;height:48px}.touch-actions .attack{width:57px;height:57px}.joystick{width:78px;height:78px}.joystick:before{left:38px;top:10px;height:58px}.joystick:after{top:38px;left:10px;width:58px}.stick{left:17px;top:17px}.sidebar{grid-template-columns:1fr;margin-top:10px}.questcard{order:2;padding:18px}.questcard h2{font-size:23px}.questcard h2 br{display:none}.questcard>p{margin-bottom:6px}.passport-row{padding:8px 0}.aside-note{display:none}.game-intro{grid-template-columns:1fr;gap:13px}.game-intro canvas{height:120px;object-fit:cover}.game-intro h3{font-size:24px;margin:5px 0}.game-intro p{font-size:11px;margin-bottom:0}.tier-grid{gap:7px;margin-top:16px}.tier-card{padding:9px 7px}.tier-card strong{font-size:10px}.tier-card small{font-size:8px}.tier-card .medals{font-size:13px;letter-spacing:1px}.launch-row{flex-direction:column;align-items:stretch}.launch-row p{font-size:9px}.mini-head{padding:13px 15px}.mini-head h2{font-size:17px}.mini-head small{font-size:7px}.mini-body{padding:12px}.mini-hud{gap:5px}.mini-hud>div{padding:8px;font-size:11px;flex:1}.mini-hud small{font-size:7px}.mini-instruction{font-size:11px;min-height:34px}.mini-controls{gap:7px}.mini-controls button{padding:10px 14px;min-width:54px;font-size:10px}.mini-controls .pad{min-width:55px}.result-panel h3{font-size:27px}.result-numbers{gap:6px}.result-numbers strong{font-size:20px}.result-numbers small{font-size:7px}.result-panel>p{font-size:11px}.mini-result-art{height:130px}.mini-dialog{max-height:97dvh;width:97vw}.shop-item{gap:8px}.shop-item .primary{padding:10px;font-size:10px}.shop-item strong{font-size:13px}.shop-item p{font-size:10px}}
 @media(max-height:550px) and (min-width:600px){.mini-dialog{width:95vw}.mini-head{padding:8px 15px}.mini-body{padding:10px}.mini-stage{width:64%;margin:auto}.mini-hud{position:absolute;left:20px;width:15%;display:block}.mini-hud>div{margin-bottom:6px}.mini-instruction{margin:7px 0;min-height:20px}.mini-controls button{min-height:40px;padding:7px 14px}.game-intro canvas{height:145px;object-fit:cover}.tier-grid{margin:12px 0}.tier-card{padding:10px}}
 /* Keep action buttons on screen even in a short laptop window. */
 .mini-stage{width:min(100%,calc(170.666dvh - 480px));margin-inline:auto}
@@ -65,6 +70,975 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 
 .department-grid{grid-template-columns:repeat(3,1fr)}@media(max-width:700px){.department-grid{grid-template-columns:repeat(2,1fr)}}
 
+
+/* v0.6: arcade (fullscreen) mode, faster starts, meta progression, and a HUD that leaves the signs alone. */
+
+/* Game surfaces: no scroll bounce, no double-tap zoom, no accidental text selection. */
+html,
+body {
+  overscroll-behavior: none;
+}
+.cabinet,
+.mini-dialog {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.mini-dialog input {
+  user-select: text;
+}
+.stage,
+#game,
+.mini-stage,
+#miniCanvas,
+.joystick,
+.touch-actions,
+.touch-actions button,
+.mini-controls,
+.mini-controls button {
+  touch-action: none;
+}
+#miniCanvas {
+  object-fit: contain;
+}
+.rules {
+  white-space: pre-line;
+}
+body.playing .scene-tag {
+  display: none;
+}
+
+/* Returning players land on the cabinet. */
+body.returning .intro {
+  display: none;
+}
+body.returning .game-layout {
+  margin-top: 16px;
+}
+
+/* Gamebar: labels collapse to icons on narrow screens. */
+.gamebar .smallbtn {
+  white-space: nowrap;
+}
+.gamebar #pauseBtn[aria-pressed='true'] {
+  background: var(--yellow);
+  color: var(--ink);
+  border-color: var(--yellow);
+}
+@media (max-width: 700px) {
+  .gamebar .btn-label {
+    display: none;
+  }
+}
+
+/* HUD cards. world.js sets data-hud so the cards always end above the wall signs (WALL_SIGN_TOP). */
+.hud {
+  inset: 10px 10px auto;
+  align-items: flex-start;
+}
+.hud-card {
+  padding: 6px 9px;
+}
+.health-name {
+  font-size: 8px;
+  margin-bottom: 3px;
+  line-height: 1.2;
+}
+.hearts-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hearts {
+  gap: 3px;
+}
+.hearts svg {
+  width: 15px;
+  height: 15px;
+}
+.hud-eat {
+  pointer-events: auto;
+  border: 0;
+  border-radius: 8px;
+  background: #36534d;
+  color: var(--mint);
+  font: 700 10px/1.2 var(--mono);
+  padding: 1px 6px;
+  min-height: 0;
+}
+.hud-eat:disabled {
+  opacity: 0.45;
+}
+.score {
+  font-size: 15px;
+  line-height: 1.1;
+}
+.score small {
+  font-size: 7px;
+  margin-bottom: 2px;
+}
+.stage[data-hud='m'] .hud {
+  inset: 8px 8px auto;
+}
+.stage[data-hud='m'] .hud-card {
+  padding: 5px 8px;
+}
+.stage[data-hud='m'] .health-name,
+.stage[data-hud='m'] .score small {
+  display: none;
+}
+.stage[data-hud='m'] .score {
+  font-size: 13px;
+}
+.stage[data-hud='s'] .hud,
+.stage[data-hud='xs'] .hud {
+  inset: 5px 6px auto;
+}
+.stage[data-hud='s'] .hud-card {
+  padding: 4px 7px;
+}
+.stage[data-hud='xs'] .hud-card {
+  padding: 3px 6px;
+}
+.stage[data-hud='s'] .health-name,
+.stage[data-hud='s'] .score small,
+.stage[data-hud='xs'] .health-name,
+.stage[data-hud='xs'] .score small {
+  display: none;
+}
+.stage[data-hud='s'] .hearts svg {
+  width: 12px;
+  height: 12px;
+}
+.stage[data-hud='xs'] .hearts svg {
+  width: 10px;
+  height: 10px;
+}
+.stage[data-hud='s'] .hearts,
+.stage[data-hud='xs'] .hearts {
+  gap: 2px;
+}
+.stage[data-hud='s'] .hud-eat,
+.stage[data-hud='xs'] .hud-eat {
+  font-size: 8px;
+  padding: 0 4px;
+}
+.stage[data-hud='s'] .score {
+  font-size: 11px;
+}
+.stage[data-hud='xs'] .score {
+  font-size: 9px;
+}
+
+/* Toasts: a small strip along the top, clear of the action. */
+.toast {
+  top: 8px;
+  z-index: 3;
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 6px 12px;
+  border-radius: 10px;
+  max-width: min(52%, 460px);
+}
+/* Narrow stages have no room between the cards, so the toast drops just below them. */
+@media (max-width: 540px) {
+  .toast {
+    top: 40px;
+    font-size: 10px;
+    padding: 5px 9px;
+    max-width: 86%;
+  }
+}
+
+/* Ward pause menu. */
+.ward-pause {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: #0c1d28b0;
+}
+.ward-pause-card {
+  width: min(360px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px 18px;
+  border: 1px solid #577985;
+  border-radius: 18px;
+  background: #173445f2;
+  box-shadow: 0 12px 30px #0006;
+  text-align: center;
+}
+.ward-pause-card strong {
+  display: block;
+  font-size: 24px;
+  letter-spacing: -0.5px;
+}
+.ward-pause-card p {
+  margin: 4px 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ward-pause-card .primary {
+  width: 100%;
+  min-height: 46px;
+  font-size: 14px;
+}
+.ward-pause-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.ward-pause-grid .smallbtn {
+  justify-content: center;
+  min-height: 40px;
+}
+
+/* Orientation hint for phones held upright. */
+.turn-hint {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px 6px 14px;
+  background: #2b4a47;
+  color: #e6f2dc;
+  font: 700 11px/1.4 var(--mono);
+}
+.turn-hint button {
+  min-width: 36px;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+}
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 540px) {
+  .turn-hint {
+    display: flex;
+  }
+}
+
+/* Daily Dose card (sidebar and map). */
+.daily-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid #f0b77a55;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #3b2f4a, #24414d);
+  color: var(--cream);
+}
+.daily-card:empty {
+  display: none;
+}
+.daily-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font: 800 9px var(--mono);
+  letter-spacing: 1.4px;
+  color: #ffcf95;
+}
+.daily-game {
+  font-size: 19px;
+  letter-spacing: -0.4px;
+}
+.daily-card small {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #cfe0da;
+}
+.daily-go {
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 6px;
+}
+#mapDaily {
+  margin-bottom: 16px;
+}
+
+/* Hall of Nonsense. */
+.hall-panel {
+  padding: 0 3px;
+}
+.hall-panel h3 {
+  margin: 1px 0 10px;
+  font: 10px var(--mono);
+  letter-spacing: 1.7px;
+  color: var(--muted);
+}
+.hall-title {
+  margin: 22px 0 10px;
+  font-size: 16px;
+}
+.hall-stats {
+  display: grid;
+  gap: 3px;
+}
+.hall-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #172e38;
+  font-size: 11px;
+}
+.hall-row span {
+  color: var(--muted);
+}
+.hall-row strong {
+  font: 700 11px var(--mono);
+  color: var(--cream);
+  text-align: right;
+}
+.hall-kicker {
+  margin: 12px 0 6px;
+  font: 800 9px var(--mono);
+  letter-spacing: 1.3px;
+  color: #ffcf95;
+}
+
+/* Gift shop. */
+.shop-top {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.shop-top canvas {
+  flex-shrink: 0;
+  width: 96px;
+  height: 124px;
+  border-radius: 12px;
+}
+.shop-top p {
+  margin: 4px 0;
+}
+.shop-section {
+  margin: 18px 0 0;
+  font: 800 10px var(--mono);
+  letter-spacing: 1.6px;
+  color: var(--mint);
+  text-transform: uppercase;
+}
+.shop-item .primary {
+  white-space: nowrap;
+}
+
+/* One-screen lobby: level cards, approach, one big start. */
+.lobby-intro {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+.lobby-intro canvas {
+  width: 100%;
+  aspect-ratio: 420 / 240;
+  border: 1px solid #4d7379;
+  border-radius: 10px;
+}
+.lobby-intro h3 {
+  margin: 4px 0;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+}
+.lobby-intro p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+#miniLobby .tier-grid {
+  margin: 14px 0 10px;
+}
+.tier-tag {
+  display: block;
+  margin-top: 3px;
+  font: 800 9px var(--mono);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+.tier-card[data-tier='0'] .tier-tag {
+  color: #ffdea4;
+}
+.lobby-start {
+  display: flex;
+  width: 100%;
+  min-height: 54px;
+  margin-top: 12px;
+  font-size: 16px;
+}
+.lobby-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 10px 0 0;
+  font: 10px/1.5 var(--mono);
+  color: var(--muted);
+}
+.lobby-foot .textbtn {
+  padding: 0;
+  font-size: 10px;
+}
+.daily-banner {
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  border: 1px solid #f0b77a66;
+  border-radius: 10px;
+  background: #5a3d2e55;
+  color: #ffdca8;
+  font: 700 11px/1.5 var(--mono);
+}
+@media (max-width: 540px), (max-height: 560px) {
+  .lobby-intro {
+    grid-template-columns: 1fr;
+  }
+  .lobby-intro canvas,
+  .lobby-intro p {
+    display: none;
+  }
+}
+@media (max-height: 560px) {
+  .lobby-intro .genre {
+    display: none;
+  }
+  .lobby-intro h3 {
+    font-size: 17px;
+  }
+  .tier-card {
+    padding: 8px 10px;
+  }
+  .tier-card small:nth-of-type(2) {
+    display: none;
+  }
+  .tier-card .medals {
+    margin-top: 4px;
+    font-size: 13px;
+  }
+  .approach {
+    padding: 8px 10px;
+  }
+  .approach small {
+    display: none;
+  }
+  .lobby-start {
+    min-height: 46px;
+  }
+}
+
+/* The GO card: a known game skips the full briefing. Tap to start early. */
+.mini-briefing.quick {
+  background: #153243e8;
+}
+.go-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(460px, 100%);
+  padding: 24px 22px;
+  border: 1px solid #6c9c97;
+  border-radius: 20px;
+  background: #173b4d;
+  color: var(--cream);
+  text-align: center;
+}
+.go-card strong {
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.6px;
+}
+.go-cue {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffdea4;
+}
+.go-track {
+  display: block;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #0d2939;
+}
+.go-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--mint);
+}
+
+/* ---- Arcade mode: the cabinet owns the screen. ---- */
+html:has(body.arcade) {
+  overflow: hidden;
+}
+body.arcade {
+  overflow: hidden;
+  touch-action: manipulation;
+}
+body.arcade .scene-tag,
+body.arcade header,
+body.arcade .intro,
+body.arcade .sidebar,
+body.arcade .below,
+body.arcade .world-section,
+body.arcade footer,
+body.arcade .supplybar,
+body.arcade .weapon-readout {
+  display: none;
+}
+body.arcade .cabinet {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #142730;
+}
+body.arcade .gamebar {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  height: 48px;
+  padding: 0 10px;
+}
+body.arcade .stage {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+body.arcade .controlbar {
+  flex: 0 0 auto;
+}
+
+/* Portrait phone: canvas on top, controls below, nothing else. */
+@media (orientation: portrait) and (max-width: 540px) {
+  body.arcade .gamebar {
+    height: 46px;
+    gap: 6px;
+    padding: 0 8px;
+  }
+  body.arcade .gamebar .room-label {
+    display: none;
+  }
+  body.arcade .gamebar .arcade-launch {
+    order: 0;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    justify-content: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body.arcade .stage {
+    flex: 0 0 auto;
+    aspect-ratio: 1;
+    max-height: calc(100dvh - 300px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  body.arcade .controlbar {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 10px 16px;
+  }
+  body.arcade .touch-controls {
+    align-items: center;
+  }
+  body.arcade .joystick {
+    width: 124px;
+    height: 124px;
+  }
+  body.arcade .joystick:before {
+    left: 61px;
+    top: 18px;
+    height: 88px;
+  }
+  body.arcade .joystick:after {
+    top: 61px;
+    left: 18px;
+    width: 88px;
+  }
+  body.arcade .stick {
+    left: 38px;
+    top: 38px;
+    width: 48px;
+    height: 48px;
+  }
+  body.arcade .touch-actions {
+    grid-template-columns: 54px 54px 76px;
+    grid-template-rows: 54px 54px;
+    gap: 9px;
+  }
+  body.arcade .touch-actions .cycle,
+  body.arcade .touch-actions #useBtn {
+    width: 54px;
+    height: 54px;
+  }
+  body.arcade .touch-actions .attack {
+    width: 76px;
+    height: 117px;
+  }
+}
+
+/* Landscape phone: the canvas fills the screen; controls float over its corners. */
+@media (orientation: landscape) and (max-height: 540px) {
+  body.arcade .cabinet {
+    display: block;
+    padding: 0;
+  }
+  body.arcade .stage {
+    position: absolute;
+    inset: 0;
+  }
+  body.arcade .gamebar {
+    position: absolute;
+    z-index: 6;
+    top: calc(env(safe-area-inset-top) + 6px);
+    right: calc(env(safe-area-inset-right) + 8px);
+    height: auto;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  body.arcade .gamebar .room-label,
+  body.arcade .gamebar .btn-label,
+  body.arcade .gamebar .launch-name {
+    display: none;
+  }
+  body.arcade .gamebar .smallbtn {
+    min-width: 40px;
+    min-height: 38px;
+    justify-content: center;
+    padding: 6px 10px;
+    border: 1px solid #8fb6b166;
+    background: #132c37c4;
+    color: var(--cream);
+  }
+  body.arcade .gamebar .arcade-launch {
+    background: #b5e8c5d9 !important;
+    color: var(--ink) !important;
+  }
+  body.arcade .hud {
+    inset: calc(env(safe-area-inset-top) + 6px) auto auto calc(env(safe-area-inset-left) + 8px);
+    justify-content: flex-start;
+  }
+  body.arcade .toast {
+    top: calc(env(safe-area-inset-top) + 6px);
+    max-width: 36%;
+  }
+  body.arcade .ward-strip {
+    position: absolute;
+    z-index: 5;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
+    max-width: 38%;
+    transform: translateX(-50%);
+    gap: 8px;
+    padding: 5px 10px;
+    border-radius: 12px;
+    background: #132c37c4;
+    font-size: 9px;
+  }
+  body.arcade .controlbar {
+    position: absolute;
+    z-index: 4;
+    inset: auto 0 0 0;
+    min-height: 0;
+    padding: 0 calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 10px)
+      calc(env(safe-area-inset-left) + 14px);
+    background: none;
+    pointer-events: none;
+  }
+  body.arcade .key-guide,
+  body.arcade .play-status,
+  body.arcade .turn-hint {
+    display: none;
+  }
+  body.arcade .touch-controls {
+    display: flex;
+    align-items: flex-end;
+  }
+  body.arcade .joystick,
+  body.arcade .touch-actions button {
+    pointer-events: auto;
+  }
+  body.arcade .joystick {
+    width: 112px;
+    height: 112px;
+    background: #152c3599;
+    opacity: 0.8;
+  }
+  body.arcade .joystick:before {
+    left: 55px;
+    top: 16px;
+    height: 80px;
+  }
+  body.arcade .joystick:after {
+    top: 55px;
+    left: 16px;
+    width: 80px;
+  }
+  body.arcade .stick {
+    left: 32px;
+    top: 32px;
+    width: 48px;
+    height: 48px;
+  }
+  body.arcade .touch-actions {
+    grid-template-columns: 50px 50px 70px;
+    grid-template-rows: 50px 50px;
+    gap: 8px;
+  }
+  body.arcade .touch-actions button {
+    opacity: 0.84;
+  }
+  body.arcade .touch-actions .cycle,
+  body.arcade .touch-actions #useBtn {
+    width: 50px;
+    height: 50px;
+  }
+  body.arcade .touch-actions .attack {
+    width: 70px;
+    height: 108px;
+  }
+  body.arcade .start-callout {
+    left: 50%;
+    top: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+  }
+  /* The floating controls step aside while the pause menu is up. */
+  body.arcade.ward-paused .controlbar {
+    visibility: hidden;
+  }
+}
+
+/* ---- Arcade mode: the minigame dialog fills the screen too. ---- */
+body.arcade #miniDialog {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+}
+body.arcade #miniDialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+body.arcade #miniDialog .mini-head {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 6px 10px;
+}
+body.arcade #miniDialog .mini-head h2 {
+  font-size: 16px;
+}
+body.arcade #miniDialog .mini-head small {
+  display: none;
+}
+body.arcade #miniDialog .mini-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 10px;
+}
+body.arcade #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) .mini-titles {
+  visibility: hidden;
+}
+body.arcade #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) .mini-body {
+  overflow: hidden;
+}
+body.arcade #miniDialog #miniPlay {
+  position: static;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: 'stage' 'controls';
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+body.arcade #miniDialog .mini-rulebar,
+body.arcade #miniDialog .mini-tactics,
+body.arcade #miniDialog .mini-instruction {
+  display: none;
+}
+body.arcade #miniDialog .mini-stage {
+  grid-area: stage;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  align-self: stretch;
+}
+/* HUD condensed to one line, in the title row. */
+body.arcade #miniDialog .mini-hud {
+  position: absolute;
+  z-index: 7;
+  top: calc(env(safe-area-inset-top) + 7px);
+  left: calc(env(safe-area-inset-left) + 10px);
+  right: calc(env(safe-area-inset-right) + 96px);
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: auto;
+  height: 32px;
+  margin: 0;
+}
+body.arcade #miniDialog .mini-hud > div,
+body.arcade #miniDialog .mini-hud > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 9px;
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+body.arcade #miniDialog .mini-hud small {
+  display: none;
+  margin: 0;
+  font-size: 8px;
+}
+@media (min-width: 760px) {
+  body.arcade #miniDialog .mini-hud small {
+    display: inline;
+  }
+}
+body.arcade #miniDialog #miniControls {
+  grid-area: controls;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-height: 0;
+  overflow-x: auto;
+}
+body.arcade #miniDialog #miniControls button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 46px;
+  padding: 8px 6px;
+  font-size: 11px;
+}
+body.arcade #miniDialog #miniControls .assist {
+  flex: 1.3 1 0;
+  max-width: none;
+  min-height: 46px;
+}
+/* Results stay on one screen: the art shrinks before the numbers and buttons scroll away. */
+body.arcade #miniDialog .mini-result-art {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 30dvh;
+  margin: 0 auto;
+}
+@media (max-height: 560px) {
+  .result-panel .medal-big {
+    margin: 2px 0;
+    font-size: 30px;
+  }
+  .result-panel h3 {
+    margin: 2px 0 6px;
+    font-size: 22px;
+  }
+  .result-panel > p {
+    margin: 4px auto;
+    font-size: 11px;
+  }
+  .result-numbers {
+    grid-template-columns: repeat(4, 1fr);
+    margin: 8px auto;
+  }
+  .result-numbers div {
+    padding: 8px 6px;
+  }
+  .result-numbers strong {
+    font-size: 18px;
+  }
+  .result-buttons {
+    margin: 8px 0 2px;
+  }
+}
+/* Briefing and GO cards sit over everything. */
+body.arcade #miniDialog .mini-briefing {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 12px);
+  border-radius: 0;
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  body.arcade #miniDialog #miniPlay {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: 'stage controls';
+  }
+  body.arcade #miniDialog #miniControls {
+    flex-direction: column;
+    justify-content: center;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  body.arcade #miniDialog #miniControls button,
+  body.arcade #miniDialog #miniControls .assist {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 42px;
+  }
+  /* Results in two columns: the scene and verdict left, numbers and buttons right. */
+  body.arcade #miniDialog #miniResult {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 18px;
+    align-items: center;
+  }
+  body.arcade #miniDialog #miniResult > * {
+    grid-column: 1;
+  }
+  body.arcade #miniDialog #resultNumbers {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    grid-template-columns: repeat(2, 1fr);
+    width: 100%;
+  }
+  body.arcade #miniDialog #resultJourney {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  body.arcade #miniDialog #miniResult .result-buttons {
+    grid-column: 2;
+    grid-row: 4;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -85,27 +1059,58 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 2 7 7 3-7 2-2 8-3-8-7-2 7-3z"/></symbol>
 </defs></svg>
 <div class="wrap">
-<header><div class="brand"><span class="brandmark"><svg><use href="#i-cross"/></svg></span>Questionable medical adventures</div><div class="header-actions"><span class="version">HOSPITAL ARCADE · v0.5</span><button id="soundBtn" class="iconbtn" aria-label="Turn sound on" title="Sound off"><svg><use href="#i-mute"/></svg><span>Sound off</span></button><button id="helpBtn" class="iconbtn" aria-label="How to play"><svg><use href="#i-help"/></svg></button><button id="focusBtn" class="iconbtn" aria-label="Toggle larger game view" title="Larger game view"><svg><use href="#i-expand"/></svg></button></div></header>
+<header><div class="brand"><span class="brandmark"><svg><use href="#i-cross"/></svg></span>Questionable medical adventures</div><div class="header-actions"><span class="version">HOSPITAL ARCADE · v0.5</span><button id="soundBtn" class="iconbtn" aria-label="Turn sound off" title="Sound on"><svg><use href="#i-sound"/></svg><span>Sound on</span></button><button id="helpBtn" class="iconbtn" aria-label="How to play"><svg><use href="#i-help"/></svg></button><button id="fullBtn" class="iconbtn" aria-label="Play fullscreen" title="Fullscreen"><svg><use href="#i-expand"/></svg><span>Fullscreen</span></button></div></header>
 <section class="intro"><div><p class="eyebrow"><span class="dot"></span>A very unofficial hospital adventure</p><h1><span class="operation">OPERATION:</span>GUT <em>FEELING</em><span style="color:var(--coral)">.</span></h1><p class="desc">Big hospital. Tiny gremlins. Absolutely no chill.<br>Five departments. Six games. Eighteen challenges.</p></div><div class="hero-tag"><canvas id="portrait" width="80" height="112" aria-label="Macy, our volleyball and softball phenom"></canvas><div><strong>PLAYER ONE: MACY.</strong><p>Volleyball &amp; softball phenom.<br>Back to the court, the field…<br>and, reluctantly, school.</p><span class="tiny">STATUS: COMEBACK LOADING</span></div></div></section>
 <main>
 <div class="game-layout"><div>
-<div class="cabinet"><div class="gamebar"><div class="room-label"><span><svg><use href="#i-bed"/></svg></span><div><strong id="roomTitle">Your room</strong><small id="roomSub">HOME BASE · FLOOR 04</small></div></div><button id="arcadeBtn" class="smallbtn arcade-launch">▶ Drip or Die</button><button id="mapBtn" class="smallbtn"><svg><use href="#i-map"/></svg>Hospital map</button></div>
-<div class="stage" id="stage"><canvas id="game" width="1000" height="625" tabindex="0" aria-label="Playable hospital adventure. Move with WASD or arrow keys, Space to attack, Shift to jump, E for abilities, and 1 to 3 to choose your weapon."></canvas><div class="hud"><div class="hud-card"><div class="health-name" id="healthName">Queasiness resistance</div><div class="hearts" id="hearts"></div></div><div class="hud-card score"><small>POCKET MONEY</small><span id="score">00000</span></div></div><div class="toast" id="toast" role="status" aria-live="polite"></div><div class="start-callout" id="startCallout"><small>MAIN QUEST / GET THE HECK HOME</small><h2>Hospitalized. Not defeated.</h2><p>Explore the hospital. Master six arcade games. Earn your discharge. Ralph would prefer you didn’t.</p><button id="startBtn" class="primary coral">Let’s cause a little trouble <svg style="width:16px;height:16px"><use href="#i-arrow"/></svg></button></div><div class="scene-tag" id="sceneTag">COZY ROOM / CHAOTIC ENERGY</div></div>
-<div class="ward-strip"><span id="wardStatus">HOME BASE</span><button id="rematchBtn" class="smallbtn hidden">Another round ↻</button></div><div id="weaponReadout" class="weapon-readout"></div><div class="controlbar"><div class="key-guide"><span><b>W A S D</b> move</span><span><b>SPACE</b> attack</span><span><b>E</b> ability</span><span><b>Q</b> dash</span><span><b>SHIFT</b> jump</span><span><b>1–3</b> equip</span></div><div class="play-status"><i></i><span id="playStatus">READY WHEN YOU ARE</span></div><div class="touch-controls"><div class="joystick" id="joystick" role="group" aria-label="Movement joystick"><div class="stick" id="stick"></div></div><div class="touch-actions"><button class="cycle" id="dashBtn" aria-label="Dash">»<small>DASH</small></button><button class="cycle" id="jumpBtn" aria-label="Jump">↑<small>JUMP</small></button><button class="cycle" id="cycleBtn" aria-label="Switch item">↻<small>SWAP</small></button><button id="useBtn" aria-label="Use equipped item"><svg id="useIcon"><use href="#i-pillow"/></svg><span>USE</span></button><button class="attack" id="attackBtn" aria-label="Attack with equipped weapon"><svg><use href="#i-pillow"/></svg><span>SWAT!</span></button></div></div></div></div>
+<div class="cabinet" id="cabinet">
+<div class="gamebar"><div class="room-label"><span><svg><use href="#i-bed"/></svg></span><div><strong id="roomTitle">Your room</strong><small id="roomSub">HOME BASE · FLOOR 04</small></div></div><button id="arcadeBtn" class="smallbtn arcade-launch">▶ Drip or Die</button><button id="mapBtn" class="smallbtn" aria-label="Hospital map"><svg><use href="#i-map"/></svg><span class="btn-label">Map</span></button><button id="pauseBtn" class="smallbtn" aria-label="Pause" aria-pressed="false"><span aria-hidden="true">Ⅱ</span><span class="btn-label">Pause</span></button><button id="arcadeToggle" class="smallbtn arcade-toggle" aria-label="Play fullscreen"><svg><use href="#i-expand"/></svg><span class="btn-label">Fullscreen</span></button></div>
+<div class="stage" id="stage"><canvas id="game" width="1000" height="625" tabindex="0" aria-label="Playable hospital adventure. Move with WASD or arrow keys, Space to attack, Shift to jump, E for abilities, and 1 to 3 to choose your weapon."></canvas>
+<div class="hud"><div class="hud-card"><div class="health-name" id="healthName">Queasiness resistance</div><div class="hearts-row"><div class="hearts" id="hearts" role="img"></div><button id="hudEat" class="hud-eat" aria-label="Eat a nutrient">+♥ 0</button></div></div><div class="hud-card score"><small>POCKET MONEY</small><span id="score">00000</span></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="start-callout" id="startCallout"><small id="calloutKicker">MAIN QUEST / GET THE HECK HOME</small><h2 id="calloutTitle">Hospitalized. Not defeated.</h2><p id="calloutText">Explore the hospital. Master six arcade games. Earn your discharge. Ralph would prefer you didn’t.</p><button id="startBtn" class="primary coral"><span id="startLabel">Let’s cause a little trouble</span> <svg style="width:16px;height:16px"><use href="#i-arrow"/></svg></button></div>
+<div class="scene-tag" id="sceneTag">COZY ROOM / CHAOTIC ENERGY</div>
+<div class="ward-pause hidden" id="wardPaused" role="group" aria-labelledby="wardPausedTitle"><div class="ward-pause-card"><strong id="wardPausedTitle">Paused.</strong><p>The gremlins are pretending to be furniture.</p><button class="primary coral" id="wardResume">Resume</button><div class="ward-pause-grid"><button class="smallbtn" id="pauseMap">Map</button><button class="smallbtn" id="pauseShop">Gift shop</button><button class="smallbtn" id="pauseHelp">How to play</button><button class="smallbtn" id="pauseSound">Sound on</button><button class="smallbtn" id="pauseFull">Fullscreen</button></div></div></div>
+</div>
+<div class="ward-strip"><span id="wardStatus">HOME BASE</span><button id="rematchBtn" class="smallbtn hidden">Another round ↻</button></div><div id="weaponReadout" class="weapon-readout"></div><div class="controlbar"><div class="key-guide"><span><b>W A S D</b> move</span><span><b>SPACE</b> attack</span><span><b>E</b> ability</span><span><b>Q</b> dash</span><span><b>SHIFT</b> jump</span><span><b>1–3</b> equip</span></div><div class="play-status"><i></i><span id="playStatus">READY WHEN YOU ARE</span></div><div class="touch-controls"><div class="joystick" id="joystick" role="group" aria-label="Movement joystick"><div class="stick" id="stick"></div></div><div class="touch-actions"><button class="cycle" id="dashBtn" aria-label="Dash">»<small>DASH</small></button><button class="cycle" id="jumpBtn" aria-label="Jump">↑<small>JUMP</small></button><button class="cycle" id="cycleBtn" aria-label="Switch item">↻<small>SWAP</small></button><button id="useBtn" aria-label="Use equipped item"><svg id="useIcon"><use href="#i-pillow"/></svg><span>USE</span></button><button class="attack" id="attackBtn" aria-label="Attack with equipped weapon"><svg><use href="#i-pillow"/></svg><span>SWAT!</span></button></div></div></div>
+<div class="turn-hint" id="turnHint"><span>Turn your phone sideways for the full ward.</span><button id="turnHintClose" aria-label="Hide this hint">✕</button></div>
+</div>
 <div class="supplybar"><button id="eatBtn" class="smallbtn">♧ Drink / eat <span id="foodCount">0 / 3</span></button><span id="supplyNote">Find glowing nutrients. Each restores one heart.</span><button id="difficultyBtn" class="smallbtn">Questionable Decisions ⚙</button></div>
-</div><aside class="sidebar"><section class="questcard"><div class="section-kicker">✚ Macy’s discharge passport</div><h2>Play your <br>way home.</h2><p>Better medals. Bigger rewards.<br>One very dramatic exit.</p><div id="passport"></div><div class="progress-label"><span>DISCHARGE STARS</span><span id="progressLabel">0 / 12</span></div><div class="progress-track"><div id="progressBar"></div></div><p id="dischargeRules" class="rules"></p><button id="shopBtn" class="textbtn">Visit the questionable gift shop ↗</button></section><section class="inventory"><h3>YOUR VERY SERIOUS ARSENAL <span>↓</span></h3><div class="items"><button class="item selected" data-item="0"><span class="item-icon"><svg><use href="#i-pillow"/></svg></span><span><strong>Pillow of destiny</strong><small>Swing combos. E = spin.</small></span><kbd>1</kbd></button><button class="item" data-item="1"><span class="item-icon"><svg><use href="#i-bag"/></svg></span><span><strong>Emergency barf bag</strong><small>Bouncing throws. E = shield.</small></span><kbd>2</kbd></button><button class="item" data-item="2"><span class="item-icon"><svg><use href="#i-brick"/></svg></span><span><strong>Brick-based revenge</strong><small>Stunning lobs. E = trap.</small></span><kbd>3</kbd></button></div></section><div class="aside-note"><svg><use href="#i-spark"/></svg><div>The court and the field miss Macy.<br>Her homework is being less subtle.</div></div></aside></div>
+</div><aside class="sidebar"><section class="daily-card" id="dailyCard" aria-label="Daily Dose"></section><section class="questcard"><div class="section-kicker">✚ Macy’s discharge passport</div><h2>Play your <br>way home.</h2><p>Better medals. Bigger rewards.<br>One very dramatic exit.</p><div id="passport"></div><div class="progress-label"><span>DISCHARGE STARS</span><span id="progressLabel">0 / 12</span></div><div class="progress-track"><div id="progressBar"></div></div><p id="dischargeRules" class="rules"></p><button id="shopBtn" class="textbtn">Visit the questionable gift shop ↗</button></section><section class="inventory"><h3>YOUR VERY SERIOUS ARSENAL <span>↓</span></h3><div class="items"><button class="item selected" data-item="0"><span class="item-icon"><svg><use href="#i-pillow"/></svg></span><span><strong>Pillow of destiny</strong><small>Swing combos. E = spin.</small></span><kbd>1</kbd></button><button class="item" data-item="1"><span class="item-icon"><svg><use href="#i-bag"/></svg></span><span><strong>Emergency barf bag</strong><small>Bouncing throws. E = shield.</small></span><kbd>2</kbd></button><button class="item" data-item="2"><span class="item-icon"><svg><use href="#i-brick"/></svg></span><span><strong>Brick-based revenge</strong><small>Stunning lobs. E = trap.</small></span><kbd>3</kbd></button></div></section><section class="hall-panel" aria-labelledby="hallTitle"><h3 id="hallTitle">HALL OF NONSENSE</h3><div id="hallStats" class="hall"></div></section><div class="aside-note"><svg><use href="#i-spark"/></svg><div>The court and the field miss Macy.<br>Her homework is being less subtle.</div></div></aside></div>
 <section class="world-section"><div class="world-heading"><div><p class="eyebrow" style="margin-bottom:9px">Pick a department. Pick your problem.</p><h2>The hospital is your arcade.</h2></div><p>6 MINI GAMES · 3 LEVELS EACH · PERFORMANCE MATTERS</p></div><div class="department-grid" id="departmentGrid"></div></section>
 </main><footer><strong>EXPLORE → PLAY → EARN → UPGRADE → DISCHARGE.</strong><span>ONE HTML FILE · PHONE + LAPTOP · MADE WITH LOVE & BAD JOKES</span></footer></div>
-<dialog id="mapDialog"><div class="modal-head"><h2>The hospital arcade.</h2><button class="close" data-close aria-label="Close map"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><p>Explore a department, dodge its gremlins, then play its arcade challenge. Each medal stamps your discharge passport.</p><div class="map-grid" id="mapGrid"></div><p class="modal-note">12 stars + a medal in all 6 arcade challenges + any level 2 medal = discharge. Improving a best medal earns only the additional stars. Replays still earn coins.</p></div></dialog>
-<dialog id="helpDialog"><div class="modal-head"><h2>A patient’s guide to causing trouble.</h2><button class="close" data-close aria-label="Close instructions"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="help-grid"><div><strong>Wandering the ward</strong><p>WASD / arrows → move<br>Space → equipped weapon attack<br>Shift / J → jump & dodge low attacks<br>Q → dash through trouble<br>E → spin / shield / trap · 1–3 → equip<br>F → consume a nutrient<br>M → map · Enter → nearby arcade<br>Esc → pause</p></div><div><strong>Phone controls</strong><p>Joystick → move<br>Tap attack → equipped weapon<br>Drag attack → aim, release to throw<br>JUMP → leap over incoming trouble<br>DASH → quick invulnerable escape<br>SPIN / SHIELD / TRAP → equipped ability<br>↻ → switch equipment<br>Drink / eat → one heart restored</p></div><div><strong>A better score matters</strong><p>Bronze = 1 discharge star, silver = 2, gold = 3. Only your best medal per level counts. A bronze unlocks the next level. Spend earned coins on permanent equipment upgrades.</p></div><div><strong>Health has a budget</strong><p>Nutrients glow in the rooms. Carry up to 3; each restores 1 heart. Pickups stay collected, even after revisiting. A few fresh supplies appear at 6 and 12 stars. No unlimited snack fountain.</p></div></div><p class="modal-note">At zero hearts, finish Drip or Die to leave bed. Its three phases are precision timing, nutrient filtering, and pressure balance. A failed recovery goes spectacularly anatomical. Progress survives.</p><label for="heroName">Name your heroine</label><div class="name-row"><input id="heroName" maxlength="18" autocomplete="off" placeholder="Macy"><button class="primary" id="saveName">Save</button></div><p class="modal-note">Progress saves in this browser when storage is available. No account or internet needed. All medical mechanics are gloriously fictional.</p><p id="storageNote">This browser has disabled local saves. Keep this tab open to retain your progress.</p><button id="resetBtn" class="textbtn" style="color:var(--coral)">Start a fresh adventure</button></div></dialog>
-<dialog id="difficultyDialog"><div class="modal-head"><h2>Choose your prescription for chaos.</h2><button class="close" data-close aria-label="Close difficulty settings"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="difficulty-options" id="difficultyOptions"></div><p class="modal-note">Change between challenges. Medals stay earned. Difficulty changes enemy pressure, mini-game speed and precision, and coin payouts. It never refills your health or restocks collected nutrients.</p></div></dialog>
-<dialog id="shopDialog"><div class="modal-head"><h2>Questionable gift shop.</h2><button class="close" data-close aria-label="Close gift shop"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><p id="shopBalance"></p><div id="shopItems"></div><p class="modal-note">One-time upgrades. No coins spent on medical bills, because even this game has standards.</p></div></dialog>
-<dialog id="miniDialog" class="mini-dialog"><div class="modal-head mini-head"><div><small id="miniDepartment"></small><h2 id="miniTitle"></h2></div><div class="mini-topactions"><button class="smallbtn hidden" id="miniPauseBtn" aria-label="Pause mini game">Ⅱ</button><button class="close" id="miniClose" aria-label="Leave mini game"><svg><use href="#i-close"/></svg></button></div></div><div class="mini-body">
-<div id="miniLobby"><div class="game-intro"><canvas id="miniPreview" width="420" height="240"></canvas><div><span id="miniGenre" class="genre"></span><h3 id="miniHeadline"></h3><p id="miniDescription"></p></div></div><div id="tierGrid" class="tier-grid"></div><p class="run-label">YOUR APPROACH · CHOOSE BEFORE EACH RUN</p><div id="approachOptions" class="approach-options"></div><p id="miniBest" class="modal-note"></p><div class="launch-row"><p id="miniRewardInfo"></p><button id="miniStart" class="primary coral">Let’s make poor decisions →</button></div><button class="textbtn" id="miniDifficulty" style="margin-top:15px"></button></div>
-<div id="miniPlay" class="hidden"><div class="mini-rulebar"><strong id="miniRuleGoal"></strong><span id="miniRuleControl"></span></div><div class="mini-hud"><div><small id="miniStatLabel">PROGRESS</small><span id="miniStat">0</span></div><div><small>TIME LEFT</small><span id="miniTimer">0:00</span></div><div><small id="miniLivesLabel">OOPS ALLOWANCE</small><span id="miniLives">♥ ♥ ♥</span></div></div><div id="miniTactics" class="mini-tactics"></div><div class="mini-stage"><canvas id="miniCanvas" width="800" height="450" tabindex="0" aria-label="Arcade game. Controls and instructions appear below."></canvas><div class="mini-pause hidden" id="miniPaused"><strong>Take a breather.</strong><button class="primary" id="miniResume">Resume the nonsense</button></div></div><p id="miniInstruction" class="mini-instruction" aria-live="polite"></p><div id="miniControls" class="mini-controls"></div><div id="miniBriefing" class="mini-briefing hidden"><div class="brief-card"><span id="miniBriefKicker" class="brief-kicker">TAKE A SECOND · THE CLOCK IS PAUSED</span><h3 id="miniBriefTitle"></h3><div id="miniDemo" class="control-demo"><i></i><i></i><i></i><b></b></div><div class="brief-rule"><span>GOAL</span><strong id="miniBriefGoal"></strong></div><div class="brief-rule"><span>CONTROLS</span><p id="miniBriefControl"></p></div><div class="brief-rule"><span>WATCH OUT</span><p id="miniBriefAvoid"></p></div><button id="miniReadyBtn" class="primary coral">Ready — let’s go!</button></div></div></div>
+<dialog id="mapDialog"><div class="modal-head"><h2>The hospital arcade.</h2><button class="close" data-close aria-label="Close map"><svg><use href="#i-close"/></svg></button></div><div class="modal-body">
+<div id="mapDaily" class="daily-card"></div>
+<p>Clear a department’s gremlins, then play its arcade game. Medals stamp your discharge passport.</p>
+<div class="map-grid" id="mapGrid"></div>
+<p class="modal-note">12 stars, a medal in all 6 arcade games and any level 2 medal open the exit. Then Ralph. Improving a medal adds only the extra stars. Replays still pay coins.</p>
+<h3 class="hall-title">Hall of Nonsense</h3>
+<div id="mapHall" class="hall"></div>
+</div></dialog>
+<dialog id="helpDialog"><div class="modal-head"><h2>A patient’s guide to causing trouble.</h2><button class="close" data-close aria-label="Close instructions"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="help-grid"><div><strong>Wandering the ward</strong><p>WASD / arrows: move<br>Space: attack with what you’re holding<br>Shift / J: jump over low attacks<br>Q: dash through trouble<br>E: spin / shield / trap · 1–3: equip<br>F: eat a nutrient<br>M: map · Enter: nearby arcade<br>Esc: pause</p></div><div><strong>Phone controls</strong><p>Joystick: move<br>Tap attack: swing or throw<br>Drag attack: aim, release to throw<br>JUMP: leap over incoming trouble<br>DASH: quick invulnerable escape<br>SPIN / SHIELD / TRAP: your ability<br>↻: switch equipment<br>+♥ by your hearts: eat a nutrient<br>Tap the glowing beacon: play</p></div><div><strong>Medals matter</strong><p>Bronze is 1 discharge star, silver 2, gold 3. Only your best medal per level counts. A bronze unlocks the next level. Spend coins in the gift shop.</p></div><div><strong>Health has a budget</strong><p>Nutrients glow in the rooms. Carry up to 3 (5 with Pocket snacks); each restores a heart. Pickups stay collected. A few fresh ones appear at 6 and 12 stars. No bottomless snack fountain.</p></div></div><p class="modal-note">At zero hearts, finish Drip or Die to get out of bed. Its three stages are timing, filtering and pressure. A failed recovery gets spectacularly anatomical. Progress survives.</p><label for="heroName">Name your heroine</label><div class="name-row"><input id="heroName" maxlength="18" autocomplete="off" placeholder="Macy"><button class="primary" id="saveName">Save</button></div><p class="modal-note">Progress saves in this browser when storage is available. No account or internet needed. All medical mechanics are gloriously fictional.</p><p id="storageNote">This browser has disabled local saves. Keep this tab open to keep your progress.</p><button id="resetBtn" class="textbtn" style="color:var(--coral)">Start a fresh adventure</button></div></dialog>
+<dialog id="difficultyDialog"><div class="modal-head"><h2>Choose your prescription for chaos.</h2><button class="close" data-close aria-label="Close difficulty settings"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="difficulty-options" id="difficultyOptions"></div><p class="modal-note">Change it between challenges. Medals stay earned. Difficulty changes enemy pressure, arcade speed and precision, and coin payouts. It never refills your health or restocks nutrients.</p></div></dialog>
+<dialog id="shopDialog"><div class="modal-head"><h2>Questionable gift shop.</h2><button class="close" data-close aria-label="Close gift shop"><svg><use href="#i-close"/></svg></button></div><div class="modal-body">
+<div class="shop-top"><canvas id="shopMacy" width="96" height="124" aria-label="Macy in her current outfit"></canvas><div><p id="shopBalance"></p><p class="modal-note">Upgrades are permanent. Wardrobe items are pure vanity and can be swapped any time.</p></div></div>
+<div id="shopItems"></div>
+<p class="modal-note">No coins go to medical bills. Even this game has standards.</p>
+</div></dialog>
+<dialog id="miniDialog" class="mini-dialog"><div class="modal-head mini-head"><div class="mini-titles"><small id="miniDepartment"></small><h2 id="miniTitle"></h2></div><div class="mini-topactions"><button class="smallbtn hidden" id="miniPauseBtn" aria-label="Pause arcade game">Ⅱ</button><button class="close" id="miniClose" aria-label="Leave arcade game"><svg><use href="#i-close"/></svg></button></div></div><div class="mini-body">
+<div id="miniLobby">
+<div class="lobby-intro"><canvas id="miniPreview" width="420" height="240"></canvas><div><span id="miniGenre" class="genre"></span><h3 id="miniHeadline"></h3><p id="miniDescription"></p></div></div>
+<p id="dailyBanner" class="daily-banner hidden"></p>
+<div id="tierGrid" class="tier-grid"></div>
+<div id="approachOptions" class="approach-options"></div>
+<button id="miniStart" class="primary coral lobby-start">Let’s make poor decisions →</button>
+<p class="lobby-foot"><span id="miniBest"></span> <span id="miniRewardInfo"></span> <button class="textbtn" id="miniDifficulty"></button></p>
+</div>
+<div id="miniPlay" class="hidden"><div class="mini-rulebar"><strong id="miniRuleGoal"></strong><span id="miniRuleControl"></span></div><div class="mini-hud"><div><small id="miniStatLabel">PROGRESS</small><span id="miniStat">0</span></div><div><small>TIME LEFT</small><span id="miniTimer">0:00</span></div><div><small id="miniLivesLabel">OOPS ALLOWANCE</small><span id="miniLives">♥ ♥ ♥</span></div></div><div id="miniTactics" class="mini-tactics"></div><div class="mini-stage"><canvas id="miniCanvas" width="800" height="450" tabindex="0" aria-label="Arcade game. Controls and instructions appear below."></canvas><div class="mini-pause hidden" id="miniPaused"><strong>Take a breather.</strong><button class="primary" id="miniResume">Resume the nonsense</button><button class="smallbtn" id="miniSound">Sound</button></div></div><p id="miniInstruction" class="mini-instruction" aria-live="polite"></p><div id="miniControls" class="mini-controls"></div>
+<div id="miniBriefing" class="mini-briefing hidden">
+<div id="miniBriefCard" class="brief-card"><span id="miniBriefKicker" class="brief-kicker">GET YOUR BEARINGS · THE CLOCK IS PAUSED</span><h3 id="miniBriefTitle"></h3><div id="miniDemo" class="control-demo"><i></i><i></i><i></i><b></b></div><div class="brief-rule"><span>GOAL</span><strong id="miniBriefGoal"></strong></div><div class="brief-rule"><span>CONTROLS</span><p id="miniBriefControl"></p></div><div class="brief-rule"><span>WATCH OUT</span><p id="miniBriefAvoid"></p></div><button id="miniReadyBtn" class="primary coral">Ready. Count me in →</button></div>
+<button id="miniGo" class="go-card hidden" aria-label="Start now"><span class="brief-kicker">YOU KNOW THIS ONE · TAP TO SKIP</span><strong id="miniGoTitle"></strong><span id="miniGoCue" class="go-cue"></span><span class="go-track"><span id="miniGoBar"></span></span></button>
+</div></div>
 <div id="miniResult" class="result-panel hidden"><canvas id="resultArt" class="mini-result-art" width="800" height="220"></canvas><div id="resultMedal" class="medal-big"></div><h3 id="resultHeading"></h3><p id="resultText"></p><div class="result-numbers" id="resultNumbers"></div><p id="resultJourney"></p><div class="result-buttons"><button class="primary coral" id="miniRetry">One more round</button><button class="primary" id="miniBack">Back to the hospital</button></div></div>
 </div></dialog>
-<dialog id="winDialog"><div class="modal-head"><h2>The most dramatic discharge.</h2><button class="close" data-close aria-label="Close discharge"><svg><use href="#i-close"/></svg></button></div><div class="modal-body result-copy"><p class="eyebrow">PASSPORT COMPLETE</p><h3 style="color:var(--mint)">GET THE HECK HOME.</h3><p id="winScore"></p><p>Next stops: the volleyball court and the softball field. School has also invited itself.<br>Ralph has requested a transfer.</p><p class="modal-note">The arcade’s discharge is complete. Real-life discharge remains the job of people with actual medical degrees.</p><button class="primary" data-close>Chase more gold medals →</button></div></dialog>
+<dialog id="winDialog"><div class="modal-head"><h2>The most dramatic discharge.</h2><button class="close" data-close aria-label="Close discharge"><svg><use href="#i-close"/></svg></button></div><div class="modal-body result-copy"><p class="eyebrow">PASSPORT COMPLETE</p><h3 style="color:var(--mint)">GET THE HECK HOME.</h3><p id="winScore"></p><p>Next stops: the volleyball court and the softball field. School has also invited itself.<br>Ralph left a one-star review on his way out.</p><p class="modal-note">The arcade’s discharge is complete. Real-life discharge remains the job of people with actual medical degrees.</p><button class="primary" data-close>Chase more gold medals →</button></div></dialog>
 <script>
 'use strict';
 
@@ -183,32 +1188,66 @@ try {
   storageOK = false;
 }
 
+// Gift shop catalog ids. Copy and prices live in input.js; combat reads upgrades by id.
+const SHOP_UPGRADE_IDS = ['slippers', 'pillow', 'bag', 'scrunchie', 'snacks', 'thick', 'repellent', 'pass'],
+  SHOP_LOOK_IDS = ['look-hoodie', 'look-scrunchie', 'look-socks'];
+
+const savedCount = v => Math.max(0, Math.floor(Number(v) || 0)),
+  savedIds = (list, allowed) => (Array.isArray(list) ? list.filter(x => allowed.includes(x)) : []),
+  savedUpgrades = savedIds(saved.upgrades, SHOP_UPGRADE_IDS),
+  savedHearts = 5 + (savedUpgrades.includes('scrunchie') ? 1 : 0),
+  savedFood = savedUpgrades.includes('snacks') ? 5 : 3,
+  savedDaily = saved.daily && typeof saved.daily === 'object' ? saved.daily : {};
+
 let state = {
   started: false,
   paused: false,
   room: 0,
-  hp: clamp(Number.isFinite(saved.hp) ? saved.hp : 5, 0, 5),
-  coins: Math.max(0, Math.floor(Number(saved.coins) || 0)),
+  hp: clamp(Number.isFinite(saved.hp) ? saved.hp : 5, 0, savedHearts),
+  coins: savedCount(saved.coins),
   name:
     (typeof (saved.name ?? old.name) === 'string' ? (saved.name ?? old.name).trim().slice(0, 18) : '') ||
     'Macy',
   difficulty: clamp(Math.floor(Number(saved.difficulty) || 0), 0, 2),
-  food: clamp(Math.floor(Number(saved.food) || 0), 0, 3),
+  food: clamp(Math.floor(Number(saved.food) || 0), 0, savedFood),
   item: 0,
-  sound: false,
+  // Sound preference. audio.js reads it at init and writes it on toggle; save() persists it.
+  sound: saved.sound === undefined ? true : !!saved.sound,
   medals: Array.from({ length: rooms.length }, (_, i) =>
     Array.from({ length: 3 }, (_, j) => clamp(Math.floor(Number(saved.medals?.[i]?.[j]) || 0), 0, 3))
   ),
   records: Array.from({ length: rooms.length }, (_, i) =>
-    Array.from({ length: 3 }, (_, j) => Math.max(0, Math.floor(Number(saved.records?.[i]?.[j]) || 0)))
+    Array.from({ length: 3 }, (_, j) => savedCount(saved.records?.[i]?.[j]))
   ),
   taken: Array.isArray(saved.taken) ? saved.taken : [],
   defeated: Array.isArray(saved.defeated) ? saved.defeated : [],
-  upgrades: Array.isArray(saved.upgrades)
-    ? saved.upgrades.filter(x => ['slippers', 'pillow', 'bag'].includes(x))
-    : [],
+  upgrades: savedUpgrades,
+  // Wardrobe: owned and worn look ids. girl() reads worn through macyLook().
+  cosmetics: {
+    owned: savedIds(saved.cosmetics?.owned, SHOP_LOOK_IDS),
+    worn: savedIds(saved.cosmetics?.worn, SHOP_LOOK_IDS)
+  },
   won: !!saved.won,
-  wardClears: Array.from({ length: rooms.length }, (_, i) => Math.max(0, Number(saved.wardClears?.[i]) || 0))
+  wardClears: Array.from({ length: rooms.length }, (_, i) => savedCount(saved.wardClears?.[i])),
+  // Hall of Nonsense counters. Combat adds to evictions and bestChain; the arcade adds runs.
+  evictions: savedCount(saved.evictions),
+  bestChain: savedCount(saved.bestChain),
+  coinsEarned: savedCount(saved.coinsEarned),
+  runs: savedCount(saved.runs),
+  // Ralph guards the exit once the passport is complete. Combat sets ralph when he is beaten.
+  ralphReady: !!saved.ralphReady,
+  ralph: !!saved.ralph,
+  // Faster to fun: returning players skip the hero; each briefing (game:phase) shows in full once.
+  played: !!saved.played,
+  briefed: Array.isArray(saved.briefed) ? saved.briefed.filter(x => typeof x === 'string') : [],
+  // Arcade (fullscreen) preference: null until chosen, then true or false.
+  arcade: typeof saved.arcade === 'boolean' ? saved.arcade : null,
+  // Daily Dose: last day played (YYYY-MM-DD), that day's best score, consecutive-day streak.
+  daily: {
+    last: typeof savedDaily.last === 'string' ? savedDaily.last : '',
+    best: savedCount(savedDaily.best),
+    streak: savedCount(savedDaily.streak)
+  }
 };
 if (saved.difficulty === undefined) state.difficulty = 1;
 
@@ -217,6 +1256,10 @@ const cfg = () => difficulties[state.difficulty],
   stars = () => state.medals.flat().reduce((a, b) => a + b, 0),
   stamps = () => state.medals.filter(m => m.some(Boolean)).length,
   levelTwo = () => state.medals.some(m => m[1] > 0);
+
+// Shop-driven caps: the Lucky scrunchie adds a sixth heart, Pocket snacks carry five nutrients.
+const maxHearts = () => 5 + (state.upgrades.includes('scrunchie') ? 1 : 0),
+  maxFood = () => (state.upgrades.includes('snacks') ? 5 : 3);
 
 // Macy in the ward. z/vz are jump height and velocity.
 let player = {
@@ -306,8 +1349,20 @@ function save() {
         taken: state.taken,
         defeated: state.defeated,
         upgrades: state.upgrades,
+        cosmetics: state.cosmetics,
         won: state.won,
-        wardClears: state.wardClears
+        wardClears: state.wardClears,
+        evictions: state.evictions,
+        bestChain: state.bestChain,
+        coinsEarned: state.coinsEarned,
+        runs: state.runs,
+        ralphReady: state.ralphReady,
+        ralph: state.ralph,
+        sound: state.sound,
+        played: state.played,
+        briefed: state.briefed,
+        arcade: state.arcade,
+        daily: state.daily
       })
     );
     storageOK = true;
@@ -447,7 +1502,26 @@ function panel(g, x, y, w, h, col = '#244853', edge = '#4d7e83') {
   if (h > 14) line(g, [[x + 12, y + 3], [x + w - 12, y + 3]], '#daf0d31a', 1);
 }
 
+// Macy's outfit. girl() reads it on every draw: the shop's wardrobe (state.cosmetics.worn), or
+// girlLookOverride while a preview paints a look she has not bought yet.
+const MACY_HOODIE = ['#a5e2c9', '#5bb9ac', '#398c88', '#4caaa2', '#3e9d96'],
+  MACY_VARSITY = ['#c9b0ec', '#7d5bbd', '#553a8e', '#7a58b8', '#e8c35a'];
+
+let girlLookOverride = null;
+
+function macyLook() {
+  if (girlLookOverride) return girlLookOverride;
+  const worn = state.cosmetics?.worn || [];
+  return {
+    hoodie: worn.includes('look-hoodie') ? MACY_VARSITY : MACY_HOODIE,
+    scrunchie: worn.includes('look-scrunchie') ? '#f3ec4f' : '#f1abbd',
+    socks: worn.includes('look-socks') ? 'stitch' : ''
+  };
+}
+
 function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow = true) {
+  const look = macyLook(),
+    hood = look.hoodie;
   g.save();
   g.translate(x, y);
   g.scale(scale, scale);
@@ -484,7 +1558,12 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
       i ? '#33475e' : '#28394d',
       7
     );
-    line(g, [[side * 7 + step, -6], [side * 7 + step, -1]], '#f3bb99', 5);
+    if (look.socks) {
+      // Softball-stitch socks: white with two red seams.
+      line(g, [[side * 7 + step, -9], [side * 7 + step, -1]], '#fbf4e6', 5.5);
+      line(g, [[side * 7 + step - 2.6, -6.5], [side * 7 + step + 2.6, -6.5]], '#de5b66', 1.4);
+      line(g, [[side * 7 + step - 2.6, -3.6], [side * 7 + step + 2.6, -3.6]], '#de5b66', 1.4);
+    } else line(g, [[side * 7 + step, -6], [side * 7 + step, -1]], '#f3bb99', 5);
     rr(g, side * 7 + step - 6, -2, 15, 7, 3, '#f6f3de', '#61777f', 0.8);
     line(g, [[side * 7 + step - 4, 3], [side * 7 + step + 7, 3]], '#86b7b4', 1.5);
   }
@@ -497,13 +1576,13 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
         p.quadraticCurveTo(side * 19, -38, side * 17 + swing, -28);
       },
       null,
-      '#4caaa2',
+      hood[3],
       8
     );
     ellipse(g, side * 17 + swing, -26, 3.3, 4.4, '#e8ac8b');
     if (side === 1) line(g, [[side * 15 + swing, -30], [side * 20 + swing, -29]], '#ecf4e8', 2);
   }
-  rr(g, -13, -51, 27, 28, 8, gradient(g, -13, -50, 26, 25, '#a5e2c9', '#5bb9ac'), '#398c88', 1.1);
+  rr(g, -13, -51, 27, 28, 8, gradient(g, -13, -50, 26, 25, hood[0], hood[1]), hood[2], 1.1);
   path(
     g,
     p => {
@@ -514,7 +1593,7 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
     '#e1f0d9',
     2.2
   );
-  line(g, [[-8, -28], [9, -28]], '#3e9d96', 1);
+  line(g, [[-8, -28], [9, -28]], hood[4], 1);
   spark(g, 2, -38, '#e5e5ac', 0.55);
   line(g, [[-8, -42], [-7, -30]], '#bcf0d344', 1.5);
   rr(g, -3, -57, 8, 9, 3, '#dca17f');
@@ -569,7 +1648,8 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
     '#a7645d',
     1
   );
-  ellipse(g, dir * 15, -77, 3.4, 3.2, '#f1abbd');
+  ellipse(g, dir * 15, -77, 4, 3.6, look.scrunchie);
+  ellipse(g, dir * 15.6, -78, 1.6, 1.2, '#ffffff66');
   g.restore();
 }
 
@@ -863,7 +1943,15 @@ function windowArt(g, x, y, w = 190, h = 100) {
   }
 }
 
-function poster(g, x, y, kind = 0) {
+function poster(g, x, y, kind = 0, s = 1) {
+  if (s !== 1) {
+    g.save();
+    g.translate(x, y);
+    g.scale(s, s);
+    poster(g, 0, 0, kind);
+    g.restore();
+    return;
+  }
   rr(g, x - 4, y - 4, 62, 77, 4, '#507d7a');
   rr(g, x, y, 54, 69, 2, '#fbebc6');
   if (kind === 0) {
@@ -953,16 +2041,24 @@ function floor(g, w, h, theme) {
   rect(g, 0, h - 22, w, 22, gradient(g, 0, h - 22, 0, 22, '#67989b', '#2c586c'));
 }
 
+// Wall signs start at WALL_SIGN_TOP so the hearts and pocket-money cards (sized in world.js to
+// stay above that line) never cover them. Windows and doors may sit higher; they carry no text.
+const WALL_SIGN_TOP = 68;
+
+function wallSign(g, x, w, title, sub, titleColor = '#476c66', subColor = '#6d8b7a') {
+  rr(g, x, WALL_SIGN_TOP, w, 54, 10, '#e9eed3', '#6f9c94', 1);
+  label(g, title, x + w / 2, WALL_SIGN_TOP + 24, 14, titleColor, 'center');
+  label(g, sub, x + w / 2, WALL_SIGN_TOP + 43, 9, subColor, 'center');
+}
+
 // The full room illustration. Use roomBg() in frame code; it caches this per room.
 function roomIllustration(g, id) {
   const themes = ['#82bcad', '#7bb6c7', '#b6a0bb', '#c7b18e', '#91bda7'];
   floor(g, 1000, 625, themes[id]);
   if (id === 0) {
     windowArt(g, 370, 21, 214, 102);
-    poster(g, 782, 32, 0);
-    rr(g, 176, 32, 181, 62, 10, '#e6ecd0', '#638e82', 1);
-    label(g, 'MACY’S ROOM', 267, 58, 17, '#476c66', 'center');
-    label(g, 'GREMLINS NOT FOUND', 267, 79, 9, '#6d8b7a', 'center');
+    poster(g, 790, WALL_SIGN_TOP, 0, 0.78);
+    wallSign(g, 112, 152, 'MACY’S ROOM', 'GREMLINS NOT FOUND');
     rr(g, 386, 274, 250, 170, 21, '#7f859f30');
     rr(g, 392, 278, 238, 160, 18, gradient(g, 400, 280, 220, 150, '#b9adc7', '#a29dbb'));
     rr(g, 404, 290, 214, 136, 12, null, '#ded5da88', 2);
@@ -973,10 +2069,16 @@ function roomIllustration(g, id) {
     label(g, 'NO JERKS', 110, 536, 9, '#d6e6c3', 'center');
   }
   if (id === 1 || id === 3) {
-    rr(g, 103, 25, 225, 72, 12, '#eef0d7', '#74a4a5', 1);
-    label(g, id === 1 ? 'MAGNETIC PERSONALITY' : 'COMPUTED TOMFOOLERY', 215, 53, 12, '#496f80', 'center');
-    label(g, id === 1 ? 'NO METAL. NO CHILL.' : 'THE DONUT STRIKES BACK', 215, 75, 10, '#648a88', 'center');
-    poster(g, 809, 28, 1);
+    wallSign(
+      g,
+      590,
+      205,
+      id === 1 ? 'MAGNETIC PERSONALITY' : 'COMPUTED TOMFOOLERY',
+      id === 1 ? 'NO METAL. NO CHILL.' : 'THE DONUT STRIKES BACK',
+      '#496f80',
+      '#648a88'
+    );
+    poster(g, 818, WALL_SIGN_TOP, 1, 0.78);
     rr(g, 370, 345, 240, 132, 18, '#4d97a536');
     for (let yy = 360; yy < 466; yy += 26)
       line(g, [[386, yy], [594, yy]], '#b4ddc753', 2);
@@ -985,21 +2087,19 @@ function roomIllustration(g, id) {
   }
   if (id === 2) {
     windowArt(g, 425, 22, 191, 101);
-    poster(g, 118, 28, 1);
-    rr(g, 697, 22, 191, 76, 10, gradient(g, 700, 24, 0, 70, '#75849b', '#3e607b'));
-    rr(g, 704, 28, 177, 61, 6, '#25495f');
-    label(g, 'MOVIE NIGHT', 793, 52, 14, '#e6cfad', 'center');
-    label(g, 'NOW SHOWING: YOU VS. GUT', 793, 74, 8, '#acd8c7', 'center');
+    poster(g, 330, WALL_SIGN_TOP, 1, 0.78);
+    rr(g, 660, WALL_SIGN_TOP, 180, 56, 10, gradient(g, 660, WALL_SIGN_TOP, 0, 56, '#75849b', '#3e607b'));
+    rr(g, 666, WALL_SIGN_TOP + 5, 168, 46, 6, '#25495f');
+    label(g, 'MOVIE NIGHT', 750, WALL_SIGN_TOP + 25, 14, '#e6cfad', 'center');
+    label(g, 'NOW SHOWING: YOU VS. GUT', 750, WALL_SIGN_TOP + 42, 8, '#acd8c7', 'center');
     rr(g, 272, 285, 459, 221, 28, '#8c89a941');
     rr(g, 282, 290, 440, 206, 25, gradient(g, 282, 290, 420, 200, '#b5a8c3', '#a395b6'));
     rr(g, 297, 306, 410, 174, 20, null, '#e2d3d87a', 2);
   }
   if (id === 4) {
-    rr(g, 103, 24, 221, 69, 11, '#eef0d3');
-    label(g, 'ULTRA-SUSPICIOUS', 213, 53, 14, '#557d76', 'center');
-    label(g, 'NOW WITH 30% MORE GEL', 213, 75, 10, '#6d8c78', 'center');
+    wallSign(g, 276, 221, 'ULTRA-SUSPICIOUS', 'NOW WITH 30% MORE GEL', '#557d76', '#6d8c78');
     windowArt(g, 535, 24, 155, 91);
-    poster(g, 802, 28, 1);
+    poster(g, 810, WALL_SIGN_TOP, 1, 0.78);
     rr(g, 390, 305, 290, 172, 28, '#8fb7a44a');
     ellipse(g, 535, 387, 99, 45, '#b6d3b244');
   }
@@ -1009,11 +2109,11 @@ function roomIllustration(g, id) {
   rr(g, 914, 35, 56, 117, 5, gradient(g, 915, 35, 55, 115, '#a3c9c7', '#779fa9'));
   rr(g, 924, 46, 35, 45, 5, '#d7e8d6');
   rr(g, 928, 50, 27, 37, 3, gradient(g, 928, 50, 0, 37, '#88bdca', '#bed9ce'));
-  rr(g, 950, 111, 8, 4, 2, '#f8d38f');
+  rr(g, 950, 100, 8, 4, 2, '#f8d38f');
   rr(g, 885, 167, 89, 35, 9, '#4f8e83');
   label(g, 'MAP →', 929, 190, 13, '#e2edc8', 'center');
-  rr(g, 906, 9, 73, 15, 5, '#cde1bb');
-  label(g, 'ADVENTURE', 943, 20, 8, '#547e74', 'center');
+  rr(g, 906, 114, 73, 15, 5, '#cde1bb');
+  label(g, 'ADVENTURE', 943, 125, 8, '#547e74', 'center');
 }
 
 // Only moving actors are redrawn as geometry. Cache the lit room background once per room.
@@ -1152,7 +2252,7 @@ const roomProps = [
       box: [380, 167, 188, 130],
       draw: g => {
         scanner(g, 424, 200);
-        label(g, 'DONUT II', 483, 65, 12, '#fbe1a9', 'center');
+        label(g, 'DONUT II', 481, 112, 12, '#fbe1a9', 'center');
       }
     },
     {
@@ -1488,28 +2588,69 @@ const supplies = [
 const supplyAvailable = s =>
   s.room === state.room && !state.taken.includes(s.id) && stars() >= (s.unlock || 0);
 
+// Ward-side state that only this file touches.
+const ROOM_IRIS_SECONDS = 0.25,
+  THICK_SKIN_SECONDS = 2.6,
+  ARCADE_LOCKED_TOAST = 'Clear the ward first. The gremlins are sitting on the arcade.',
+  wardCoarsePointer = matchMedia('(pointer: coarse)').matches;
+
+let toastSerial = 0,
+  wardCameraY = 0,
+  wardIris = 0,
+  wardHpSeen = state.hp,
+  wardPauseShown = false;
+
 function toast(t, sec = 3) {
+  toastSerial++;
   $('toast').textContent = t;
   $('toast').classList.add('show');
   toastTimer = sec;
 }
 
 function coins(n) {
+  if (!Number.isFinite(n)) return;
   state.coins += n;
+  if (n > 0) state.coinsEarned += n;
   save();
   hud();
 }
 
+// Combat owns wardLocked(); until it exists, every arcade is open.
+function arcadeBlocked(id = state.room) {
+  return typeof wardLocked === 'function' && !!wardLocked(id);
+}
+
+// Every way into a room's arcade (beacon, gamebar, map, Enter) goes through here.
+function tryOpenArcade(id = state.room) {
+  if (arcadeBlocked(id)) {
+    toast(ARCADE_LOCKED_TOAST, 2.6);
+    sfx('miss');
+    return false;
+  }
+  openMini(id);
+  return true;
+}
+
+function passportRalphLine() {
+  if (state.ralph) return '✓ Ralph evicted. The exit is yours.';
+  if (state.ralphReady) return '! Ralph is blocking the exit. Go to your room.';
+  return '○ Then Ralph. He thinks he is the exit.';
+}
+
 function hud() {
+  const max = maxHearts();
   $('hearts').innerHTML = Array.from(
-    { length: 5 },
+    { length: max },
     (_, i) => `<svg class="${i < state.hp ? '' : 'empty'}" aria-hidden="true"><use href="#i-heart"/></svg>`
   ).join('');
-  $('hearts').setAttribute('aria-label', `${state.hp} of 5 hearts`);
+  $('hearts').setAttribute('aria-label', `${state.hp} of ${max} hearts`);
   $('healthName').textContent = state.name ? `${state.name} / ${state.hp} hearts` : 'Queasiness resistance';
   $('score').textContent = String(state.coins).padStart(4, '0');
-  $('foodCount').textContent = state.food + ' / 3';
-  $('eatBtn').disabled = state.food === 0 || state.hp >= 5;
+  $('foodCount').textContent = state.food + ' / ' + maxFood();
+  $('eatBtn').disabled = state.food === 0 || state.hp >= max;
+  $('hudEat').textContent = '+♥ ' + state.food;
+  $('hudEat').disabled = state.food === 0 || state.hp >= max;
+  $('hudEat').setAttribute('aria-label', `Eat a nutrient. ${state.food} carried.`);
   $('difficultyBtn').textContent = cfg().name + ' ⚙';
   $('heroName').value = state.name;
   $('passport').innerHTML = rooms
@@ -1523,8 +2664,41 @@ function hud() {
   $('progressLabel').textContent = stars() + ' / 12';
   $('progressBar').style.width = Math.min(100, (stars() / 12) * 100) + '%';
   $('dischargeRules').textContent =
-    `${stamps()}/${rooms.length} arcades stamped · ${levelTwo() ? '✓' : '○'} Level 2 medal\nBronze 1★ · Silver 2★ · Gold 3★`;
+    `${stamps()}/${rooms.length} arcades stamped · ${levelTwo() ? '✓' : '○'} Level 2 medal\n${passportRalphLine()}\nBronze 1★ · Silver 2★ · Gold 3★`;
   $('storageNote').style.display = storageOK ? 'none' : 'block';
+  renderHall();
+  renderDaily();
+}
+
+// Hall of Nonsense: lifetime stats for the sidebar and the map.
+function renderHall() {
+  const medals = state.medals.flat(),
+    count = n => medals.filter(m => m === n).length,
+    streak = dailyStreak(),
+    stats = [
+      ['Gremlins evicted', state.evictions],
+      ['Best chain', state.bestChain],
+      ['Medals', `${count(3)} gold · ${count(2)} silver · ${count(1)} bronze`],
+      ['Lifetime coins', state.coinsEarned],
+      ['Runs played', state.runs],
+      ['Daily streak', streak + (streak === 1 ? ' day' : ' days')]
+    ],
+    grudge = rooms
+      .filter(r => r.id !== 0 && r.id !== 5)
+      .map(r => {
+        const n = state.wardClears[r.id] || 0;
+        return (
+          `<div class="hall-row"><span>${r.name}</span>` +
+          `<strong>${n ? 'Grudge lvl ' + n : 'Not yet annoyed'}</strong></div>`
+        );
+      })
+      .join(''),
+    html =
+      `<div class="hall-stats">` +
+      stats.map(([k, v]) => `<div class="hall-row"><span>${k}</span><strong>${v}</strong></div>`).join('') +
+      `</div><p class="hall-kicker">RALPH’S GRUDGE · WARD CLEARS</p><div class="hall-stats">${grudge}</div>`;
+  $('hallStats').innerHTML = html;
+  $('mapHall').innerHTML = html;
 }
 
 function clearHeld() {
@@ -1551,6 +2725,15 @@ function isModal() {
   return $$('dialog').some(d => d.open);
 }
 
+function roomToast(id) {
+  if (id === 0 && state.ralphReady && !state.ralph) return 'Ralph is in your room. He is not here to visit.';
+  if (id === 5) return 'After hours. Bedside Blaster is up. Ralph brought friends.';
+  if (id === 0) return 'Home base. Snacks on the rug. IV game by the bed.';
+  return arcadeBlocked(id)
+    ? 'Three waves stand between you and this arcade. Make them regret it.'
+    : 'Grab supplies, then find the glowing arcade beacon.';
+}
+
 function loadRoom(id) {
   hitStop = 0;
   state.room = id;
@@ -1569,34 +2752,58 @@ function loadRoom(id) {
   player.vz = 0;
   player.attack = 0;
   player.attackCd = 0;
+  wardHpSeen = state.hp;
+  const toastsBefore = toastSerial;
   startEncounter();
   $('roomTitle').textContent = rooms[id].name;
   $('roomSub').textContent = rooms[id].sub;
   $('sceneTag').textContent =
     id === 0 || id === 5 ? 'SAFE ROOM / DANGEROUSLY COZY' : 'DODGE THE BLOBS / FIND THE ARCADE';
-  $('arcadeBtn').textContent = '▶ ' + games[id].info.game;
+  $('arcadeBtn').innerHTML =
+    `<span aria-hidden="true">▶</span> <span class="launch-name">${games[id].info.game}</span>`;
+  $('arcadeBtn').setAttribute('aria-label', 'Play ' + games[id].info.game);
   renderMap();
-  if (state.started)
-    toast(
-      id === 5
-        ? 'After hours. Bedside Blaster is waiting. Ralph brought friends.'
-        : id === 0
-          ? 'Home base. Nutrients on the rug. IV game by the bed.'
-          : 'Explore, grab supplies, and find the glowing arcade beacon.',
-      3
-    );
+  if (state.started) {
+    wardIris = reduced ? 0 : ROOM_IRIS_SECONDS;
+    // Combat may announce its own wave or boss on entry; the room line only fills silence.
+    if (toastSerial === toastsBefore) toast(roomToast(id), 3);
+  }
+  music('room:' + id);
 }
 
 function begin() {
   if (state.started) return;
   state.started = true;
+  if (!state.played) {
+    state.played = true;
+    save();
+  }
   document.body.classList.add('playing');
   state.paused = false;
   $('startCallout').classList.add('hidden');
   $('playStatus').textContent = 'EXPLORE / PLAY / GET HOME';
   loadRoom(state.room);
   canvas.focus({ preventScroll: true });
-  tone(523, 0.13);
+  sfx('ui');
+}
+
+// The ward pause menu. state.paused changes in several places; drawWorld keeps the overlay in sync.
+function setWardPause(on) {
+  if (!state.started) return;
+  state.paused = !!on;
+  clearHeld();
+  syncWardPause();
+  if (!on) canvas.focus({ preventScroll: true });
+}
+
+function syncWardPause() {
+  const on = state.started && state.paused && !mini.open;
+  if (on === wardPauseShown) return;
+  wardPauseShown = on;
+  document.body.classList.toggle('ward-paused', on);
+  $('wardPaused').classList.toggle('hidden', !on);
+  $('pauseBtn').setAttribute('aria-pressed', String(on));
+  if (on) $('wardResume').focus({ preventScroll: true });
 }
 
 function collides(x, y) {
@@ -1635,12 +2842,12 @@ function floating(text, x, y, col = '#fff1c2') {
 }
 
 function eat() {
-  if (isModal() || state.paused || deadDelay > 0 || state.hp >= 5 || !state.food) return;
+  if (isModal() || state.paused || deadDelay > 0 || state.hp >= maxHearts() || !state.food) return;
   state.food--;
   state.hp++;
   player.eat = 0.9;
   player.inv = Math.max(player.inv, 0.5);
-  tone(590, 0.15);
+  sfx('eat');
   floating('+1 HEART', player.x, player.y - 95, '#b7e9b9');
   toast('Nutrients consumed. One heart. No Michelin stars.', 2);
   save();
@@ -1718,15 +2925,19 @@ function updateWorld(dt) {
   moveEntity(player, dx * speed * dt, dy * speed * dt);
   if (keys.has(' ') || heldAttack) attack();
   updateCombat(dt);
+  // Thick skin: any heart lost this step buys a longer invulnerability window.
+  if (state.hp < wardHpSeen && state.upgrades.includes('thick'))
+    player.inv = Math.max(player.inv, THICK_SKIN_SECONDS);
+  wardHpSeen = state.hp;
   for (let s of supplies.filter(supplyAvailable))
-    if (dist(s, player) < 27 && state.food < 3) {
+    if (dist(s, player) < 27 && state.food < maxFood()) {
       state.taken.push(s.id);
       state.food++;
       floating('+1 ' + s.type.toUpperCase(), s.x, s.y - 50, '#b7e6bd');
       toast('Nutrient stashed. Drink / eat (F) when you need a heart.', 2.7);
       save();
       hud();
-      tone(800, 0.1);
+      sfx('pickup');
     }
   if (player.x > 895 && player.y < 202) {
     player.y = 225;
@@ -1757,12 +2968,16 @@ function updateEffects(dt) {
 }
 
 function drawWorld() {
-  let vw = viewport.w;
-  c.clearRect(0, 0, vw, 625);
-  cameraX +=
-    (clamp(player.x - vw / 2, 0, Math.max(0, 1000 - vw)) - cameraX) * (1 - Math.exp(-renderDelta * 12));
+  const vw = viewport.w,
+    vh = viewport.h,
+    ease = 1 - Math.exp(-renderDelta * 12);
+  syncWardPause();
+  c.clearRect(0, 0, vw, vh);
+  cameraX += (clamp(player.x - vw / 2, 0, Math.max(0, 1000 - vw)) - cameraX) * ease;
+  // Screens wider than 1.6 show a horizontal slice of the room and follow Macy vertically.
+  wardCameraY += (clamp(player.y - vh * 0.58, 0, Math.max(0, 625 - vh)) - wardCameraY) * ease;
   c.save();
-  c.translate(-cameraX + (shake ? rand(-3, 3) : 0), shake ? rand(-2, 2) : 0);
+  c.translate(-cameraX + (shake ? rand(-3, 3) : 0), -wardCameraY + (shake ? rand(-2, 2) : 0));
   roomBg(c, state.room);
   for (let p of puddles) {
     c.globalAlpha = Math.min(1, p.life);
@@ -1770,16 +2985,25 @@ function drawWorld() {
     ellipse(c, p.x - 4, p.y - 2, 18, 4, '#b4c969');
   }
   c.globalAlpha = 1;
-  const station = rooms[state.room].station;
-  let near = dist(player, { x: station[0], y: station[1] }) < 65;
-  ellipse(c, ...station, 48, 17, '#285f6266');
-  c.strokeStyle = '#b9ebbb';
+  const station = rooms[state.room].station,
+    near = dist(player, { x: station[0], y: station[1] }) < 65,
+    locked = arcadeBlocked();
+  ellipse(c, ...station, 48, 17, locked ? '#6a3a4a55' : '#285f6266');
+  c.strokeStyle = locked ? '#f0a7a0' : '#b9ebbb';
   c.lineWidth = 2;
   c.beginPath();
-  c.ellipse(station[0], station[1], 43 + Math.sin(time * 3) * 2, 14, 0, 0, Math.PI * 2);
+  c.ellipse(station[0], station[1], 43 + (locked ? 0 : Math.sin(time * 3) * 2), 14, 0, 0, Math.PI * 2);
   c.stroke();
-  spark(c, station[0], station[1] - 50 + Math.sin(time * 3) * 4, '#ffe29b', 1);
-  label(c, near ? 'ENTER / PLAY' : 'ARCADE', station[0], station[1] + 31, 12, '#244d53', 'center');
+  if (!locked) spark(c, station[0], station[1] - 50 + Math.sin(time * 3) * 4, '#ffe29b', 1);
+  label(
+    c,
+    locked ? 'LOCKED' : near ? (wardCoarsePointer ? 'TAP TO PLAY' : 'ENTER / PLAY') : 'ARCADE',
+    station[0],
+    station[1] + 31,
+    12,
+    locked ? '#7a2f45' : '#244d53',
+    'center'
+  );
   for (let s of supplies.filter(supplyAvailable)) {
     ellipse(c, s.x, s.y, 20, 7, '#e7eea855');
     nutrient(c, s.x, s.y + Math.sin(time * 3) * 3, s.type, 1.2);
@@ -1872,14 +3096,45 @@ function drawWorld() {
   rect(c, 0, 603, 1000, 22, '#244856');
   rect(c, 24, 603, 952, 4, '#90b6a2');
   c.restore();
-  if (state.paused) {
-    rect(c, 0, 0, vw, 625, '#102734da');
-    label(c, 'TAKE A BREATHER.', vw / 2, 295, 23, '#f5e6c5', 'center');
-    label(c, 'Esc or tap the room to resume.', vw / 2, 328, 12, '#b5d3bd', 'center');
-  }
+  if (state.paused) rect(c, 0, 0, vw, vh, '#102734aa');
+  if (wardIris > 0) drawRoomIris(vw, vh);
+}
+
+// A 250 ms iris opens on Macy after each room change (skipped under reduced motion).
+function drawRoomIris(vw, vh) {
+  const t = 1 - wardIris / ROOM_IRIS_SECONDS,
+    r = Math.max(1, t * t * Math.hypot(vw, vh));
+  wardIris = Math.max(0, wardIris - renderDelta);
+  c.save();
+  c.beginPath();
+  c.rect(0, 0, vw, vh);
+  c.arc(player.x - cameraX, player.y - 45 - wardCameraY, r, 0, Math.PI * 2, true);
+  c.fillStyle = '#0b1b25';
+  c.fill('evenodd');
+  c.restore();
+}
+
+// World coordinates of a pointer on the ward canvas.
+function wardPoint(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: cameraX + ((e.clientX - r.left) * viewport.w) / Math.max(1, r.width),
+    y: wardCameraY + ((e.clientY - r.top) * viewport.h) / Math.max(1, r.height)
+  };
+}
+
+// Tapping the beacon is the touch version of Enter.
+function beaconTapped(p) {
+  const [x, y] = rooms[state.room].station;
+  return Math.abs(p.x - x) < 70 && p.y > y - 85 && p.y < y + 45;
 }
 
 function renderMap() {
+  const exit = state.won
+    ? 'Discharged!'
+    : state.ralphReady && !state.ralph
+      ? 'Ralph is in the way.'
+      : 'Homeward bound.';
   $('mapGrid').innerHTML =
     rooms
       .map(
@@ -1891,8 +3146,9 @@ function renderMap() {
       )
       .join('') +
     `<div class="map-room"><span class="map-n">07 / THE EXIT</span>` +
-    `<strong>${state.won ? 'Discharged!' : 'Homeward bound.'}</strong>` +
-    `<small>${stars()}/12 stars · ${stamps()}/${rooms.length} arcades</small></div>`;
+    `<strong>${exit}</strong>` +
+    `<small>${stars()}/12 stars · ${stamps()}/${rooms.length} arcades · ` +
+    `${state.ralph ? 'Ralph evicted' : 'Ralph pending'}</small></div>`;
 }
 
 function openMap() {
@@ -1952,10 +3208,20 @@ function setupIllustrations() {
   });
 }
 
+// HUD card size bucket: the cards must end above WALL_SIGN_TOP at the current canvas scale.
+function hudBucket(px) {
+  return px >= 52 ? 'l' : px >= 36 ? 'm' : px >= 28 ? 's' : 'xs';
+}
+
 function resize() {
   const r = $('stage').getBoundingClientRect();
-  viewport.w = Math.min(1000, (625 * r.width) / r.height);
-  configureCanvas(canvas, viewport.w, 625);
+  if (r.width > 0 && r.height > 0) {
+    const aspect = r.width / r.height;
+    viewport.w = Math.min(1000, 625 * aspect);
+    viewport.h = viewport.w < 1000 ? 625 : clamp(1000 / aspect, 300, 625);
+    $('stage').dataset.hud = hudBucket(((WALL_SIGN_TOP - 4) * r.height) / viewport.h);
+  }
+  configureCanvas(canvas, viewport.w, viewport.h);
   // A closed arcade keeps the 800 × 450 canvas it starts with.
   const size = mini.open ? games[mini.id].canvas : { w: 800, h: 450 };
   configureCanvas($('miniCanvas'), size.w, size.h);
@@ -2521,9 +3787,140 @@ const mc = $('miniCanvas').getContext('2d');
 
 // Each run owns its timers, score, limited assists, and escalating rounds.
 const approaches = [
-  { name: 'Steady hands', helps: 2, multiplier: 1, desc: 'Two emergency assists for the entire run.' },
-  { name: 'Show-off shift', helps: 0, multiplier: 1.25, desc: 'No assists. Earn 25% more coins.' }
+  { name: 'Steady hands', helps: 2, multiplier: 1, desc: 'Two emergency assists for the whole run.' },
+  { name: 'Show-off shift', helps: 0, multiplier: 1.25, desc: 'No assists. 25% more coins.' }
 ];
+
+// The Arcade pass adds one assist to Steady hands runs.
+function approachHelps(i) {
+  return approaches[i].helps + (i === 0 && state.upgrades.includes('pass') ? 1 : 0);
+}
+
+// ---- Daily Dose ----
+// The local date picks one game and level. The run swaps in a seeded Math.random (seed from the
+// date) around every game hook, so the day's spawns match for everyone. Draw code keeps the real one.
+const DAILY_BONUS_BASE = 60,
+  DAILY_BONUS_STEP = 10;
+
+let dailyRng = null;
+
+function dailyDateKey(d) {
+  return (
+    d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+  );
+}
+
+function dailyToday() {
+  return dailyDateKey(new Date());
+}
+
+function dailyShift(key, days) {
+  const [y, m, d] = key.split('-').map(Number);
+  return dailyDateKey(new Date(y, m - 1, d + days));
+}
+
+// FNV-1a: a stable 32-bit hash of the date string.
+function dailyHash(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function dailyPick(key = dailyToday()) {
+  const h = dailyHash('gut-feeling/' + key);
+  return { date: key, id: h % rooms.length, tier: Math.floor(h / rooms.length) % 3, seed: dailyHash(key + '/seed') };
+}
+
+// mulberry32: tiny, fast, and good enough for gremlin placement.
+function dailyRandom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Runs a game hook with the daily RNG in place of Math.random, then restores the original.
+function dailyScoped(fn) {
+  if (!mini.daily || !dailyRng) return fn();
+  const outer = Math.random;
+  Math.random = dailyRng;
+  try {
+    return fn();
+  } finally {
+    Math.random = outer;
+  }
+}
+
+// A streak survives until the end of the day after the last daily run.
+function dailyStreak() {
+  const today = dailyToday(),
+    last = state.daily.last;
+  return last === today || last === dailyShift(today, -1) ? state.daily.streak : 0;
+}
+
+function dailyBonus() {
+  return DAILY_BONUS_BASE + DAILY_BONUS_STEP * Math.min(dailyStreak(), 4);
+}
+
+function dailyLabel(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase();
+}
+
+function renderDaily() {
+  const pick = dailyPick(),
+    played = state.daily.last === pick.date,
+    html =
+      `<div class="daily-top"><span>DAILY DOSE · ${dailyLabel(pick.date)}</span>` +
+      `<span>STREAK ${dailyStreak()}</span></div>` +
+      `<strong class="daily-game">${games[pick.id].info.game}</strong>` +
+      `<small>Level ${pick.tier + 1} · Show-off rules · same run for everyone today</small>` +
+      `<small>${played ? 'Today’s best: ' + state.daily.best : 'First run today pays +' + dailyBonus() + ' coins'}</small>` +
+      `<button class="primary coral daily-go" data-daily>${played ? 'Beat your best' : 'Take today’s dose'} →</button>`;
+  $('dailyCard').innerHTML = html;
+  $('mapDaily').innerHTML = html;
+}
+
+function openDaily(key = dailyToday()) {
+  const pick = dailyPick(key);
+  if (arcadeBlocked(pick.id)) {
+    // Toasts live on the stage, so close the map before saying no.
+    if ($('mapDialog').open) $('mapDialog').close();
+    toast('Today’s dose is in the ' + rooms[pick.id].name + '. ' + ARCADE_LOCKED_TOAST, 3.4);
+    sfx('miss');
+    return false;
+  }
+  openMini(pick.id);
+  Object.assign(mini, { daily: true, dailyDate: pick.date, dailySeed: pick.seed, tier: pick.tier, approach: 1 });
+  showLobby();
+  return true;
+}
+
+// Records a finished daily run: first run of a new day extends the streak and pays the bonus.
+function recordDaily(score) {
+  const d = state.daily,
+    day = mini.dailyDate;
+  if (!day || day < d.last) return { bonus: 0, record: false };
+  let bonus = 0;
+  if (d.last !== day) {
+    d.streak = d.last === dailyShift(day, -1) ? d.streak + 1 : 1;
+    d.last = day;
+    d.best = 0;
+    bonus = DAILY_BONUS_BASE + DAILY_BONUS_STEP * Math.min(d.streak - 1, 4);
+  }
+  const record = score > d.best;
+  d.best = Math.max(d.best, score);
+  if (bonus) coins(bonus);
+  else save();
+  return { bonus, record };
+}
 
 // Department card and lobby preview art.
 function miniScene(g, id, w, h) {
@@ -2535,7 +3932,18 @@ function openMini(id, forced = false) {
   if ($('mapDialog').open) $('mapDialog').close();
   let next = state.medals[id].findIndex(m => !m),
     tier = forced ? 0 : next < 0 ? 2 : next;
-  mini = { open: true, screen: 'lobby', id, tier, forced, approach: 0, paused: false, held: false, t: 0 };
+  mini = {
+    open: true,
+    screen: 'lobby',
+    id,
+    tier,
+    forced,
+    approach: 0,
+    daily: false,
+    paused: false,
+    held: false,
+    t: 0
+  };
   $('miniDialog').classList.remove('gory');
   $('miniClose').classList.toggle('hidden', forced);
   showLobby();
@@ -2560,38 +3968,53 @@ function showLobby() {
   $('miniGenre').textContent = info.genre;
   $('miniHeadline').textContent = info.headline;
   $('miniDescription').textContent = info.desc;
+  $('miniDialog').dataset.daily = mini.daily ? 'yes' : '';
+  // One screen: level cards, approach, one big start. Level 1 teaches; 2 and 3 are the real deal.
   // A level unlocks once the previous one has any medal; forced recovery stays on level 1.
+  // A Daily Dose fixes the level and Show-off rules.
   $('tierGrid').innerHTML = tiers
     .map((t, i) => {
-      const medal = state.medals[mini.id][i];
-      const locked = i > 0 && (!state.medals[mini.id][i - 1] || mini.forced);
+      const medal = state.medals[mini.id][i],
+        locked = mini.daily ? i !== mini.tier : i > 0 && (!state.medals[mini.id][i - 1] || mini.forced);
       return (
         `<button class="tier-card ${mini.tier === i ? 'selected' : ''}" data-tier="${i}" ${locked ? 'disabled' : ''}>` +
-        `<small>LEVEL ${i + 1}</small><strong>${t}</strong><small>${def.tierNotes[i]}</small>` +
+        `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : 'The real deal'}</span>` +
+        `<strong>${t}</strong><small>${def.tierNotes[i]}</small>` +
         `<div class="medals">${'★'.repeat(medal)}${'☆'.repeat(3 - medal)}</div></button>`
       );
     })
     .join('');
   $('approachOptions').innerHTML = approaches
-    .map(
-      (a, i) =>
-        `<button class="approach ${mini.approach === i ? 'selected' : ''}" data-approach="${i}" aria-pressed="${mini.approach === i}">` +
-        `<strong>${a.name}</strong><small>${a.desc}</small></button>`
-    )
+    .map((a, i) => {
+      const helps = approachHelps(i),
+        desc = i === 0 ? `${helps === 3 ? 'Three' : 'Two'} emergency assists for the whole run.` : a.desc,
+        off = mini.daily && i === 0;
+      return (
+        `<button class="approach ${mini.approach === i ? 'selected' : ''}" data-approach="${i}" ` +
+        `aria-pressed="${mini.approach === i}" ${off ? 'disabled' : ''}><strong>${a.name}</strong><small>${desc}</small></button>`
+      );
+    })
     .join('');
-  $('miniRewardInfo').textContent =
-    (mini.forced ? 'Complete all three stages to recover. ' : 'Longer runs. New mechanics at each level. ') +
-    'Bronze 1★ · Silver 2★ · Gold 3★. Precision, clean chains, and unused assists improve your result.';
-  $('miniBest').textContent =
-    'Best arcade score here: ' +
-    (state.records[mini.id][mini.tier] || '—') +
-    ' · Progress saves between runs.';
+  $('dailyBanner').classList.toggle('hidden', !mini.daily);
+  if (mini.daily)
+    $('dailyBanner').textContent =
+      `DAILY DOSE · ${dailyLabel(mini.dailyDate)} · Same gremlins for everyone today. ` +
+      (state.daily.last === mini.dailyDate ? `Today’s best: ${state.daily.best}.` : `First run pays +${dailyBonus()} coins.`);
+  $('miniStart').innerHTML = mini.daily
+    ? 'Take today’s dose →'
+    : mini.forced
+      ? 'Start the recovery →'
+      : 'Let’s make poor decisions →';
+  $('miniRewardInfo').textContent = mini.forced
+    ? 'Finish all three stages to get out of bed.'
+    : 'Bronze 1★ · Silver 2★ · Gold 3★.';
+  $('miniBest').textContent = 'Best here: ' + (state.records[mini.id][mini.tier] || 'nothing yet') + '.';
   $('miniDifficulty').textContent = 'Chaos prescription: ' + cfg().name + ' ↗';
   miniScene($('miniPreview').getContext('2d'), mini.id, 420, 240);
 }
 
 function startMini() {
-  const { id, tier, forced, approach = 0 } = mini,
+  const { id, tier, forced, approach = 0, daily = false, dailyDate = '', dailySeed = 0 } = mini,
     def = games[id];
   clearHeld();
   $('miniLivesLabel').textContent = 'OOPS ALLOWANCE';
@@ -2602,6 +4025,9 @@ function startMini() {
     tier,
     forced,
     approach,
+    daily,
+    dailyDate,
+    dailySeed,
     rules: { ...cfg(), misses: cfg().misses + 2, coins: cfg().coins * approaches[approach].multiplier },
     paused: false,
     held: false,
@@ -2621,7 +4047,7 @@ function startMini() {
     score: 0,
     combo: 0,
     maxCombo: 0,
-    helps: approaches[approach].helps,
+    helps: approachHelps(approach),
     helpTime: 0,
     helpUsed: 0,
     precisions: [],
@@ -2632,8 +4058,11 @@ function startMini() {
   $('miniResult').classList.add('hidden');
   $('miniPaused').classList.add('hidden');
   $('miniDialog').classList.remove('gory');
-  def.init();
-  if (def.controls) def.controls();
+  dailyRng = daily ? dailyRandom(dailySeed) : null;
+  dailyScoped(() => {
+    def.init();
+    if (def.controls) def.controls();
+  });
   configureCanvas($('miniCanvas'), def.canvas.w, def.canvas.h);
   $('miniDialog').dataset.arcade = def.layout;
   mini.initialized = true;
@@ -2673,7 +4102,7 @@ function miniOops(message, amount = 1) {
   mini.flash = 0.9;
   mini.flashText = message;
   mini.quality = Math.max(0, mini.quality - 12 * amount);
-  tone(120, 0.17, 'sawtooth');
+  sfx('miss');
   if (mini.miss >= mini.rules.misses) finishMini(false);
 }
 
@@ -2684,7 +4113,7 @@ function useAssist() {
   mini.helpUsed++;
   mini.quality -= 5;
   mini.combo = 0;
-  games[mini.id].assist();
+  dailyScoped(() => games[mini.id].assist());
   updateMiniHUD();
 }
 
@@ -2695,7 +4124,7 @@ function miniAction(a) {
     return;
   }
   const def = games[mini.id];
-  if (def.action) def.action(a);
+  if (def.action) dailyScoped(() => def.action(a));
 }
 
 function pauseMini() {
@@ -2735,7 +4164,7 @@ function updateMini(dt) {
   mini.total += dt;
   mini.phaseTime += dt;
   mini.hudClock -= dt;
-  games[mini.id].update(dt);
+  dailyScoped(() => games[mini.id].update(dt));
   if (mini.hudClock <= 0) {
     updateMiniHUD();
     mini.hudClock = 0.08;
@@ -2768,9 +4197,11 @@ function updateMiniHUD() {
 }
 
 // 0–100 performance score that sets the medal. Games may replace it with def.quality().
+// A non-number (say, an average of no samples) counts as 0 so it can never reach the coin total.
 function qualityScore() {
-  const def = games[mini.id];
-  return def.quality ? def.quality() : arcadeQuality();
+  const def = games[mini.id],
+    q = def.quality ? def.quality() : arcadeQuality();
+  return Number.isFinite(q) ? clamp(Math.round(q), 0, 100) : 0;
 }
 
 // Standard arcade score: quota overshoot and best chain, minus oopses, assists, and any game penalty.
@@ -2795,9 +4226,7 @@ function grantReward(id, tier, grade, quality, multiplier, arcadeScore = 0) {
   let pay =
     Math.round((18 + grade * 18 + tier * 12 + quality * 0.2 + Math.min(70, arcadeScore / 120)) * multiplier) +
     delta * 20;
-  state.coins += pay;
-  save();
-  hud();
+  coins(pay);
   return { delta, pay, old };
 }
 
@@ -2812,12 +4241,14 @@ function resolveMiniResult(win, reason) {
   mini.resultT = 0;
   mini.win = win;
   gore = [];
+  state.runs++;
+  state.bestChain = Math.max(state.bestChain, mini.maxCombo || 0);
   $('miniPlay').classList.add('hidden');
   $('miniLobby').classList.add('hidden');
   $('miniResult').classList.remove('hidden');
   $('miniPauseBtn').classList.add('hidden');
   $('miniBack').classList.toggle('hidden', mini.forced && !win);
-  $('miniRetry').textContent = win ? 'Improve / next level' : 'Reassemble. Try again.';
+  $('miniRetry').textContent = mini.daily ? 'Run it back' : win ? 'Improve / next level' : 'Reassemble. Try again.';
   if (win) {
     mini.qualityFinal = qualityScore();
     mini.grade = mini.qualityFinal >= 88 ? 3 : mini.qualityFinal >= 68 ? 2 : 1;
@@ -2850,8 +4281,8 @@ function resolveMiniResult(win, reason) {
       `<strong>+${reward.pay}</strong><small>COINS EARNED</small></div><div>` +
       `<strong>+${reward.delta} ★</strong><small>NEW DISCHARGE STARS</small></div>`;
     $('resultJourney').textContent =
-      `${stars()}/12 stars · ${stamps()}/${rooms.length} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins awarded.'}`;
-    tone(784, 0.35);
+      `${stars()}/12 stars · ${stamps()}/${rooms.length} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins paid.'}`;
+    sfx('win');
     $('miniDialog').classList.remove('gory');
   } else {
     mini.grade = 0;
@@ -2872,10 +4303,18 @@ function resolveMiniResult(win, reason) {
       `<small>COINS THIS RUN</small></div><div><strong>${stars()} ★</strong>` +
       `<small>STARS PRESERVED</small></div>`;
     $('resultJourney').textContent = mini.forced
-      ? 'You’re still in bed. Reassemble, then complete all three IV phases.'
-      : 'One heart lost (minimum one). Retry or explore another department.';
-    tone(65, 0.4, 'sawtooth');
+      ? 'Still in bed. Reassemble, then finish all three IV phases.'
+      : 'One heart lost (you keep at least one). Retry or go bother another department.';
+    sfx('lose');
   }
+  if (mini.daily) {
+    const d = recordDaily(mini.score || 0);
+    $('resultJourney').textContent +=
+      ` Daily Dose: ${d.bonus ? '+' + d.bonus + ' bonus coins, streak ' + state.daily.streak + '. ' : ''}` +
+      `${d.record ? 'New best for today.' : 'Today’s best: ' + state.daily.best + '.'}`;
+  }
+  save();
+  music('result:' + (win ? 'win' : 'lose'));
   drawResultArt();
   $('miniResult').scrollIntoView({ block: 'nearest' });
 }
@@ -2916,19 +4355,31 @@ function leaveMini() {
     loadRoom(0);
     player.inv = 2;
     hud();
-  }
+  } else music('room:' + state.room);
   checkDischarge();
   canvas.focus({ preventScroll: true });
 }
 
+// Discharge needs 12 stars, a medal in all six arcades, a level 2 medal, and Ralph out of the way.
+// Until combat reports state.ralph, a complete passport only sends Ralph to Macy's room.
 function checkDischarge() {
-  if (!state.won && stars() >= 12 && stamps() === rooms.length && levelTwo()) {
-    state.won = true;
-    save();
-    $('winScore').textContent =
-      `${state.name || 'Macy'} earned ${stars()} discharge stars across all six arcade challenges. Your arcade passport is complete.`;
-    modalOpen($('winDialog'));
+  if (state.won || !(stars() >= 12 && stamps() === rooms.length && levelTwo())) return;
+  if (!state.ralph) {
+    if (!state.ralphReady) {
+      state.ralphReady = true;
+      save();
+      hud();
+      renderMap();
+      toast('Passport complete. Ralph is blocking the exit. Go to your room.', 5);
+    }
+    return;
   }
+  state.won = true;
+  save();
+  hud();
+  $('winScore').textContent =
+    `${state.name || 'Macy'} earned ${stars()} discharge stars across all six arcade games and evicted Ralph. The passport is complete.`;
+  modalOpen($('winDialog'));
 }
 
 // Paints the current game, then either its own overlay or the shared arcade overlays.
@@ -2968,7 +4419,7 @@ function updateArcade(dt, step) {
   if (shift > mini.shift) {
     mini.shift = shift;
     mini.notice = 3.5;
-    tone(520, 0.12);
+    sfx('wave');
     if (def.shiftMessage) setInstructions(def.shiftMessage(shift));
   }
   step(dt);
@@ -2993,13 +4444,17 @@ function arcadeTimeUp() {
   finishMini(met, met ? undefined : ARCADE_QUOTA_MISSED);
 }
 
-// Client coordinates to canvas coordinates for the current game.
+// Client coordinates to canvas coordinates for the current game. The canvas uses
+// object-fit: contain, so a letterboxed arcade (fullscreen) still maps exactly.
 function miniPoint(e) {
   const r = $('miniCanvas').getBoundingClientRect(),
-    { w, h } = games[mini.id].canvas;
+    { w, h } = games[mini.id].canvas,
+    s = Math.min(r.width / w, r.height / h) || 1,
+    left = r.left + (r.width - w * s) / 2,
+    top = r.top + (r.height - h * s) / 2;
   return {
-    x: clamp(((e.clientX - r.left) * w) / r.width, 0, w),
-    y: clamp(((e.clientY - r.top) * h) / r.height, 0, h)
+    x: clamp((e.clientX - left) / s, 0, w),
+    y: clamp((e.clientY - top) / s, 0, h)
   };
 }
 
@@ -3015,14 +4470,14 @@ function arcadeDown(p) {
     stroke: ++strokeSerial
   };
   const def = games[mini.id];
-  if (def.down) def.down(p);
+  if (def.down) dailyScoped(() => def.down(p));
 }
 
 function arcadeMove(p) {
   if (mini.screen !== 'play' || mini.paused || !mini.pointer) return;
   const prev = { x: mini.pointer.lastX, y: mini.pointer.lastY },
     def = games[mini.id];
-  if (def.move) def.move(p, prev);
+  if (def.move) dailyScoped(() => def.move(p, prev));
   mini.pointer.lastX = p.x;
   mini.pointer.lastY = p.y;
 }
@@ -3030,7 +4485,7 @@ function arcadeMove(p) {
 // cancel = true when the pointer was lost or the run was interrupted; games must not act on it.
 function arcadeUp(cancel = false) {
   const def = games[mini.id];
-  if (def.up) def.up(cancel);
+  if (def.up) dailyScoped(() => def.up(cancel));
   mini.pointer = null;
 }
 
@@ -3071,13 +4526,7 @@ function drawArcadeOverlays(g) {
     rr(g, 45, 225, 510, 145, 22, '#112e45ee', '#9dc7be66', 1);
     label(
       g,
-      intro
-        ? mini.transition < 3
-          ? String(3 - Math.floor(mini.transition))
-          : 'GO!'
-        : mini.pendingFinish.win
-          ? 'SHIFT COMPLETE'
-          : 'WELL. THAT HAPPENED.',
+      intro ? countdownLabel() : mini.pendingFinish.win ? 'SHIFT COMPLETE' : 'WELL. THAT HAPPENED.',
       300,
       295,
       intro ? 64 : 27,
@@ -3086,9 +4535,7 @@ function drawArcadeOverlays(g) {
     );
     label(
       g,
-      intro
-        ? 'Find your grip. The clock is still paused.'
-        : 'Score ' + mini.score + ' · Best chain ' + mini.maxCombo,
+      intro ? 'The clock starts on GO.' : 'Score ' + mini.score + ' · Best chain ' + mini.maxCombo,
       300,
       334,
       15,
@@ -3098,13 +4545,21 @@ function drawArcadeOverlays(g) {
   }
 }
 
-// Motion preferences change animation, never the time provided to read or prepare.
-const INTRO_SECONDS = 3.2,
+// Motion preferences change animation, never the time provided to read or prepare: reduced-motion
+// players keep the long countdown and a longer GO card.
+const INTRO_SECONDS = reduced ? 3.2 : 1.5,
+  INTRO_GO_SECONDS = reduced ? 0.2 : 0.3,
+  QUICK_BRIEF_SECONDS = reduced ? 3.2 : 1.2,
   OUTRO_SECONDS = 2.2;
 
 // Briefing copy for the current run or phase.
 function lesson() {
   return games[mini.id].lesson();
+}
+
+// Each game (and each IV phase) gets the full briefing once; after that a short GO card.
+function briefKey() {
+  return mini.id + ':' + (mini.phase || 0);
 }
 
 function prepareBriefing() {
@@ -3115,6 +4570,7 @@ function prepareBriefing() {
   mini.demoTime = 0;
   mini.countdown = 0;
   mini.flash = 0;
+  mini.quickBrief = state.briefed.includes(briefKey());
   clearHeld();
   const l = lesson();
   $('miniBriefKicker').textContent =
@@ -3126,20 +4582,30 @@ function prepareBriefing() {
   $('miniDemo').className = 'control-demo ' + l.demo;
   $('miniRuleGoal').textContent = l.goal;
   $('miniRuleControl').textContent = l.cue;
+  $('miniGoTitle').textContent = l.title;
+  $('miniGoCue').textContent = l.cue;
   $('miniBriefing').classList.remove('hidden');
+  $('miniBriefing').classList.toggle('quick', mini.quickBrief);
+  $('miniBriefCard').classList.toggle('hidden', mini.quickBrief);
+  $('miniGo').classList.toggle('hidden', !mini.quickBrief);
   $('miniPaused').classList.add('hidden');
   $('miniPauseBtn').classList.add('hidden');
   $('miniDialog').dataset.screen = 'briefing';
-  $('miniReadyBtn').textContent = mini.total > 0 ? 'Ready for the next challenge →' : 'Ready — count me in';
-  $('miniReadyBtn').focus({ preventScroll: true });
+  $('miniReadyBtn').textContent = mini.total > 0 ? 'Next challenge →' : 'Ready. Count me in →';
+  (mini.quickBrief ? $('miniGo') : $('miniReadyBtn')).focus({ preventScroll: true });
   $('miniDialog').scrollTop = 0;
   updateMiniHUD();
 }
 
 function launchMini() {
   if (mini.screen !== 'briefing') return;
+  if (!state.briefed.includes(briefKey())) {
+    state.briefed.push(briefKey());
+    save();
+  }
   mini.screen = 'intro';
   mini.transition = 0;
+  mini.countTick = countdownLabel(0);
   mini.held = false;
   clearHeld();
   $('miniBriefing').classList.add('hidden');
@@ -3147,13 +4613,24 @@ function launchMini() {
   $('miniPauseBtn').classList.remove('hidden');
   $('miniPauseBtn').textContent = 'Ⅱ';
   $('miniCanvas').focus({ preventScroll: true });
-  tone(440, 0.1, 'sine');
+  sfx('countdown');
+  music('game:' + mini.id);
   updateMiniHUD();
+}
+
+// 3, 2, 1 evenly across the countdown, then GO! for its last moment.
+function countdownLabel(t = mini.transition) {
+  const count = INTRO_SECONDS - INTRO_GO_SECONDS;
+  return t < count ? String(3 - Math.floor(t / (count / 3))) : 'GO!';
 }
 
 function updateTransition(dt) {
   if (mini.screen === 'briefing') {
     mini.demoTime += dt;
+    if (mini.quickBrief) {
+      $('miniGoBar').style.width = Math.min(100, (mini.demoTime / QUICK_BRIEF_SECONDS) * 100) + '%';
+      if (mini.demoTime >= QUICK_BRIEF_SECONDS) launchMini();
+    }
     return true;
   }
   if (mini.screen === 'intro') {
@@ -3164,8 +4641,11 @@ function updateTransition(dt) {
       mini.transition = 0;
       clearHeld();
       $('miniDialog').dataset.screen = 'play';
-      tone(660, 0.09, 'sine');
+      sfx('go');
       updateMiniHUD();
+    } else if (countdownLabel() !== mini.countTick) {
+      mini.countTick = countdownLabel();
+      if (mini.countTick !== 'GO!') sfx('countdown');
     }
     return true;
   }
@@ -3189,7 +4669,7 @@ function finishMini(win, reason) {
   $('miniPauseBtn').classList.add('hidden');
   $('miniClose').disabled = true;
   $('miniTimer').textContent = 'Finished';
-  tone(win ? 690 : 135, win ? 0.2 : 0.3, win ? 'sine' : 'triangle');
+  sfx(win ? 'clear' : 'miss');
 }
 
 // Countdown / finish card for the wide 800 × 450 canvas (the IV game).
@@ -3207,19 +4687,11 @@ function paintTransition(g) {
     g.scale(z, z);
   }
   rr(g, -250, -70, 500, 155, 24, '#102c42f5', '#afdec277', 1.3);
-  const title = intro
-    ? mini.transition < 3
-      ? String(3 - Math.floor(mini.transition))
-      : 'GO!'
-    : mini.pendingFinish.win
-      ? 'Run complete!'
-      : 'Well. That happened.';
+  const title = intro ? countdownLabel() : mini.pendingFinish.win ? 'Run complete!' : 'Well. That happened.';
   label(g, title, 0, 0, intro ? 64 : 35, outro && !mini.pendingFinish.win ? '#f5b6b2' : '#edf4d7', 'center');
   label(
     g,
-    intro
-      ? 'Find your controls. The clock has not started.'
-      : 'Score ' + mini.score + ' · best chain ' + mini.maxCombo,
+    intro ? 'The clock starts on GO.' : 'Score ' + mini.score + ' · best chain ' + mini.maxCombo,
     0,
     43,
     16,
@@ -5463,40 +6935,154 @@ function drawShooter(g) {
   }
 }
 
-// DOM wiring: shop, difficulty, dialogs, touch controls, keyboard, and startup.
+// DOM wiring: shop, difficulty, dialogs, arcade (fullscreen) mode, touch controls, keyboard, and startup.
 
 // ---- Gift shop and difficulty ----
+// Priced so the shop lasts about twenty runs: roughly 2,900 coins in all.
 const upgrades = [
   {
     id: 'slippers',
     name: 'Turbo grippy socks',
     price: 140,
-    desc: 'Dash cooldown drops from 2 seconds to 1.25. Extremely questionable traction.'
+    desc: 'Dash cooldown drops from 2 seconds to 1.25. Traction: questionable.'
   },
   {
     id: 'pillow',
     name: 'The orthopedic overreactor',
     price: 210,
-    desc: 'A longer pillow reach. Easier blob deflections. Still technically bedding.'
+    desc: 'Longer pillow reach. Easier blob deflections. Still technically bedding.'
   },
   {
     id: 'bag',
     name: 'Deluxe dignity bubble',
     price: 180,
-    desc: 'Your barf-bag shield lasts 3.4 seconds instead of 2.5. Luxury, apparently.'
+    desc: 'The barf-bag shield lasts 3.4 seconds instead of 2.5. Luxury, apparently.'
+  },
+  {
+    id: 'thick',
+    name: 'Thick skin',
+    price: 260,
+    desc: 'Longer invulnerability after a hit. Emotional armor sold separately.'
+  },
+  {
+    id: 'snacks',
+    name: 'Pocket snacks',
+    price: 300,
+    desc: 'Carry five nutrients instead of three. The hoodie pocket was always bigger on the inside.'
+  },
+  {
+    id: 'repellent',
+    name: 'Ralph repellent',
+    price: 340,
+    desc: 'The first wave in every ward shows up one gremlin short. Smells like hand sanitizer and spite.'
+  },
+  {
+    id: 'pass',
+    name: 'Arcade pass',
+    price: 380,
+    desc: 'Steady hands runs get a third assist. The arcade calls it accessibility. Ralph calls it cheating.'
+  },
+  {
+    id: 'scrunchie',
+    name: 'Lucky scrunchie',
+    price: 420,
+    desc: 'A sixth heart. Science cannot explain it. Neither can Ralph.'
   }
 ];
 
+// Wardrobe: looks only. girl() reads what Macy is wearing through macyLook().
+const wardrobe = [
+  { id: 'look-hoodie', name: 'Varsity hoodie', price: 250, desc: 'Team purple with gold trim. Hospital chic.' },
+  {
+    id: 'look-scrunchie',
+    name: 'Highlighter scrunchie',
+    price: 200,
+    desc: 'Visible from space. Also from the nurses’ station.'
+  },
+  {
+    id: 'look-socks',
+    name: 'Softball stitch socks',
+    price: 180,
+    desc: 'Red seams, white socks. Ready to slide into second, or into bed.'
+  }
+];
+
+function drawShopMacy() {
+  const g = configureCanvas($('shopMacy'), 96, 124);
+  rect(g, 0, 0, 96, 124, '#203b44');
+  ellipse(g, 48, 116, 34, 7, '#16303a');
+  girl(g, 48, 114, 1.2, 0, 1, false, false);
+}
+
+function drawPortrait() {
+  const g = configureCanvas($('portrait'), 80, 112);
+  g.clearRect(0, 0, 80, 112);
+  girl(g, 38, 103, 1.23, 0, 1);
+}
+
+function shopRow(item, button) {
+  return `<div class="shop-item"><div><strong>${item.name}</strong><p>${item.desc}</p></div>${button}</div>`;
+}
+
 function showShop() {
   $('shopBalance').textContent = `Pocket money: ${state.coins} coins`;
-  $('shopItems').innerHTML = upgrades
-    .map(
-      u =>
-        `<div class="shop-item"><div><strong>${u.name}</strong><p>${u.desc}</p></div>` +
-        `<button class="primary" data-buy="${u.id}" ${state.upgrades.includes(u.id) || state.coins < u.price ? 'disabled' : ''}>${state.upgrades.includes(u.id) ? 'Equipped ✓' : u.price + ' coins'}</button></div>`
-    )
+  const upgradeRows = upgrades
+    .map(u => {
+      const owned = state.upgrades.includes(u.id),
+        button =
+          `<button class="primary" data-buy="${u.id}" ${owned || state.coins < u.price ? 'disabled' : ''}>` +
+          `${owned ? 'Owned ✓' : u.price + ' coins'}</button>`;
+      return shopRow(u, button);
+    })
     .join('');
+  const lookRows = wardrobe
+    .map(w => {
+      const owned = state.cosmetics.owned.includes(w.id),
+        worn = state.cosmetics.worn.includes(w.id),
+        button = owned
+          ? `<button class="primary ${worn ? '' : 'yellow'}" data-wear="${w.id}" aria-pressed="${worn}">${worn ? 'Wearing ✓' : 'Wear it'}</button>`
+          : `<button class="primary" data-buy="${w.id}" ${state.coins < w.price ? 'disabled' : ''}>${w.price} coins</button>`;
+      return shopRow(w, button);
+    })
+    .join('');
+  $('shopItems').innerHTML =
+    `<h3 class="shop-section">Upgrades</h3>${upgradeRows}` +
+    `<h3 class="shop-section">Wardrobe · looks only</h3>${lookRows}`;
+  drawShopMacy();
   modalOpen($('shopDialog'));
+}
+
+// Buys an upgrade or a wardrobe item by id. Returns true when coins changed hands.
+function buyItem(id) {
+  const u = upgrades.find(x => x.id === id),
+    w = wardrobe.find(x => x.id === id),
+    item = u || w;
+  if (!item || state.coins < item.price) return false;
+  if (u && state.upgrades.includes(id)) return false;
+  if (w && state.cosmetics.owned.includes(id)) return false;
+  state.coins -= item.price;
+  if (u) {
+    state.upgrades.push(id);
+    // The scrunchie's sixth heart arrives full.
+    if (id === 'scrunchie') state.hp = Math.min(maxHearts(), state.hp + 1);
+  } else {
+    state.cosmetics.owned.push(id);
+    state.cosmetics.worn.push(id);
+    drawPortrait();
+  }
+  save();
+  hud();
+  sfx('coin');
+  return true;
+}
+
+function toggleWear(id) {
+  if (!state.cosmetics.owned.includes(id)) return;
+  const worn = state.cosmetics.worn;
+  state.cosmetics.worn = worn.includes(id) ? worn.filter(x => x !== id) : [...worn, id];
+  save();
+  drawPortrait();
+  sfx('ui');
 }
 
 function showDifficulty() {
@@ -5512,16 +7098,13 @@ function showDifficulty() {
 }
 
 $('shopItems').addEventListener('click', e => {
-  let b = e.target.closest('[data-buy]');
-  if (!b) return;
-  let u = upgrades.find(u => u.id === b.dataset.buy);
-  if (!u || state.upgrades.includes(u.id) || state.coins < u.price) return;
-  state.coins -= u.price;
-  state.upgrades.push(u.id);
-  save();
-  hud();
-  showShop();
-  tone(620, 0.15);
+  const buy = e.target.closest('[data-buy]'),
+    wear = e.target.closest('[data-wear]');
+  if (buy && buyItem(buy.dataset.buy)) showShop();
+  if (wear) {
+    toggleWear(wear.dataset.wear);
+    showShop();
+  }
 });
 
 $('difficultyOptions').addEventListener('click', e => {
@@ -5541,7 +7124,7 @@ $('shopBtn').addEventListener('click', showShop);
 
 $('approachOptions').addEventListener('click', e => {
   const b = e.target.closest('[data-approach]');
-  if (b && mini.screen === 'lobby') {
+  if (b && !b.disabled && mini.screen === 'lobby') {
     mini.approach = +b.dataset.approach;
     showLobby();
   }
@@ -5554,11 +7137,131 @@ $('tierGrid').addEventListener('click', e => {
   showLobby();
 });
 
+// ---- Sound ----
+// audio.js owns the engine. Until it offers toggle(), the header button flips state.sound directly.
+function uiSoundOn() {
+  return typeof audio !== 'undefined' && typeof audio.toggle === 'function' ? !!audio.enabled : !!state.sound;
+}
+
+function uiRenderSound() {
+  const on = uiSoundOn();
+  $('soundBtn').innerHTML = `<svg><use href="#i-${on ? 'sound' : 'mute'}"/></svg><span>Sound ${on ? 'on' : 'off'}</span>`;
+  $('soundBtn').setAttribute('aria-label', `Turn sound ${on ? 'off' : 'on'}`);
+  $('soundBtn').setAttribute('title', `Sound ${on ? 'on' : 'off'}`);
+  $('pauseSound').textContent = `Sound ${on ? 'on' : 'off'}`;
+  $('miniSound').textContent = `Sound ${on ? 'on' : 'off'}`;
+}
+
+function uiToggleSound() {
+  if (typeof audio !== 'undefined' && typeof audio.toggle === 'function') audio.toggle();
+  else {
+    state.sound = !state.sound;
+    if (typeof audio !== 'undefined') audio.enabled = state.sound;
+  }
+  save();
+  uiRenderSound();
+  sfx('ui');
+}
+
+function uiUnlockAudio() {
+  if (typeof audio !== 'undefined' && typeof audio.unlock === 'function') audio.unlock();
+}
+
+// ---- Arcade mode (fullscreen) ----
+// body.arcade pins the cabinet to the screen and hides the page around it. The Fullscreen API is
+// used where it exists (desktop, Android); iPhone Safari has none for pages, so CSS does the work.
+let arcadeFullscreen = false;
+
+function isPhone() {
+  const w = window.innerWidth || 1000,
+    h = window.innerHeight || 1000;
+  return matchMedia('(pointer: coarse)').matches && Math.min(w, h) <= 540;
+}
+
+function fullscreenElement() {
+  return document.fullscreenElement || document.webkitFullscreenElement || null;
+}
+
+function requestFullscreenSafe() {
+  const root = document.documentElement;
+  if (!root || fullscreenElement()) return;
+  const request = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (!request) return;
+  try {
+    const result = request.call(root, { navigationUI: 'hide' });
+    arcadeFullscreen = true;
+    if (result && result.catch) result.catch(() => (arcadeFullscreen = false));
+  } catch {
+    arcadeFullscreen = false;
+  }
+}
+
+function exitFullscreenSafe() {
+  const exit = document.exitFullscreen || document.webkitExitFullscreen;
+  arcadeFullscreen = false;
+  if (fullscreenElement() && exit) {
+    try {
+      const result = exit.call(document);
+      if (result && result.catch) result.catch(() => {});
+    } catch {}
+  }
+}
+
+function inArcade() {
+  return document.body.classList.contains('arcade');
+}
+
+function renderArcadeButtons() {
+  const on = inArcade();
+  $('arcadeToggle').innerHTML = on
+    ? '<span aria-hidden="true">✕</span><span class="btn-label">Exit</span>'
+    : '<svg><use href="#i-expand"/></svg><span class="btn-label">Fullscreen</span>';
+  $('arcadeToggle').setAttribute('aria-label', on ? 'Exit fullscreen' : 'Play fullscreen');
+  $('fullBtn').setAttribute('aria-pressed', String(on));
+  $('pauseFull').textContent = on ? 'Exit fullscreen' : 'Fullscreen';
+}
+
+// gesture = true when called from a click or tap, the only time browsers allow real fullscreen.
+function enterArcade(gesture = true) {
+  document.body.classList.add('arcade');
+  if (state.arcade !== true) {
+    state.arcade = true;
+    save();
+  }
+  if (gesture) requestFullscreenSafe();
+  renderArcadeButtons();
+  resize();
+}
+
+function exitArcade() {
+  document.body.classList.remove('arcade');
+  state.arcade = false;
+  save();
+  exitFullscreenSafe();
+  renderArcadeButtons();
+  resize();
+}
+
+function toggleArcade() {
+  if (inArcade()) exitArcade();
+  else enterArcade(true);
+}
+
+['fullscreenchange', 'webkitfullscreenchange'].forEach(type =>
+  document.addEventListener(type, () => {
+    // Leaving browser fullscreen (Esc, Android back) leaves arcade mode too.
+    if (!fullscreenElement() && arcadeFullscreen && inArcade()) exitArcade();
+    resize();
+  })
+);
+
 // ---- Arcade dialog ----
 $('miniStart').addEventListener('click', startMini);
 $('miniReadyBtn').addEventListener('click', launchMini);
+$('miniGo').addEventListener('click', launchMini);
 $('miniPauseBtn').addEventListener('click', pauseMini);
 $('miniResume').addEventListener('click', pauseMini);
+$('miniSound').addEventListener('click', uiToggleSound);
 $('miniBack').addEventListener('click', leaveMini);
 $('miniClose').addEventListener('click', leaveMini);
 
@@ -5567,7 +7270,8 @@ $('miniRetry').addEventListener('click', () => {
     mini.forced = false;
     $('miniClose').classList.remove('hidden');
   }
-  if (mini.win && mini.tier < 2) mini.tier++;
+  // A Daily Dose keeps its fixed level; normal runs move up after a win.
+  if (mini.win && mini.tier < 2 && !mini.daily) mini.tier++;
   $('miniDialog').classList.remove('gory');
   gore = [];
   showLobby();
@@ -5722,6 +7426,7 @@ $('useBtn').addEventListener('click', useItem);
 $('dashBtn').addEventListener('click', dash);
 $('cycleBtn').addEventListener('click', () => equip((state.item + 1) % 3));
 $('eatBtn').addEventListener('click', eat);
+$('hudEat').addEventListener('click', eat);
 
 // ---- Keyboard ----
 // Keys whose browser defaults (scrolling, find-as-you-type) are suppressed while playing.
@@ -5736,6 +7441,7 @@ const WARD_KEYS = [
 
 // Arcade keys: Escape pauses, E is the assist, everything else goes to the game's key hook.
 window.addEventListener('keydown', e => {
+  uiUnlockAudio();
   if (e.target instanceof HTMLInputElement) return;
   const k = e.key.toLowerCase();
   if (mini.open && ['play', 'intro'].includes(mini.screen)) {
@@ -5751,10 +7457,15 @@ window.addEventListener('keydown', e => {
     }
     // Everything else belongs to the game (def.key).
     const def = games[mini.id];
-    if (def.key) def.key(k, e);
+    if (def.key) dailyScoped(() => def.key(k, e));
     return;
   }
   if (isModal()) return;
+  if (k === 'escape') {
+    if (!e.repeat) setWardPause(!state.paused);
+    return;
+  }
+  if (state.paused) return;
   if (WARD_KEYS.includes(k)) {
     e.preventDefault();
     if (!state.started) begin();
@@ -5772,12 +7483,8 @@ window.addEventListener('keydown', e => {
   if (['1', '2', '3'].includes(k)) equip(+k - 1);
   if (k === 'enter') {
     let [x, y] = rooms[state.room].station;
-    if (dist(player, { x, y }) < 85) openMini(state.room);
+    if (dist(player, { x, y }) < 85) tryOpenArcade();
     else toast('Find the glowing arcade beacon, or use the Play button.', 2);
-  }
-  if (k === 'escape') {
-    state.paused = !state.paused;
-    clearHeld();
   }
 });
 
@@ -5789,11 +7496,15 @@ window.addEventListener('keyup', e => {
   }
 });
 
+// Audio needs a user gesture to start on phones and in Safari.
+document.addEventListener('pointerdown', uiUnlockAudio, true);
+document.addEventListener('click', uiUnlockAudio, true);
+
 // ---- Focus, header buttons, and dialogs ----
 function loseFocus() {
   clearHeld();
   if (mini.open && ['play', 'intro'].includes(mini.screen) && !mini.paused) pauseMini();
-  else if (state.started && !isModal()) state.paused = true;
+  else if (state.started && !isModal()) setWardPause(true);
 }
 
 window.addEventListener('blur', loseFocus);
@@ -5802,37 +7513,40 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) loseFocus();
 });
 
-canvas.addEventListener('click', () => {
-  if (state.paused) {
-    state.paused = false;
-    toast('Back to the nonsense.', 1);
-  }
+// A tap on the room resumes from pause; a tap on the beacon opens its arcade.
+canvas.addEventListener('click', e => {
+  if (state.paused) setWardPause(false);
+  else if (state.started && !isModal() && e && e.clientX !== undefined && beaconTapped(wardPoint(e)))
+    tryOpenArcade();
   canvas.focus({ preventScroll: true });
 });
 
-$('startBtn').addEventListener('click', begin);
+$('startBtn').addEventListener('click', () => {
+  // Phones go fullscreen on the first start unless the player already said no.
+  if (state.arcade === true || (state.arcade === null && isPhone())) enterArcade(true);
+  begin();
+});
 
 $('arcadeBtn').addEventListener('click', () => {
   if (!state.started) begin();
-  openMini(state.room);
+  tryOpenArcade();
 });
 
 $('mapBtn').addEventListener('click', openMap);
 $('helpBtn').addEventListener('click', () => modalOpen($('helpDialog')));
+$('fullBtn').addEventListener('click', toggleArcade);
+$('arcadeToggle').addEventListener('click', toggleArcade);
+$('soundBtn').addEventListener('click', uiToggleSound);
 
-$('focusBtn').addEventListener('click', () => {
-  document.body.classList.toggle('focus-mode');
-  $('focusBtn').setAttribute('aria-pressed', document.body.classList.contains('focus-mode'));
-  resize();
-});
+$('pauseBtn').addEventListener('click', () => setWardPause(!state.paused));
 
-$('soundBtn').addEventListener('click', () => {
-  state.sound = !state.sound;
-  $('soundBtn').innerHTML =
-    `<svg><use href="#i-${state.sound ? 'sound' : 'mute'}"/></svg><span>Sound ${state.sound ? 'on' : 'off'}</span>`;
-  $('soundBtn').setAttribute('aria-label', `Turn sound ${state.sound ? 'off' : 'on'}`);
-  tone(520, 0.1);
-});
+$('wardResume').addEventListener('click', () => setWardPause(false));
+$('pauseMap').addEventListener('click', openMap);
+$('pauseShop').addEventListener('click', showShop);
+$('pauseHelp').addEventListener('click', () => modalOpen($('helpDialog')));
+$('pauseSound').addEventListener('click', uiToggleSound);
+$('pauseFull').addEventListener('click', toggleArcade);
+$('turnHintClose').addEventListener('click', () => $('turnHint').classList.add('hidden'));
 
 $$('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
 
@@ -5847,6 +7561,16 @@ $('mapGrid').addEventListener('click', e => {
   let b = e.target.closest('[data-room]');
   if (b) goRoom(+b.dataset.room);
 });
+
+// Daily Dose cards (sidebar and map).
+function dailyClick(e) {
+  if (!e.target.closest('[data-daily]')) return;
+  if (!state.started) begin();
+  openDaily();
+}
+
+$('dailyCard').addEventListener('click', dailyClick);
+$('mapDaily').addEventListener('click', dailyClick);
 
 $('departmentGrid').addEventListener('click', e => {
   let b = e.target.closest('[data-room]');
@@ -5880,8 +7604,17 @@ $('resetBtn').addEventListener('click', () => {
   state.taken = [];
   state.defeated = [];
   state.upgrades = [];
+  state.cosmetics = { owned: [], worn: [] };
   state.won = false;
   state.wardClears = rooms.map(() => 0);
+  state.evictions = 0;
+  state.bestChain = 0;
+  state.coinsEarned = 0;
+  state.runs = 0;
+  state.ralphReady = false;
+  state.ralph = false;
+  state.briefed = [];
+  state.daily = { last: '', best: 0, streak: 0 };
   state.started = false;
   document.body.classList.remove('playing');
   state.paused = false;
@@ -5889,19 +7622,38 @@ $('resetBtn').addEventListener('click', () => {
   $$('dialog[open]').forEach(d => d.close());
   loadRoom(0);
   hud();
+  drawPortrait();
   $('startCallout').classList.remove('hidden');
   $('resetBtn').textContent = 'Start a fresh adventure';
 });
 
 // ---- Startup ----
+// Returning players skip the hero and land on the cabinet with a shorter welcome.
+function welcomeBack() {
+  document.body.classList.add('returning');
+  $('calloutKicker').textContent = 'WELCOME BACK / STILL NOT DISCHARGED';
+  $('calloutTitle').textContent = `Back for more, ${state.name || 'Macy'}?`;
+  $('calloutText').textContent = state.ralphReady && !state.ralph
+    ? 'Ralph is waiting in your room. He has been practicing his menacing face.'
+    : 'The gremlins rearranged nothing. They did eat your pudding.';
+  $('startLabel').textContent = 'Back to the ward';
+}
+
 new ResizeObserver(resize).observe($('stage'));
 buildDepartments();
 setupIllustrations();
 loadRoom(0);
 hud();
 equip(0);
-girl($('portrait').getContext('2d'), 38, 103, 1.23, 0, 1);
+drawPortrait();
+uiRenderSound();
+if (typeof audio !== 'undefined' && typeof audio.toggle !== 'function') audio.enabled = !!state.sound;
+if (state.played) welcomeBack();
+// A phone that chose arcade mode starts in it (CSS only until the first tap allows real fullscreen).
+if (state.arcade === true && isPhone()) enterArcade(false);
+renderArcadeButtons();
 resize();
+checkDischarge();
 
 if (state.hp === 0) {
   begin();
