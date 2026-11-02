@@ -163,7 +163,8 @@ const wardProgress = {},
   wardHook = { ground: false, fx: false, overlay: false };
 
 // ---- Small helpers ----
-const wardCombatRoom = id => id !== 0 && id !== 5,
+// Rooms 0 and 5 (home base) and 6 (the hallway) are safe: no encounter, no lock, no grudge.
+const wardCombatRoom = id => id !== 0 && id !== 5 && id !== 6,
   wardHas = id => Array.isArray(state.upgrades) && state.upgrades.includes(id),
   wardSize = e => breeds[e.type].size * (e.small ? 0.68 : 1),
   wardPace = () => encounter.pace || 1,
@@ -360,6 +361,7 @@ function updateWardHUD() {
   if (encounter.boss && wardBoss && !encounter.complete)
     text = `RALPH · PHASE ${wardBoss.phase || 1}/3 · ${Math.max(0, Math.ceil(wardBoss.hp))} HP OF NONSENSE`;
   else if (encounter.boss && ralphRetreated) text = "HOME BASE · RALPH RETREATED. HE'LL BE BACK";
+  else if (room === 6) text = 'FOURTH FLOOR · NO GREMLINS. JUST YOUR PEOPLE';
   else if (!wardCombatRoom(room))
     text = room === 0 && state.ralph ? 'HOME BASE · RALPH EVICTED. ENJOY THE QUIET' : 'HOME BASE · SAFE TO BREATHE';
   else if (encounter.complete)

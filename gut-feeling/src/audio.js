@@ -4,8 +4,9 @@
 //
 // Public API
 //   sfx(name, {combo, count, pan, vol})  One designed effect. Unknown names play a generic blip.
-//   music(name)                          Crossfade to a looped track ('room:0'..'room:5', 'game:0'..'game:5',
-//                                        'boss') or a one-shot sting ('result:win', 'result:lose').
+//                                        sfx('talk', {voice, count, combo}) is one syllable of a hallway voice.
+//   music(name)                          Crossfade to a looped track ('room:0'..'room:6', 'game:0'..'game:5',
+//                                        'boss', 'title') or a one-shot sting ('result:win', 'result:lose').
 //                                        music(null) stops; repeating the current name does nothing.
 //   tone(freq, dur, type, vol)           Legacy beep, routed through the same mixer.
 //   audio.unlock()                       Create/resume the context. Called on every user gesture.
@@ -855,6 +856,40 @@ const SFX = {
   }
 };
 
+// ---- Hallway voices ----
+// sfx('talk', {voice, count, combo}): one syllable of speech per typed chunk in a hallway conversation.
+// voice picks the speaker, count walks a little contour so a sentence sounds like talking, and combo
+// nudges the pitch in semitones so two nurses never sound like twins. Unknown voices use the nurse.
+const AUDIO_TALK_VOICES = {
+  dad: { w: 'triangle', f: 128, dur: 0.08, v: 0.16, cut: 1100, sub: 0.55, lift: 0.95 },
+  brother: { w: 'pulse25', f: 238, dur: 0.045, v: 0.055, cut: 1900, lift: 1.04 },
+  grandma: { w: 'sine', f: 340, dur: 0.085, v: 0.13, wobble: 0.06, lift: 0.97 },
+  grandpa: { w: 'sawtooth', f: 102, dur: 0.11, v: 0.06, cut: 650, sub: 0.6, lift: 0.93 },
+  cousin: { w: 'pulse25', f: 430, dur: 0.045, v: 0.045, cut: 3400, lift: 1.06 },
+  doctor: { w: 'triangle', f: 196, dur: 0.06, v: 0.12, cut: 1500, lift: 0.98 },
+  nurse: { w: 'triangle', f: 300, dur: 0.055, v: 0.12, cut: 2400, lift: 1.05 },
+  ensure: { w: 'square', f: 392, dur: 0.05, v: 0.075, cut: 2800, lift: 1.12, loud: 1.5 },
+  macy: { w: 'triangle', f: 285, dur: 0.05, v: 0.12, cut: 2600, lift: 1.03 }
+};
+
+const AUDIO_TALK_CONTOUR = [0, 3, 5, 2, 7, 4, 1, 5];
+
+SFX.talk = {
+  gain: 1.6,
+  gap: 0.035,
+  play(t, o, d) {
+    const v = AUDIO_TALK_VOICES[o.voice] || AUDIO_TALK_VOICES.nurse,
+      step = AUDIO_TALK_CONTOUR[audioMod(Math.floor(o.count), AUDIO_TALK_CONTOUR.length)],
+      f = v.f * audioSemi(step + clamp(o.combo, -7, 7)) * o.j,
+      level = v.v * (v.loud || 1);
+    audioOsc(t, d, { w: v.w, f, f2: f * v.lift, dur: v.dur, v: level, a: 0.006, cut: v.cut });
+    if (v.sub) audioOsc(t, d, { w: 'sine', f: f / 2, dur: v.dur, v: level * v.sub });
+    if (v.wobble)
+      audioOsc(t + v.dur * 0.35, d, { w: v.w, f: f * (1 + v.wobble), f2: f * (1 - v.wobble), dur: v.dur * 0.75, v: level * 0.6 });
+    audioNoise(t, d, { ft: 'bandpass', f: Math.min(7000, f * 7), q: 2, dur: 0.018, v: 0.025 });
+  }
+};
+
 const audioOwn = name => typeof name === 'string' && Object.prototype.hasOwnProperty.call(SFX, name);
 
 function sfx(name, opts = {}) {
@@ -869,7 +904,12 @@ function sfx(name, opts = {}) {
   if (vol <= 0) return;
   audioLast[key] = now;
   const t = now + 0.005,
-    x = { combo: Number(o.combo) || 0, count: Number(o.count) || 0, j: audioJitter(0.035) };
+    x = {
+      combo: Number(o.combo) || 0,
+      count: Number(o.count) || 0,
+      j: audioJitter(0.035),
+      voice: typeof o.voice === 'string' ? o.voice : ''
+    };
   let dest = audio.sfxBus;
   audioGroup = null;
   if (Number.isFinite(o.pan) && o.pan !== 0 && typeof audioCtx.createStereoPanner === 'function') {
@@ -1513,6 +1553,117 @@ const AUDIO_MUSIC = {
   'result:win': { base: 'win' },
   'result:lose': { base: 'lose' }
 };
+
+// ---- Hallway and title tracks ----
+// The hallway: a G-major stroll with a walking bass, warm keys and a bell that says hi to everyone.
+AUDIO_SONGS.hallway = {
+  bpm: 104,
+  level: 1.3,
+  shuffle: 0.3,
+  root: 55,
+  scale: 'major',
+  inst: { lead: 'tri', bass: 'bass', pad: 'keys', arp: 'bell' },
+  mix: { lead: 0.8, bass: 0.85, chord: 0.65, drum: 0.5 },
+  breathe: true,
+  form: ['A', 'B', 'A2', 'C'],
+  kits: {
+    stroll: { k: 'x.......x.......', s: '....g.......g...', h: 'g.g.g.g.g.g.g.g.' },
+    clap: { k: 'x.......x.....g.', clap: '....x.......x...', h: 'g.g.g.g.g.g.g.g.' }
+  },
+  sections: {
+    A: {
+      chords: [0, 5, 3, 4],
+      drums: 'stroll',
+      lead: ['4-2-0-2-4---4---', '5-4-2-4-5-------', '3-4-5-7-5---4---', '2-------1-2-4---'],
+      bass: '0...2...4...2...',
+      pad: 'x-------x-------'
+    },
+    B: {
+      chords: [3, 0, 1, 4],
+      drums: 'stroll',
+      lead: ['7---5---3---5---', '4---2---0---2-4-', '5---4---3---1---', '2-3-4-------....'],
+      bass: '0...2...4...2...',
+      pad: 'x-------x-------',
+      arp: '....2.......1...'
+    },
+    A2: {
+      chords: [0, 5, 3, 4],
+      drums: 'stroll',
+      lead: ['4-2-0-2-4---7---', '8-7-5-4-5-------', '3-4-5-7-9---8---', '7-------........'],
+      bass: '0...2...4...2...',
+      pad: 'x-------x-------',
+      arp: '0.1.2.3.2.1.2.1.'
+    },
+    C: {
+      chords: [5, 3, 0, 4],
+      drums: 'clap',
+      lead: ['5---7---9-------', '8---7---5-------', '7-5-4-2-4-------', '1-------2---4---'],
+      bass: '0...4...0...4...',
+      pad: 'x---x---x---x---'
+    }
+  }
+};
+
+// The title screen: the main theme. Sixteen bars of bright G-major chiptune, A/B/A/B, with a rising
+// arpeggio hook and a hospital PA chime (ding, dong, dong on the bell) at the top of every loop.
+AUDIO_SONGS.title = {
+  bpm: 128,
+  level: 1.7,
+  root: 55,
+  scale: 'major',
+  inst: { lead: 'pulse', bass: 'bassPulse', pad: 'stab', arp: 'bell' },
+  mix: { lead: 0.85, bass: 0.85, chord: 0.6, drum: 0.7 },
+  form: ['A', 'B', 'A2', 'B2'],
+  kits: {
+    top: {
+      k: 'x.....x...x.....',
+      s: '....x.......x...',
+      h: 'x.x.x.x.x.x.x.x.',
+      c: ['x...............', '................', '................', '................']
+    },
+    groove: { k: 'x.....x...x.....', s: '....x.......x...', h: 'x.x.x.x.x.x.x.xg' },
+    fill: {
+      k: 'x.....x...x.....',
+      s: ['....x.......x...', '....x.......x...', '....x.......x...', '....x.....x.xgxX'],
+      h: 'x.x.x.x.x.x.x.x.'
+    }
+  },
+  sections: {
+    A: {
+      chords: [0, 4, 5, 3],
+      drums: 'top',
+      lead: ['0-2-4-7-----4-5-', '6-5-4-----2-4---', '5-4-2-0-----2-4-', '3---2---1-------'],
+      bass: '0.7.0.7.0.7.0.7.',
+      pad: '..x...x...x...x.',
+      arp: ['5...4...3.......', '................', '................', '................']
+    },
+    B: {
+      chords: [3, 0, 5, 4],
+      drums: 'groove',
+      lead: ['7-7-8-9---7-----', '8-7-4-7---4-----', '9-8-7-5-7---4---', '4---6---8---6---'],
+      bass: '0...0.7.0...4.7.',
+      pad: 'x-------x-------'
+    },
+    A2: {
+      chords: [0, 4, 5, 3],
+      drums: 'groove',
+      lead: ['0-2-4-7-----4-5-', '6-5-4-----2-4---', '5-4-2-0-----2-4-', '3-2-1-2-4-------'],
+      bass: '0.7.0.7.0.7.0.7.',
+      pad: '..x...x...x...x.',
+      arp: '....3.......4...'
+    },
+    B2: {
+      chords: [3, 0, 5, 4],
+      drums: 'fill',
+      lead: ['7-7-8-9---7-----', '8-7-4-7---4-----', '9-8-7-5-7---4---', '4---6---8-7-6-4-'],
+      bass: '0...0.7.0...4.7.',
+      pad: 'x-------x-------'
+    }
+  }
+};
+
+AUDIO_MUSIC['room:6'] = { base: 'hallway' };
+AUDIO_MUSIC.title = { base: 'title' };
 
 function audioDegree(ch) {
   const i = '0123456789'.indexOf(ch);
