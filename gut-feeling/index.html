@@ -1039,6 +1039,11 @@ body.arcade #miniDialog .mini-briefing {
   }
 }
 
+/* Arcade mode: the canvas hugs its drawing instead of leaving letterbox space around a square game. */
+body.arcade #miniDialog .mini-stage{display:flex;align-items:center;justify-content:center}
+body.arcade #miniDialog[data-arcade=gesture] #miniCanvas{width:auto;height:100%;max-width:100%;max-height:100%;aspect-ratio:1;margin:auto;display:block}
+body.arcade #miniDialog[data-arcade=iv] #miniCanvas{width:auto;height:100%;max-width:100%;max-height:100%;aspect-ratio:16/9;margin:auto;display:block}
+
 </style>
 </head>
 <body>
@@ -8985,7 +8990,8 @@ function resolveMiniResult(win, reason) {
   save();
   music('result:' + (win ? 'win' : 'lose'));
   drawResultArt();
-  $('miniResult').scrollIntoView({ block: 'nearest' });
+  // Show the result art in full under the sticky header instead of scrolling it half out of view.
+  $('miniDialog').scrollTop = 0;
 }
 
 function drawResultArt() {

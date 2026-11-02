@@ -533,7 +533,8 @@ function resolveMiniResult(win, reason) {
   save();
   music('result:' + (win ? 'win' : 'lose'));
   drawResultArt();
-  $('miniResult').scrollIntoView({ block: 'nearest' });
+  // Show the result art in full under the sticky header instead of scrolling it half out of view.
+  $('miniDialog').scrollTop = 0;
 }
 
 function drawResultArt() {
