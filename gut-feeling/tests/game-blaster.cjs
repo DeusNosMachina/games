@@ -22,7 +22,13 @@ function bbMouse(type, x, y, extra = {}) {
 }
 function bbTouch(type, id, x, y) {
   blasterPointerEvent({ type, pointerType: 'touch', pointerId: id, button: 0, target: $('miniCanvas'),
-    clientX: x * 1000 / 600, clientY: y * 625 / 600 });
+    ...bbClient(x, y) });
+}
+// Invert miniPoint's letterboxed mapping for the harness's 1000x625 canvas rect.
+function bbClient(x, y) {
+  const r = $('miniCanvas').getBoundingClientRect(), { w, h } = games[mini.id].canvas,
+    s = Math.min(r.width / w, r.height / h) || 1;
+  return { clientX: r.left + (r.width - w * s) / 2 + x * s, clientY: r.top + (r.height - h * s) / 2 + y * s };
 }
 `);
 const n=s=>run(s),j=s=>JSON.parse(run('JSON.stringify('+s+')'));
