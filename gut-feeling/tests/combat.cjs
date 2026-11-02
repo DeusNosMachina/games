@@ -126,7 +126,7 @@ assert.equal(run('state.hp'), 5, 'a high jump clears blobs');
 run('player.z=0;damage("blob",{x:600,y:420})');
 assert.equal(run('state.hp'), 4);
 assert.ok(run('player.vomit>0'));
-run('state.upgrades.push("thickskin");player.inv=0;state.hp=5;damage("blob",{x:600,y:420})');
+run('state.upgrades.push("thick");player.inv=0;state.hp=5;damage("blob",{x:600,y:420})');
 assert.ok(run('player.inv') > 2, 'thick skin lengthens invulnerability');
 run('state.upgrades=[];state.hp=5;player.vomit=0;player.jumpCd=0;player.inv=0;jump()');
 assert.ok(run('player.vz') > 0);

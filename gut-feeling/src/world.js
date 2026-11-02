@@ -181,6 +181,8 @@ function loadRoom(id) {
   player.attackCd = 0;
   wardHpSeen = state.hp;
   const toastsBefore = toastSerial;
+  // The room track starts first so a boss intro inside startEncounter can take over the music.
+  music('room:' + id);
   startEncounter();
   $('roomTitle').textContent = rooms[id].name;
   $('roomSub').textContent = rooms[id].sub;
@@ -195,7 +197,6 @@ function loadRoom(id) {
     // Combat may announce its own wave or boss on entry; the room line only fills silence.
     if (toastSerial === toastsBefore) toast(roomToast(id), 3);
   }
-  music('room:' + id);
 }
 
 function begin() {
@@ -352,9 +353,6 @@ function updateWorld(dt) {
   moveEntity(player, dx * speed * dt, dy * speed * dt);
   if (keys.has(' ') || heldAttack) attack();
   updateCombat(dt);
-  // Thick skin: any heart lost this step buys a longer invulnerability window.
-  if (state.hp < wardHpSeen && state.upgrades.includes('thick'))
-    player.inv = Math.max(player.inv, THICK_SKIN_SECONDS);
   wardHpSeen = state.hp;
   for (let s of supplies.filter(supplyAvailable))
     if (dist(s, player) < 27 && state.food < maxFood()) {
@@ -407,11 +405,13 @@ function drawWorld() {
   c.translate(-cameraX + (shake ? rand(-3, 3) : 0), -wardCameraY + (shake ? rand(-2, 2) : 0));
   roomBg(c, state.room);
   for (let p of puddles) {
+    if (p.gunk) continue;
     c.globalAlpha = Math.min(1, p.life);
     ellipse(c, p.x, p.y, 30, 8, '#8da744');
     ellipse(c, p.x - 4, p.y - 2, 18, 4, '#b4c969');
   }
   c.globalAlpha = 1;
+  if (typeof drawCombatGround === 'function') drawCombatGround(c);
   const station = rooms[state.room].station,
     near = dist(player, { x: station[0], y: station[1] }) < 65,
     locked = arcadeBlocked();
@@ -520,9 +520,11 @@ function drawWorld() {
     label(c, f.text, f.x, f.y, 12, f.col, 'center');
   }
   c.globalAlpha = 1;
+  if (typeof drawCombatFx === 'function') drawCombatFx(c);
   rect(c, 0, 603, 1000, 22, '#244856');
   rect(c, 24, 603, 952, 4, '#90b6a2');
   c.restore();
+  if (typeof drawCombatOverlay === 'function') drawCombatOverlay(c, vw);
   if (state.paused) rect(c, 0, 0, vw, vh, '#102734aa');
   if (wardIris > 0) drawRoomIris(vw, vh);
 }

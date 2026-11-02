@@ -1151,7 +1151,7 @@ function damage(source, from) {
   if (player.z > 22) return;
   if (player.inv > 0 || player.shield > 0 || deadDelay > 0 || isModal()) return;
   state.hp--;
-  player.inv = wardHas('thickskin') ? 2.3 : 1.65;
+  player.inv = wardHas('thick') ? 2.6 : 1.65;
   player.vomit = 1.15;
   wardShake(0.22);
   hitStop = Math.max(hitStop, 0.06);

@@ -482,7 +482,9 @@ $('attackBtn').addEventListener('click', e => {
 $('jumpBtn').addEventListener('click', jump);
 
 $('rematchBtn').addEventListener('click', () => {
-  if (!isModal() && state.room !== 0 && encounter.complete) startEncounter();
+  if (isModal() || state.room === 0 || !encounter.complete) return;
+  if (typeof wardRematch === 'function') wardRematch();
+  else startEncounter();
 });
 
 $('useBtn').addEventListener('click', useItem);
