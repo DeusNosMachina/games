@@ -1112,16 +1112,27 @@ if (run('motmStub')) {
     drawMachineIcon = (g, id, x, y, s) => iconCalls.push([id, s]);`);
   const wall = JSON.parse(run('JSON.stringify(wallText())'));
   assert.ok(wall.includes('THE MRI') && wall.includes('EMPLOYEE') && wall.includes('OF THE MONTH'), 'the frame names the machine');
-  assert.deepEqual(JSON.parse(run('JSON.stringify(iconCalls)')), [['mri', 22]], 'with its portrait');
+  assert.deepEqual(JSON.parse(run('JSON.stringify(iconCalls)')), [['mri', 0.42]], 'with its portrait, scaled into the frame');
   run('hallwayDrawWall(ensureCtx)');
   run('hallwayResetCast(); state.room = 6');
   const eotm = talkOnce('stephanie');
-  assert.equal(eotm[0].text, 'The MRI got Employee of the Month again. It cried.', 'a nurse has a line about it');
+  assert.equal(eotm[0].text, 'Employee of the Month went to the MRI. Again. It cried.', 'a nurse has a line about it');
+  run(`machineOfTheMonth = () => ({ id: 'mri', name: 'BRRR 3000, the MRI', line: '' }); drawMachineIcon = realIcon;`);
+  assert.ok(JSON.parse(run('JSON.stringify(wallText())')).includes('BRRR 3000, THE MRI'), 'a long name still fits the frame');
   run('drawMachineIcon = () => { throw new Error("nope"); }; hallwayDrawWall(ensureCtx); hallwayDrawWall(c)');
   assert.deepEqual(ensureErrors.slice(0, 5), [], 'the frame draws cleanly');
   run('machineOfTheMonth = () => null');
   assert.equal(run('hallwayMachine()'), null, 'a machine that is not there is no machine');
   run('machineOfTheMonth = realMotm; drawMachineIcon = realIcon');
+  // The room's own pick, when this build has it.
+  if (run('typeof realMotm === "function"')) {
+    const real = JSON.parse(run('JSON.stringify(hallwayMachine())'));
+    assert.ok(real && real.id && real.name, `the room's machine of the month: ${real && real.name}`);
+    run('signLog = []; hallwayDrawWall(signCtx); hallwayDrawWall(ensureCtx)');
+    const label = JSON.parse(run('JSON.stringify(signLog)')).find(t => real.name.toUpperCase().startsWith(t.replace(/\.$/, '')) && t.length > 2);
+    assert.ok(label && label.length <= 18, `its name on the frame: ${label}`);
+    assert.deepEqual(ensureErrors.slice(0, 5), [], 'the real portrait draws cleanly');
+  }
 } else console.log('NOTE: machineOfTheMonth is a const in this build; skipped the stubbed frame checks.');
 console.log('PASS: Employee of the Month hangs at the nurses\' station, with or without the room\'s machine, and a nurse has a line about it.');
 

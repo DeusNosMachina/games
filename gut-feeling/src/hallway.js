@@ -490,7 +490,7 @@ const HALLWAY_LINES = {
       {
         when: () => !!hallwayMachine(),
         say: [
-          ['npc', '{machine} got Employee of the Month again. It cried.'],
+          ['npc', 'Employee of the Month went to {machine}. Again. It cried.'],
           ['macy', 'Machines can cry?'],
           ['npc', 'Not well. There was a lot of beeping.']
         ]
@@ -1204,7 +1204,7 @@ const hallwayName = () => (typeof state.name === 'string' && state.name.trim()) 
     text
       .replace(/\{name\}/g, hallwayName())
       .replace(/\{NAME\}/g, hallwayName().toUpperCase())
-      .replace(/\{machine\}/g, () => (hallwayMachine() || { name: 'The MRI' }).name),
+      .replace(/\{machine\}/g, () => (hallwayMachine() || { name: 'The MRI' }).name.replace(/^The /, 'the ')),
   hallwayHere = () => state.room === HALLWAY_ID && hallwayCast.length > 0,
   hallwayBusy = () => mini.open || (typeof isModal === 'function' && isModal()) || state.paused;
 
@@ -4327,7 +4327,8 @@ function hallwayEmployeeArt(g, x, y) {
   if (m && typeof drawMachineIcon === 'function') {
     g.save();
     try {
-      drawMachineIcon(g, m.id, cx, cy, 22);
+      // The room's portraits are about 48 units square at scale 1; this box is about 22.
+      drawMachineIcon(g, m.id, cx, cy, 0.42);
       drew = true;
     } catch {
       drew = false;
@@ -4335,8 +4336,10 @@ function hallwayEmployeeArt(g, x, y) {
     g.restore();
   }
   if (!drew) label(g, '?', cx, cy + 5.5, 15, '#9fb2b6', 'center');
-  const name = m ? m.name.toUpperCase() : 'VOTING OPEN';
-  label(g, name.length > 15 ? name.slice(0, 14) + '.' : name, cx, y + h - 8, 5.4, '#3f3a37', 'center');
+  // "BRRR 3000, the MRI" is a lot of name for a small frame: past eighteen letters, the part before the comma.
+  let name = m ? m.name.toUpperCase() : 'VOTING OPEN';
+  if (name.length > 18 && name.includes(',')) name = name.split(',')[0];
+  label(g, name.length > 18 ? name.slice(0, 17) + '.' : name, cx, y + h - 8, 5.4, '#3f3a37', 'center');
   // A gold star sticker in the corner, slightly crooked, because the nurses made it.
   spark(g, x + w - 8, y + 8, '#f0c94a', 0.45);
 }
