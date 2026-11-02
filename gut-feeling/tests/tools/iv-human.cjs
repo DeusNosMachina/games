@@ -55,7 +55,8 @@ for (const tier of (ONLY?[+ONLY]:[0,1,2])) {
       for(let k=0;k<3;k++){const before=run('mini.miss');run('updateMini(0.016)');const after=run('mini.miss');if(after>before){const c=run('mini.flashText').split('  ·')[0];const hopped=run('mini.drops.some(d=>d.caught&&d.bad&&d.hopped)');const key=c+(hopped?' [HOPPED]':'');causes[key]=(causes[key]||0)+1;if(TRACE&&trial===0){console.log('\n=== STRIKE',c,'t',t.toFixed(2));for(const l of log.slice(-16))console.log(JSON.stringify(l));}}}
       t+=0.048;
     }
-    runs.push({t:+t.toFixed(1),caught:run('mini.caught'),miss:run('mini.miss'),won:run('mini.phase')!==1&&run("mini.screen==='play'")});
+    // The phase moves on when the quota is in; three strikes end the run instead.
+    runs.push({t:+t.toFixed(1),caught:run('mini.caught'),miss:run('mini.miss'),won:run('mini.phase')!==1&&run('mini.miss')<3});
   }
   const won=runs.filter(r=>r.won).length;
   console.log('L'+(tier+1),'P'+DIFF,'react',REACT,'won',won,'/',runs.length,'avg caught',(runs.reduce((a,r)=>a+r.caught,0)/runs.length).toFixed(1),'avg s',(runs.reduce((a,r)=>a+r.t,0)/runs.length).toFixed(1),JSON.stringify(causes));
