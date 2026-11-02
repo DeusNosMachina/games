@@ -23,7 +23,7 @@ The game opens on a proper title screen: the hospital at dusk, gremlin eyes in t
 
 Each arcade is the canvas plus the minimum, on phones and on laptops: three pills for progress, time and lives along the canvas edge, the instructions as a short toast, and one row of controls under the canvas (or a column beside it when that leaves a bigger game).
 
-The map is a drawn floor plan of the fourth floor: tap a room to go there, tap PLAY to start its arcade, and the Daily Dose, gift shop and exit sit where you would expect them. Walk the hallway between rooms and talk to visitors. Rowdy the Ram, the Ramsey mascot, hangs out by the nurses' station doing cheers; Dad tells a new joke every time; Barb from Dietary keeps bringing Ensure.
+The map is a drawn floor plan of the seventh floor of Valley Hospital in Paramus (Pediatrics, Room 5): tap a room to go there, tap PLAY to start its arcade, and the Daily Dose, gift shop and exit sit where you would expect them. Walk the hallway between rooms and talk to the visitors: Dad (a fresh dad joke every single time, from a deck of 144), Riley, Mimi and Dodo, Presley, Norah and Taylor, cousin Casey, nurses Stephanie and Julez, Dr. Lori and Dr. Benedetto, Barb from Dietary with her Ensure, and Rowdy the Ram doing cheers by the nurses' station. Every visit pins a card to the get-well wall above her bed.
 
 ## The ward fights back
 
@@ -89,6 +89,16 @@ Medals are bronze, silver and gold, worth 1, 2 and 3 discharge stars. Discharge 
 - **Hall of Nonsense:** gremlins evicted, best chain, ward clears, lifetime coins, runs played, daily streak.
 
 Nutrients restore one heart. Zero hearts sends Macy to one IV phase; each time it is harder, until a medal elsewhere resets the count. Failing it is where the organs come out. All medical mechanics are fictional arcade jokes.
+
+## Her room, and the rest of the hospital
+
+Macy is 5'10", wears 22, and stands around when you leave her alone: she looks about, fixes her scrunchie, bounces a volleyball. Her room has the LEGO water lilies on the sill, the LEGO Jaguar E-Type on the cabinet, a window on Paramus that follows the real clock, and a 75-inch TV with a cat cam (Addie asleep, Stella grooming, Pepper attacking the hand that feeds her), a Rams game, a get-well slideshow and, after dark, the 3 AM channel that should not exist. Every machine on the floor has opinions and one of them is Employee of the Month each day.
+
+Refuse Barb's Ensure often enough and the hospital fills with it: bottles in rows, a storage closet on the map you are not to ask about, gremlins carrying bottles as shields, a cafeteria renamed The Ensure Experience, and finally one bottle that reads FINE. YOU WIN. on a pedestal in her room.
+
+Idle long enough in bed after dark and Macy dreams: a 40-second interlude from a pool of vignettes, with its own woozy theme, until a nurse wakes her.
+
+Medals land with a stamp, confetti and a sting (Rowdy gallops across on gold). There is a sheet of 34 stickers to earn, and a Share button that renders a card as a PNG for the family chat.
 
 ## Sound
 
