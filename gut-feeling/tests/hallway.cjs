@@ -172,8 +172,13 @@ function standBy(id, dx = 40) {
     n.y = 400;
     player.x = n.x + ${dx};
     player.y = n.y;
-    // The rest of her group stands just behind her, out of TALK range but part of the scene.
+    // The rest of her group stands just behind her, out of TALK range but part of the scene; anyone
+    // else who wandered into the way steps aside.
     hallwayCast.filter(o => o !== n && n.group && o.group === n.group).forEach((o, k) => { o.x = n.x - 48 - 40 * k; o.y = 400 + (k ? 20 : -20); });
+    hallwayCast.forEach(o => {
+      if (o === n || (n.group && o.group === n.group) || Math.hypot(o.x - player.x, o.y - player.y) > 100) return;
+      o.x = clamp(o.x + (o.x < player.x ? -170 : 170), 80, 3120);
+    });
     player.moving = false;
     player.dash = 0;
     hallwayArrival = 0;
@@ -268,10 +273,10 @@ assert.equal(run("roomExtrasAction('enter')"), true, 'Enter is handled in the ha
 console.log('PASS: walking away, the Escape key, taps, and jump/dash/attack pass-through.');
 
 // A dash through someone gets a whoa.
-standBy('doctor', 10);
+standBy('benedetto', 10);
 run('player.dash = 0.2; updateRoomExtras(1 / 60); player.dash = 0');
-assert.equal(run('hallwayCast.find(n => n.id === "doctor").bark.text'), 'Whoa. No running in the... okay.');
-assert.ok(run('hallwayCast.find(n => n.id === "doctor").whoa > 0'), 'with a little hop');
+assert.equal(run('hallwayCast.find(n => n.id === "benedetto").bark.text'), 'Whoa! Excellent speed. Terrible idea.');
+assert.ok(run('hallwayCast.find(n => n.id === "benedetto").whoa > 0'), 'with a little hop');
 console.log('PASS: dashing through someone makes them say whoa.');
 
 // Lines react to state: won, Ralph waiting, cleared wards, medals.
@@ -294,10 +299,10 @@ console.log('PASS: lines react to the win, Ralph, cleared wards and medals.');
 
 // ---- The friends: Presley, Norah and Taylor ----
 run('hallwayResetCast(); state.room = 6; state.won = false; state.ralphReady = false; state.ralph = false');
-for (const old of ['Kenzie', 'kenzie', 'Cousin', 'Bri', "'bri'", 'teammate', 'cuz'])
+for (const old of ['Kenzie', 'kenzie', 'Cousin Bri', "'bri'", 'teammate'])
   assert.ok(!src.includes(old), `hallway.js no longer has ${old}`);
-assert.ok(!/Kenzie|\bBri\b|cousin|cuz\b|teammate/i.test(run('JSON.stringify([HALLWAY_LINES, HALLWAY_CARDS, HALLWAY_DAD_CHEERS, HALLWAY_DAD_JOKES, hallwayCast.map(n => n.name)])')),
-  'nobody on screen is Kenzie, Bri or a cousin');
+assert.ok(!/Kenzie|\bBri\b|teammate/i.test(run('JSON.stringify([HALLWAY_LINES, HALLWAY_CARDS, HALLWAY_DAD_CHEERS, HALLWAY_DAD_JOKES, hallwayCast.map(n => n.name)])')),
+  'nobody on screen is Kenzie or Bri');
 const friends = JSON.parse(run(`JSON.stringify(['presley', 'norah', 'taylor'].map(id => {
   const n = hallwayCast.find(x => x.id === id);
   return { id, name: n.name, group: n.group, lead: n.lead, voice: n.voice, pitch: n.pitch, look: n.look };
@@ -391,12 +396,74 @@ run(`(() => {
 assert.deepEqual(JSON.parse(run('JSON.stringify(trioFace)')), [[false, true], [false, true], [false, true]], 'Macy walks up: all three stop and turn to her');
 run(`(() => {
   player.x = 300; player.y = 520;
-  for (let i = 0; i < 60 * 8; i++) updateRoomExtras(1 / 60);
-  const crew = hallwayCast.filter(n => n.group === 'friends');
-  globalThis.trioMoving = crew.some(n => n.moving) || crew.find(n => n.lead).mode === 'walk';
+  const crew = hallwayCast.filter(n => n.group === 'friends'),
+    lead = crew.find(n => n.lead),
+    from = [lead.x, lead.y];
+  let walked = 0;
+  for (let i = 0; i < 60 * 12; i++) {
+    updateRoomExtras(1 / 60);
+    if (crew.every(n => n.moving)) walked++;
+  }
+  globalThis.trioMoving = walked > 30 && Math.hypot(lead.x - from[0], lead.y - from[1]) > 20;
 })()`);
 assert.equal(run('trioMoving'), true, 'and wander off together when she goes');
 console.log(`PASS: Presley, Norah and Taylor: their looks, lines, chime-ins with the right voice and portrait, and a cluster that moves together.`);
+
+// ---- The rest of the cast: Stephanie and Julez, Dr. Lori and Dr. Benedetto, Cousin Casey, Riley ----
+run('hallwayResetCast(); state.room = 6');
+const CAST_IDS = ['dad', 'stephanie', 'lori', 'mimi', 'dodo', 'taylor', 'presley', 'norah', 'julez', 'brother', 'casey', 'benedetto', 'barb', 'rowdy'];
+assert.deepEqual(JSON.parse(run('JSON.stringify(hallwayCast.map(n => n.id))')).sort(), [...CAST_IDS].sort(), 'the whole cast, no extras');
+const tags = JSON.parse(run('JSON.stringify(Object.fromEntries(hallwayCast.map(n => [n.id, [n.name, n.voice, n.pitch]])))'));
+assert.deepEqual(tags.stephanie, ['Nurse Stephanie', 'nurse', 2]);
+assert.deepEqual(tags.julez, ['Julez', 'nurse', -2], 'Julez does not use the title');
+assert.deepEqual(tags.lori, ['Dr. Lori', 'doctor', 2]);
+assert.deepEqual(tags.benedetto, ['Dr. Benedetto', 'doctor', -4]);
+assert.deepEqual(tags.casey, ['Casey', 'cousin', -4]);
+assert.equal(tags.brother[0], 'Riley');
+for (const old of ['Reyes', 'Little Bro', 'your brother', 'Your brother', 'nurse0', 'HALLWAY_NURSE_NAMES'])
+  assert.ok(!src.includes(old), `hallway.js no longer has ${old}`);
+const L = id => JSON.stringify(run(`JSON.stringify(HALLWAY_LINES.${id})`));
+assert.match(L('julez'), /biker cry at a shot/, 'Julez has seen a biker cry at a shot');
+assert.ok(!/biker/.test(L('stephanie')));
+assert.ok(
+  run('HALLWAY_LINES.benedetto.talks.filter(t => t.say.some(([w, s]) => w === "npc" && /[Ee]xcellent/.test(s))).length') >= 5,
+  'Dr. Benedetto finds most things excellent'
+);
+assert.ok(run('HALLWAY_LINES.benedetto.talks.filter(t => JSON.stringify(t.say).includes("mustache")).length') >= 2, 'the mustache gets its own lines');
+assert.match(L('lori'), /skeleton/, "Dr. Lori's deadpan");
+assert.match(L('lori'), /gut/, 'and a real one');
+for (const want of [/group chat/, /wiffle ball/, /blanket/, /drove/, /gossip/i]) assert.match(L('casey'), want, `Casey: ${want}`);
+assert.match(run('JSON.stringify([HALLWAY_LINES.casey, HALLWAY_DAD_CHEERS, HALLWAY_DAD_JOKES])'), /Riley/, 'Riley by name');
+const looks = JSON.parse(run('JSON.stringify(Object.fromEntries(hallwayCast.filter(n => n.look).map(n => [n.id, n.look])))'));
+assert.deepEqual([looks.benedetto.mustache !== '', looks.benedetto.handlebar, looks.benedetto.tie], [true, true, 'bow'], 'a thick dark mustache and a bow tie');
+assert.equal(looks.casey.hairStyle, 'pigtails', 'braided pigtails');
+assert.ok(parseInt(looks.casey.hair.slice(1, 3), 16) < 0x70, 'brunette');
+assert.equal(looks.casey.item, 'blanket', 'the Rams blanket');
+assert.equal(looks.julez.hairStyle, 'short');
+assert.ok(parseInt(looks.julez.hair.slice(1, 3), 16) > 0xd0, 'Julez is blond');
+assert.equal(looks.julez.age, 1);
+assert.deepEqual([looks.stephanie.top, looks.julez.top], ['scrubs', 'scrubs']);
+assert.deepEqual([looks.lori.top, looks.lori.tie], ['coat', ''], 'Dr. Lori: a white coat, no tie');
+
+// Heights, as multiples of Macy (5'10"): Dad > Rowdy > Macy > Dodo = Taylor > Benedetto > Casey > the rest,
+// Mimi shortest. Bodies stretch; heads keep their size.
+const tops = JSON.parse(run('JSON.stringify(Object.fromEntries(hallwayCast.map(n => [n.id, hallwayNpcTop(n)])))')),
+  macyH = run('hallwayMacyHeight()'),
+  heights = JSON.parse(run('JSON.stringify(HALLWAY_HEIGHTS)'));
+assert.equal(run('hallwayMacyScale()'), run('typeof MACY_SCALE === "number" ? MACY_SCALE : 1.36'), 'MACY_SCALE, or 1.36 without it');
+assert.ok(Math.abs(macyH - 88 * run('hallwayMacyScale()')) < 1e-6, 'Macy is 88 units tall at her scale (about 120 at 1.36)');
+for (const id of CAST_IDS) assert.ok(Math.abs(tops[id] / macyH - heights[id]) < 0.012, `${id} is ${heights[id]} x Macy (${(tops[id] / macyH).toFixed(3)})`);
+assert.ok(tops.dad > tops.rowdy && tops.rowdy > macyH && macyH > tops.dodo, 'Dad, then Rowdy, then Macy, then Dodo');
+assert.ok(Math.abs(tops.dodo - tops.taylor) < 1.5, 'Dodo and Taylor see eye to eye');
+assert.ok(tops.taylor > tops.benedetto && tops.benedetto > tops.casey, 'then Dr. Benedetto, then Casey');
+const rest = CAST_IDS.filter(id => !['dad', 'rowdy', 'dodo', 'taylor', 'benedetto', 'casey'].includes(id));
+assert.ok(rest.every(id => tops[id] < tops.casey), 'everyone else is shorter than Casey');
+assert.equal(rest.reduce((a, b) => (tops[a] < tops[b] ? a : b)), 'mimi', 'Mimi is the shortest');
+assert.ok(CAST_IDS.filter(id => looks[id]).every(id => looks[id].head >= 12), 'nobody gets a smaller head to be shorter');
+run('globalThis.MACY_SCALE = 1.5; hallwayResetCast()');
+assert.ok(Math.abs(run('hallwayNpcTop(hallwayCast.find(n => n.id === "dad"))') / run('hallwayMacyHeight()') - 1.086) < 0.012, 'and they follow MACY_SCALE');
+run('delete globalThis.MACY_SCALE; hallwayResetCast(); state.room = 6');
+console.log('PASS: Nurse Stephanie, Julez, Dr. Lori, Dr. Benedetto, Casey and Riley, and a lineup sized against Macy.');
 
 // ---- Dad: an encouragement and a joke, every single time ----
 const dadSizes = JSON.parse(run('JSON.stringify([HALLWAY_DAD_JOKES.length, HALLWAY_DAD_CHEERS.length, HALLWAY_DAD_GROANS.length])'));
@@ -568,7 +635,7 @@ assert.equal(R('r.voice'), 'rowdy');
 assert.deepEqual(RJ('[r.x, r.y]'), [812, 270], "he lives by the nurses' station");
 assert.ok(R('r.nextCheer >= 40 && r.nextCheer <= 70'), 'his first cheer is due in 40 to 70 s');
 assert.ok(R('roomExtraRenderables(true).some(o => o.y === r.y)'), 'he depth-sorts with everyone else');
-assert.equal(R('hallwayNpcTop(r)'), run('rowdyNpcSpec().height'), 'bubbles hang from his own height');
+assert.equal(R('hallwayNpcTop(r)'), R('Math.round(rowdyNpcSpec().baseHeight * r.scale)'), 'bubbles hang from his own (costumed) height');
 
 // Home: bouncing in place while nobody's around.
 run(`player.x = 3000; player.y = 520; r0.nextCheer = 100; var rowdySeen = new Set();
@@ -718,7 +785,7 @@ console.log("PASS: Rowdy's {name} is state.name.");
 
 // ---- Get-well cards and sticker counters ----
 // The room draws state.cards over Macy's bed; the stickers read state.stats. This file only adds to them.
-const CARD_WHO = ['dad', 'brother', 'mimi', 'dodo', 'presley', 'norah', 'taylor', 'doctor', 'nurse', 'barb', 'rowdy'];
+const CARD_WHO = ['dad', 'brother', 'mimi', 'dodo', 'presley', 'norah', 'taylor', 'casey', 'stephanie', 'julez', 'lori', 'benedetto', 'barb', 'rowdy'];
 const cardLists = JSON.parse(run('JSON.stringify(HALLWAY_CARDS)'));
 assert.deepEqual(Object.keys(cardLists).sort(), [...CARD_WHO].sort(), 'a card list for every visitor');
 for (const [who, list] of Object.entries(cardLists)) {
@@ -737,7 +804,7 @@ const today = (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '
 assert.equal(run('hallwayDay()'), today, 'the card day is today, YYYY-MM-DD');
 assert.equal(run('hallwayDay(new Date(2026, 0, 5))'), '2026-01-05');
 assert.equal(run('hallwayCardText("mimi", "2026-11-02")'), run('hallwayCardText("mimi", "2026-11-02")'), 'the pick is a function of who and day');
-const nurseDays = JSON.parse(run('JSON.stringify(Array.from({ length: 12 }, (_, d) => hallwayCardText("nurse", "2026-11-" + String(d + 1).padStart(2, "0"))))'));
+const nurseDays = JSON.parse(run('JSON.stringify(Array.from({ length: 12 }, (_, d) => hallwayCardText("julez", "2026-11-" + String(d + 1).padStart(2, "0"))))'));
 assert.ok(new Set(nurseDays).size >= 2, 'different days can pick different cards');
 
 run(`state.won = false; state.ralphReady = false; state.ralph = false; state.name = 'Macy';
@@ -800,7 +867,7 @@ run("barbNpc.present = false; hallwayEnsure.phase = 'away'; hallwayEnsure.due = 
 
 // Everyone else once. metEveryone waits for the last of them.
 let talks = 5;
-for (const id of ['brother', 'mimi', 'dodo', 'norah', 'taylor', 'doctor', 'nurse0']) {
+for (const id of ['brother', 'mimi', 'dodo', 'norah', 'taylor', 'casey', 'stephanie', 'julez', 'lori', 'benedetto']) {
   talkOnce(id);
   talks++;
   assert.equal(count('talks'), talks, `a finished talk with ${id} counts`);
@@ -819,21 +886,25 @@ const castNames = JSON.parse(run('JSON.stringify(Object.fromEntries(hallwayCast.
 for (const card of cs) {
   assert.deepEqual(Object.keys(card).sort(), ['day', 'name', 'text', 'who'], `${card.who} card fields`);
   assert.equal(card.day, today);
-  assert.equal(card.name, castNames[card.who === 'nurse' ? 'nurse0' : card.who], `${card.who} card is signed by name`);
+  assert.equal(card.name, castNames[card.who], `${card.who} card is signed by name`);
   assert.equal(card.text, run(`hallwayCardText(${JSON.stringify(card.who)}, ${JSON.stringify(today)})`));
   assert.ok(!card.text.includes('{name}'));
 }
-assert.match(cs.find(c => c.who === 'nurse').name, /^Nurse /);
+assert.deepEqual(
+  ['stephanie', 'julez', 'lori', 'benedetto', 'brother', 'casey'].map(w => cs.find(c => c.who === w).name),
+  ['Nurse Stephanie', 'Julez', 'Dr. Lori', 'Dr. Benedetto', 'Riley', 'Casey'],
+  'signed the way they sign'
+);
 assert.ok(cs.find(c => c.who === 'rowdy').text.includes('Macy'), "Rowdy's card cheers for Macy by name");
 assert.ok(cardLists.dad.includes(cs.find(c => c.who === 'dad').text));
 
-// Second talks never duplicate a card; the other nurses share the nurses' card.
+// Second talks never duplicate a card.
 talkOnce('dad');
-talkOnce('nurse1');
-talkOnce('nurse2');
+talkOnce('julez');
+talkOnce('benedetto');
 talks += 3;
 assert.equal(cards().length, CARD_WHO.length, 'no duplicate cards');
-assert.equal(cards().filter(c => c.who === 'nurse').length, 1, 'one card from the nurses');
+assert.equal(cards().filter(c => c.who === 'julez').length, 1, 'one card from Julez');
 assert.equal(count('talks'), talks);
 assert.equal(count('dadJokes'), 2, 'each Dad joke told counts once');
 assert.equal(count('metEveryone'), 1);
@@ -864,6 +935,195 @@ assert.equal(count('cheers'), 2, 'a timer cheer she walked out on');
 assert.equal(count('talks'), talks, 'timer cheers are not conversations');
 run('save = realSave');
 console.log(`PASS: ${CARD_WHO.length} get-well cards, one per visitor, no duplicates; talks, dadJokes, ensureRefused, cheers and metEveryone count.`);
+
+// ---- The Ensure situation: the longer Macy refuses, the more the floor fills with Ensure ----
+// n = state.stats.ensureRefused, read once per hallway entry.
+function enterWith(n, keep = false) {
+  run(`${keep ? '' : 'hallwayResetCast();'} state.won = false; state.ralphReady = false; state.ralph = false;
+    state.stats = Object.assign(state.stats || {}, { ensureRefused: ${n} });
+    hallwayTalk = null; state.room = 2; onRoomLoaded(2); state.room = 6; onRoomLoaded(6);
+    hallwayEnsure.due = 9999; hallwayCast.find(n => n.rowdy).nextCheer = 9999; player.dash = 0;`);
+}
+// A strict canvas of its own: every number finite, no negative radii.
+const ensureErrors = [];
+box.ensureCtx = new Proxy(
+  {},
+  {
+    get(t, k) {
+      if (typeof k === 'symbol') return undefined;
+      if (k in t) return t[k];
+      if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({ addColorStop() {} });
+      if (k === 'measureText') return s => ({ width: String(s).length * 7 });
+      return (...a) => {
+        a.forEach((v, i) => {
+          if (typeof v === 'number' && !Number.isFinite(v)) ensureErrors.push(`${k} arg ${i} = ${v}`);
+        });
+        if ((k === 'arc' && a[2] < 0) || (k === 'ellipse' && (a[2] < 0 || a[3] < 0))) ensureErrors.push(`${k} with a negative radius`);
+      };
+    },
+    set(t, k, v) {
+      t[k] = v;
+      return true;
+    }
+  }
+);
+run(`var bottleCalls = 0, realBottle = hallwayBottle;
+  hallwayBottle = (...a) => { bottleCalls++; return realBottle(...a); };
+  var vendingEnsure = () => { bottleCalls = 0; hallwayVending(ensureCtx, 2520); return bottleCalls; };
+  var crateCalls = 0, realCrate = hallwayCrateArt;
+  hallwayCrateArt = (...a) => { crateCalls++; return realCrate(...a); };
+  var drawAll = () => { crateCalls = 0; roomExtraRenderables(true).forEach(r => r.draw(ensureCtx)); return crateCalls; };
+  var wallText = () => { signLog = []; hallwayDrawWall(signCtx); return signLog; };`);
+const nurseItems = () => JSON.parse(run('JSON.stringify(hallwayCast.filter(n => n.voice === "nurse").map(n => n.look.item))'));
+
+// Under five: the old ways. Bottles cap at nine at Barb's feet; the vending machine sells gift shop things.
+enterWith(4);
+assert.equal(run('hallwayCult.n'), 4);
+run('for (let i = 0; i < 12; i++) hallwayEnsureDrop(hallwayCast.find(n => n.ensure), false)');
+assert.equal(run('hallwayBottles.length'), 9, 'four no\'s: still capped at nine');
+assert.equal(run('hallwayBottles.some(b => b.row)'), false);
+assert.equal(run('vendingEnsure()'), 0);
+assert.equal(run('drawAll()'), 0, 'no crate');
+assert.deepEqual(nurseItems(), ['tablet', 'cup']);
+// Five: neat rows, no cap at nine, two Ensure slots in the vending machine.
+enterWith(7);
+assert.equal(run('hallwayBottles.length'), 7, 'one bottle on the floor for every no');
+run('for (let i = 0; i < 12; i++) hallwayEnsureDrop(hallwayCast.find(n => n.ensure), false)');
+assert.equal(run('hallwayBottles.length'), 19, 'past five, no cap at nine');
+assert.ok(run('hallwayBottles.every(b => b.row)'), 'neat rows');
+assert.deepEqual(
+  JSON.parse(run('JSON.stringify(hallwayBottles.slice(0, 13).map(b => [b.x, b.y]))')),
+  Array.from({ length: 13 }, (_, i) => [92 + (i % 12) * 16, 550 - Math.floor(i / 12) * 13]),
+  'twelve to a row, by the elevator, a row at a time'
+);
+assert.equal(run('vendingEnsure()'), 2, 'two vending slots are Ensure');
+assert.equal(run('drawAll()'), 0, 'no crate yet');
+run('for (let i = 0; i < 80; i++) hallwayEnsureDrop(hallwayCast.find(n => n.ensure), false)');
+assert.equal(run('hallwayBottles.length'), 60, 'sixty is a full pallet');
+// Ten: the crate by the elevator.
+enterWith(10);
+assert.equal(run('drawAll()'), 1, 'a crate of Ensure by the elevator');
+assert.ok(run('Math.abs(HALLWAY_CRATE[0] - HALLWAY_ELEVATOR_X) < 100'));
+assert.deepEqual(nurseItems(), ['tablet', 'cup'], 'the nurses are holding out');
+// Twenty: every nurse has a bottle, the vending machine is all Ensure, and Rowdy spells it out.
+enterWith(20);
+assert.deepEqual(nurseItems(), ['ensure', 'ensure'], 'every nurse carries one bottle');
+assert.equal(run('vendingEnsure()'), 12, 'the vending machine is all Ensure');
+const rowdyEnsure = (() => {
+  run('var r20 = hallwayCast.find(n => n.rowdy); r20.talks = 0;');
+  return talkOnce('rowdy');
+})();
+assert.equal(rowdyEnsure.map(l => l.text).join(' ').includes('E-N-S-U-R-E! ...wait.'), true, 'the Ensure cheer');
+assert.ok(rowdyEnsure.every(l => l.cheer === 'ensure'));
+run('r20.talks = 0; hallwayOpenTalk(r20); var poms = 0; bottleCalls = 0; hallwayTalk.i = 0; updateRoomExtras(1 / 60); hallwayDrawNpc(ensureCtx, r20); poms = bottleCalls;');
+assert.notEqual(run('hallwayTalk.lines[0].cheer'), 'ensure', 'once a visit');
+run('hallwayCloseTalk()');
+run(`hallwayTalk = null; hallwayOpenTalk(r20); hallwayTalk.lines = HALLWAY_ROWDY_ENSURE.bubbles.map(b => ({ who: 'npc', text: b.text, pose: b.pose, cheer: 'ensure' }));
+  updateRoomExtras(1 / 60); bottleCalls = 0; hallwayDrawNpc(ensureCtx, r20); hallwayDrawNpc(c, r20); poms = bottleCalls; hallwayCloseTalk();`);
+assert.equal(run('poms'), 4, 'Ensure bottles where the pom-poms go (two per draw)');
+enterWith(20);
+run(`var r21 = hallwayCast.find(n => n.rowdy); player.x = r21.x - 100; player.y = r21.y;
+  updateRoomExtras(1 / 60);
+  for (let i = 0; i < 60 * 30 && r21.mode !== 'idle'; i++) updateRoomExtras(1 / 60);
+  r21.nextCheer = 0.05; for (let i = 0; i < 10; i++) updateRoomExtras(1 / 60);`);
+assert.deepEqual(JSON.parse(run('JSON.stringify([r21.mode, r21.cheer && r21.cheer.id, r21.ensurePoms])')), ['cheer', 'ensure', true], 'his first timer cheer of a visit is the Ensure one');
+run('for (let i = 0; i < 60 * 20 && r21.mode === "cheer"; i++) updateRoomExtras(1 / 60); r21.nextCheer = 0.05; for (let i = 0; i < 10; i++) updateRoomExtras(1 / 60);');
+assert.notEqual(run('r21.cheer && r21.cheer.id'), 'ensure', 'and only the first');
+run('r21.nextCheer = 9999');
+enterWith(3);
+assert.deepEqual(nurseItems(), ['tablet', 'cup'], 'their own things back once the count is low again');
+// Thirty: the PA, once per entry, and a sticker on the nurses' station sign.
+run('var uiSfx = 0, paSfx = sfx; sfx = (name, o) => { if (name === "ui") uiSfx++; return paSfx(name, o); }');
+enterWith(30);
+assert.equal(run('hallwayCult.pa'), null, 'not the second she walks in');
+run('for (let i = 0; i < 60 * 2; i++) updateRoomExtras(1 / 60)');
+assert.equal(run('hallwayCult.pa && hallwayCult.pa.text'), 'Attention: the cafeteria has been renamed The Ensure Experience.');
+assert.equal(run('uiSfx'), 1, 'with a chime');
+run(`signLog = []; drawRoomOverlay(signCtx, 1000, 625); drawRoomOverlay(ensureCtx, 1000, 625); drawRoomOverlay(ensureCtx, 360, 300);`);
+assert.ok(run('signLog.some(t => /Ensure Experience/.test(t))'), 'a caption across the top');
+run('onRoomLoaded(6); for (let i = 0; i < 60 * 12; i++) updateRoomExtras(1 / 60)');
+assert.deepEqual(JSON.parse(run('JSON.stringify([hallwayCult.paCount, uiSfx, hallwayCult.pa])')), [1, 1, null], 'once per entry, even if the same visit loads twice');
+enterWith(30, true);
+run('for (let i = 0; i < 60 * 2; i++) updateRoomExtras(1 / 60)');
+assert.equal(run('hallwayCult.paCount'), 2, 'and again on the next entry');
+run('sfx = paSfx');
+assert.ok(JSON.parse(run('JSON.stringify(wallText())')).includes('PROUDLY STOCKED'), 'a Proudly stocked sticker on the sign');
+enterWith(29);
+assert.ok(!JSON.parse(run('JSON.stringify(wallText())')).includes('PROUDLY STOCKED'));
+assert.equal(run('hallwayCult.paDue'), 0, 'no PA under thirty');
+// Barb's lines escalate with n; every offer still gets a no.
+// barbN is whichever Barb is on set now (enterWith resets the cast).
+run("Object.defineProperty(globalThis, 'barbN', { get: () => hallwayCast.find(n => n.ensure), configurable: true })");
+const offersAt = n => {
+  enterWith(n);
+  return JSON.parse(run('JSON.stringify(HALLWAY_LINES.ensure.talks.filter(t => !t.when || t.when()).map(t => t.say[0][1]))'));
+};
+const o0 = offersAt(0),
+  o30 = offersAt(30);
+assert.ok(o30.length >= o0.length + 6, `more ways to offer at thirty (${o0.length} -> ${o30.length})`);
+assert.ok(['butter pecan', 'loyalty card', 'quota', 'Ensure Experience'].every(w => o30.join(' ').toLowerCase().includes(w.toLowerCase())), 'flavors nobody asked for, a loyalty card, a quota');
+assert.ok(!o0.join(' ').includes('quota'));
+// Fifty: the trophy. One bottle, FINE. YOU WIN., three bubbles, a flag, a save, and then she is sheepish.
+run('var trophySaves = 0, trophySave = save; save = () => { trophySaves++; return trophySave(); };');
+enterWith(50);
+run('delete state.stats.ensureTrophy; hallwayEnsureArrive(barbN); hallwayEnsure.patience = 9999;');
+assert.equal(run('barbN.look.item'), 'trophy', 'one bottle, with a bow');
+assert.equal(run('barbN.bark.text'), 'Special delivery, hon. The last one. I mean it this time.');
+const refusedBefore = run('state.stats.ensureRefused'),
+  bottlesBefore = run('hallwayBottles.length'),
+  trophy = talkOnce('barb');
+assert.equal(trophy.length, 3, 'a three-bubble scene');
+assert.match(trophy[2].text, /FINE\. YOU WIN\./);
+assert.equal(run('state.stats.ensureTrophy'), 1, 'the trophy flag');
+assert.ok(run('trophySaves') > 0, 'saved');
+assert.equal(run('state.stats.ensureRefused'), refusedBefore, 'the trophy scene is not a refusal');
+assert.equal(run('hallwayBottles.length'), bottlesBefore, 'handed over, not left on the floor');
+assert.equal(run('barbN.look.item'), '', 'her hands are empty');
+assert.equal(run('hallwayEnsure.phase'), 'leaving');
+run('for (let i = 0; i < 60 * 30 && hallwayEnsure.phase !== "away"; i++) updateRoomExtras(1 / 60)');
+// After the trophy: one sheepish offer per visit.
+enterWith(51, true);
+run('hallwayEnsure.due = 1; for (let i = 0; i < 120; i++) updateRoomExtras(1 / 60)');
+assert.equal(run('hallwayEnsure.phase'), 'out', 'she comes up once this visit');
+assert.ok(JSON.parse(run('JSON.stringify(HALLWAY_ENSURE_SHEEPISH.barks)')).includes(run('barbN.bark.text')), 'sheepishly');
+assert.equal(run('barbN.look.item'), 'tray');
+run('hallwayEnsure.patience = 9999');
+const sheep = talkOnce('barb');
+assert.ok(JSON.parse(run('JSON.stringify(HALLWAY_ENSURE_SHEEPISH.talks)')).some(t => t[0][1] === sheep[0].text), 'a sheepish talk');
+run('var tripsAfter = hallwayEnsure.trips; for (let i = 0; i < 4000; i++) updateRoomExtras(0.1)');
+assert.equal(run('hallwayEnsure.trips'), run('tripsAfter'), 'and not again until the next visit');
+enterWith(52, true);
+run('hallwayEnsure.due = 1; for (let i = 0; i < 120; i++) updateRoomExtras(1 / 60)');
+assert.equal(run('hallwayEnsure.trips'), run('tripsAfter') + 1, 'next visit, once more');
+run('save = trophySave; hallwayBottle = realBottle; hallwayCrateArt = realCrate');
+assert.deepEqual(ensureErrors.slice(0, 5), [], 'all of it draws on the strict canvas');
+console.log('PASS: the Ensure situation: rows, the crate, the vending machine, nurses, Rowdy, the PA, the sticker, Barb escalating, and the trophy.');
+
+// ---- Employee of the Month ----
+run(`var realMotm = typeof machineOfTheMonth === 'function' ? machineOfTheMonth : undefined,
+  realIcon = typeof drawMachineIcon === 'function' ? drawMachineIcon : undefined, motmStub = true;
+  try { machineOfTheMonth = undefined; drawMachineIcon = undefined; } catch { motmStub = false; }`);
+if (run('motmStub')) {
+  enterWith(0);
+  assert.equal(run('hallwayMachine()'), null);
+  assert.ok(JSON.parse(run('JSON.stringify(wallText())')).includes('VOTING OPEN'), 'no machine yet: voting is open');
+  assert.ok(JSON.parse(run('JSON.stringify(wallText())')).includes('EMPLOYEE'), 'the frame still hangs');
+  run(`var iconCalls = []; machineOfTheMonth = () => ({ id: 'mri', name: 'The MRI', line: 'It hums with pride.' });
+    drawMachineIcon = (g, id, x, y, s) => iconCalls.push([id, s]);`);
+  const wall = JSON.parse(run('JSON.stringify(wallText())'));
+  assert.ok(wall.includes('THE MRI') && wall.includes('EMPLOYEE') && wall.includes('OF THE MONTH'), 'the frame names the machine');
+  assert.deepEqual(JSON.parse(run('JSON.stringify(iconCalls)')), [['mri', 22]], 'with its portrait');
+  run('hallwayDrawWall(ensureCtx)');
+  run('hallwayResetCast(); state.room = 6');
+  const eotm = talkOnce('stephanie');
+  assert.equal(eotm[0].text, 'The MRI got Employee of the Month again. It cried.', 'a nurse has a line about it');
+  run('drawMachineIcon = () => { throw new Error("nope"); }; hallwayDrawWall(ensureCtx); hallwayDrawWall(c)');
+  assert.deepEqual(ensureErrors.slice(0, 5), [], 'the frame draws cleanly');
+  run('machineOfTheMonth = () => null');
+  assert.equal(run('hallwayMachine()'), null, 'a machine that is not there is no machine');
+  run('machineOfTheMonth = realMotm; drawMachineIcon = realIcon');
+} else console.log('NOTE: machineOfTheMonth is a const in this build; skipped the stubbed frame checks.');
+console.log('PASS: Employee of the Month hangs at the nurses\' station, with or without the room\'s machine, and a nurse has a line about it.');
 
 // ---- Doors, the gift shop and the exit ----
 run('var goCalls = []; var realGoRoom = goRoom; goRoom = id => { goCalls.push(id); }');

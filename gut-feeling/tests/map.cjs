@@ -288,6 +288,47 @@ assert.equal(run('hospitalMapView.focus'), 'shop', 'focus highlights the matchin
 run('hmList.events.focusout({})');
 assert.equal(run('hospitalMapView.focus'), '');
 run('hmDraw(hospitalMapView.w, hospitalMapView.h)');
+
+// ENSURE STORAGE (DO NOT ASK): on the plan past ten refusals, in the hidden list past twenty, and all it
+// ever says is "Do not ask."
+const storageAt = (w, h) =>
+  run(`(() => {
+    const L = hospitalMapLayout(${w}, ${h}), r = L.storage.rect, s = hospitalMapStorageSign(null, L);
+    return { closet: hospitalMapHit(r.x + r.w / 2, r.y + r.h / 2, ${w}, ${h}), sign: hospitalMapHit(s.x + s.w / 2, s.y + s.h / 2, ${w}, ${h}),
+      clear: !hospitalMapInRect(L.daily, s.x + s.w / 2, s.y + s.h / 2, s.w / 2) && !hospitalMapInRect(L.exitZone, s.x + s.w / 2, s.y + s.h / 2) };
+  })()`);
+for (const [n, shown, listed] of [
+  [0, false, false],
+  [9, false, false],
+  [10, true, false],
+  [19, true, false],
+  [20, true, true]
+]) {
+  run(`state.stats = { ensureRefused: ${n} }`);
+  for (const [w, h, kind] of SIZES) {
+    const texts = run(`hmDraw(${w}, ${h})`),
+      at = storageAt(w, h);
+    assert.equal(texts.includes('ENSURE STORAGE') && texts.includes('(DO NOT ASK)'), shown, `${kind} at ${n}: storage ${shown ? 'shown' : 'hidden'}`);
+    assert.equal((at.closet && at.closet.kind) === 'storage', shown, `${kind} at ${n}: the closet is ${shown ? '' : 'not '}a target`);
+    if (shown) {
+      assert.equal(at.sign.kind, 'storage', `${kind}: so is its sign`);
+      assert.ok(at.clear, `${kind}: the sign keeps clear of the Daily Dose and the exit`);
+    }
+  }
+  run('mountHospitalMap(hmEl)');
+  assert.equal(run('hmList.innerHTML').includes('data-hmap="storage"'), listed, `the hidden list at ${n}`);
+}
+assert.match(run('hmList.innerHTML'), /Ensure storage\. Do not ask\./);
+run('hmDraw(390, 600)');
+assert.ok(Math.min(...run('hmLog.map(e => parseFloat(/(\\d+(?:\\.\\d+)?)px/.exec(e.font)[1]))')) >= 11, 'the storage sign is 11 px or more on a phone too');
+run('hospitalMapView.notice = ""; (() => { const r = hmLayout().storage.rect; hmTap(r.x + r.w / 2, r.y + r.h / 2); })()');
+assert.deepEqual(calls(), [], 'tapping it does nothing');
+assert.equal(run('hospitalMapView.notice'), 'Do not ask.', 'but say so');
+run('hospitalMapView.notice = ""; hmList.events.click({ target: { closest: () => ({ dataset: { hmap: "storage" } }) } })');
+assert.equal(run('hospitalMapView.notice'), 'Do not ask.', 'the hidden button too');
+run('hospitalMapView.focus = "storage"; hmDraw(hospitalMapView.w, hospitalMapView.h); hospitalMapView.focus = ""; state.stats = {}');
+console.log('PASS: ENSURE STORAGE (DO NOT ASK) appears at ten, joins the hidden list at twenty, and only ever says "Do not ask."');
+
 run('goRoom = hmReal.goRoom; showShop = hmReal.showShop; openDaily = hmReal.openDaily; tryOpenArcade = hmReal.tryOpenArcade; checkDischarge = hmReal.checkDischarge');
 close();
 console.log('PASS: rooms, night, PLAY, shop, daily, exit and the hidden buttons all route correctly.');

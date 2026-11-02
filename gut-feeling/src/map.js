@@ -27,6 +27,7 @@ const HOSPITAL_MAP_PLANS = {
     wet: [276, 228],
     floorText: [84, 206],
     plants: [[84, 236, 0.34]],
+    storage: { r: [296, 236, 40, 30], door: 't', sign: [318, 186] },
     places: [
       {
         kind: 'room',
@@ -115,6 +116,7 @@ const HOSPITAL_MAP_PLANS = {
     wet: [312, 184],
     floorText: [76, 166],
     plants: [],
+    storage: { r: [334, 190, 38, 26], door: 't', sign: [292, 151] },
     places: [
       {
         kind: 'room',
@@ -201,10 +203,12 @@ const HOSPITAL_MAP_PLANS = {
     badge: [180, 604],
     daily: [157, 298, 46, 52],
     dailyStand: true,
-    wet: [172, 450],
+    wet: [176, 474],
     // Centered between the elevator (ends at 64) and the Daily Dose stand (starts at 298).
     floorText: [180, 181],
     plants: [[202, 92, 0.34]],
+    // A narrow nook off the station's corridor side; its sign runs down the corridor like the floor text.
+    storage: { r: [118, 372, 26, 38], door: 'r', sign: [184, 402], vertical: true },
     places: [
       { kind: 'lift', r: [146, 10, 68, 54], door: ['b', 'lift'] },
       {
@@ -296,6 +300,9 @@ const HOSPITAL_MAP_COPY = {
   lift: '7',
   // Macy's room is Room 5. Its plate keeps the name "Your room" and puts the number underneath.
   home: 'ROOM 5',
+  storage: ['ENSURE STORAGE', '(DO NOT ASK)'],
+  storageTap: 'Do not ask.',
+  storageList: 'Ensure storage. Do not ask.',
   you: 'YOU',
   nope: 'NOPE.',
   exit: 'EXIT',
@@ -478,7 +485,8 @@ function hospitalMapLayout(w, h) {
     badge: pt(plan.badge),
     wet: pt(plan.wet),
     floorText: pt(plan.floorText),
-    plants: plan.plants.map(q => Object.assign(pt(q), { s: q[2] * k }))
+    plants: plan.plants.map(q => Object.assign(pt(q), { s: q[2] * k })),
+    storage: { rect: box(plan.storage.r), door: plan.storage.door, sign: pt(plan.storage.sign), vertical: !!plan.storage.vertical }
   };
   L.places = plan.places.map(p => hospitalMapPlace(p, box(p.r), L));
   L.exit = hospitalMapExitGap(plan, L);
@@ -657,9 +665,80 @@ function hospitalMapTile(id) {
   return id === 5 ? 0 : id;
 }
 
+// ---- Ensure storage ----
+// The longer Macy refuses Barb's Ensure (state.stats.ensureRefused), the more of it there is. Past ten,
+// a padlocked closet off the corridor turns up on the plan with a sign, ENSURE STORAGE (DO NOT ASK);
+// tapping it only says "Do not ask." Past twenty, the hidden keyboard list admits it exists too.
+const HOSPITAL_MAP_STORAGE_AT = 10,
+  HOSPITAL_MAP_STORAGE_LIST_AT = 20;
+
+function hospitalMapEnsureN() {
+  const s = state.stats;
+  return Math.max(0, Math.floor(Number(s && s.ensureRefused) || 0));
+}
+
+const hospitalMapStorageShown = () => hospitalMapEnsureN() >= HOSPITAL_MAP_STORAGE_AT;
+
+// The sign: two rows at the plate fonts, centred on the plan's sign point. In the narrow portrait
+// corridor it hangs sideways, like the floor text; x, y, w, h are its on-screen box, len and thick its
+// unrotated size.
+function hospitalMapStorageSign(g, L) {
+  const f = L.font,
+    [a, b] = HOSPITAL_MAP_COPY.storage,
+    pad = 6 * L.k,
+    meas = t => (g ? hospitalMapMeasure(g, t, f.sub) : t.length * f.sub * 0.58),
+    len = Math.max(meas(a), meas(b)) + pad * 2,
+    thick = f.sub * 2.5 + pad,
+    s = L.storage.sign,
+    w = L.storage.vertical ? thick : len,
+    h = L.storage.vertical ? len : thick;
+  return { x: s.x - w / 2, y: s.y - h / 2, w, h, len, thick, pad };
+}
+
+function hospitalMapDrawStorage(g, L) {
+  const st = L.storage,
+    r = st.rect,
+    k = L.k,
+    f = L.font;
+  rr(g, r.x, r.y, r.w, r.h, 3 * k, gradient(g, r.x, r.y, 0, r.h, '#4d5a63', '#33404a'));
+  for (let i = 0; i < 3; i++) {
+    const cx = r.x + r.w * (0.25 + i * 0.25),
+      cy = r.y + r.h * 0.62;
+    rr(g, cx - 4 * k, cy - 4 * k, 8 * k, 8 * k, 1.5 * k, '#b48a5c', '#7a5530', 0.8);
+    ellipse(g, cx, cy - 4.5 * k, 2.2 * k, 1.4 * k, ['#7a4b33', '#e9d39a', '#ef9fb0'][i]);
+  }
+  rr(g, r.x, r.y, r.w, r.h, 3 * k, null, '#21414b', L.wall * 0.8);
+  // The door, shut, with a padlock on it.
+  const across = st.door === 't' || st.door === 'b',
+    dx = across ? r.x + r.w / 2 : st.door === 'l' ? r.x : r.x + r.w,
+    dy = across ? (st.door === 't' ? r.y : r.y + r.h) : r.y + r.h / 2,
+    half = (across ? r.w : r.h) * 0.28;
+  if (across) line(g, [[dx - half, dy], [dx + half, dy]], '#c9a26b', 2.6 * k);
+  else line(g, [[dx, dy - half], [dx, dy + half]], '#c9a26b', 2.6 * k);
+  hospitalMapPadlock(g, dx, dy, 0.85 * k, '#ffd36e');
+  const sign = hospitalMapStorageSign(g, L);
+  g.save();
+  g.translate(sign.x + sign.w / 2, sign.y + sign.h / 2);
+  if (st.vertical) g.rotate(Math.PI / 2);
+  const x0 = -sign.len / 2,
+    y0 = -sign.thick / 2;
+  rr(g, x0 + 1.5 * k, y0 + 2.5 * k, sign.len, sign.thick, 6 * k, '#0b1d2638');
+  rr(g, x0, y0, sign.len, sign.thick, 6 * k, '#fbe3ea', '#a3485f', 1);
+  hospitalMapText(g, HOSPITAL_MAP_COPY.storage[0], 0, y0 + sign.pad / 2 + f.sub * 1.05, f.sub, '#7a2f44', 'center');
+  hospitalMapText(g, HOSPITAL_MAP_COPY.storage[1], 0, y0 + sign.pad / 2 + f.sub * 2.25, f.sub, '#a3485f', 'center');
+  g.restore();
+}
+
+function hospitalMapStorageHit(L, x, y) {
+  if (!hospitalMapStorageShown()) return false;
+  if (hospitalMapInRect(L.storage.rect, x, y, 3)) return true;
+  return hospitalMapInRect(hospitalMapStorageSign(hospitalMapView.g || null, L), x, y, 2);
+}
+
 // ---- Hit testing ----
 function hospitalMapHit(x, y, w, h) {
   const L = hospitalMapLayout(w, h);
+  if (hospitalMapStorageHit(L, x, y)) return { kind: 'storage' };
   for (const place of L.places) {
     const moon = hospitalMapMoon(place, L);
     if (moon && Math.hypot(x - moon.x, y - moon.y) <= moon.r + 6) return { kind: 'night' };
@@ -693,7 +772,7 @@ function hospitalMapHitFromKey(key) {
     if (parts[2] === 'play') hit.play = true;
     return hit;
   }
-  if (['night', 'shop', 'daily', 'exit'].includes(parts[0])) return { kind: parts[0] };
+  if (['night', 'shop', 'daily', 'exit', 'storage'].includes(parts[0])) return { kind: parts[0] };
   return null;
 }
 
@@ -1204,6 +1283,7 @@ function hospitalMapDrawLive(g, L, t) {
     if (moon) hospitalMapDrawMoon(g, moon, L, t);
   }
   hospitalMapDrawDaily(g, L, t);
+  if (hospitalMapStorageShown()) hospitalMapDrawStorage(g, L);
   hospitalMapDrawExitSign(g, L, t);
   if (state.ralphReady && !state.ralph && !state.won) hospitalMapRalph(g, L, t);
   if (state.won) hospitalMapParty(g, L, t);
@@ -1235,6 +1315,7 @@ function hospitalMapTargetShape(key, L) {
   }
   if (hit.kind === 'daily') return { rect: L.daily, round: 5 * L.k, inset: -4 };
   if (hit.kind === 'exit') return { rect: L.exitZone, round: 8 * L.k, inset: 2 };
+  if (hit.kind === 'storage') return hospitalMapStorageShown() ? { rect: L.storage.rect, round: 3 * L.k, inset: -2 } : null;
   return null;
 }
 
@@ -1717,6 +1798,10 @@ function hospitalMapActivate(hit) {
     return true;
   }
   if (hit.kind === 'exit') return hospitalMapExit();
+  if (hit.kind === 'storage') {
+    hospitalMapNotice(HOSPITAL_MAP_COPY.storageTap);
+    return true;
+  }
   return false;
 }
 
@@ -1774,6 +1859,7 @@ function hospitalMapTargets() {
   const pick = hospitalMapDailyPick();
   if (pick) out.push({ key: 'daily', label: `Daily Dose: ${hospitalMapGame(pick.id)}, level ${pick.tier + 1}.` });
   out.push({ key: 'shop', label: `Gift shop. ${state.coins} coins to spend.` });
+  if (hospitalMapEnsureN() >= HOSPITAL_MAP_STORAGE_LIST_AT) out.push({ key: 'storage', label: HOSPITAL_MAP_COPY.storageList });
   out.push({ key: 'exit', label: `Discharge exit. ${hospitalMapDischargeReady() ? 'Ready.' : hospitalMapExitLine()}` });
   return out;
 }
