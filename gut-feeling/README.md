@@ -23,7 +23,7 @@ The game opens on a proper title screen: the hospital at dusk, gremlin eyes in t
 
 Each arcade is the canvas plus the minimum, on phones and on laptops: three pills for progress, time and lives along the canvas edge, the instructions as a short toast, and one row of controls under the canvas (or a column beside it when that leaves a bigger game).
 
-The map is a drawn floor plan of the fourth floor: tap a room to go there, tap PLAY to start its arcade, and the Daily Dose, gift shop and exit sit where you would expect them. Walk the hallway between rooms and talk to visitors.
+The map is a drawn floor plan of the fourth floor: tap a room to go there, tap PLAY to start its arcade, and the Daily Dose, gift shop and exit sit where you would expect them. Walk the hallway between rooms and talk to visitors. Rowdy the Ram, the Ramsey mascot, hangs out by the nurses' station doing cheers; Dad tells a new joke every time; Barb from Dietary keeps bringing Ensure.
 
 ## The ward fights back
 
