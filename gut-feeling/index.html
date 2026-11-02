@@ -22262,7 +22262,7 @@ function hospitalMapDailyPick() {
 }
 
 function hospitalMapDischargeReady() {
-  return !state.won && stars() >= 12 && stamps() === rooms.length && levelTwo();
+  return !state.won && stars() >= 12 && stamps() === ARCADE_COUNT && levelTwo();
 }
 
 function hospitalMapExitLine() {
@@ -22270,7 +22270,7 @@ function hospitalMapExitLine() {
   if (state.ralphReady && !state.ralph) return HOSPITAL_MAP_COPY.ralph;
   const need = 12 - stars();
   if (need > 0) return `The exit wants ${need} more ${need === 1 ? 'star' : 'stars'}. It has standards.`;
-  if (stamps() < rooms.length) return HOSPITAL_MAP_COPY.stamps;
+  if (stamps() < ARCADE_COUNT) return HOSPITAL_MAP_COPY.stamps;
   if (!levelTwo()) return HOSPITAL_MAP_COPY.levelTwo;
   return HOSPITAL_MAP_COPY.ralph;
 }
@@ -23596,6 +23596,7 @@ function hospitalMapTargets() {
   const out = [],
     cur = state.room;
   for (const r of rooms) {
+    if (r.noArcade) continue;
     if (r.id === 5) continue;
     const info = hospitalMapRoomState(r.id);
     let text = `${r.name}: ${hospitalMapGame(r.id)}.`;
