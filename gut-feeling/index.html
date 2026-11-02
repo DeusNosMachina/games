@@ -1535,15 +1535,16 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
   if (groundShadow) shadow(g, 0, 2, 19, 5);
   if (inv) g.globalAlpha = 0.64 + 0.36 * Math.sin(time * 18);
   g.translate(0, -bounce);
-  // The ponytail follows the stride instead of stepping between sprite frames.
-  const tail = dir * (21 + Math.sin(time * 4.1 + pose * 0.35) * 3);
+  // The ponytail trails behind the facing direction and follows the stride.
+  const back = -dir,
+    tail = back * (21 + Math.sin(time * 4.1 + pose * 0.35) * 3);
   path(
     g,
     p => {
-      p.moveTo(dir * 11, -77);
-      p.bezierCurveTo(dir * 33, -83, dir * 23, -50, tail, -41);
-      p.bezierCurveTo(tail + dir * 15, -27, dir * 15, -30, dir * 13, -45);
-      p.bezierCurveTo(dir * 11, -56, dir * 26, -70, dir * 11, -72);
+      p.moveTo(back * 11, -77);
+      p.bezierCurveTo(back * 33, -83, back * 23, -50, tail, -41);
+      p.bezierCurveTo(tail + back * 15, -27, back * 15, -30, back * 13, -45);
+      p.bezierCurveTo(back * 11, -56, back * 26, -70, back * 11, -72);
     },
     gradient(g, 0, -80, 28, 50, '#704c3e', '#3c2830'),
     '#352a31',
@@ -1653,8 +1654,8 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
     '#a7645d',
     1
   );
-  ellipse(g, dir * 15, -77, 4, 3.6, look.scrunchie);
-  ellipse(g, dir * 15.6, -78, 1.6, 1.2, '#ffffff66');
+  ellipse(g, back * 15, -77, 4, 3.6, look.scrunchie);
+  ellipse(g, back * 15.6, -78, 1.6, 1.2, '#ffffff66');
   g.restore();
 }
 
