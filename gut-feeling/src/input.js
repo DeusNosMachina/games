@@ -328,6 +328,12 @@ $('miniResume').addEventListener('click', pauseMini);
 $('miniSound').addEventListener('click', uiToggleSound);
 $('miniBack').addEventListener('click', leaveMini);
 $('miniClose').addEventListener('click', leaveMini);
+$('resultShare').addEventListener('click', shareResult);
+
+// A tap anywhere on the result screen, except its buttons, skips the medal ceremony to the end.
+$('miniResult').addEventListener('pointerdown', e => {
+  if (!e.target.closest('button')) ceremonySkip();
+});
 
 $('miniRetry').addEventListener('click', () => {
   if (mini.forced && mini.win) {
@@ -610,6 +616,8 @@ window.addEventListener('keydown', e => {
     if (def.key) dailyScoped(() => def.key(k, e));
     return;
   }
+  // Any key on the result screen skips the medal ceremony (Escape still leaves through the dialog).
+  if (mini.open && mini.screen === 'result' && ceremonySkip()) return;
   if (isModal()) return;
   if (k === 'escape') {
     if (!e.repeat) setWardPause(!state.paused);
@@ -765,6 +773,7 @@ $('pauseBtn').addEventListener('click', () => setWardPause(!state.paused));
 $('wardResume').addEventListener('click', () => setWardPause(false));
 $('pauseMap').addEventListener('click', openMap);
 $('pauseShop').addEventListener('click', showShop);
+$('pauseStickers').addEventListener('click', stickerOpenSheet);
 $('pauseHelp').addEventListener('click', () => modalOpen($('helpDialog')));
 $('pauseSound').addEventListener('click', uiToggleSound);
 $('pauseFull').addEventListener('click', toggleArcade);
@@ -788,6 +797,14 @@ function dailyClick(e) {
 
 $('dailyCard').addEventListener('click', dailyClick);
 $('mapDaily').addEventListener('click', dailyClick);
+
+// Sticker sheet: the sidebar card opens it, a tile shows its sticker big, Share makes the card.
+$('stickerBtn').addEventListener('click', stickerOpenSheet);
+$('stickerGrid').addEventListener('click', e => {
+  const b = e.target.closest('[data-sticker]');
+  if (b) stickerSelect(b.dataset.sticker);
+});
+$('stickerShare').addEventListener('click', () => shareSticker());
 
 $('departmentGrid').addEventListener('click', e => {
   let b = e.target.closest('[data-room]');
@@ -834,6 +851,9 @@ $('resetBtn').addEventListener('click', () => {
   state.ralph = false;
   state.briefed = [];
   state.daily = { last: '', best: 0, streak: 0 };
+  state.stats = {};
+  state.stickers = [];
+  stickerPopClear();
   state.started = false;
   document.body.classList.remove('playing');
   state.paused = false;
@@ -841,6 +861,7 @@ $('resetBtn').addEventListener('click', () => {
   $$('dialog[open]').forEach(d => d.close());
   loadRoom(0);
   hud();
+  stickerRenderCard();
   drawPortrait();
   titleShow();
   $('resetBtn').textContent = 'Start a fresh adventure';
@@ -863,6 +884,7 @@ buildDepartments();
 setupIllustrations();
 loadRoom(0);
 hud();
+stickerRenderCard();
 equip(0);
 drawPortrait();
 uiRenderSound();

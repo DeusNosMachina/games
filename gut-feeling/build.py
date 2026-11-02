@@ -10,7 +10,7 @@ src = root / 'src'
 SCRIPTS = [
     'state.js', 'art.js', 'rowdy.js', 'audio.js', 'world.js', 'combat.js', 'hallway.js', 'minigames.js', 'transitions.js',
     'games/iv.js', 'games/magnet.js', 'games/bricks.js', 'games/race.js', 'games/slice.js', 'games/blaster.js',
-    'map.js', 'input.js',
+    'map.js', 'stickers.js', 'input.js',
 ]
 html = (src / 'template.html').read_text().replace('/* V2_STYLES */', (src / 'v2.css').read_text())
 html += (src / 'dialogs.html').read_text()
