@@ -8,7 +8,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parent
 src = root / 'src'
 SCRIPTS = [
-    'state.js', 'art.js', 'audio.js', 'world.js', 'combat.js', 'minigames.js', 'transitions.js',
+    'state.js', 'art.js', 'audio.js', 'world.js', 'combat.js', 'hallway.js', 'minigames.js', 'transitions.js',
     'games/iv.js', 'games/magnet.js', 'games/bricks.js', 'games/race.js', 'games/slice.js', 'games/blaster.js',
     'input.js',
 ]
