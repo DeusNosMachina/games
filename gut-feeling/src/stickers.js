@@ -337,7 +337,8 @@ const STICKERS = [
     tone: 'mint',
     shape: 'round',
     icon: 'bubbles',
-    test: st => stickerTalkedCount(st) >= STICKER_CAST.length
+    // The hallway sets stats.metEveryone once every cast member has a get-well card.
+    test: st => !!(st && st.stats && st.stats.metEveryone) || stickerTalkedCount(st) >= STICKER_CAST.length
   },
   {
     id: 'cat-cam',
