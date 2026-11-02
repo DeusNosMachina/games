@@ -287,7 +287,9 @@ const KITER = `(() => {
   if (d < 105) keys.add(' ');
 })()`;
 
-function playBot(policy, seconds, seed) {
+// refused is state.stats.ensureRefused for the run (Barb's Ensure gag; 0 is the plain ward).
+function playBot(policy, seconds, seed, refused = 0) {
+  run(`state.stats={ensureRefused:${refused}}`);
   freshRoom(1);
   reseed(seed);
   let t = 0;
@@ -312,6 +314,250 @@ for (const seed of [1873, 4242, 90210]) {
   console.log(`  seed ${seed}: masher ${JSON.stringify(masher)} · kiter ${JSON.stringify(kiter)}`);
 }
 console.log('PASS: holding attack and walking in loses; reading wind-ups, dodging and dashing clears all three waves.');
+
+// ---- Barb's Ensure: the gag escalates with state.stats.ensureRefused ----
+const ensureAt = n => run(`state.stats={ensureRefused:${n}}`);
+run('globalThis.sfxLog=[];globalThis.realSfx=sfx;sfx=(n,o)=>{sfxLog.push(n);return realSfx(n,o)}');
+const uiBlips = () => run('sfxLog.filter(n=>n==="ui").length');
+// Spawns every regular wave of every combat room at grudges 0 to 3, eight times over, and tallies carriers.
+const ensureCensus = () =>
+  run(`(() => {
+    const out = { total: 0, carriers: 0, shields: 0, worst: 0, bruisers: 0, gluggers: 0, spitters: 0, beige: 0 };
+    for (let room = 1; room <= 4; room++) {
+      loadRoom(room);
+      for (let grudge = 0; grudge <= 3; grudge++)
+        for (let wave = 1; wave <= 3; wave++)
+          for (let rep = 0; rep < 8; rep++) {
+            enemies = [];
+            encounter.teach = false;
+            encounter.grudge = grudge;
+            encounter.wave = wave;
+            spawnWave(1);
+            const held = enemies.filter(e => e.bottle);
+            out.total += enemies.length;
+            out.carriers += held.length;
+            out.shields += held.filter(e => e.bottle.shield).length;
+            out.worst = Math.max(out.worst, held.length / enemies.length);
+            out.bruisers += enemies.filter(e => e.type === 2).length;
+            out.gluggers += enemies.filter(e => e.glug).length;
+            out.spitters += enemies.filter(e => e.type === 1).length;
+            out.beige += enemies.filter(e => e.ensureBlob).length;
+          }
+    }
+    for (const k in wardProgress) delete wardProgress[k];
+    enemies = [];
+    return out;
+  })()`);
+
+run('state.stats=undefined');
+reseed(5150);
+const plain = ensureCensus();
+assert.equal(plain.carriers, 0, 'no bottles when Macy has never refused one');
+assert.equal(plain.gluggers + plain.beige, 0, 'and no glugging bruisers or beige spitters');
+assert.equal(run('state.stats'), undefined, 'the ward leaves state.stats alone at zero');
+ensureAt(9);
+reseed(5150);
+assert.equal(ensureCensus().carriers, 0, 'still none at 9');
+freshRoom(1);
+assert.ok(!run('$("wardStatus").textContent').includes('ENSURE'), 'no sponsor below 30');
+assert.equal(run('wardBanner.tail'), undefined, 'and no banner disclaimer');
+
+ensureAt(10);
+reseed(5150);
+const ten = ensureCensus();
+const share = ten.carriers / ten.total;
+assert.ok(share > 0.18 && share < 0.32, `about a quarter of spawns carry a bottle at 10 (${ten.carriers}/${ten.total})`);
+assert.ok(ten.worst <= 1 / 3, 'never more than a third of a wave');
+assert.equal(ten.shields, 0, 'bottles are only props at 10');
+assert.equal(ten.gluggers + ten.beige, 0, 'no glugging or beige blobs yet');
+reseed(5150);
+assert.deepEqual(ensureCensus(), ten, 'the same seed hands out the same bottles');
+run('globalThis.six=[0,1,2,3,4,5].map(i=>makeEnemy(0,300+i*70,420));ensureArm(six,10)');
+assert.ok(run('six.filter(e=>e.bottle).length') >= 1 && run('six.filter(e=>e.bottle).length') <= 2, 'six gremlins share one or two bottles');
+assert.equal(run('wardPose(six.find(e=>e.bottle)).bottle'), run('six.find(e=>e.bottle).bottle.flavor'), 'the carrier holds it');
+run('const wv=six.find(e=>e.bottle);wv.wind=wv.windMax=0.5;wv.act="bite"');
+assert.equal(run('wardPose(six.find(e=>e.bottle)).bottleWave'), true, 'and waves it at Macy during a wind-up');
+console.log(`PASS: no bottles below 10; at 10 ${(share * 100).toFixed(1)}% of spawns carry one, never over a third of a wave.`);
+
+// Kills drop the bottle as a 20 s prop; walking into it kicks it and counts.
+ensureAt(10);
+freshRoom(1);
+run('encounter.complete=true;enemies=[];six=[0,1,2,3,4,5].map(i=>makeEnemy(0,300+i*70,420));ensureArm(six,10)');
+run('globalThis.kc=six.find(e=>e.bottle);kc.x=420;kc.y=430;enemies=[kc];player.x=200;player.y=420;player.inv=99;floats=[]');
+const kickFlavor = run('kc.bottle.flavor');
+run('hitEnemy(kc,9,40,{kind:"brick",from:player})');
+assert.equal(run('kc.hp'), 0);
+assert.equal(run('kc.bottle'), null);
+assert.equal(run('ensureProps.length'), 1, 'the carrier drops its bottle');
+assert.equal(run('ensureProps[0].life'), 20, 'for 20 seconds');
+assert.equal(run('ensureProps[0].flavor'), kickFlavor, 'the same flavor it was holding');
+assert.ok(run('ensureProps[0].vx') > 0, 'knocked rolling');
+steps(60);
+assert.equal(run('ensureProps[0].vx'), 0, 'it rolls to a stop');
+assert.equal(run('state.stats.ensureKicked'), undefined, 'nothing kicked yet');
+run('player.x=ensureProps[0].x;player.y=ensureProps[0].y;player.moving=false');
+steps(1);
+assert.equal(run('state.stats.ensureKicked'), 1, 'walking into it kicks it');
+assert.ok(run('floats.some(f=>f.text==="NOT YET.")'), 'NOT YET.');
+assert.ok(run('Math.abs(ensureProps[0].vx)+Math.abs(ensureProps[0].vy)') > 0, 'and it slides off');
+steps(60);
+assert.equal(run('state.stats.ensureKicked'), 1, 'one kick per visit, not per frame');
+run('player.x=ensureProps[0].x;player.y=ensureProps[0].y');
+steps(1);
+assert.equal(run('state.stats.ensureKicked'), 2, 'every kick counts');
+run('player.x=900;player.y=540');
+steps(60 * 19);
+assert.equal(run('ensureProps.length'), 0, 'the prop is gone after 20 seconds');
+run('drawWorld()');
+console.log('PASS: kills drop a bottle prop for 20 s; each walk-in kicks it, says NOT YET. and counts.');
+
+// From 20: the bottle is a one-hit shield, and bruisers glug between charges.
+ensureAt(20);
+reseed(5150);
+const twenty = ensureCensus();
+assert.equal(twenty.shields, twenty.carriers, 'every bottle is a shield at 20');
+assert.ok(twenty.worst <= 1 / 3, 'shielded gremlins are never more than a third of a wave');
+assert.equal(twenty.gluggers, twenty.bruisers, 'every bruiser glugs');
+assert.equal(twenty.beige, 0, 'spitters are still green');
+freshRoom(1);
+run('encounter.complete=true;six=[0,1,2,3,4,5].map(i=>makeEnemy(0,300+i*70,420));ensureArm(six,20)');
+run('globalThis.sh=six.find(e=>e.bottle);sh.x=560;sh.y=420;sh.cool=9;enemies=[sh];player.x=500;player.y=420;floats=[];combatFx=[];sfxLog=[]');
+assert.equal(run('hitEnemy(sh,3,30,{kind:"brick",from:player})'), true, 'the hit lands on the bottle');
+assert.equal(run('sh.hp'), 3, 'and does no damage');
+assert.equal(run('sh.bottle'), null, 'the bottle pops');
+assert.ok(run('sfxLog.includes("squelch")'), 'with a squelch');
+assert.ok(run('floats.some(f=>f.text==="VANILLA. UGH.")'), 'and VANILLA. UGH.');
+assert.ok(run('combatFx.some(f=>f.kind==="ensurePop")&&combatFx.some(f=>f.kind==="ensureStain")'), 'in a chocolate splash');
+run('sh.iframes=0;hitEnemy(sh,1,0,{kind:"pillow"})');
+assert.equal(run('sh.hp'), 2, 'the next hit lands: exactly one hit absorbed');
+assert.equal(run('ensureProps.length'), 0, 'a popped bottle leaves nothing to kick');
+
+run('globalThis.gb=makeEnemy(2,300,420);ensureArm([gb],20);enemies=[gb];gb.fx=1;gb.fy=0;gb.cool=9;player.x=800;player.y=540;player.inv=99;floats=[]');
+assert.equal(run('gb.glug'), true);
+run('gb.chargeX=1;gb.chargeY=0;gb.charge=0.2');
+run('for(let i=0;i<40&&gb.charge>0;i++)updateCombat(1/60)');
+assert.ok(run('gb.glugT') > 0.55, 'the charge ends in a glug');
+assert.ok(run('floats.some(f=>f.text==="GLUG.")'), 'GLUG.');
+assert.equal(run('wardPose(gb).glug'), true, 'in the glug pose');
+steps(30);
+assert.ok(run('gb.glugT') > 0, 'still drinking half a second in');
+steps(8);
+assert.equal(run('gb.glugT'), 0, 'done after 0.6 s');
+assert.equal(run('gb.dizzy'), 0, 'an unbothered glug leaves it fine');
+run('gb.recover=0;gb.x=300;gb.y=420;gb.chargeX=1;gb.chargeY=0;gb.charge=0.2;gb.cool=9');
+run('for(let i=0;i<40&&gb.charge>0;i++)updateCombat(1/60)');
+steps(6);
+assert.ok(run('gb.glugT') > 0);
+run('floats=[];gb.iframes=0;hitEnemy(gb,1,30,{kind:"pillow",from:{x:gb.x+60,y:gb.y}})');
+assert.equal(run('gb.glugT'), 0, 'a hit interrupts the glug');
+assert.ok(run('gb.dizzy') > 0.3 && run('gb.dizzy') <= 0.4, 'and leaves it dizzy for 0.4 s');
+assert.equal(run('gb.hp'), 5, 'so even a front poke lands, with the dizzy bonus');
+assert.ok(run('floats.some(f=>f.text==="SPIT TAKE!")'), 'SPIT TAKE!');
+steps(30);
+assert.equal(run('gb.dizzy'), 0, 'the dizzy wears off');
+run('enemies=[];player.inv=0');
+console.log('PASS: at 20 a bottle absorbs exactly one hit and pops in chocolate; bruisers glug for 0.6 s, and a hit mid-glug dizzies them for 0.4 s.');
+
+// From 30: the sponsor strip, the banner disclaimer, and beige blobs that spell ENSURE on impact.
+ensureAt(30);
+reseed(5150);
+const thirty = ensureCensus();
+assert.equal(thirty.beige, thirty.spitters, 'every spitter spits beige at 30');
+freshRoom(1);
+assert.ok(run('$("wardStatus").textContent').endsWith(' · SPONSORED BY ENSURE'), 'the ward strip is sponsored');
+assert.equal(run('wardBanner.title'), 'WAVE 1');
+assert.equal(run('wardBanner.tail'), '(and Ensure)', 'the wave banner ends with a tiny disclaimer');
+run('enemies=[];updateCombat(.01)');
+assert.equal(run('wardBanner.title+" · "+wardBanner.sub+" "+wardBanner.tail'), 'WAVE 2 · they brought friends (and Ensure)');
+run('drawWorld()');
+run('loadRoom(2);loadRoom(1);encounter.complete=true;updateWardHUD()');
+assert.ok(run('$("wardStatus").textContent').endsWith(' · SPONSORED BY ENSURE'), 'every combat-room line, fights or not');
+run('state.ralphReady=false;loadRoom(0)');
+assert.ok(!run('$("wardStatus").textContent').includes('ENSURE'), 'home base is not sponsored');
+freshRoom(1);
+run('encounter.complete=true;globalThis.sp=makeEnemy(1,700,420);ensureArm([sp],30);enemies=[sp];player.x=400;player.y=420;player.inv=0;player.shield=0;player.z=0;state.hp=5;projectiles=[];combatFx=[]');
+run('wardSpit(sp,1,0,190)');
+assert.equal(run('projectiles.at(-1).ensure'), true, 'the blob is Ensure');
+run('drawWorld()');
+run('const bp=projectiles.at(-1);bp.x=player.x+8;bp.y=player.y-32;bp.vx=-190;bp.vy=0;updateCombat(1/60)');
+assert.equal(run('state.hp'), 4, 'it hurts exactly as much as a green blob');
+assert.ok(run('combatFx.some(f=>f.kind==="ensureSplat"&&f.ground&&Math.abs(f.x-player.x)<1)'), 'and spells ENSURE around her feet');
+run('drawWorld()');
+console.log('PASS: at 30 the ward strip is sponsored, wave banners say (and Ensure), and spitters spit beige.');
+
+// From 50: Ralph is in on it.
+close();
+ensureAt(49);
+run('state.difficulty=1;state.hp=5;state.ralph=false;state.ralphReady=true;loadRoom(1);loadRoom(0)');
+assert.equal(run('wardBoss.ensureCrown'), false, 'a plain crown at 49');
+assert.equal(run('wardBoss.taunt.text'), "Hi. I'm Ralph. I live in your gut now.");
+ensureAt(50);
+run('loadRoom(1);loadRoom(0)');
+assert.equal(run('wardBoss.ensureCrown'), true, 'a bottle stuck in his crown at 50');
+assert.equal(run('wardBoss.taunt.text'), 'They got to me too.', 'and a new opening line');
+run('player.inv=99');
+steps(60 * 3);
+run('drawWorld()');
+run('wardBoss.iframes=0;wardBoss.invuln=0;wardBoss.hp=Math.floor(wardBoss.maxHp/3)+1;hitEnemy(wardBoss,2,0,{kind:"brick",from:player})');
+assert.equal(run('wardBoss.phase'), 3);
+run('puddles=[]');
+steps(60 * 12);
+assert.ok(run('puddles.some(p=>p.gunk)'), 'phase 3 slams still leave sticky puddles');
+assert.ok(run('puddles.filter(p=>p.gunk).every(p=>p.ensure)'), 'but they are Ensure now');
+run('drawWorld()');
+run('wardBoss.iframes=0;wardBoss.invuln=0;wardBoss.z=0;wardBoss.slam=null;wardBoss.hp=1;hitEnemy(wardBoss,2,0,{kind:"brick",from:player})');
+assert.ok(run('enemies.find(e=>e.boss).debris.some(d=>d.kind==="ensure")'), 'the bottle flies off when he goes');
+run('drawWorld()');
+run('state.ralphReady=false;state.ralph=false;player.inv=0;loadRoom(1)');
+close();
+console.log("PASS: at 50 Ralph's crown has a bottle in it, he opens with They got to me too., and his slams leave Ensure.");
+
+// Each threshold blips once, on the room entry that first shows it, and ensureSeen tracks n.
+run('state.stats={ensureRefused:0};sfxLog=[];loadRoom(2);loadRoom(1)');
+assert.equal(uiBlips(), 0, 'no blip at zero');
+assert.equal(run('state.stats.ensureSeen'), undefined, 'and nothing seen');
+run('state.stats={ensureRefused:12};sfxLog=[];loadRoom(0)');
+assert.equal(uiBlips(), 0, 'home base shows no Ensure, so no blip');
+run('loadRoom(1)');
+assert.equal(uiBlips(), 1, 'the first combat room at 12 blips once');
+assert.equal(run('state.stats.ensureSeen'), 12);
+run('sfxLog=[];loadRoom(2)');
+assert.equal(uiBlips(), 0, 'not again for the same threshold');
+run('state.stats.ensureRefused=17;loadRoom(3)');
+assert.equal(uiBlips(), 0, 'or a higher count under the next one');
+assert.equal(run('state.stats.ensureSeen'), 17, 'ensureSeen follows the count');
+run('state.stats.ensureRefused=21;loadRoom(1)');
+assert.equal(uiBlips(), 1, 'the shield threshold blips');
+run('sfxLog=[];state.stats.ensureRefused=60;loadRoom(2)');
+assert.equal(uiBlips(), 1, 'skipping thresholds still blips once per entry');
+assert.equal(run('state.stats.ensureSeen'), 60);
+run('sfxLog=[];state.stats.ensureRefused=61;state.ralphReady=true;state.ralph=false;loadRoom(0)');
+assert.equal(uiBlips(), 0, "Ralph's entrance does not blip a threshold already seen");
+assert.equal(run('state.stats.ensureSeen'), 61, 'but still records it');
+run('state.ralphReady=false;loadRoom(1)');
+close();
+console.log('PASS: one UI blip per newly seen threshold per room entry; state.stats.ensureSeen tracks the count.');
+
+// The full gag on screen: carriers, a glug, a prop, a beige blob and a splash all draw.
+ensureAt(60);
+freshRoom(1);
+run('encounter.complete=true;six=[0,1,1,2,3,4].map((t,i)=>makeEnemy(t,250+i*110,380));ensureArm(six,60);enemies=six;for(const e of six)e.bottle={flavor:e.x%3,shield:true}');
+run('six[1].wind=six[1].windMax=0.8;six[1].act="spit";six[3].glugT=0.4;six[3].recover=0.5;six[5].emerge=0.2;six[5].emergeMax=1;six[5].spot=wardSpawns[1][4]');
+run('ensureProps=[{x:500,y:520,vx:0,vy:0,rot:1.57,spin:0,flavor:2,life:5,near:false}];ensureSplat(400,500);wardFx({kind:"ensurePop",x:300,y:400,life:.6,seed:1})');
+run('wardSpit(six[1],3,0.16,190);drawWorld();for(const e of six)drawEnemy(c,e)');
+console.log('PASS: every Ensure layer draws.');
+
+// The difficulty is the same in practice: at 60 the masher still loses and the kiter still clears.
+run('sfx=realSfx');
+for (const seed of [1873, 4242, 90210]) {
+  const masher = playBot(MASHER, 60, seed, 60);
+  assert.ok(!(masher.complete && masher.hp >= 3), `seed ${seed} at 60: the masher must not clear with 3+ hearts (${JSON.stringify(masher)})`);
+  const kiter = playBot(KITER, 150, seed, 60);
+  assert.ok(kiter.complete && kiter.hp > 0, `seed ${seed} at 60: the kiter clears the ward (${JSON.stringify(kiter)})`);
+  console.log(`  seed ${seed} at 60: masher ${JSON.stringify(masher)} · kiter ${JSON.stringify(kiter)}`);
+}
+run('state.stats=undefined');
+console.log('PASS: with the ward full of Ensure, mashing still loses and dodging still clears.');
 
 // ---- Keyboard dispatch still reaches the ward ----
 run('state.ralphReady=false;loadRoom(0);player.attackCd=0;player.vomit=0');

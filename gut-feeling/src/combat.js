@@ -1,4 +1,6 @@
 // Ward combat: weapons, gremlin breeds, waves, Ralph's boss fight, damage, and every enemy and combat effect.
+// Also the ward half of Barb's Ensure gag (ensure*): it reads state.stats.ensureRefused, writes
+// state.stats.ensureSeen and ensureKicked, and never changes the odds. See ENSURE_AT for the thresholds.
 //
 // Hooks other files use: updateCombat(dt) runs every ward step; drawEnemy(g, e) draws one entry of
 // `enemies` (world.js depth-sorts them by e.y); drawPillowSwing(g, player) draws Macy's swing; wardLocked(id)
@@ -140,6 +142,24 @@ const RALPH_LINES = {
   defeat: 'Tell the gremlins... I was gross.'
 };
 
+// Barb from Dietary keeps bringing Ensure, Macy keeps saying no (state.stats.ensureRefused), and the
+// leftovers end up in the ward. Each threshold is read when a wave (or Ralph) spawns. Bottle colors
+// match the hallway's: chocolate, vanilla, strawberry bands on a cream bottle.
+const ENSURE_AT = { bottles: 10, shields: 20, sponsor: 30, ralph: 50 },
+  ENSURE = { carry: 0.25, propLife: 20, glug: 0.6, glugDizzy: 0.4, kick: 260, kickRadius: 26 },
+  ENSURE_FLAVORS = ['#7a4b33', '#e9d39a', '#ef9fb0'],
+  ENSURE_CAPS = ['#623c29', '#baa97b', '#bf7f8d'],
+  ENSURE_BEIGE = ['#e8d9b5', '#c9b48a', '#f6ecd2', '#8a6f4d'],
+  ENSURE_LINES = {
+    pop: 'VANILLA. UGH.',
+    kick: 'NOT YET.',
+    glug: 'GLUG.',
+    spitTake: 'SPIT TAKE!',
+    sponsor: ' · SPONSORED BY ENSURE',
+    banner: '(and Ensure)',
+    ralph: 'They got to me too.'
+  };
+
 // ---- Combat state ----
 let encounter = { room: -1, wave: 0, rest: 0, complete: true, calm: true, grudge: 0, pace: 1, boss: false },
   enemySerial = 0,
@@ -156,6 +176,9 @@ let encounter = { room: -1, wave: 0, rest: 0, complete: true, calm: true, grudge
   wardPrev = null,
   wardDashSerial = 0,
   wardRematchAsked = false;
+
+// Dropped Ensure bottles on the floor: harmless props Macy kicks on the way past.
+let ensureProps = [];
 
 const wardProgress = {},
   wardHintsShown = new Set(),
@@ -374,6 +397,7 @@ function updateWardHUD() {
       ? `WAVE ${encounter.wave}/3 · ${fighters} GREMLIN${fighters === 1 ? '' : 'S'} · ${lv}CLEAR +${pay}${lock}`
       : `WAVE ${encounter.wave}/3 INCOMING · ${lv}CATCH YOUR BREATH`;
   }
+  if (wardCombatRoom(room) && (encounter.ensure || 0) >= ENSURE_AT.sponsor) text += ENSURE_LINES.sponsor;
   $('wardStatus').textContent = text;
   const btn = $('rematchBtn');
   btn.classList.toggle('hidden', !wardCombatRoom(room) || !encounter.complete);
@@ -386,10 +410,12 @@ function updateWardHUD() {
 function startEncounter() {
   const room = state.room,
     rematch =
-      wardRematchAsked && wardCombatRoom(room) && encounter.room === room && encounter.complete && !encounter.boss;
+      wardRematchAsked && wardCombatRoom(room) && encounter.room === room && encounter.complete && !encounter.boss,
+    n = ensureLevel();
   wardRematchAsked = false;
   enemies = [];
   combatFx = [];
+  ensureProps = [];
   wardBanner = null;
   wardHint = null;
   wardChain = 0;
@@ -408,7 +434,8 @@ function startEncounter() {
     calm: true,
     grudge,
     pace: 1,
-    boss: false
+    boss: false,
+    ensure: n
   });
   if (!wardCombatRoom(room)) {
     encounter = calm(0);
@@ -416,6 +443,7 @@ function startEncounter() {
     updateWardHUD();
     return;
   }
+  ensureNotice(n);
   const grudge = wardGrudge(room),
     resume = rematch ? 0 : wardProgress[room] || 0;
   if (!rematch && !resume && grudge > 0) {
@@ -433,12 +461,14 @@ function startEncounter() {
     grudge,
     teach: grudge === 0 && wave === 1,
     pace: 1,
-    boss: false
+    boss: false,
+    ensure: n
   };
   spawnWave(WARD.firstRest);
   if (rematch) wardSetBanner(`RALPH'S GRUDGE · LV ${grudge}`, 'they remember you. vaguely', 2.8);
   else if (resume) wardSetBanner('WAVE ' + wave, 'round two. they kept your seat warm');
   else wardSetBanner('WAVE 1', encounter.teach ? 'a gentle warm-up. allegedly' : wardWaveLines[1]);
+  ensureBannerTail();
   sfx('wave');
   updateWardHUD();
 }
@@ -479,11 +509,14 @@ function spawnWave(popIn = WARD.breather) {
     plan = wardPlan(room, encounter.wave, encounter.grudge || 0, encounter.teach);
   encounter.pace = encounter.teach ? 0.75 : 1 + 0.07 * Math.min(encounter.grudge || 0, 4);
   encounter.rest = popIn;
+  encounter.ensure = ensureLevel();
   wardProgress[room] = encounter.wave;
-  const used = [];
+  const used = [],
+    wave = [];
   let lone = null;
   plan.forEach((type, i) => {
     const e = makeEnemy(type, 0, 0);
+    wave.push(e);
     wardLurk(e, popIn + i * 0.18, used);
     if (type === 0 && !encounter.teach) {
       if (lone) {
@@ -496,6 +529,7 @@ function spawnWave(popIn = WARD.breather) {
     }
     enemies.push(e);
   });
+  ensureArm(wave, encounter.ensure);
   updateWardHUD();
 }
 
@@ -581,6 +615,7 @@ function wardEncounter(dt) {
     encounter.teach = false;
     spawnWave(WARD.breather);
     wardSetBanner('WAVE ' + encounter.wave, wardWaveLines[encounter.wave], WARD.breather + 0.2);
+    ensureBannerTail();
     sfx('wave');
   } else wardClear();
   updateWardHUD();
@@ -598,6 +633,151 @@ function wardClear() {
   if (state.wardClears[room] === 1) wardHint = { text: 'Arcade unlocked. The beacon is all yours.', t: 0, life: 3.6 };
   sfx('clear');
   updateWardHUD();
+}
+
+// ---- Barb's Ensure ----
+// How many Ensures Macy has refused. Every Ensure joke in the ward keys off this number.
+function ensureLevel() {
+  const n = (state.stats && state.stats.ensureRefused) || 0;
+  return Math.max(0, Number(n) || 0);
+}
+
+// How many thresholds n has passed: 0 below the first, 4 once Ralph is in on it.
+function ensureTier(n) {
+  return [ENSURE_AT.bottles, ENSURE_AT.shields, ENSURE_AT.sponsor, ENSURE_AT.ralph].filter(t => n >= t).length;
+}
+
+// On room entry: one UI blip the first time a threshold shows up, and state.stats.ensureSeen = n so
+// the rooms and the hallway can react to what the ward has already shown.
+function ensureNotice(n) {
+  if (n < ENSURE_AT.bottles) return;
+  const stats = (state.stats ||= {}),
+    seen = Number(stats.ensureSeen) || 0;
+  if (ensureTier(n) > ensureTier(seen)) sfx('ui');
+  stats.ensureSeen = n;
+}
+
+// A fresh wave picks up the leftovers: about a quarter of it carries a bottle, never more than a third.
+// From the shield threshold the bottle soaks one hit and bruisers glug; from the sponsor one spitters
+// spit beige. The picks reuse each gremlin's anim roll (already drawn with rand()) instead of drawing
+// new numbers, so Ensure never reshuffles the ward's dice: a seed spawns the same fight at any count.
+function ensureArm(list, n) {
+  if (n < ENSURE_AT.bottles) return;
+  for (const e of list) {
+    if (e.type === 2 && n >= ENSURE_AT.shields) e.glug = true;
+    if (e.type === 1 && n >= ENSURE_AT.sponsor) e.ensureBlob = true;
+  }
+  const cap = Math.floor(list.length / 3);
+  if (!cap) return;
+  const roll = (e, k) => (e.anim * k) % 1,
+    luck = list.reduce((sum, e) => sum + roll(e, 104729), 0) % 1,
+    count = Math.min(cap, Math.floor(list.length * ENSURE.carry + luck)),
+    ranked = [...list].sort((a, b) => roll(a, 7919) - roll(b, 7919));
+  for (const e of ranked.slice(0, count))
+    e.bottle = { flavor: Math.floor(roll(e, 31) * ENSURE_FLAVORS.length), shield: n >= ENSURE_AT.shields };
+}
+
+// Wave banners after the sponsor threshold end with a tiny disclaimer.
+function ensureBannerTail() {
+  if (wardBanner && (encounter.ensure || 0) >= ENSURE_AT.sponsor) wardBanner.tail = ENSURE_LINES.banner;
+}
+
+// The first hit on a shield bottle bursts it instead of the gremlin: chocolate everywhere, no damage.
+function ensurePop(e) {
+  const size = wardSize(e),
+    x = e.x + e.fx * 16 * size,
+    y = e.y - e.z - 26 * size;
+  e.bottle = null;
+  e.iframes = 0.06;
+  e.squash = 0.2;
+  wardFx({ kind: 'ensurePop', x, y, life: 0.6, seed: e.x * 0.01 });
+  wardFx({ kind: 'ensureStain', ground: true, x: e.x + e.fx * 22 * size, y: e.y + 3, life: 3, seed: e.y * 0.01 });
+  emit(x, y, ENSURE_FLAVORS[0], reduced ? 4 : 14, 150);
+  floating(ENSURE_LINES.pop, e.x, e.y - 74 * size, '#f4efe2');
+  hitStop = Math.max(hitStop, 0.035);
+  wardChainHit();
+  sfx('squelch');
+}
+
+// Bruisers past the shield threshold drink between charges: a 0.6 s glug inside the post-charge recovery.
+function ensureStartGlug(e) {
+  e.glugT = ENSURE.glug;
+  e.recover = Math.max(e.recover, ENSURE.glug);
+  floating(ENSURE_LINES.glug, e.x, e.y - 60 * wardSize(e) - 30, ENSURE_BEIGE[0]);
+  sfx('drip', { vol: 0.6 });
+  wardTeach('glug', 'Bruisers stop to drink after a charge. Hit them mid-glug for a spit take.');
+}
+
+// Hit mid-glug: a spray of Ensure and 0.4 s of dizzy, so this hit and the next few land from any side.
+function ensureSpitTake(e) {
+  const size = wardSize(e);
+  e.glugT = 0;
+  e.dizzy = Math.max(e.dizzy, ENSURE.glugDizzy);
+  floating(ENSURE_LINES.spitTake, e.x, e.y - 86 * size, ENSURE_BEIGE[0]);
+  emit(e.x + e.fx * 14 * size, e.y - 20 * size, ENSURE_BEIGE[0], reduced ? 4 : 12, 140);
+}
+
+// A defeated carrier drops its bottle on its side: a harmless prop for 20 s.
+function ensureDrop(e) {
+  if (!e.bottle) return;
+  ensureProps.push({
+    x: e.x,
+    y: e.y + 4,
+    vx: clamp((e.kx || 0) * 0.15, -160, 160),
+    vy: 0,
+    rot: e.fx >= 0 ? 1.57 : -1.57,
+    spin: 0,
+    flavor: e.bottle.flavor,
+    life: ENSURE.propLife,
+    near: false
+  });
+  e.bottle = null;
+}
+
+// Props roll to a stop; walking into one kicks it (once per visit, not every frame she stands on it).
+function ensureUpdate(dt) {
+  for (const b of ensureProps) {
+    b.life -= dt;
+    if (b.vx || b.vy) {
+      const nx = b.x + b.vx * dt,
+        ny = b.y + b.vy * dt,
+        f = Math.exp(-dt * 3);
+      if (collides(nx, b.y)) b.vx *= -0.5;
+      else b.x = nx;
+      if (collides(b.x, ny)) b.vy *= -0.5;
+      else b.y = ny;
+      b.rot += b.spin * dt;
+      b.vx *= f;
+      b.vy *= f;
+      b.spin *= f;
+      if (Math.hypot(b.vx, b.vy) < 5) b.vx = b.vy = b.spin = 0;
+    }
+    const near = player.z <= 0 && Math.hypot(player.x - b.x, (player.y - b.y) * 1.4) < ENSURE.kickRadius;
+    if (near && !b.near) ensureKick(b);
+    b.near = near;
+  }
+  ensureProps = ensureProps.filter(b => b.life > 0);
+}
+
+function ensureKick(b) {
+  const dx = b.x - player.x,
+    dy = b.y - player.y,
+    l = Math.hypot(dx, dy),
+    walking = player.moving && Math.hypot(player.lastDx, player.lastDy) > 0.1,
+    wl = Math.hypot(player.lastDx, player.lastDy) || 1,
+    ux = walking ? player.lastDx / wl : l > 1 ? dx / l : player.dir,
+    uy = walking ? player.lastDy / wl : l > 1 ? dy / l : 0;
+  b.vx = ux * ENSURE.kick;
+  b.vy = uy * ENSURE.kick * 0.6;
+  b.spin = (ux >= 0 ? 1 : -1) * 9;
+  (state.stats ||= {}).ensureKicked = (state.stats.ensureKicked || 0) + 1;
+  floating(ENSURE_LINES.kick, b.x, b.y - 40, '#f7c6d2');
+  sfx('bounce', { vol: 0.5 });
+}
+
+// A beige blob landing on Macy spells ENSURE around her feet. Purely visual: the blob's damage is unchanged.
+function ensureSplat(x, y) {
+  wardFx({ kind: 'ensureSplat', ground: true, x, y, life: 1.3 });
 }
 
 // ---- Macy's moves ----
@@ -859,6 +1039,11 @@ function hitEnemy(e, power = 1, knock = 36, opt = {}) {
     e.iframes = 0.2;
     return false;
   }
+  if (e.bottle && e.bottle.shield) {
+    ensurePop(e);
+    return true;
+  }
+  if (e.glugT > 0) ensureSpitTake(e);
   const away = dist(from, e) || 1,
     behind = ((from.x - e.x) * e.fx + (from.y - e.y) * e.fy) / away < -0.2,
     pillowish = kind === 'pillow' || kind === 'finisher' || kind === 'spin' || kind === 'stomp';
@@ -1047,10 +1232,13 @@ function wardKill(e) {
   e.pay = e.silent ? 0 : pay;
   e.wind = 0;
   e.charge = 0;
+  e.glugT = 0;
   e.debris = [];
+  ensureDrop(e);
   const kinds = e.boss
     ? ['crown', 'ear', 'ear', 'eye', 'eye', 'tooth', 'foot', 'foot', 'tuft', 'tooth']
     : ['ear', 'ear', 'eye', e.type === 2 ? 'helmet' : e.type === 4 ? 'brick' : 'tooth', 'foot'];
+  if (e.boss && e.ensureCrown) kinds.push('ensure');
   for (const kind of kinds)
     e.debris.push({
       kind,
@@ -1075,6 +1263,7 @@ function wardKill(e) {
 }
 
 function wardSplit(e) {
+  ensureDrop(e);
   e.split = true;
   e.hp = 0;
   e.gone = true;
@@ -1216,6 +1405,7 @@ function updateCombat(dt) {
   for (const e of [...enemies]) wardEnemy(e, dt);
   wardMerge(dt);
   wardProjectiles(dt);
+  ensureUpdate(dt);
   wardFxUpdate(dt);
   enemies = enemies.filter(
     e => e.hp > 0 || (!e.gone && e.deadT !== undefined && e.deadT < (e.boss ? 4.5 : WARD.corpse))
@@ -1644,7 +1834,8 @@ function wardSpit(e, count, fan, speed) {
       life: 4,
       friendly: false,
       kind: 'blob',
-      from: e.id
+      from: e.id,
+      ensure: !!e.ensureBlob
     });
   }
   sfx('blob');
@@ -1694,6 +1885,7 @@ function wardCharge(e, dt, speed, reach) {
   e.cool = (e.boss ? 0.6 : 1.8) * wardWindScale();
   e.bit = false;
   e.jumped = false;
+  if (e.glug && !e.boss) ensureStartGlug(e);
   wardLull();
 }
 
@@ -1757,9 +1949,11 @@ function wardBruiser(e, dt) {
   }
   if (e.recover > 0) {
     e.recover -= dt;
+    e.glugT = Math.max(0, (e.glugT || 0) - dt);
     e.vx = e.vy = 0;
     return;
   }
+  e.glugT = 0;
   e.cool -= dt;
   wardFace(e, player.x - e.x, player.y - e.y, dt * 2.4);
   if (d > 140) wardSeek(e, player.x, player.y, sp, dt, false);
@@ -1881,9 +2075,12 @@ function wardLob(e) {
 
 // ---- Ralph ----
 function startRalph() {
-  const r = makeEnemy(5, 160, 296);
+  const r = makeEnemy(5, 160, 296),
+    n = ensureLevel();
   r.maxHp = r.hp = r.trail = Math.round(breeds[5].hp * [0.8, 1, 1.25][state.difficulty]);
   r.boss = true;
+  // Past the last threshold even Ralph has been got: a bottle in his crown and beige slam puddles.
+  r.ensureCrown = n >= ENSURE_AT.ralph;
   r.phase = 1;
   r.spot = wardSpawns[0][0];
   r.emerge = r.emergeMax = 2.4;
@@ -1901,10 +2098,12 @@ function startRalph() {
     calm: false,
     grudge: 0,
     pace: 1,
-    boss: true
+    boss: true,
+    ensure: n
   };
+  ensureNotice(n);
   wardSetBanner('RALPH', 'has entered the chat', 3);
-  wardTaunt(r, RALPH_LINES.intro);
+  wardTaunt(r, r.ensureCrown ? ENSURE_LINES.ralph : RALPH_LINES.intro);
   r.taunt.t = 4.4;
   wardBossMusic = true;
   wardMusic('boss');
@@ -2070,6 +2269,7 @@ function wardSlamStep(e, dt) {
       y: clamp(e.y + Math.sin(a) * rr * 0.6, 190, 560),
       life: 7,
       gunk: true,
+      ensure: !!e.ensureCrown,
       r: 36
     });
   }
@@ -2214,7 +2414,7 @@ function wardProjectiles(dt) {
         sfx('bounce');
       } else {
         p.life = 0;
-        emit(p.x, p.y, p.kind === 'bag' ? '#f8d9a1' : '#b9d56b', reduced ? 2 : 6, 70);
+        emit(p.x, p.y, p.kind === 'bag' ? '#f8d9a1' : p.ensure ? ENSURE_BEIGE[0] : '#b9d56b', reduced ? 2 : 6, 70);
         continue;
       }
     } else {
@@ -2232,6 +2432,7 @@ function wardProjectiles(dt) {
         p.life = 0;
       }
     } else if (Math.hypot(player.x - p.x, player.y - 32 - p.y) < 25 && player.z < 25) {
+      if (p.ensure) ensureSplat(player.x, player.y);
       if (player.shield > 0) {
         emit(p.x, p.y, '#bce8c7', reduced ? 3 : 10);
         wardFx({ kind: 'spark', x: p.x, y: p.y, life: 0.3, col: '#c1f2cc', n: 6 });
@@ -2393,6 +2594,8 @@ function wardDrawStompPose(g, p) {
 // One posable gremlin at the origin, feet at y = 0, facing +x. pal is [body, shade, highlight].
 // Pose o: eyes open|squint|wide|shut|spiral|x, mouth grin|open|puff|teeth|wobble, brow -1..1, arms
 // down|up|reach|wide, lookX/lookY -1..1, cheek 0..1, hold (gunk brick overhead), crown, crownTilt, redEyes.
+// Ensure: bottle (flavor in the front hand), bottleWave (shaken at Macy), glug (tipped up to the mouth),
+// crownBottle (flavor stuck in Ralph's crown).
 function wardGremlinArt(g, type, pal, t, o = {}) {
   const [main, dark, light] = pal,
     eyes = o.eyes || 'open',
@@ -2427,7 +2630,10 @@ function wardGremlinArt(g, type, pal, t, o = {}) {
       '#eeb5b188'
     );
   }
+  const shakeIt = reduced ? 0 : Math.sin(t * 16);
   for (const side of [-1, 1]) {
+    // A glugging front arm is drawn over the face, after the mouth.
+    if (o.glug && side > 0) continue;
     let hx = side * 24,
       hy = -9 + Math.sin(t * 4 + side) * 2;
     if (arms === 'up') {
@@ -2440,9 +2646,15 @@ function wardGremlinArt(g, type, pal, t, o = {}) {
       hx = side * 31;
       hy = -30 + Math.sin(t * 9 + side) * 3;
     }
+    if (side > 0 && o.bottleWave && !o.hold) {
+      hx = 27;
+      hy = -42 + shakeIt * 4;
+    }
     hx = side * 15 + (hx - side * 15) * reach;
     hy = -17 + (hy + 17) * reach;
     line(g, [[side * 15, -17], [hx, hy]], dark, heavy ? 6.5 : 5);
+    if (side > 0 && o.bottle !== undefined)
+      ensureBottle(g, hx + 1, hy, o.bottle, 0.82, o.bottleWave ? shakeIt * 0.5 : 0.15, 9);
     ellipse(g, hx, hy, heavy ? 4.2 : 3.4, heavy ? 4.2 : 3.4, dark);
   }
   if (o.hold) {
@@ -2572,6 +2784,12 @@ function wardGremlinArt(g, type, pal, t, o = {}) {
     ellipse(g, -9, -18, 3.8, 1.5, '#e6ac8e55');
     ellipse(g, 9, -18, 3.8, 1.5, '#e6ac8e55');
   }
+  if (o.glug) {
+    // Chugging: the bottle tipped up with its cap at the mouth, the front hand under it.
+    ensureBottle(g, 14, -26 + (reduced ? 0 : Math.sin(t * 18) * 0.8), o.bottle ?? 0, 0.8, -2.5);
+    line(g, [[15, -17], [10, -20]], dark, heavy ? 6.5 : 5);
+    ellipse(g, 10, -20, heavy ? 4.2 : 3.4, heavy ? 4.2 : 3.4, dark);
+  }
   // Breed details
   if (type === 2) {
     // The bedpan helmet: armored front, handle at the back.
@@ -2601,7 +2819,7 @@ function wardGremlinArt(g, type, pal, t, o = {}) {
       '#82be91'
     );
   } else if (type === 5) {
-    if (o.crown !== false) wardCrown(g, 1, -38, 1, o.crownTilt || 0);
+    if (o.crown !== false) wardCrown(g, 1, -38, 1, o.crownTilt || 0, o.crownBottle);
     path(
       g,
       p => {
@@ -2631,12 +2849,14 @@ function wardGremlinArt(g, type, pal, t, o = {}) {
   }
 }
 
-function wardCrown(g, x, y, s = 1, tilt = 0) {
+// bottle: an Ensure flavor wedged in behind the points, or undefined for a plain crown.
+function wardCrown(g, x, y, s = 1, tilt = 0, bottle) {
   const pts = [[-15, 2], [-16, -11], [-9, -5], [-3, -14], [3, -5], [9, -13], [16, -4], [15, 2]];
   g.save();
   g.translate(x, y);
   g.rotate(tilt);
   g.scale(s, s);
+  if (bottle !== undefined && bottle !== null) ensureBottle(g, 6, -4, bottle, 1.05, 0.38);
   poly(g, pts, '#f7dc6f');
   path(
     g,
@@ -2698,13 +2918,34 @@ function wardDrawPart(g, kind, pal) {
     );
   else if (kind === 'brick') brick(g, -10, 4, '#ed9d87');
   else if (kind === 'crown') wardCrown(g, 0, 0, 1.1);
+  else if (kind === 'ensure') ensureBottle(g, 0, 0, 0, 0.9, 0, 10);
+}
+
+// An Ensure bottle, drawn like the hallway's: origin at its base, rotated by rot around a point pivot
+// units up the bottle (0 is the base, about 10 is the middle). flavor: 0 chocolate, 1 vanilla, 2 strawberry.
+function ensureBottle(g, x, y, flavor = 0, s = 1, rot = 0, pivot = 0) {
+  const i = flavor % ENSURE_FLAVORS.length;
+  g.save();
+  g.translate(x, y);
+  g.rotate(rot);
+  g.scale(s, s);
+  g.translate(0, pivot);
+  rr(g, -5, -17, 10, 17, 3, '#f4efe2', '#a59c8a', 0.7);
+  rr(g, -5, -12, 10, 7, 1.5, ENSURE_FLAVORS[i]);
+  rr(g, -3.4, -21, 6.8, 5, 1.6, ENSURE_CAPS[i]);
+  line(g, [[-2.6, -15], [-2.6, -3]], '#ffffff88', 1);
+  g.restore();
 }
 
 function wardPose(e) {
   const o = { lookX: 1, lookY: clamp((player.y - e.y) / 200, -1, 1), arms: 'down' },
     k = e.wind > 0 ? clamp(1 - e.wind / e.windMax, 0, 1) : 0;
+  if (e.bottle) o.bottle = e.bottle.flavor;
+  if (e.bottle && e.wind > 0) o.bottleWave = true;
   if (e.hit > 0) return Object.assign(o, { eyes: 'shut', mouth: 'open', arms: 'wide' });
   if (e.stun > 0 || e.dizzy > 0) return Object.assign(o, { eyes: 'spiral', mouth: 'wobble', arms: 'wide' });
+  if (e.glugT > 0)
+    return Object.assign(o, { glug: true, eyes: 'shut', mouth: 'puff', cheek: 0.5 + 0.5 * Math.sin(time * 18) });
   if (e.charge > 0 || e.slam) return Object.assign(o, { eyes: 'wide', mouth: 'open', arms: 'reach', brow: 1 });
   if (e.hopT > 0) return Object.assign(o, { eyes: 'squint', mouth: 'teeth', arms: 'up', brow: 1 });
   if (e.volleys > 0) return Object.assign(o, { eyes: 'squint', mouth: 'open', brow: 1 });
@@ -2781,6 +3022,11 @@ function wardBodyTransform(e) {
   }
   if (e.stun > 0 || e.dizzy > 0) lean += Math.sin(time * 8 + e.anim) * 0.14;
   if (Math.hypot(e.kx || 0, e.ky || 0) > 40) lean += clamp((e.kx || 0) / 1000, -0.3, 0.3);
+  if (e.glugT > 0) {
+    // Head back, gulping.
+    lean -= face * 0.14;
+    if (!reduced) sy *= 1 + Math.sin(time * 18) * 0.03;
+  }
   return { sx, sy, lean, jx, oy };
 }
 
@@ -2983,7 +3229,7 @@ function wardDrawTelegraph(g, e, size) {
       len = 120 + 140 * k,
       y0 = e.y - 32;
     g.globalAlpha = 0.25 + 0.45 * k;
-    g.strokeStyle = '#b9d56b';
+    g.strokeStyle = e.ensureBlob ? ENSURE_BEIGE[1] : '#b9d56b';
     g.lineWidth = 2.5;
     g.setLineDash([6, 8]);
     for (let i = 0; i < n; i++) {
@@ -3059,7 +3305,11 @@ function wardDrawEmerge(g, e) {
     g.save();
     g.translate(s.x, s.y);
     g.scale(size * (0.7 + 0.3 * r) * (player.x < s.x ? -1 : 1), size * r);
-    wardGremlinArt(g, e.type, breeds[e.type].pal, time + e.anim, { eyes: 'wide', mouth: 'open' });
+    wardGremlinArt(g, e.type, breeds[e.type].pal, time + e.anim, {
+      eyes: 'wide',
+      mouth: 'open',
+      bottle: e.bottle ? e.bottle.flavor : undefined
+    });
     g.restore();
   }
 }
@@ -3080,6 +3330,7 @@ function wardDrawRalph(g, e) {
   if (e.retreating) pose = { eyes: 'open', mouth: 'grin', arms: 'down', brow: -1, lookX: -1 };
   pose.crownTilt = e.dizzy > 0 || e.stun > 0 ? 0.5 * Math.sin(time * 6) : rage ? -0.15 : 0;
   pose.redEyes = rage;
+  if (e.ensureCrown) pose.crownBottle = 0;
   g.save();
   g.translate(e.x + tf.jx, e.y - e.z + tf.oy);
   g.transform(tf.sx, 0, tf.lean, tf.sy, 0, 0);
@@ -3183,19 +3434,64 @@ function wardDrawGround(g) {
     if (!p.gunk) continue;
     const r = p.r;
     g.globalAlpha = Math.min(1, p.life / 0.8) * 0.85;
-    ellipse(g, p.x, p.y, r, r * 0.38, '#7f9a3c');
-    ellipse(g, p.x - r * 0.2, p.y - 2, r * 0.6, r * 0.2, '#a7c45a');
+    ellipse(g, p.x, p.y, r, r * 0.38, p.ensure ? ENSURE_BEIGE[1] : '#7f9a3c');
+    ellipse(g, p.x - r * 0.2, p.y - 2, r * 0.6, r * 0.2, p.ensure ? ENSURE_BEIGE[0] : '#a7c45a');
     for (let i = 0; i < 3; i++) {
       const bt = (time * 0.9 + i * 0.37 + p.x * 0.01) % 1;
-      ellipse(g, p.x + (i - 1) * r * 0.45, p.y - 2 - bt * 3, 3 * (1 - bt) + 1, 2.4 * (1 - bt) + 0.8, '#d4e58e');
+      ellipse(
+        g,
+        p.x + (i - 1) * r * 0.45,
+        p.y - 2 - bt * 3,
+        3 * (1 - bt) + 1,
+        2.4 * (1 - bt) + 0.8,
+        p.ensure ? ENSURE_BEIGE[2] : '#d4e58e'
+      );
     }
   }
   g.globalAlpha = 1;
   for (const f of combatFx) if (f.ground) wardDrawEffect(g, f);
+  ensureDrawProps(g);
 }
 
 function wardDrawFx(g) {
+  ensureDrawBlobs(g);
   for (const f of combatFx) if (!f.ground) wardDrawEffect(g, f);
+}
+
+// Dropped bottles lie on their side with a tiny label, fading out over their last second.
+function ensureDrawProps(g) {
+  for (const b of ensureProps) {
+    g.globalAlpha = clamp(b.life, 0, 1);
+    shadow(g, b.x, b.y + 3, 13, 3.4);
+    ensureBottle(g, b.x, b.y - 4, b.flavor, 1, b.rot, 10);
+    label(g, 'ENSURE', b.x, b.y - 13, 7, '#5b4a37', 'center');
+  }
+  g.globalAlpha = 1;
+}
+
+// world.js paints every hostile blob green; beige Ensure blobs are painted over it, a size larger.
+function ensureDrawBlobs(g) {
+  for (const p of projectiles) {
+    if (!p.ensure || p.friendly || p.kind !== 'blob' || p.life <= 0) continue;
+    ellipse(g, p.x - p.vx * 0.035, p.y - p.vy * 0.035, 13, 7, ENSURE_BEIGE[1] + 'dd');
+    ellipse(g, p.x, p.y, 10, 9, ENSURE_BEIGE[0]);
+    ellipse(g, p.x - 3, p.y - 3, 3.2, 2.4, ENSURE_BEIGE[2]);
+  }
+}
+
+// The banner's sub line with the sponsor's tiny "(and Ensure)" after it, centered as one line.
+function ensureDrawTail(g, b) {
+  const subW = ensureTextWidth(g, b.sub, 13),
+    tailW = ensureTextWidth(g, b.tail, 9),
+    left = -(subW + 5 + tailW) / 2;
+  label(g, b.sub, left, 19, 13, '#d9f0dc');
+  label(g, b.tail, left + subW + 5, 19, 9, ENSURE_BEIGE[0]);
+}
+
+function ensureTextWidth(g, text, size) {
+  g.font = `700 ${size}px "Trebuchet MS", Arial, sans-serif`;
+  const m = g.measureText(text);
+  return (m && m.width) || text.length * size * 0.55;
 }
 
 function wardDrawEffect(g, f) {
@@ -3279,8 +3575,47 @@ function wardDrawEffect(g, f) {
     ellipse(g, 0, 0, 6, 2.2, '#fffdf3');
     line(g, [[-6, 0], [6, 0]], '#d8e2d4', 0.8);
     g.restore();
-  }
+  } else if (f.kind.startsWith('ensure')) ensureDrawEffect(g, f, k);
   g.globalAlpha = 1;
+}
+
+// Ensure effects: a shield bottle bursting (pop), the chocolate it leaves (stain), and a beige blob
+// spelling ENSURE around Macy's feet (splat). k is the effect's progress, 0 to 1.
+function ensureDrawEffect(g, f, k) {
+  if (f.kind === 'ensurePop') {
+    g.globalAlpha = 1 - k;
+    g.strokeStyle = '#f4efe2';
+    g.lineWidth = 3 * (1 - k) + 1;
+    g.beginPath();
+    g.ellipse(f.x, f.y, 8 + 26 * k, 6 + 20 * k, 0, 0, Math.PI * 2);
+    g.stroke();
+    for (let i = 0; i < 9; i++) {
+      const a = f.seed + i * 0.7,
+        sp = 34 + (i % 3) * 16,
+        dx = Math.cos(a) * sp * k * 1.5,
+        dy = Math.sin(a) * sp * k + 70 * k * k;
+      ellipse(g, f.x + dx, f.y + dy, 4.4 - 2 * k, 3.6 - 1.6 * k, ENSURE_FLAVORS[0]);
+    }
+    ellipse(g, f.x, f.y, 11 * (1 - k), 9 * (1 - k), ENSURE_CAPS[0]);
+  } else if (f.kind === 'ensureStain') {
+    g.globalAlpha = 0.7 * Math.min(1, f.t / 0.15) * Math.min(1, (f.life - f.t) / 0.6);
+    ellipse(g, f.x, f.y, 20, 6.5, ENSURE_FLAVORS[0]);
+    ellipse(g, f.x + Math.cos(f.seed) * 22, f.y + 3, 5, 2, ENSURE_FLAVORS[0]);
+    ellipse(g, f.x - Math.cos(f.seed) * 18, f.y - 2, 3.5, 1.5, ENSURE_FLAVORS[0]);
+  } else if (f.kind === 'ensureSplat') {
+    const grow = Math.min(1, f.t / 0.12),
+      word = 'ENSURE';
+    g.globalAlpha = 0.85 * Math.min(1, (f.life - f.t) / 0.4);
+    ellipse(g, f.x, f.y + 3, 36 * grow, 11 * grow, ENSURE_BEIGE[1]);
+    ellipse(g, f.x - 6, f.y + 1, 22 * grow, 6 * grow, ENSURE_BEIGE[0]);
+    for (let i = 0; i < word.length; i++) {
+      const a = Math.PI * (0.9 - (0.8 * i) / (word.length - 1)),
+        lx = f.x + Math.cos(a) * 50 * grow,
+        ly = f.y + 8 + Math.sin(a) * 16 * grow;
+      ellipse(g, lx, ly - 4, 7, 3, ENSURE_BEIGE[0]);
+      label(g, word[i], lx, ly, 12 * grow + 1, ENSURE_BEIGE[3], 'center');
+    }
+  }
 }
 
 // Screen-space layer: Ralph's health bar, wave banners, the hit chain and teaching hints. Narrow canvases
@@ -3296,7 +3631,7 @@ function wardDrawBanner(g, vw) {
   const b = wardBanner,
     inT = Math.min(1, b.t / 0.25),
     a = Math.min(inT, Math.max(0, (b.life - b.t) / 0.4)),
-    w0 = Math.max(b.title.length * 19.5, b.sub.length * 7.4) + 70,
+    w0 = Math.max(b.title.length * 19.5, b.sub.length * 7.4 + (b.tail ? b.tail.length * 5.2 + 5 : 0)) + 70,
     fit = Math.min(1, (vw - 32) / w0),
     pop = reduced ? 1 : 1 + (1 - Math.min(1, b.t / 0.18)) * 0.25,
     slide = reduced ? 0 : (1 - inT) * -26,
@@ -3309,7 +3644,8 @@ function wardDrawBanner(g, vw) {
   rr(g, -w0 / 2 + 10, -32, w0 - 20, 3, 1.5, '#ffffff1c');
   label(g, b.title, 1.5, 1.5, 30, '#0d222c', 'center');
   label(g, b.title, 0, 0, 30, '#ffe29b', 'center');
-  label(g, b.sub, 0, 19, 13, '#d9f0dc', 'center');
+  if (b.tail) ensureDrawTail(g, b);
+  else label(g, b.sub, 0, 19, 13, '#d9f0dc', 'center');
   g.restore();
 }
 
@@ -3323,7 +3659,7 @@ function wardDrawBossBar(g, vw) {
     hp = Math.max(0, r.hp) / r.maxHp,
     trail = clamp(r.trail, 0, r.maxHp) / r.maxHp;
   rr(g, x - 12, y - 22, w + 24, 50, 14, '#211533e8', rage ? '#e07aa0' : '#a27ad2', 2);
-  wardCrown(g, x + 7, y - 6, 0.7);
+  wardCrown(g, x + 7, y - 6, 0.7, 0, r.ensureCrown ? 0 : undefined);
   label(g, 'RALPH · KING OF THE GUT', x + 24, y - 3, 12, '#eadcff');
   label(g, 'PHASE ' + ['I', 'II', 'III'][r.phase - 1], x + w, y - 3, 12, rage ? '#ff9ab0' : '#ffe29b', 'right');
   rr(g, x, y + 4, w, 13, 6.5, '#120b1d');
