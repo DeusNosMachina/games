@@ -18,7 +18,7 @@ function bbGremlin(kind, hx, hy) {
 function bbTick(seconds) { for (let t = 0; t < seconds - 1e-9; t += 0.02) updateMini(0.02); }
 function bbMouse(type, x, y, extra = {}) {
   blasterPointerEvent({ type, pointerType: 'mouse', pointerId: 1, button: 0, target: $('miniCanvas'),
-    clientX: x * 1000 / 600, clientY: y * 625 / 600, ...extra });
+    ...bbClient(x, y), ...extra });
 }
 function bbTouch(type, id, x, y) {
   blasterPointerEvent({ type, pointerType: 'touch', pointerId: id, button: 0, target: $('miniCanvas'),
