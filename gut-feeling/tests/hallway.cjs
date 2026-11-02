@@ -98,7 +98,7 @@ console.log('PASS: 60 seconds of strolling: no NaNs, everyone stays on the floor
 function hallwaySnapshot(seed) {
   run(`rng = ${seed}; hallwayResetCast(); state.room = 6; player.x = 1600; player.y = 450; player.dash = 0;
     for (let i = 0; i < 1800; i++) updateRoomExtras(1 / 60);`);
-  return run('JSON.stringify(hallwayCast.map(n => [n.name, n.look.topA, n.x.toFixed(4), n.y.toFixed(4)]))');
+  return run('JSON.stringify(hallwayCast.map(n => [n.name, n.look ? n.look.topA : n.pose, n.x.toFixed(4), n.y.toFixed(4)]))');
 }
 assert.equal(hallwaySnapshot(77), hallwaySnapshot(77), 'the same seed walks the same hallway');
 assert.notEqual(hallwaySnapshot(77), hallwaySnapshot(78), 'a different seed changes the nurses and the walks');
@@ -379,6 +379,173 @@ for (let i = 0; i < 12; i++) run('hallwayEnsureDrop(hallwayCast.find(n => n.ensu
 assert.equal(run('hallwayBottles.length'), 9, 'the pile of untouched Ensure is capped');
 console.log('PASS: Barb arrives on her timer, offers, gets told no, leaves an Ensure anyway, and comes back.');
 
+// ---- Rowdy the Ram ----
+const rowdyPoses = JSON.parse(run('JSON.stringify(ROWDY_POSES)'));
+const R = expr => run(`(() => { var r = hallwayCast.find(n => n.id === 'rowdy'); return ${expr}; })()`);
+const RJ = expr => JSON.parse(R(`JSON.stringify(${expr})`));
+function rowdyStage() {
+  run(`state.won = false; state.ralph = false; state.name = 'Macy';
+    hallwayResetCast(); state.room = 6; state.paused = false; player.dash = 0; player.moving = false; hallwayTalk = null;
+    hallwayCast.forEach(n => { if (!n.rowdy) n.present = false; }); hallwayEnsure.due = 9999;
+    var r0 = hallwayCast.find(n => n.rowdy);`);
+}
+run('state.ralphReady = false');
+rowdyStage();
+assert.equal(run('hallwayCast.filter(n => n.id === "rowdy").length'), 1, 'Rowdy is in the hallway cast');
+assert.equal(R('r.present'), true);
+assert.equal(R('r.name'), 'Rowdy the Ram');
+assert.equal(R('r.voice'), 'rowdy');
+assert.deepEqual(RJ('[r.x, r.y]'), [812, 270], "he lives by the nurses' station");
+assert.ok(R('r.nextCheer >= 40 && r.nextCheer <= 70'), 'his first cheer is due in 40 to 70 s');
+assert.ok(R('roomExtraRenderables(true).some(o => o.y === r.y)'), 'he depth-sorts with everyone else');
+assert.equal(R('hallwayNpcTop(r)'), run('rowdyNpcSpec().height'), 'bubbles hang from his own height');
+
+// Home: bouncing in place while nobody's around.
+run(`player.x = 3000; player.y = 520; r0.nextCheer = 100; var rowdySeen = new Set();
+  for (let i = 0; i < 1200; i++) { updateRoomExtras(1 / 60); rowdySeen.add(r0.pose); }`);
+assert.deepEqual(JSON.parse(run('JSON.stringify([...rowdySeen])')), ['idle'], 'idle bounce at home');
+assert.deepEqual(RJ('[r.x, r.y, r.mode]'), [812, 270, 'idle']);
+
+// A cheer on his timer, with nobody watching: one bark and one pose per bubble, babbling about 14 a second.
+run(`var rowdyBlips = []; var spySfx = sfx;
+  sfx = (name, o) => { if (name === 'talk' && o && o.voice === 'rowdy') rowdyBlips.push(hallwayClock); return spySfx(name, o); };`);
+run(`r0.nextCheer = 0.5; var rowdyBubbles = []; var lastBark = null;
+  for (let i = 0; i < 60 * 25 && !(rowdyBubbles.length && r0.mode === 'idle'); i++) {
+    updateRoomExtras(1 / 60);
+    if (r0.bark && r0.bark !== lastBark) {
+      lastBark = r0.bark;
+      rowdyBubbles.push({ text: r0.bark.text, pose: r0.pose, mode: r0.mode, cheer: r0.cheer && r0.cheer.id });
+    }
+  }`);
+const autoCheer = JSON.parse(run('JSON.stringify(rowdyBubbles)'));
+assert.ok(autoCheer.length >= 3 && autoCheer.length <= 5, `a cheer is 3 to 5 bubbles (${autoCheer.length})`);
+for (const b of autoCheer) {
+  assert.equal(b.mode, 'cheer');
+  assert.ok(rowdyPoses.includes(b.pose), `pose ${b.pose}`);
+  assert.ok(!b.text.includes('{name}'));
+}
+assert.deepEqual(
+  autoCheer.map(b => b.pose),
+  JSON.parse(run(`JSON.stringify(ROWDY_CHEERS.find(c => c.id === '${autoCheer[0].cheer}').bubbles.map(b => b.pose))`)),
+  'the pose changes with every bubble, in order'
+);
+assert.equal(R('r.mode'), 'idle', 'and back to bouncing');
+assert.ok(R('r.nextCheer >= 39 && r.nextCheer <= 70'), 'next cheer in 40 to 70 s');
+// Rate from the gaps between syllables inside a bubble (a gap over 0.2 s is the next bubble).
+const blipTimes = JSON.parse(run('JSON.stringify(rowdyBlips)')),
+  gaps = blipTimes.slice(1).map((t, i) => t - blipTimes[i]).filter(g => g < 0.2),
+  babbleRate = gaps.length / gaps.reduce((a, b) => a + b, 0);
+assert.ok(gaps.length > 20, 'he babbles through every bubble');
+assert.ok(babbleRate > 13 && babbleRate < 15, `about 14 syllables a second (${babbleRate.toFixed(1)})`);
+console.log(`PASS: Rowdy bounces at home and cheers on his timer to nobody: ${autoCheer.length} posed bubbles, ${babbleRate.toFixed(1)} blips/s.`);
+
+// Each visit: a gallop over and a wave, once.
+run(`r0.nextCheer = 100; hallwayFrom = 4; state.room = 6; onRoomLoaded(6); var galloped = false;
+  for (let i = 0; i < 60 * 20 && r0.mode !== 'greet'; i++) { updateRoomExtras(1 / 60); if (r0.pose === 'gallop') galloped = true; }`);
+assert.equal(R('r.mode'), 'greet', 'he greets Macy when she walks in');
+assert.equal(run('galloped'), true, 'at a gallop');
+assert.equal(R('r.pose'), 'wave');
+assert.ok(R('Math.abs(Math.abs(r.x - player.x) - 64) < 1'), 'stopping a polite distance away');
+assert.ok(
+  JSON.parse(run('JSON.stringify(ROWDY_GREETS.map(t => rowdyFormat(t, state)))')).includes(R('r.bark.text')),
+  'with a greeting'
+);
+run(`var greetsAgain = 0, prevMode = r0.mode;
+  for (let i = 0; i < 60 * 6; i++) { updateRoomExtras(1 / 60); if (r0.mode === 'greet' && prevMode !== 'greet') greetsAgain++; prevMode = r0.mode; }`);
+assert.ok(R('dist(r, player) < 100'), 'he hangs around while she stays close');
+run(`player.x = 3050; player.y = 540;
+  for (let i = 0; i < 60 * 25; i++) { updateRoomExtras(1 / 60); if (r0.mode === 'greet' && prevMode !== 'greet') greetsAgain++; prevMode = r0.mode; }`);
+assert.equal(run('greetsAgain'), 0, 'once per visit');
+assert.deepEqual(RJ('[Math.round(r.x), Math.round(r.y), r.mode]'), [812, 270, 'idle'], 'and trots home when she moves on');
+run(`state.room = 2; onRoomLoaded(2); state.room = 6; hallwayFrom = 0; onRoomLoaded(6);
+  for (let i = 0; i < 60 * 20 && r0.mode !== 'greet'; i++) updateRoomExtras(1 / 60);`);
+assert.equal(R('r.mode'), 'greet', 'and again on the next visit');
+console.log('PASS: Rowdy gallops over and waves once per visit, then goes home.');
+
+// Talking to him: a cheer or a line, a pose per bubble, his voice about 14 blips a second.
+run(`for (let i = 0; i < 600 && r0.mode !== 'idle'; i++) updateRoomExtras(1 / 60);
+  r0.nextCheer = 100; player.x = r0.x - 40; player.y = r0.y; hallwayArrival = 0; updateRoomExtras(0.2);`);
+assert.equal(run('hallwayTarget && hallwayTarget.npc && hallwayTarget.npc.id'), 'rowdy', 'TALK prompt at Rowdy');
+assert.equal(run("roomExtrasAction('attack')"), true);
+const talk1 = JSON.parse(run('JSON.stringify(hallwayTalk.lines)'));
+assert.ok(talk1.length >= 3 && talk1.length <= 5, 'the first talk is a cheer');
+for (const l of talk1) {
+  assert.equal(l.who, 'npc');
+  assert.ok(rowdyPoses.includes(l.pose));
+  assert.ok(!l.text.includes('{name}'));
+}
+assert.equal(R('r.mode'), 'talk', 'his own brain waits while he talks');
+run('updateRoomExtras(1 / 60)');
+assert.equal(R('r.pose'), talk1[0].pose);
+run(`rowdyBlips = []; hallwayTalk.lines[0].text = 'Go Rams go Rams go Rams go Rams go Rams go Rams go Rams go Rams go Rams go Rams';
+  hallwayTalk.shown = 0; hallwayTalk.acc = 0; for (let i = 0; i < 120; i++) updateRoomExtras(1 / 120);`);
+const typedBlips = run('rowdyBlips.length');
+assert.ok(typedBlips >= 12 && typedBlips <= 16, `about 14 blips a second while he talks (${typedBlips})`);
+for (let i = 1; i < talk1.length; i++) {
+  run('hallwayTalk.shown = 999; updateRoomExtras(0.2); roomExtrasAction("attack"); updateRoomExtras(1 / 60)');
+  assert.equal(run('hallwayTalk.i'), i);
+  assert.equal(R('r.pose'), talk1[i].pose, `bubble ${i} has its pose`);
+}
+run('drawRoomOverlay(c, 1000, 625)');
+run('hallwayTalk.shown = 999; updateRoomExtras(0.2); roomExtrasAction("attack")');
+assert.equal(run('hallwayTalk'), null);
+assert.equal(R('r.mode'), 'idle', 'finished: back to bouncing');
+run('updateRoomExtras(0.2); roomExtrasAction("attack")');
+const talk2 = JSON.parse(run('JSON.stringify(hallwayTalk.lines)'));
+assert.equal(talk2.length, 1, 'the next talk is one of his lines');
+assert.ok(rowdyPoses.includes(talk2[0].pose));
+run('hallwayCloseTalk()');
+assert.equal(R('r.mode'), 'idle', 'Escape is not walking out on him');
+console.log('PASS: talking to Rowdy runs a cheer or a line with a pose per bubble and his own voice.');
+
+// Walk out mid-cheer: a second of sad, then a farewell and a wave. Both in the speech box and in an auto cheer.
+const farewells = JSON.parse(run('JSON.stringify(ROWDY_FAREWELLS.map(t => rowdyFormat(t, state)))'));
+run('updateRoomExtras(0.2); r0.talks = 0; roomExtrasAction("attack")');
+assert.ok(run('hallwayTalk.lines.length') >= 3);
+run('player.x = r0.x - 400; updateRoomExtras(1 / 60)');
+assert.equal(run('hallwayTalk'), null, 'walking off ends the talk');
+assert.deepEqual(RJ('[r.mode, r.pose]'), ['sad', 'sad']);
+run('for (let i = 0; i < 54; i++) updateRoomExtras(1 / 60)');
+assert.equal(R('r.mode'), 'sad', 'for about a second');
+run('for (let i = 0; i < 12; i++) updateRoomExtras(1 / 60)');
+assert.deepEqual(RJ('[r.mode, r.pose]'), ['recover', 'wave']);
+assert.ok(farewells.includes(R('r.bark.text')), 'then a farewell');
+run('for (let i = 0; i < 150; i++) updateRoomExtras(1 / 60)');
+assert.ok(['idle', 'home'].includes(R('r.mode')), 'and back to his day');
+run(`for (let i = 0; i < 60 * 30 && r0.mode !== 'idle'; i++) updateRoomExtras(1 / 60);
+  player.x = r0.x - 100; player.y = r0.y; r0.nextCheer = 0.05; for (let i = 0; i < 10; i++) updateRoomExtras(1 / 60);`);
+assert.equal(R('r.mode'), 'cheer', 'an auto cheer with Macy watching');
+run(`for (let i = 0; i < 60 && r0.mode === 'cheer'; i++) { player.x -= 12; updateRoomExtras(1 / 60); }`);
+assert.deepEqual(RJ('[r.mode, r.pose]'), ['sad', 'sad'], 'walk out on it: sad');
+run('for (let i = 0; i < 66; i++) updateRoomExtras(1 / 60)');
+assert.equal(R('r.mode'), 'recover');
+assert.ok(farewells.includes(R('r.bark.text')));
+console.log('PASS: walking out mid-cheer gets a second of sad, then a farewell and a wave.');
+
+// The first cheer after Ralph turns up at the exit is the Ralph cheer, on his timer or when Macy asks.
+run('state.ralphReady = true; state.ralph = false');
+rowdyStage();
+run(`player.x = 3000; player.y = 520; r0.nextCheer = 0.05; for (let i = 0; i < 10; i++) updateRoomExtras(1 / 60);`);
+assert.equal(R('r.cheer && r.cheer.id'), 'ralph', 'auto cheer: Ralph first');
+assert.match(R('r.bark.text'), /exit guard/);
+rowdyStage();
+run(`player.x = r0.x - 40; player.y = r0.y; updateRoomExtras(0.2); roomExtrasAction('attack');`);
+assert.equal(run('hallwayTalk.lines[0].cheer'), 'ralph', 'talk: Ralph first');
+assert.match(run('hallwayTalk.lines.map(l => l.text).join(" ")'), /RALPH, you're going DOWN/);
+assert.equal(R('r.ralphCheered'), true);
+run('hallwayCloseTalk(); state.ralphReady = false');
+console.log('PASS: once Ralph guards the exit, the first cheer is the Ralph cheer.');
+
+// {name} is Macy's name.
+rowdyStage();
+run(`state.name = 'Mace'; var nameTexts = [];
+  for (let i = 0; i < 40; i++) nameTexts.push(...hallwayRowdyConvo(r0).map(l => l.text));
+  state.name = 'Macy';`);
+assert.ok(run('nameTexts.some(t => t.includes("Mace"))'), "{name} becomes Macy's name");
+assert.equal(run('nameTexts.some(t => t.includes("{name}"))'), false);
+run('sfx = spySfx');
+console.log("PASS: Rowdy's {name} is state.name.");
+
 // ---- Doors, the gift shop and the exit ----
 run('var goCalls = []; var realGoRoom = goRoom; goRoom = id => { goCalls.push(id); }');
 run('var shopCalls = 0; var realShowShop = showShop; showShop = () => { shopCalls++; }');
@@ -487,6 +654,19 @@ for (const ctx of ['c', 'strictCtx']) {
     }
   }
 }
+run(`(() => {
+  var r = hallwayCast.find(n => n.rowdy);
+  for (const pose of ROWDY_POSES) {
+    for (const face of [1, -1]) {
+      r.pose = pose;
+      r.face = face;
+      hallwayDrawNpc(strictCtx, r);
+      hallwayDrawNpc(c, r);
+    }
+  }
+  r.pose = 'idle';
+  hallwayPortrait(strictCtx, 10, 10, 120, 120, r, true);
+})()`);
 assert.deepEqual(strictErrors.slice(0, 5), [], 'the strict canvas saw no NaNs or negative radii');
 const frameworkDraw = run(`(() => {
   try {
@@ -553,7 +733,9 @@ class FakeNode {
     return d;
   }
   disconnect() {}
-  setPeriodicWave() {}
+  setPeriodicWave(w) {
+    this.wave = w;
+  }
   start(t = 0) {
     if (!Number.isFinite(t)) throw new RangeError('bad start');
   }
@@ -624,6 +806,31 @@ for (const v of voices) {
 assert.ok(pitch.grandpa < pitch.dad && pitch.dad < pitch.doctor && pitch.doctor < pitch.brother, 'low to high: grandpa, dad, doctor, brother');
 assert.ok(pitch.brother < pitch.nurse && pitch.nurse < pitch.ensure && pitch.ensure < pitch.cousin, 'then nurse, Barb, the cousins');
 assert.ok(run('AUDIO_TALK_VOICES.ensure.loud') > 1, 'Barb is a little too loud');
+
+// Rowdy: muffled pulse blips that hop up, a wide random spread, a touch lower than the kids on average.
+function voiceMean(v, n = 48) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    actx.currentTime += 0.3;
+    const at = actx.nodes.length;
+    run(`audio.voices = 0; sfx('talk', { voice: '${v}', count: ${i}, combo: 0 })`);
+    out.push(actx.nodes.slice(at).filter(x => x.kind === 'oscillator'));
+  }
+  return out;
+}
+const rowdyVoice = voiceMean('rowdy'),
+  rowdyHz = rowdyVoice.map(o => o[0].frequency.first),
+  meanHz = list => list.reduce((a, b) => a + b, 0) / list.length;
+for (const osc of rowdyVoice) {
+  assert.ok(osc[0].wave && osc[0].wave.real, 'a pulse wave');
+  assert.ok(osc[0].frequency.value > osc[0].frequency.first * 1.1, 'every syllable hops up');
+  assert.ok(osc.length >= 2, 'with a vibrato layer');
+}
+assert.ok(actx.nodes.some(n => n.kind === 'biquad' && n.frequency.first === 1800), 'low-passed at 1.8 kHz, inside the foam head');
+assert.ok(meanHz(rowdyHz) > 250 && meanHz(rowdyHz) < 310, `around 260 to 330 Hz (${meanHz(rowdyHz).toFixed(0)})`);
+assert.ok(Math.max(...rowdyHz) / Math.min(...rowdyHz) > 1.3, 'about 20 percent jitter either way');
+for (const kid of ['macy', 'brother', 'cousin'])
+  assert.ok(meanHz(rowdyHz) < meanHz(voiceMean(kid).map(o => o[0].frequency.first)), `a touch lower than ${kid}`);
 actx.currentTime += 0.3;
 let before = actx.nodes.length;
 run("sfx('talk', { voice: 'nurse', count: 1 })");

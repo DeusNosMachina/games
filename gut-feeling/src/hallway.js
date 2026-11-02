@@ -1,6 +1,7 @@
 // The fourth-floor hallway (room 6): the long way between department doors, full of people who like
 // Macy. No combat, no damage. Visitors stroll, pause, turn to face her, and talk in a typed speech box
-// with voice blips; Barb from Dietary rides the elevator up every few minutes with a tray of Ensure.
+// with voice blips; Barb from Dietary rides the elevator up every few minutes with a tray of Ensure,
+// and Rowdy the Ram (src/rowdy.js) cheers from the nurses' station.
 //
 // Framework contract (world.js and input.js call these when they exist):
 //   hallwayInstall()             adds room 6 to rooms and its furniture to roomProps (idempotent)
@@ -55,7 +56,7 @@ const HALLWAY_DOORS = [
 ];
 
 // Voice ids for sfx('talk', {voice}); audio.js defines each one.
-const HALLWAY_VOICES = ['dad', 'brother', 'grandma', 'grandpa', 'cousin', 'doctor', 'nurse', 'ensure', 'macy'];
+const HALLWAY_VOICES = ['dad', 'brother', 'grandma', 'grandpa', 'cousin', 'doctor', 'nurse', 'ensure', 'macy', 'rowdy'];
 
 const HALLWAY_FLAVORS = ['#7a4b33', '#e9d39a', '#ef9fb0'],
   HALLWAY_SCRUBS = ['#6fb7c9', '#7fc4a2', '#c48fbf', '#5b7fbf', '#e39a8f', '#8a86c9', '#4f9c9a'],
@@ -1129,6 +1130,8 @@ function hallwayResetCast() {
       ensure: true
     })
   ];
+  const rowdy = hallwayRowdy();
+  if (rowdy) hallwayCast.push(rowdy);
   for (const npc of hallwayCast) {
     let tries = 0;
     while (hallwayBlocked(npc.x, npc.y, npc) && tries < 12) {
@@ -1224,6 +1227,7 @@ function hallwayPickTarget(npc) {
 
 function hallwayFace(npc) {
   npc.dir = player.x >= npc.x ? 1 : -1;
+  if (npc.rowdy) npc.face = npc.dir;
 }
 
 function hallwaySay(npc, text, life = 2.6) {
@@ -1241,6 +1245,10 @@ function hallwayMaybeBark(npc, d) {
 }
 
 function hallwayNpcStep(npc, dt) {
+  if (npc.rowdy) {
+    hallwayRowdyStep(npc, dt);
+    return;
+  }
   npc.barkCd = Math.max(0, npc.barkCd - dt);
   npc.whoa = Math.max(0, npc.whoa - dt);
   npc.whoaCd = Math.max(0, npc.whoaCd - dt);
@@ -1382,10 +1390,151 @@ function hallwayEnsureDrop(npc, ignored) {
   if (ignored) hallwaySay(npc, "I'll leave it here!", 2.4);
 }
 
+// ---- Rowdy the Ram ----
+// Ramsey's mascot (src/rowdy.js) works the nurses' station. His own brain (spec.tick) runs his day:
+// bouncing at home, a cheer every 40 to 70 s whether or not anyone is watching (one bark and one pose
+// per bubble), a gallop and a wave the first time Macy comes into the hallway each visit, and a sulk
+// then a farewell if she walks off mid-cheer. Talking to him pauses the brain and runs one of his
+// cheers or lines through the speech box, a pose per bubble. The first cheer after Ralph turns up at
+// the exit, from either path, is the Ralph cheer.
+const HALLWAY_ROWDY_HOME = [812, 270],
+  HALLWAY_ROWDY_POSES = ['cheer', 'point', 'flex', 'hug', 'wave'],
+  HALLWAY_ROWDY_FLAG = ['ramsey', 'blue-gold'],
+  HALLWAY_ROWDY_WHOA = 'Whoa! Fast break! Do that at regionals!',
+  HALLWAY_ROWDY_BABBLE = 1 / 14,
+  HALLWAY_BLIP_GAP = { rowdy: 1 / 15 };
+
+function hallwayRowdy() {
+  if (typeof rowdyNpcSpec !== 'function') return null;
+  const spec = rowdyNpcSpec(),
+    [hx, hy] = HALLWAY_ROWDY_HOME,
+    npc = hallwayNpc('rowdy', spec.name, spec.voice, null, hx, hy, [hx, hx], spec.timing.homeSpeed, {
+      lines: 'rowdy',
+      tag: '#f2cf6b'
+    });
+  npc.rowdy = true;
+  npc.spec = spec;
+  npc.homeX = hx;
+  npc.homeY = hy;
+  npc.mode = 'idle';
+  npc.pose = 'idle';
+  npc.face = -1;
+  npc.dir = -1;
+  npc.vdir = -1;
+  npc.timer = 0;
+  npc.say = null;
+  npc.cheer = null;
+  npc.prop = null;
+  npc.nextCheer = rand(spec.timing.autoCheer[0], spec.timing.autoCheer[1]);
+  npc.greeted = false;
+  npc.entered = false;
+  npc.ralphCheered = false;
+  npc.talks = 0;
+  npc.lastPick = '';
+  npc.babble = 0;
+  npc.babbleAt = 0;
+  npc.babbleN = 0;
+  return npc;
+}
+
+// Where a visitor's speech bubble and TALK prompt hang: above the head, in world units.
+function hallwayNpcTop(npc) {
+  return npc.rowdy ? npc.spec.height : npcTop(npc.look) * HALLWAY_SCALE;
+}
+
+// One Rowdy syllable, quieter and panned with distance so a cheer at the far end sounds far away.
+function hallwayRowdyBlip(npc, n) {
+  if (typeof sfx !== 'function') return;
+  const d = dist(npc, player);
+  sfx('talk', {
+    voice: 'rowdy',
+    count: n,
+    vol: clamp(1.1 - d / 900, 0.12, 1),
+    pan: clamp((npc.x - player.x) / 700, -0.8, 0.8)
+  });
+}
+
+// A bubble from his brain: show it as a bark for as long as he holds it, and babble while it starts.
+function hallwayRowdyBark(npc, text) {
+  const hold = Math.max(0.4, npc.timer);
+  npc.bark = { text, life: hold, max: hold };
+  npc.babble = clamp(text.length / HALLWAY_TYPE_CPS, 0.3, 1.8);
+  npc.babbleAt = 0;
+  npc.babbleN = 0;
+}
+
+function hallwayRowdyStep(npc, dt) {
+  const spec = npc.spec,
+    tk = hallwayTalk;
+  npc.whoaCd = Math.max(0, npc.whoaCd - dt);
+  if (npc.bark) {
+    npc.bark.life -= dt;
+    if (npc.bark.life <= 0) npc.bark = null;
+  }
+  if (npc.babble > 0) {
+    npc.babble -= dt;
+    npc.babbleAt -= dt;
+    if (npc.babbleAt <= 0) {
+      npc.babbleAt += HALLWAY_ROWDY_BABBLE;
+      hallwayRowdyBlip(npc, npc.babbleN);
+      npc.babbleN++;
+    }
+  }
+  if (tk && tk.npc === npc) {
+    // In the speech box he holds the pose of the bubble on screen and faces Macy.
+    const line = tk.lines[tk.i];
+    npc.pose = (line && line.pose) || 'idle';
+    npc.prop = line && HALLWAY_ROWDY_FLAG.includes(line.cheer) ? 'flag' : null;
+    npc.moving = false;
+    hallwayFace(npc);
+    npc.vdir = npc.dir;
+    return;
+  }
+  const macy = {
+      x: clamp(player.x, HALLWAY_LEFT + 70, HALLWAY_RIGHT - 70),
+      y: clamp(player.y, HALLWAY_TOP, HALLWAY_BOTTOM)
+    },
+    said = spec.tick(npc, dt, { macy, entered: npc.entered, st: state });
+  npc.entered = false;
+  if (said) hallwayRowdyBark(npc, said.text);
+  else if (!npc.say && npc.bark && !npc.bark.whoa) npc.bark = null;
+  if (player.dash > 0 && dist(npc, player) < 44 && npc.whoaCd <= 0 && npc.mode === 'idle') {
+    npc.whoaCd = 0.8;
+    npc.bark = { text: HALLWAY_ROWDY_WHOA, life: 1.6, max: 1.6, whoa: true };
+    hallwayRowdyBlip(npc, 0);
+  }
+  npc.prop = npc.mode === 'cheer' && npc.cheer && HALLWAY_ROWDY_FLAG.includes(npc.cheer.id) ? 'flag' : null;
+  npc.x = clamp(npc.x, HALLWAY_LEFT, HALLWAY_RIGHT);
+  npc.y = clamp(npc.y, HALLWAY_TOP, HALLWAY_BOTTOM);
+  npc.dir = npc.face;
+  npc.vdir = npc.face;
+  npc.moving = npc.pose === 'gallop';
+}
+
+// Talking to Rowdy: a cheer on odd talks, one of his lines on even ones, never the same pick twice running.
+function hallwayRowdyConvo(npc) {
+  const spec = npc.spec,
+    st = state;
+  npc.talks++;
+  if (npc.talks % 2 === 1) {
+    const ralphFirst = !!st.ralphReady && !st.ralph && !st.won && !npc.ralphCheered;
+    let cheer = ralphFirst ? spec.cheers.find(c => c.id === 'ralph') : spec.pickCheer(st);
+    for (let i = 0; i < 4 && !ralphFirst && cheer.id === npc.lastPick; i++) cheer = spec.pickCheer(st);
+    if (cheer.id === 'ralph') npc.ralphCheered = true;
+    npc.lastPick = cheer.id;
+    return cheer.bubbles.map(b => ({ who: 'npc', text: spec.format(b.text, st), pose: b.pose, cheer: cheer.id }));
+  }
+  let text = spec.line(st);
+  for (let i = 0; i < 4 && text === npc.lastPick; i++) text = spec.line(st);
+  npc.lastPick = text;
+  return [{ who: 'npc', text, pose: pick(HALLWAY_ROWDY_POSES) }];
+}
+
 // ---- Conversations ----
 // Next conversation: a state-reactive one the first time it applies, then any unheard one (nurses start
 // at different points), then the rotation, never the same one twice in a row.
 function hallwayNextConvo(npc) {
+  if (npc.rowdy) return hallwayRowdyConvo(npc);
   if (npc.lines === 'dad') return hallwayDadConvo(npc);
   const talks = HALLWAY_LINES[npc.lines].talks,
     open = talks.map((_, i) => i).filter(i => !talks[i].when || talks[i].when()),
@@ -1402,23 +1551,47 @@ function hallwayNextConvo(npc) {
 }
 
 function hallwayOpenTalk(npc) {
-  hallwayTalk = { npc, lines: hallwayNextConvo(npc), i: 0, shown: 0, acc: 0, pause: 0, voiced: 0, age: 0 };
-  npc.mode = 'idle';
+  hallwayTalk = { npc, lines: hallwayNextConvo(npc), i: 0, shown: 0, acc: 0, pause: 0, voiced: 0, age: 0, blipAt: -1 };
+  npc.mode = npc.rowdy ? 'talk' : 'idle';
   npc.moving = false;
   npc.bark = null;
+  if (npc.rowdy) {
+    npc.say = null;
+    npc.cheer = null;
+    npc.babble = 0;
+  }
   hallwayFace(npc);
   player.dir = npc.x >= player.x ? 1 : -1;
   hallwayTarget = null;
   return true;
 }
 
-function hallwayEndTalk(finished) {
+// walked: Macy left mid-conversation (rather than finishing it or pressing Escape).
+function hallwayEndTalk(finished, walked = false) {
   const tk = hallwayTalk;
   if (!tk) return false;
   hallwayTalk = null;
   const npc = tk.npc;
   npc.wait = rand(1.2, 2.5);
   npc.barkCd = Math.max(npc.barkCd, 20);
+  if (npc.rowdy) {
+    // Walk out on a cheer and he sulks for a second, then waves you off; his brain does the rest.
+    const T = npc.spec.timing;
+    npc.say = null;
+    npc.cheer = null;
+    npc.bark = null;
+    npc.prop = null;
+    if (walked && !finished && tk.lines[0] && tk.lines[0].cheer) {
+      npc.mode = 'sad';
+      npc.pose = 'sad';
+      npc.timer = T.sad;
+    } else {
+      npc.mode = 'idle';
+      npc.pose = 'idle';
+      npc.timer = 0;
+      npc.nextCheer = rand(T.autoCheer[0], T.autoCheer[1]);
+    }
+  }
   if (npc.ensure && finished && hallwayEnsure.phase === 'out') {
     hallwayEnsureDrop(npc, false);
     hallwayEnsure.phase = 'leaving';
@@ -1450,7 +1623,7 @@ function hallwayTalkStep(dt) {
   const tk = hallwayTalk;
   if (!tk) return;
   if (!tk.npc.present || dist(tk.npc, player) > HALLWAY_LEAVE_RANGE) {
-    hallwayEndTalk(false);
+    hallwayEndTalk(false, true);
     return;
   }
   tk.age += dt;
@@ -1467,10 +1640,14 @@ function hallwayTalkStep(dt) {
     tk.shown++;
     if (/[A-Za-z0-9]/.test(ch)) {
       tk.voiced++;
-      // One voice blip per two letters: a chunk, not a machine gun.
-      if (tk.voiced % 2 === 1 && typeof sfx === 'function') {
-        const macy = line.who === 'macy';
-        sfx('talk', { voice: macy ? 'macy' : tk.npc.voice, count: tk.voiced >> 1, combo: macy ? 0 : tk.npc.pitch });
+      // One voice blip per two letters (a chunk, not a machine gun); Rowdy blips by the clock instead.
+      const macy = line.who === 'macy',
+        voice = macy ? 'macy' : tk.npc.voice,
+        gap = HALLWAY_BLIP_GAP[voice],
+        due = gap ? hallwayClock - tk.blipAt >= gap - 1e-6 : tk.voiced % 2 === 1;
+      if (due && typeof sfx === 'function') {
+        tk.blipAt = hallwayClock;
+        sfx('talk', { voice, count: tk.voiced >> 1, combo: macy ? 0 : tk.npc.pitch });
       }
     } else if ('.!?'.includes(ch)) tk.pause = 0.16;
     else if (ch === ',') tk.pause = 0.07;
@@ -1557,8 +1734,8 @@ function hallwayTap(p) {
   }
   for (const npc of hallwayCast) {
     if (!npc.present || dist(npc, player) > 140) continue;
-    const top = npc.y - npcTop(npc.look) * HALLWAY_SCALE;
-    if (Math.abs(p.x - npc.x) < 26 && p.y > top - 6 && p.y < npc.y + 8) return hallwayOpenTalk(npc);
+    const top = npc.y - hallwayNpcTop(npc);
+    if (Math.abs(p.x - npc.x) < (npc.rowdy ? 32 : 26) && p.y > top - 6 && p.y < npc.y + 8) return hallwayOpenTalk(npc);
   }
   for (const d of HALLWAY_DOORS) {
     const half = d.double ? 74 : 50;
@@ -1652,6 +1829,12 @@ function onRoomLoaded(id) {
   hallwayFrom = null;
   hallwayLastRoom = from;
   hallwayPlace(from);
+  // A new visit: Rowdy gallops over to say hi once.
+  for (const npc of hallwayCast) {
+    if (!npc.rowdy) continue;
+    npc.greeted = false;
+    npc.entered = true;
+  }
   hallwayArrival = 0.5;
   hallwayTalk = null;
   hallwayTarget = null;
@@ -3039,6 +3222,10 @@ function hallwayDrawWall(g) {
 }
 
 function hallwayDrawNpc(g, npc) {
+  if (npc.rowdy) {
+    npc.spec.draw(g, npc, hallwayClock);
+    return;
+  }
   const tk = hallwayTalk,
     line = tk && tk.npc === npc ? tk.lines[tk.i] : null,
     speak = (line && line.who === 'npc' && tk.shown < line.text.length) || (npc.bark && npc.bark.life > npc.bark.max - 0.45),
@@ -3095,7 +3282,7 @@ function hallwayCssScale(vw) {
 function hallwayPromptInfo(tg) {
   const key = typeof wardCoarsePointer !== 'undefined' && wardCoarsePointer ? 'TAP' : 'SPACE';
   if (tg.kind === 'talk')
-    return { x: tg.npc.x, y: tg.npc.y - npcTop(tg.npc.look) * HALLWAY_SCALE - 10, text: key + ' · TALK' };
+    return { x: tg.npc.x, y: tg.npc.y - hallwayNpcTop(tg.npc) - 10, text: key + ' · TALK' };
   if (tg.kind === 'door') return { x: tg.door.x, y: 66, text: key + ' · ENTER ' + tg.door.name.toUpperCase() };
   if (tg.kind === 'shop') return { x: HALLWAY_SHOP_X, y: 66, text: key + ' · GIFT SHOP' };
   return { x: HALLWAY_EXIT_X, y: 66, text: key + (state.won ? ' · GO HOME' : ' · DISCHARGE?') };
@@ -3109,13 +3296,18 @@ function hallwayPromptRect(info) {
   return { x: info.x - w / 2, y: info.y - h, w, h, fs };
 }
 
-function hallwayDrawPrompt(g, tg, vw) {
+// The prompt pill in screen space this frame.
+function hallwayPromptBox(tg, vw) {
   const info = hallwayPromptInfo(tg),
     r = hallwayPromptRect(info),
     bob = Math.sin(hallwayClock * 4) * 2,
     sx = clamp(r.x - cameraX, 6, vw - r.w - 6),
-    sy = Math.max(6, r.y - wardCameraY + bob),
-    tip = clamp(info.x - cameraX, sx + 10, sx + r.w - 10);
+    sy = Math.max(6, r.y - wardCameraY + bob);
+  return { info, r, sx, sy, x: sx, y: sy, w: r.w, h: r.h, tip: clamp(info.x - cameraX, sx + 10, sx + r.w - 10) };
+}
+
+function hallwayDrawPrompt(g, tg, vw) {
+  const { info, r, sx, sy, tip } = hallwayPromptBox(tg, vw);
   rr(g, sx + 2, sy + 3, r.w, r.h, r.h / 2, '#0b1d2655');
   rr(g, sx, sy, r.w, r.h, r.h / 2, '#244d53f0', '#b9ebbb', 1.6);
   poly(
@@ -3130,15 +3322,18 @@ function hallwayDrawPrompt(g, tg, vw) {
   label(g, info.text, sx + r.w / 2, sy + r.h / 2 + r.fs * 0.36, r.fs, '#fff1c2', 'center');
 }
 
-function hallwayDrawBark(g, npc, vw, fs) {
+// avoid: the TALK prompt's screen box; a bark that would sit on it steps up above it.
+function hallwayDrawBark(g, npc, vw, fs, avoid = null) {
   const b = npc.bark,
     alpha = clamp(Math.min(b.life * 3, (b.max - b.life) * 8), 0, 1),
     w = hallwayTextW(g, b.text, fs) + 22,
     h = fs + 12,
     ax = npc.x - cameraX,
-    ay = npc.y - npcTop(npc.look) * HALLWAY_SCALE - wardCameraY - 12,
-    x = clamp(ax - w / 2, 6, vw - w - 6),
-    y = Math.max(6, ay - h);
+    ay = npc.y - hallwayNpcTop(npc) - wardCameraY - 12,
+    x = clamp(ax - w / 2, 6, vw - w - 6);
+  let y = Math.max(6, ay - h);
+  if (avoid && x < avoid.x + avoid.w + 6 && x + w > avoid.x - 6 && y < avoid.y + avoid.h + 10 && y + h + 8 > avoid.y)
+    y = Math.max(6, avoid.y - h - 12);
   if (ax < -60 || ax > vw + 60) return;
   g.save();
   g.globalAlpha = alpha;
@@ -3164,7 +3359,8 @@ function hallwayPortrait(g, x, y, w, h, npc, speak) {
   g.roundRect(x + 2, y + 2, w - 4, h - 4, 10);
   g.clip();
   glow(g, x + w * 0.5, y + h * 0.4, w * 0.7, '#ffffff55');
-  if (npc) {
+  if (npc && npc.rowdy) npc.spec.portrait(g, x + w * 0.5, y + h * 0.5, w * 0.8, hallwayClock);
+  else if (npc) {
     const k = npc.look,
       s = h / 50;
     npcFigure(g, x + w * 0.5, y + h * 0.44 - npcHeadY(k) * s, s, k, 0, 1, hallwayClock, { shadow: false, speak });
@@ -3241,8 +3437,9 @@ function drawRoomOverlay(g, vw = 1000, vh = 625) {
   hallwayUi.css = css;
   hallwayUi.prompt = clamp(Math.round(12 / css), 13, 26);
   const barkSize = clamp(Math.round(11 / css), 12, 24);
-  for (const npc of hallwayCast) if (npc.present && npc.bark) hallwayDrawBark(g, npc, vw, barkSize);
-  if (!hallwayTalk && hallwayTarget) hallwayDrawPrompt(g, hallwayTarget, vw);
+  const prompt = !hallwayTalk && hallwayTarget ? hallwayPromptBox(hallwayTarget, vw) : null;
+  for (const npc of hallwayCast) if (npc.present && npc.bark) hallwayDrawBark(g, npc, vw, barkSize, prompt);
+  if (prompt) hallwayDrawPrompt(g, hallwayTarget, vw);
   if (hallwayTalk) hallwaySpeechBox(g, vw, vh, css);
 }
 

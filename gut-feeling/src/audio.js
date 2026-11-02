@@ -860,6 +860,8 @@ const SFX = {
 // sfx('talk', {voice, count, combo}): one syllable of speech per typed chunk in a hallway conversation.
 // voice picks the speaker, count walks a little contour so a sentence sounds like talking, and combo
 // nudges the pitch in semitones so two nurses never sound like twins. Unknown voices use the nurse.
+// Optional per voice: jitter (extra random pitch spread), range (scales the contour), vib (a detuned
+// second layer that beats like a light vibrato).
 const AUDIO_TALK_VOICES = {
   dad: { w: 'triangle', f: 128, dur: 0.08, v: 0.16, cut: 1100, sub: 0.55, lift: 0.95 },
   brother: { w: 'pulse25', f: 238, dur: 0.045, v: 0.055, cut: 1900, lift: 1.04 },
@@ -869,7 +871,10 @@ const AUDIO_TALK_VOICES = {
   doctor: { w: 'triangle', f: 196, dur: 0.06, v: 0.12, cut: 1500, lift: 0.98 },
   nurse: { w: 'triangle', f: 300, dur: 0.055, v: 0.12, cut: 2400, lift: 1.05 },
   ensure: { w: 'square', f: 392, dur: 0.05, v: 0.075, cut: 2800, lift: 1.12, loud: 1.5 },
-  macy: { w: 'triangle', f: 285, dur: 0.05, v: 0.12, cut: 2600, lift: 1.03 }
+  macy: { w: 'triangle', f: 285, dur: 0.05, v: 0.12, cut: 2600, lift: 1.03 },
+  // Rowdy the Ram: bright and bouncy, muffled by a big foam head. A hop up on every syllable, a wide
+  // random spread, a narrow contour, and a lowpass near 1.8 kHz. The hallway paces him at about 14 a second.
+  rowdy: { w: 'pulse25', f: 255, dur: 0.06, v: 0.075, cut: 1800, lift: 1.16, jitter: 0.2, range: 0.4, vib: 0.018 }
 };
 
 const AUDIO_TALK_CONTOUR = [0, 3, 5, 2, 7, 4, 1, 5];
@@ -879,10 +884,12 @@ SFX.talk = {
   gap: 0.035,
   play(t, o, d) {
     const v = AUDIO_TALK_VOICES[o.voice] || AUDIO_TALK_VOICES.nurse,
-      step = AUDIO_TALK_CONTOUR[audioMod(Math.floor(o.count), AUDIO_TALK_CONTOUR.length)],
-      f = v.f * audioSemi(step + clamp(o.combo, -7, 7)) * o.j,
+      step = AUDIO_TALK_CONTOUR[audioMod(Math.floor(o.count), AUDIO_TALK_CONTOUR.length)] * (v.range || 1),
+      f = v.f * audioSemi(step + clamp(o.combo, -7, 7)) * o.j * (v.jitter ? audioJitter(v.jitter) : 1),
       level = v.v * (v.loud || 1);
     audioOsc(t, d, { w: v.w, f, f2: f * v.lift, dur: v.dur, v: level, a: 0.006, cut: v.cut });
+    if (v.vib)
+      audioOsc(t, d, { w: 'triangle', f: f * (1 + v.vib), f2: f * v.lift * (1 - v.vib), dur: v.dur, v: level * 0.35, cut: v.cut });
     if (v.sub) audioOsc(t, d, { w: 'sine', f: f / 2, dur: v.dur, v: level * v.sub });
     if (v.wobble)
       audioOsc(t + v.dur * 0.35, d, { w: v.w, f: f * (1 + v.wobble), f2: f * (1 - v.wobble), dur: v.dur * 0.75, v: level * 0.6 });
