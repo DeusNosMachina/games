@@ -361,7 +361,7 @@ function updateWardHUD() {
   if (encounter.boss && wardBoss && !encounter.complete)
     text = `RALPH · PHASE ${wardBoss.phase || 1}/3 · ${Math.max(0, Math.ceil(wardBoss.hp))} HP OF NONSENSE`;
   else if (encounter.boss && ralphRetreated) text = "HOME BASE · RALPH RETREATED. HE'LL BE BACK";
-  else if (room === 6) text = 'FOURTH FLOOR · NO GREMLINS. JUST YOUR PEOPLE';
+  else if (room === 6) text = 'SEVENTH FLOOR · NO GREMLINS. JUST YOUR PEOPLE';
   else if (!wardCombatRoom(room))
     text = room === 0 && state.ralph ? 'HOME BASE · RALPH EVICTED. ENJOY THE QUIET' : 'HOME BASE · SAFE TO BREATHE';
   else if (encounter.complete)

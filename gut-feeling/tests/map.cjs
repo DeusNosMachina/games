@@ -1,6 +1,9 @@
-// Hospital map (src/map.js): layouts per aspect, drawing in every state, hit testing at each room's
-// label, the locked and cleared ward markers, mounting into a stub element, and every map action.
-const { run, close, assert } = require('./harness.cjs');
+// Hospital map (src/map.js): layouts per aspect, drawing in every state, the Valley Hospital floor 7
+// signage (header, corridor, elevator chip, Room 5), hit testing at each room's label, the locked and
+// cleared ward markers, mounting into a stub element, and every map action.
+const fs = require('node:fs');
+const path = require('node:path');
+const { run, close, assert, nodes } = require('./harness.cjs');
 
 for (const name of ['hospitalMapDraw', 'hospitalMapHit', 'mountHospitalMap', 'hospitalMapInvalidate', 'hospitalMapLayout']) {
   assert.equal(run(`typeof ${name}`), 'function', `${name} exists`);
@@ -48,6 +51,55 @@ for (const [w, h, kind] of SIZES) {
   assert.ok(texts.includes('PLAY Drip or Die') || texts.includes('PLAY'), `${kind} shows a PLAY chip in Macy's room`);
 }
 console.log('PASS: 900x560, 390x600 and 800x360 pick wide, portrait and strip layouts and draw them.');
+
+// Valley Hospital, seventh floor, Room 5: the header, the corridor stripe, the elevator chip, her plate.
+const mapSrc = fs.readFileSync(path.join(__dirname, '../src/map.js'), 'utf8');
+for (const old of ['4F', 'FLOOR 4', 'floor 4', 'fourth', 'Fourth', '412']) assert.ok(!mapSrc.includes(old), `map.js no longer says ${old}`);
+assert.equal(run('HOSPITAL_MAP_COPY.header'), 'VALLEY HOSPITAL · FLOOR 7');
+assert.equal(run('HOSPITAL_MAP_COPY.floor'), 'VALLEY HOSPITAL · 7F · GUT WING', 'the Gut Wing joke stays');
+// The still layer (corridor, elevator) is cached offscreen, so read it straight from the base painter.
+run(`function hmBase(w, h) {
+  hmLog = [];
+  hospitalMapDrawBase(hmCtx, hospitalMapLayout(w, h));
+  return hmLog.map(e => e.t);
+}`);
+for (const [w, h, kind] of SIZES) {
+  const texts = run(`hmBase(${w}, ${h}).concat(hmDraw(${w}, ${h}))`);
+  assert.ok(texts.includes('VALLEY HOSPITAL · 7F · GUT WING'), `${kind} corridor says where we are`);
+  assert.ok(texts.includes('7'), `${kind} elevator chip shows 7`);
+  assert.ok(texts.includes('ROOM 5') || texts.includes('ROOM 5 · HOME BASE'), `${kind} Macy's plate says Room 5`);
+  for (const gone of ['4', 'GUT WING · 4F', '4F', 'FLOOR 4']) assert.ok(!texts.includes(gone), `${kind} has no ${gone}`);
+}
+// The longer stripe still fits in the corridor between the elevator and the Daily Dose poster.
+for (const [w, h, kind] of [...SIZES, [322, 537, 'portrait'], [300, 500, 'portrait'], [844, 340, 'strip']]) {
+  const fit = run(`(() => {
+    const L = hospitalMapLayout(${w}, ${h}), lift = L.places.find(p => p.kind === 'lift').rect,
+      size = clamp(11 * L.k, 11, 15), tw = HOSPITAL_MAP_COPY.floor.length * size * 0.55, f = L.floorText;
+    return L.axis === 'x'
+      ? { from: f.x, to: f.x + tw, after: lift.x + lift.w, before: L.daily.x }
+      : { from: f.y - tw / 2, to: f.y + tw / 2, after: lift.y + lift.h, before: L.daily.y };
+  })()`);
+  assert.ok(fit.from > fit.after && fit.to < fit.before, `${kind} ${w}x${h}: the corridor stripe fits (${JSON.stringify(fit)})`);
+}
+assert.deepEqual(
+  { ...run('hospitalMapPlaceCopy(hospitalMapLayout(900, 560).places.find(p => p.id === 0))') },
+  { name: 'Your room', sub: 'ROOM 5', subLong: 'ROOM 5 · HOME BASE' }
+);
+run('state.room = 5');
+assert.equal(run('hospitalMapPlaceCopy(hospitalMapLayout(900, 560).places.find(p => p.id === 0)).subLong'), 'ROOM 5 · THE NIGHT SHIFT', 'after dark too');
+run('state.room = 0');
+assert.equal(run('hospitalMapPlaceCopy(hospitalMapLayout(900, 560).places.find(p => p.id === 1)).sub'), 'RADIOLOGY', 'other plates unchanged');
+assert.match(run('hospitalMapButtonsHtml()'), /Your room \(Room 5\): /, 'the hidden list says Room 5 too');
+// The header line goes into the dialog's kicker: through closest('dialog') when the element has it,
+// else #mapDialog.
+run(`var hmKicker = { textContent: 'Gut wing · floor 4' };
+  var hmDialog = { querySelector: s => (s === '.modal-kicker' ? hmKicker : null) };
+  hospitalMapHeader({ closest: s => (s === 'dialog' ? hmDialog : null) });`);
+assert.equal(run('hmKicker.textContent'), 'VALLEY HOSPITAL · FLOOR 7', 'the header follows closest("dialog")');
+run('hospitalMapHeader({})');
+assert.equal(nodes.mapDialogchild.textContent, 'VALLEY HOSPITAL · FLOOR 7', 'or #mapDialog');
+assert.equal(run('hospitalMapHeader(null) !== undefined'), true, 'and is safe without an element');
+console.log('PASS: VALLEY HOSPITAL · FLOOR 7 in the header, the 7F stripe, a 7 on the elevator and ROOM 5 on her plate.');
 
 // Phone portrait text never drops below 11 px.
 run('hmDraw(390, 600)');
@@ -155,7 +207,9 @@ var hmEl = {
   getBoundingClientRect: () => ({ left: 0, top: 0, width: 390, height: 650 })
 };
 `);
+nodes.mapDialogchild.textContent = 'Gut wing · floor 4';
 assert.ok(run('mountHospitalMap(hmEl) === hmCanvas'), 'mount returns the canvas');
+assert.equal(nodes.mapDialogchild.textContent, 'VALLEY HOSPITAL · FLOOR 7', 'mounting sets the map header');
 assert.match(run('hmEl.innerHTML'), /<canvas data-hospital-map/);
 assert.equal(run('hospitalMapView.w'), 390);
 run('hmView.w = hospitalMapView.w; hmView.h = hospitalMapView.h');

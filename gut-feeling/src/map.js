@@ -1,8 +1,9 @@
-// Hospital map: a drawn floor plan of the fourth floor for the map dialog.
+// Hospital map: a drawn floor plan of the seventh floor at Valley Hospital for the map dialog.
 // hospitalMapDraw(g, w, h) paints it into any 2D context and picks a layout for the box: 'wide'
 // (desktop), 'strip' (phone landscape) or 'portrait' (phone portrait). hospitalMapHit(x, y, w, h)
 // says what sits under a point. mountHospitalMap(el) puts a live, tappable canvas inside el plus a
-// visually hidden button list for keyboards and screen readers. hospitalMapInvalidate() redraws.
+// visually hidden button list for keyboards and screen readers, and writes the dialog's header line
+// (HOSPITAL_MAP_COPY.header) into its .modal-kicker. hospitalMapInvalidate() redraws.
 // Every global here starts with hospitalMap or HOSPITAL_MAP; nothing reassigns another file's names.
 
 // Plans in design units. A plan stretches up to 30% to fill its box, then letterboxes.
@@ -201,7 +202,8 @@ const HOSPITAL_MAP_PLANS = {
     daily: [157, 298, 46, 52],
     dailyStand: true,
     wet: [172, 450],
-    floorText: [180, 120],
+    // Centered between the elevator (ends at 64) and the Daily Dose stand (starts at 298).
+    floorText: [180, 181],
     plants: [[202, 92, 0.34]],
     places: [
       { kind: 'lift', r: [146, 10, 68, 54], door: ['b', 'lift'] },
@@ -286,10 +288,14 @@ const HOSPITAL_MAP_PLANS = {
 };
 
 const HOSPITAL_MAP_COPY = {
+  header: 'VALLEY HOSPITAL · FLOOR 7',
   station: ['Nurses’ station', 'ASK NICELY'],
   restroom: ['Restroom', 'OCCUPIED. ALWAYS.'],
   shop: 'Gift shop',
-  floor: 'GUT WING · 4F',
+  floor: 'VALLEY HOSPITAL · 7F · GUT WING',
+  lift: '7',
+  // Macy's room is Room 5. Its plate keeps the name "Your room" and puts the number underneath.
+  home: 'ROOM 5',
   you: 'YOU',
   nope: 'NOPE.',
   exit: 'EXIT',
@@ -1021,7 +1027,7 @@ function hospitalMapDrawLift(g, place, L) {
     1
   );
   rr(g, cx - size * 1.1, cy - size * 0.85, size * 2.2, size * 1.7, 4 * k, '#162c38', '#9fb7bd', 1);
-  hospitalMapText(g, '4', cx, cy + size * 0.36, size, '#ffd36e', 'center');
+  hospitalMapText(g, HOSPITAL_MAP_COPY.lift, cx, cy + size * 0.36, size, '#ffd36e', 'center');
   poly(g, [[cx - size * 0.85, cy + size * 0.1], [cx - size * 0.62, cy - size * 0.3], [cx - size * 0.4, cy + size * 0.1]], '#9fe3b9');
   poly(g, [[cx + size * 0.4, cy - size * 0.1], [cx + size * 0.62, cy + size * 0.3], [cx + size * 0.85, cy - size * 0.1]], '#f2a28c');
 }
@@ -1350,6 +1356,10 @@ function hospitalMapPlaceCopy(place) {
   if (place.kind === 'room') {
     const night = place.id === 0 && state.room === 5,
       parts = String(rooms[night ? 5 : place.id].sub || '').split(' / ');
+    if (place.id === 0) {
+      const tail = night ? parts[1] || parts[0] : parts[0];
+      return { name: rooms[0].name, sub: HOSPITAL_MAP_COPY.home, subLong: tail ? HOSPITAL_MAP_COPY.home + ' · ' + tail : '' };
+    }
     return { name: rooms[place.id].name, sub: parts[0], subLong: parts.length > 1 ? parts[0] + ' · ' + parts[1] : '' };
   }
   if (place.kind === 'station') return { name: HOSPITAL_MAP_COPY.station[0], sub: HOSPITAL_MAP_COPY.station[1] };
@@ -1749,7 +1759,7 @@ function hospitalMapTargets() {
     if (r.noArcade) continue;
     if (r.id === 5) continue;
     const info = hospitalMapRoomState(r.id);
-    let text = `${r.name}: ${hospitalMapGame(r.id)}.`;
+    let text = `${r.name}${r.id === 0 ? ' (Room 5)' : ''}: ${hospitalMapGame(r.id)}.`;
     if (info.here) text += cur === 5 ? ' You are here, after dark.' : ' You are here.';
     if (info.locked) text += ' Arcade locked until the gremlins are cleared.';
     else if (info.grudge) text += ` Grudge level ${info.grudge}.`;
@@ -1891,6 +1901,15 @@ function hospitalMapInvalidate() {
   if (v.el) hospitalMapStart();
 }
 
+// The map dialog's header line. The dialog markup ships its own; the map keeps it on the right floor.
+function hospitalMapHeader(el) {
+  const doc = typeof document !== 'undefined' && typeof document.getElementById === 'function' ? document : null,
+    dialog = (el && typeof el.closest === 'function' && el.closest('dialog')) || (doc && doc.getElementById('mapDialog')),
+    kicker = dialog && typeof dialog.querySelector === 'function' ? dialog.querySelector('.modal-kicker') : null;
+  if (kicker && kicker.textContent !== HOSPITAL_MAP_COPY.header) kicker.textContent = HOSPITAL_MAP_COPY.header;
+  return kicker;
+}
+
 function mountHospitalMap(el) {
   if (!el) return null;
   const v = hospitalMapView,
@@ -1923,6 +1942,7 @@ function mountHospitalMap(el) {
   v.list = list;
   v.hover = '';
   v.press = '';
+  hospitalMapHeader(el);
   list.innerHTML = hospitalMapButtonsHtml();
   v.dirty = true;
   hospitalMapRender(true);
