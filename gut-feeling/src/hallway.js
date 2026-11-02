@@ -48,6 +48,7 @@ const HALLWAY_ID = 6,
   },
   HALLWAY_TALK_RANGE = 70,
   HALLWAY_FACE_RANGE = 115,
+  HALLWAY_SPACE = 48,
   HALLWAY_BARK_RANGE = 175,
   HALLWAY_LEAVE_RANGE = 150,
   HALLWAY_TYPE_CPS = 44,
@@ -1770,6 +1771,13 @@ function hallwayBlocked(x, y, self) {
       next = Math.hypot(o.x - x, o.y - y);
     if (next < 24 && next < now) return true;
   }
+  // Nobody walks onto Macy: a step that brings a visitor inside arm's length of her is blocked, so a
+  // crowd never closes around her. (Rowdy moves on his own rules and stops short on his own.)
+  if (self && !self.rowdy && Number.isFinite(self.x) && typeof player === 'object' && player) {
+    const now = Math.hypot(player.x - self.x, player.y - self.y),
+      next = Math.hypot(player.x - x, player.y - y);
+    if (next < HALLWAY_SPACE && next < now) return true;
+  }
   return false;
 }
 
@@ -1828,7 +1836,8 @@ function hallwayPickTarget(npc) {
   for (let i = 0; i < 8; i++) {
     const tx = rand(npc.range[0], npc.range[1]),
       ty = rand(HALLWAY_TOP + 20, HALLWAY_BOTTOM - 10);
-    if (hallwayBlocked(tx, ty, npc)) continue;
+    // Never a spot on top of her, or just beside her.
+    if (hallwayBlocked(tx, ty, npc) || Math.hypot(tx - player.x, ty - player.y) < HALLWAY_SPACE * 2) continue;
     npc.tx = tx;
     npc.ty = ty;
     npc.mode = 'walk';
@@ -2600,9 +2609,11 @@ function hallwayTap(p) {
     const r = hallwayPromptRect(hallwayPromptInfo(tg));
     if (p.x > r.x - 8 && p.x < r.x + r.w + 8 && p.y > r.y - 8 && p.y < r.y + r.h + 8) return hallwayAct(tg);
   }
-  for (const npc of hallwayCast) {
-    if (!npc.present || dist(npc, player) > 140) continue;
-    const top = npc.y - hallwayNpcTop(npc);
+  // A tap on the visitor the TALK prompt is over opens the talk. Anyone else is scenery: the tap walks
+  // Macy, so a visitor standing between her and where she wants to go never swallows the step.
+  if (tg && tg.kind === 'talk') {
+    const npc = tg.npc,
+      top = npc.y - hallwayNpcTop(npc);
     if (Math.abs(p.x - npc.x) < (npc.rowdy ? 32 : 26) && p.y > top - 6 && p.y < npc.y + 8) return hallwayOpenTalk(npc);
   }
   for (const d of HALLWAY_DOORS) {

@@ -245,6 +245,22 @@ assert.equal(new Set(bro).size, 4, 'four more talks with the brother, four new o
 assert.ok(bro.some(t => /fed your fish/.test(t)));
 console.log('PASS: TALK prompt, Space opens, types with voice blips, advances, Macy answers, Escape and rotation.');
 
+// Personal space: a visitor walking across Macy's spot stops short of her, and nobody picks a target
+// on top of her, so a crowd never forms around her.
+run(`(() => {
+  hallwayResetCast(); state.room = 6; hallwayTalk = null;
+  var n = hallwayCast.find(x => x.id === 'dad');
+  player.x = 700; player.y = 400; n.x = 560; n.y = 400; n.mode = 'walk'; n.tx = 840; n.ty = 400; n.wait = 99;
+  var closest = 1e9;
+  for (var i = 0; i < 240; i++) { hallwayNpcStep(n, 1 / 60); closest = Math.min(closest, dist(n, player)); }
+  globalThis.space = { closest: closest, picks: [] };
+  for (var k = 0; k < 200; k++) { n.mode = 'idle'; hallwayPickTarget(n); if (n.mode === 'walk') space.picks.push(Math.hypot(n.tx - player.x, n.ty - player.y)); }
+})()`);
+const space = JSON.parse(run('JSON.stringify(space)'));
+assert.ok(space.closest >= 44, `a walking visitor keeps clear of Macy (closest ${space.closest.toFixed(0)})`);
+assert.ok(space.picks.length > 50 && Math.min(...space.picks) >= 90, `no wander target lands on her (nearest ${Math.min(...space.picks).toFixed(0)})`);
+console.log('PASS: visitors keep their distance and never aim for her spot.');
+
 // Walking away closes; Escape from the keyboard closes without pausing; taps open and advance.
 standBy('mimi');
 run("roomExtrasAction('attack')");
@@ -260,6 +276,14 @@ assert.equal(run('state.paused'), false);
 standBy('presley');
 assert.equal(run("roomExtrasAction('tap', { x: player.x - 40, y: player.y - 60 })"), true, 'tapping a visitor talks');
 assert.equal(run('hallwayTalk.npc.id'), 'presley');
+run('hallwayCloseTalk()');
+// A visitor out of TALK range is scenery to a tap: the tap walks Macy instead of opening a talk.
+run("(() => { var n = hallwayCast.find(x => x.id === 'presley'); player.x = n.x + 110; hallwayTarget = null; updateRoomExtras(0.2) })()");
+assert.ok(!run('hallwayTarget && hallwayTarget.kind === "talk"'), 'no TALK prompt 110 px away');
+assert.equal(run("roomExtrasAction('tap', { x: player.x - 110, y: player.y - 60 })"), false, 'tapping a visitor out of range is a move');
+assert.equal(run('hallwayTalk'), null);
+standBy('presley');
+assert.equal(run("roomExtrasAction('tap', { x: player.x - 40, y: player.y - 60 })"), true, 'in range it talks');
 run('updateRoomExtras(0.1)');
 assert.equal(run("roomExtrasAction('tap', { x: 5, y: 5 })"), true, 'any tap advances an open conversation');
 run('hallwayCloseTalk()');

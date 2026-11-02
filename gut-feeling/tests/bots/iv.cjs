@@ -20,7 +20,7 @@ if (mini.phase === 0 && mini.ivSweep) {
 }
 if (mini.phase === 1) {
   const rate = ivCupRate() * 0.9;
-  const landLane = d => (d.hopTo !== undefined && !d.hopped && d.y >= 150 ? d.hopTo : d.lane);
+  const landLane = d => (ivHopWarn(d) ? d.hopTo : d.lane);
   const wanted = d => !d.bad && (d.scoop || d.kind === mini.recipe);
   const drops = mini.drops
     .filter(d => !d.done)

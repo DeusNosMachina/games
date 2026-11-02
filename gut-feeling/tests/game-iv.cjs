@@ -236,7 +236,7 @@ assert.ok(near(gap, 1.35) && near(fall, 110), 'level 1 starts at 1.35 s and 110 
 [gap, fall] = pace(5);
 assert.ok(near(gap, 1.35 * Math.pow(0.94, 5)) && near(fall, 110 * Math.pow(1.07, 5)), '×0.94 gap and ×1.07 fall per catch');
 [gap, fall] = pace(40);
-assert.ok(near(gap, 0.62) && near(fall, 242), 'floor 0.62 s, cap 2.2×');
+assert.ok(near(gap, 0.8) && near(fall, 231), 'floor 0.8 s, cap 2.1×');
 playAt(1, 1);
 assert.equal(pace(0).map(v => +v.toFixed(3)).join(), '1.05,140');
 playAt(2, 1);
@@ -280,6 +280,30 @@ const skulls = landings.filter(l => l.bad);
 const clashes = landings.filter(l => l.p && skulls.some(s => s.lane === l.lane && Math.abs(s.t - l.t) < 0.35));
 assert.ok(landings.filter(l => l.p).length > 40);
 assert.equal(clashes.length, 0, 'no wanted drop lands on top of a skull');
+// A hopper never jumps into the lane the order wants: the right drop lands there 0.45 s before the skull
+// would, which is no time to leave. The hop comes with 0.65 s left and the arrow shows 1.3 s out.
+playAt(2, 1);
+const hops = run(`(()=>{const out=[],seen=new Set();mini.helpTime=1e9;mini.catchNeed=999;mini.limit=1e9;
+  for(let i=0;i<9000;i++){mini.miss=0;mini.caught=6;
+    if(i%40===0){mini.lane=Math.floor(rand(0,3));mini.cupX=240+mini.lane*160;}
+    updateIVGame(0.016);
+    const fresh=mini.drops.filter(d=>!seen.has(d));fresh.forEach(d=>seen.add(d));const want=fresh.find(d=>d.planned);if(!want)continue;
+    for(const s of fresh.filter(d=>d.bad&&d.hopTo!==undefined))out.push({hop:s.hopTo,want:want.lane,lead:(352-s.hopY)/s.speed});}
+  return out})()`);
+assert.ok(hops.length > 12, `level 3 still hops (${hops.length})`);
+assert.ok(hops.every(h => h.hop !== h.want), 'a hopper never lands in the wanted lane');
+assert.ok(hops.every(h => h.lead > 0.64), 'the hop comes with 0.65 s to land');
+assert.equal(run('ivHopWarn(ivDrop(1, 352 - 1.4 * mini.ivFall, { bad: true, hopTo: 2 }))'), false, 'no arrow 1.4 s out');
+assert.equal(run('ivHopWarn(ivDrop(1, 352 - 1.2 * mini.ivFall, { bad: true, hopTo: 2 }))'), true, 'the arrow shows 1.2 s out');
+assert.equal(run('ivHopWarn(ivDrop(1, 300, { bad: true, hopTo: 2, hopped: true }))'), false, 'and goes once it has hopped');
+// Pace has a floor a person can play: by the end of any level a wave is never under 0.8 s apart and a
+// drop never falls in under 1.1 s.
+for (let tier = 0; tier < 3; tier++) {
+  playAt(tier, 1);
+  const end = run('(()=>{mini.caught=99;return {gap:ivWaveGap(),fall:(352-64)/ivFallSpeed()}})()');
+  assert.ok(end.gap >= 0.8 - 1e-9, `L${tier + 1} wave gap floor (${end.gap.toFixed(2)})`);
+  assert.ok(end.fall >= 1.1 - 1e-9, `L${tier + 1} fall time floor (${end.fall.toFixed(2)})`);
+}
 
 const drop = (kind, extra = '') =>
   run(`mini.drops.push(ivDrop(ivCupLane(),351,{kind:${kind},planned:true${extra}}));updateIVGame(0.02)`);
@@ -294,11 +318,28 @@ const fall2 = run('mini.ivFall');
 assert.ok(fall2 > 140, 'catches speed up the fall');
 miss = run('mini.miss');
 drop(0);
-assert.equal(run('mini.caught'), 0, 'the wrong flavor dumps the drink in the cup');
+assert.equal(run('mini.caught'), 2, 'the wrong flavor restarts the order but keeps the sips counted');
 assert.equal(run('mini.ivOrderStep'), 0);
 assert.ok(run('mini.flashText').includes('DUMPED'));
 assert.equal(run('mini.miss'), miss + 1, 'the wrong flavor is a strike from level 2');
+// A missed sip re-mixes the waves still high up to the order as it stands: the next planned drop carries
+// the step that was missed, its side drop a different flavor, and a drop about to land keeps its flavor.
+run('mini.spawn=99;mini.drops=[];mini.ivOrderList=[[0,1,2]];mini.ivOrderIdx=0;mini.ivOrderStep=0;mini.ivCup=[];mini.recipe=ivKindAt(0);mini.ivFall=140');
+run('mini.drops=[ivDrop(0,351,{kind:0,planned:true}),ivDrop(1,100,{kind:1,planned:true}),ivDrop(2,100,{kind:0,carry:true}),ivDrop(0,-40,{kind:2,planned:true}),ivDrop(1,-40,{kind:0}),ivDrop(2,300,{kind:1,planned:true})]');
+run('mini.lane=2;mini.cupX=560;updateIVGame(0.02)');
+assert.equal(run('mini.caught'), 2, 'the sip in lane 0 got away');
+const remixed = JSON.parse(run('JSON.stringify(mini.drops.filter(d=>!d.done).map(d=>[d.y>250?"low":"high",d.planned?"P":"S",d.kind]))'));
+// The low drop (kind 1) is not the step the order wants, so the high planned drops take steps 0 and 1.
+assert.deepEqual(remixed.map((r, i) => (i === 1 ? r.slice(0, 2) : r)), [['high', 'P', 0], ['high', 'S'], ['high', 'P', 1], ['high', 'S', 0], ['low', 'P', 1]],
+  'high drops re-mixed in landing order; the low one keeps its flavor');
+assert.notEqual(remixed[1][2], 0, 'the side drop never matches its wave');
+// A low planned drop that does match the next step counts as that step.
+run('mini.ivOrderList=[[0,1,2]];mini.ivOrderIdx=0;mini.ivOrderStep=0;mini.recipe=0;mini.drops=[ivDrop(2,300,{kind:0,planned:true}),ivDrop(1,100,{kind:2,planned:true}),ivDrop(0,100,{kind:1})];ivRemix()');
+assert.deepEqual(JSON.parse(run('JSON.stringify(mini.drops.map(d=>d.kind))')), [0, 1, 2], 'the high planned drop takes step 1 and its side drop moves off it');
+assert.ok(run('mini.drops.filter(d=>d.remix>0).length') >= 2, 'the re-mixed drops ring');
 assert.ok(run('mini.ivFall') < fall2, 'a dumped cup slows the pace back down');
+// Back to the dumped [0, 0, 1] order: three right sips serve it, and a dumped order is never clean.
+run('mini.spawn=99;mini.drops=[];mini.ivOrderList=[[0,0,1]];mini.ivOrderIdx=0;mini.ivOrderStep=0;mini.ivCup=[];mini.recipe=0;mini.caught=0;mini.ivOrderClean=false');
 drop(0);
 drop(0);
 drop(1);

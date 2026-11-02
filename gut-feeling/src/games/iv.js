@@ -15,6 +15,12 @@ const IV_KINDS = [
 
 // Three strikes end the run on every level and prescription, recovery included. The third one pops.
 const IV_STRIKES = 3;
+// A hopping skull jumps lanes with this many seconds left to land, and its arrow shows from this far out.
+const IV_HOP_LEAD = 0.65,
+  IV_HOP_WARN = 1.3;
+// After a missed sip or a dumped order the drops still high in the air are re-mixed to the order as it
+// stands now; drops within this many seconds of landing keep their flavor.
+const IV_REMIX_LEAD = 0.6;
 
 // Rules per level (index = mini.tier). Every phase escalates inside the run: level 1 starts gentle and
 // ends about where level 2 starts. Widths are shares of the bar or gauge, times are seconds. Tune here.
@@ -29,11 +35,12 @@ const IV_STRIKES = 3;
 //   minCross        fairness floor: a sliding window never passes the marker faster than this (seconds),
 //                   so fast-tempo sweeps slide less
 // catch (mix the recipe):
-//   gap [start, × per catch, floor]   seconds between waves
-//   fall [start, × per catch, cap]    fall speed in px/s; cap is a multiple of start
+//   gap [start, × per catch, floor]   seconds between waves (floors of 0.8 s and up: a person can play it)
+//   fall [start, × per catch, cap]    fall speed in px/s; cap is a multiple of start (a drop never falls in under 1.1 s)
 //   pairFrom        from this many catches, each wave carries a wrong flavor beside the right one
 //   farFrom, far    from this many catches, the right one lands two lanes from the cup `far` of the time
 //   skullCup        chance the skull aims at the cup's lane, before and after `farFrom`
+//   hop             chance a skull hops a lane (never into the lane the order wants; see ivHopLanes)
 //   cupRate, heavy  how fast the cup eases between lanes, and how much a full order slows it
 //   hint            level 1 shows the CATCH arrow for this many catches
 // press (hold the pressure):
@@ -64,8 +71,8 @@ const IV_LEVELS = [
       limit: 55,
       kinds: 2,
       recipe: 3,
-      gap: [1.35, 0.94, 0.62],
-      fall: [110, 1.07, 2.2],
+      gap: [1.35, 0.94, 0.8],
+      fall: [110, 1.07, 2.1],
       pairFrom: 3,
       farFrom: 6,
       far: 0.5,
@@ -118,8 +125,8 @@ const IV_LEVELS = [
       limit: 64,
       kinds: 3,
       recipe: 0,
-      gap: [1.05, 0.94, 0.62],
-      fall: [140, 1.07, 2.2],
+      gap: [1.05, 0.94, 0.85],
+      fall: [140, 1.07, 1.8],
       pairFrom: 0,
       farFrom: 3,
       far: 0.5,
@@ -172,8 +179,8 @@ const IV_LEVELS = [
       limit: 72,
       kinds: 3,
       recipe: 0,
-      gap: [0.9, 0.94, 0.62],
-      fall: [165, 1.07, 2.2],
+      gap: [0.9, 0.94, 0.8],
+      fall: [165, 1.07, 1.55],
       pairFrom: 0,
       farFrom: 0,
       far: 0.55,
@@ -1254,12 +1261,15 @@ function ivSpawnWave() {
   else if (pair || mini.recipe !== kind) {
     // If the planned flavor drifted out of sync (a missed sip), the side drop carries what is needed now.
     const other = mini.recipe !== kind ? mini.recipe : (kind + 1 + Math.floor(rand(0, L.kinds - 1))) % L.kinds;
-    mini.drops.push(ivDrop(la, y0, { kind: other }));
+    mini.drops.push(ivDrop(la, y0, { kind: other, carry: mini.recipe !== kind }));
   }
   const skull = ivDrop(lb, skullY, { bad: true });
   if (!twin && L.hop && rand(0, 1) < L.hop) {
-    skull.hopTo = pick([lb - 1, lb + 1].filter(l => l >= 0 && l <= 2));
-    skull.hopY = 352 - 0.5 * fall;
+    const lanes = ivHopLanes(lb, lg, land + 0.45);
+    if (lanes.length) {
+      skull.hopTo = pick(lanes);
+      skull.hopY = 352 - IV_HOP_LEAD * fall;
+    }
   }
   mini.drops.push(skull);
   if (!twin && L.scoop && rand(0, 1) < L.scoop) {
@@ -1268,6 +1278,24 @@ function ivSpawnWave() {
     if (options.length) mini.drops.push(ivDrop(pick(options), y0 - 0.25 * fall, { scoop: true }));
   }
   mini.spawned++;
+}
+
+// Lanes a hopper from lane lb may jump to. Never the lane the order wants this wave (the right drop lands
+// there 0.45 s before the skull would, which is no time to leave), and never a lane where a wanted drop
+// already in the air lands within 0.6 s before or 0.35 s after the skull. Empty means no hop.
+function ivHopLanes(lb, lg, skullLand) {
+  const unfair = new Set([lg]);
+  for (const d of mini.drops) {
+    if (d.done || d.bad || d.scoop || !(d.planned || d.carry)) continue;
+    const t = (352 - d.y) / d.speed;
+    if (t > skullLand - 0.6 && t < skullLand + 0.35) unfair.add(d.hopTo ?? d.lane);
+  }
+  return [lb - 1, lb + 1].filter(l => l >= 0 && l <= 2 && !unfair.has(l));
+}
+
+// True while a hopper's arrow shows: within IV_HOP_WARN seconds of landing and not yet hopped.
+function ivHopWarn(d) {
+  return d.hopTo !== undefined && !d.hopped && (352 - d.y) / d.speed <= IV_HOP_WARN;
 }
 
 function ivCupLane() {
@@ -1294,14 +1322,52 @@ function ivUpdateCatch(dt) {
       sfx('bounce');
     }
     if (d.hopped) d.hopT += dt;
+    if (d.remix > 0) d.remix -= dt;
     if (d.y >= 352 && !d.done) {
       d.done = true;
-      if (d.lane !== ivCupLane()) continue;
+      if (d.lane !== ivCupLane()) {
+        // A wanted sip that got away: the waves above were mixed assuming it was caught.
+        if (d.planned || d.carry) ivRemix();
+        continue;
+      }
       ivCatch(d);
       if (mini.phase !== 1 || mini.screen !== 'play') return;
     }
   }
   mini.drops = mini.drops.filter(d => d.y < 420);
+}
+
+// Re-mixes the waves still high in the air to the order as it stands now, in landing order: the planned
+// drops take the next steps of the order, and a side drop never matches its wave's planned flavor. Drops
+// within IV_REMIX_LEAD of landing keep their flavor. Without this, one missed sip leaves every wave above
+// with no right flavor and no safe lane, and a dumped order does the same.
+function ivRemix() {
+  const L = ivRules().catch;
+  const lead = d => (352 - d.y) / d.speed;
+  const planned = mini.drops.filter(d => !d.done && d.planned && lead(d) > IV_REMIX_LEAD).sort((a, b) => lead(a) - lead(b));
+  // Planned drops closer than the lead keep their flavor; the ones that match the next steps of the order
+  // count as those steps (they can still be caught), the rest will not be.
+  let kept = 0;
+  for (const d of mini.drops.filter(d => !d.done && d.planned && lead(d) <= IV_REMIX_LEAD).sort((a, b) => lead(a) - lead(b)))
+    if (d.kind === ivKindAt(kept)) kept++;
+  planned.forEach((d, i) => {
+    const kind = ivKindAt(kept + i);
+    if (d.kind !== kind) {
+      d.kind = kind;
+      d.remix = 0.4;
+    }
+  });
+  for (const d of mini.drops) {
+    if (d.done || d.planned || d.bad || d.scoop || lead(d) <= IV_REMIX_LEAD) continue;
+    // Its wave's planned drop is the one spawned at the same height and time.
+    const mate = planned.find(p => Math.abs(p.y - d.y) < 1);
+    const avoid = mate ? mate.kind : -1;
+    d.carry = false;
+    if (d.kind === avoid) {
+      d.kind = (avoid + 1 + Math.floor(rand(0, L.kinds - 1))) % L.kinds;
+      d.remix = 0.4;
+    }
+  }
 }
 
 function ivCatch(d) {
@@ -1359,13 +1425,14 @@ function ivCatch(d) {
   ivMood('grimace', 0.7);
   sfx('blob');
   if (mini.tier > 0) {
+    // The order starts over (the sips already counted stay counted: a strike is the price).
     const dumped = mini.ivCup.length > 0;
     if (dumped) {
-      mini.caught = Math.max(0, mini.caught - mini.ivCup.length);
       mini.ivCup = [];
       mini.ivOrderStep = 0;
       mini.recipe = ivKindAt(0);
       mini.ivFall = ivFallSpeed();
+      ivRemix();
     }
     ivStrike(dumped ? 'WRONG FLAVOR. DRINK DUMPED.' : 'WRONG FLAVOR. NOT ON THE ORDER.');
     return;
@@ -2266,7 +2333,7 @@ function ivDrawDrop(g, d) {
       // Hoppers have springy legs, and show which way they will jump once they are close.
       line(g, [[x - 8, y + 12], [x - 11, y + 20], [x - 6, y + 22]], '#5d7f3a', 2.5);
       line(g, [[x + 8, y + 12], [x + 11, y + 20], [x + 6, y + 22]], '#5d7f3a', 2.5);
-      if (d.y >= 150) {
+      if (ivHopWarn(d)) {
         const dir = d.hopTo > d.lane ? 1 : -1;
         const wob = Math.sin(mini.t * 16) * 2;
         label(g, dir > 0 ? '⤻' : '⤺', x + dir * 26, y - 8 + wob, 22, '#ffe066', 'center');
@@ -2292,6 +2359,15 @@ function ivDrawDrop(g, d) {
     return;
   }
   const k = IV_KINDS[d.kind];
+  // A re-mixed drop rings once so the new flavor reads as a change, not a glitch.
+  if (d.remix > 0) {
+    const r = 22 + (0.4 - d.remix) * 50;
+    g.strokeStyle = 'rgba(255,255,255,' + (d.remix / 0.4) * 0.8 + ')';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.stroke();
+  }
   path(
     g,
     p => {
