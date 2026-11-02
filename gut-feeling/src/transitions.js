@@ -66,6 +66,7 @@ function launchMini() {
   $('miniPauseBtn').classList.remove('hidden');
   $('miniPauseBtn').textContent = 'Ⅱ';
   $('miniCanvas').focus({ preventScroll: true });
+  syncMiniTip();
   sfx('countdown');
   music('game:' + mini.id);
   updateMiniHUD();
@@ -94,6 +95,7 @@ function updateTransition(dt) {
       mini.transition = 0;
       clearHeld();
       $('miniDialog').dataset.screen = 'play';
+      showMiniTip();
       sfx('go');
       updateMiniHUD();
     } else if (countdownLabel() !== mini.countTick) {
@@ -125,16 +127,20 @@ function finishMini(win, reason) {
   sfx(win ? 'clear' : 'miss');
 }
 
-// Countdown / finish card for the wide 800 × 450 canvas (the IV game).
+// Countdown / finish card for games with their own overlay (the IV game). It fills the active canvas,
+// wide or portrait, and shrinks the 500 px card to fit a narrow one.
 function paintTransition(g) {
   const intro = mini.screen === 'intro',
     outro = mini.screen === 'outro';
   if (!intro && !outro) return;
   const duration = intro ? INTRO_SECONDS : OUTRO_SECONDS,
-    t = clamp(mini.transition / duration, 0, 1);
+    t = clamp(mini.transition / duration, 0, 1),
+    { w, h } = activeCanvas(),
+    fit = Math.min(1, (w - 40) / 500);
   g.save();
-  rect(g, 0, 0, 800, 450, outro && !mini.pendingFinish.win ? '#301f3eb5' : '#143849aa');
-  g.translate(400, 220);
+  rect(g, 0, 0, w, h, outro && !mini.pendingFinish.win ? '#301f3eb5' : '#143849aa');
+  g.translate(w / 2, h / 2 - 5);
+  g.scale(fit, fit);
   if (!reduced) {
     const z = 0.97 + 0.03 * Math.min(1, t * 5);
     g.scale(z, z);

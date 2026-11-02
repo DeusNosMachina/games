@@ -263,3 +263,262 @@ assert.equal(run('mini.open'), false);
 assert.ok(seenText().includes('LOCKED'), 'beacon reads LOCKED');
 run('keys.clear();wardLocked=realWardLocked');
 console.log('PASS: ward gating with wardLocked undefined and with a stub that returns true.');
+
+// ---- Touch buttons act on pointerdown ----
+// Phones never turn a tap into a click while another finger is down, so a thumb on the joystick used
+// to swallow JUMP. Every game button now acts on pointerdown; the click that may follow is ignored, and
+// a click with no press before it (keyboard) still acts.
+const touch = (id, x = 500, y = 312, extra = {}) => ({
+  pointerId: id,
+  pointerType: 'touch',
+  button: 0,
+  clientX: x,
+  clientY: y,
+  preventDefault: () => {},
+  ...extra
+});
+const tapButton = (id, pointer) => nodes[id].events.pointerdown(touch(pointer));
+close();
+run('state.controls="stick";state.hp=3;state.food=0;state.paused=false;deadDelay=0;keys.clear();loadRoom(0)');
+run('player.z=0;player.vz=0;player.jumpCd=0;player.dashCd=0;player.dash=0;player.itemCd=0;hitStop=0');
+nodes.joystick.events.pointerdown(touch(1, 700, 312));
+assert.equal(run('joyPointer'), 1);
+assert.ok(run('joy.x') > 0.5, 'the joystick finger steers right');
+tapButton('jumpBtn', 2);
+assert.ok(run('player.z') > 0 && run('player.vz') > 0, 'JUMP jumps on pointerdown with the joystick held, no click needed');
+assert.equal(run('joyPointer'), 1, 'the joystick keeps its finger');
+tapButton('dashBtn', 3);
+assert.ok(run('player.dash') > 0, 'DASH acts on pointerdown too');
+run('player.dash=0;player.dashCd=0');
+nodes.dashBtn.events.click({ detail: 1 });
+assert.equal(run('player.dash'), 0, 'the click that follows a press is ignored');
+nodes.dashBtn.events.click({ detail: 0 });
+assert.ok(run('player.dash') > 0, 'Enter or Space on a focused button still acts');
+tapButton('useBtn', 4);
+assert.ok(run('player.itemCd') > 0, 'the ability button acts on pointerdown');
+nodes.joystick.events.pointerup(touch(1, 700, 312));
+assert.equal(run('joyPointer'), null);
+run('player.attackCd=0;player.attack=0;player.z=0;player.vz=0;hitStop=0');
+nodes.attackBtn.events.pointerdown(touch(5));
+assert.ok(run('player.attack') > 0, 'the attack button swings on press');
+assert.equal(run('heldAttack'), true, 'holding it keeps swinging');
+nodes.attackBtn.events.pointerup(touch(5));
+assert.equal(run('heldAttack'), false);
+console.log('PASS: ward buttons act on pointerdown (JUMP with the joystick held), and the follow-up click is ignored.');
+
+// The weapon strip equips on press and the highlight follows; the canvas names the new weapon.
+run('equip(0);wardWeaponSync();wardWeaponFlash=0');
+tapButton('wslot2', 6);
+assert.equal(run('state.item'), 2);
+assert.equal(nodes.weaponStrip.dataset.active, '2', 'the strip highlight moves to the brick');
+assert.ok(run('wardWeaponFlash') > 0, 'the canvas flashes the new weapon');
+const flashed = run('var seenFlash=[];c.fillText=t=>seenFlash.push(t);drawWorld();c.fillText=undefined;seenFlash');
+assert.ok(flashed.includes('BRICK · LOB'), 'the flash names the weapon and its attack');
+tapButton('wslot1', 7);
+assert.equal(run('state.item'), 1);
+assert.equal(nodes.weaponStrip.dataset.active, '1');
+key('c');
+assert.equal(run('state.item'), 2, 'C cycles to the next weapon');
+run('drawWorld()');
+assert.equal(nodes.weaponStrip.dataset.active, '2', 'keyboard swaps move the strip too');
+run('equip(0);drawWorld()');
+console.log('PASS: the weapon strip equips on press, the highlight moves, and the canvas flashes the weapon.');
+
+// EAT: a count badge, off when empty or at full hearts, on after a pickup, eats on press.
+run('state.food=0;state.hp=3;hud()');
+assert.equal(nodes.touchEat.disabled, true, 'EAT is off with nothing to eat');
+assert.equal(nodes.touchEatCount.textContent, '0');
+run('state.food=2;state.hp=maxHearts();hud()');
+assert.equal(nodes.touchEat.disabled, true, 'EAT is off at full hearts');
+assert.equal(nodes.touchEatCount.textContent, '2');
+run('state.food=0;state.hp=3;state.taken=state.taken.filter(id=>id!=="home-shake");loadRoom(0)');
+run('player.x=381;player.y=463;updateWorld(.016)');
+assert.equal(nodes.touchEatCount.textContent, '1', 'a pickup bumps the badge');
+assert.equal(nodes.touchEat.disabled, false, 'EAT lights up after a pickup');
+tapButton('touchEat', 8);
+assert.equal(run('state.hp'), 4, 'EAT on press restores a heart');
+assert.equal(run('state.food'), 0);
+assert.equal(nodes.touchEat.disabled, true);
+console.log('PASS: the EAT button tracks nutrients and hearts and eats on press.');
+
+// Minigame buttons act on press too.
+run('openMini(1);startMini();launchMini();updateMini(3)');
+assert.equal(run('mini.screen'), 'play');
+run('var seenActions=[];var realAction=games[1].action;games[1].action=a=>seenActions.push(a)');
+const control = action => ({ closest: () => ({ dataset: { action }, classList: { add() {}, remove() {} }, setPointerCapture() {} }) });
+nodes.miniControls.events.pointerdown({ ...touch(9), target: control('polarity') });
+assert.deepEqual(JSON.parse(run('JSON.stringify(seenActions)')), ['polarity'], 'a minigame button acts on pointerdown');
+nodes.miniControls.events.click({ detail: 1, target: control('polarity') });
+assert.equal(run('seenActions.length'), 1, 'its follow-up click does not act twice');
+run('games[1].action=realAction');
+close();
+console.log('PASS: minigame buttons act on pointerdown without a second action from the click.');
+
+// ---- Portrait canvases ----
+// A game may declare portraitCanvas. activeCanvas() follows mini.portrait, which follows the screen.
+run('var realPortrait=games[0].portraitCanvas;games[0].portraitCanvas={w:450,h:800}');
+run('openMini(0);startMini()');
+assert.equal(run('mini.portrait'), false, 'a wide window keeps the wide canvas');
+assert.equal(run('JSON.stringify(activeCanvas())'), '{"w":800,"h":450}', 'activeCanvas falls back to canvas');
+assert.equal(nodes.miniDialog.dataset.portrait, '');
+close();
+run('window.innerWidth=390;window.innerHeight=844;openMini(0);startMini()');
+assert.equal(run('mini.portrait'), true, 'an upright screen picks the portrait canvas');
+assert.equal(run('JSON.stringify(activeCanvas())'), '{"w":450,"h":800}');
+assert.equal(nodes.miniDialog.dataset.portrait, '1', 'CSS hears about it');
+assert.equal(nodes.miniDialog.style['--mini-a'], '0.5625');
+assert.equal(nodes.miniCanvas.width, 450, 'the canvas is sized for the portrait drawing');
+run('window.innerWidth=844;window.innerHeight=390');
+events.resize();
+assert.equal(run('mini.portrait'), false, 'turning the phone mid-run flips back');
+assert.equal(nodes.miniCanvas.width, 800);
+assert.equal(nodes.miniDialog.dataset.portrait, '');
+run('window.innerWidth=390;window.innerHeight=844;resize()');
+assert.equal(run('mini.portrait'), true);
+// miniPoint maps the portrait canvas, including a letterboxed box.
+const realRect = nodes.miniCanvas.getBoundingClientRect;
+nodes.miniCanvas.getBoundingClientRect = () => ({ left: 0, top: 100, width: 390, height: 800 * (390 / 450) });
+const mid = JSON.parse(run('JSON.stringify(miniPoint({clientX:195,clientY:100+400*390/450}))'));
+assert.ok(Math.abs(mid.x - 225) < 0.01 && Math.abs(mid.y - 400) < 0.01, 'the middle of the box is the middle of the canvas');
+nodes.miniCanvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: 390, height: 800 });
+const s = 390 / 450,
+  pad = (800 - 800 * s) / 2;
+const corner = JSON.parse(run(`JSON.stringify(miniPoint({clientX:390,clientY:${pad + 800 * s}}))`));
+assert.ok(Math.abs(corner.x - 450) < 0.01 && Math.abs(corner.y - 800) < 0.01, 'a letterboxed corner maps to the canvas corner');
+const top = JSON.parse(run(`JSON.stringify(miniPoint({clientX:0,clientY:${pad}}))`));
+assert.ok(Math.abs(top.x) < 0.01 && Math.abs(top.y) < 0.01);
+nodes.miniCanvas.getBoundingClientRect = realRect;
+// The countdown card fills and centers on the active canvas.
+const card = () =>
+  JSON.parse(
+    run(
+      'var fills=[],moves=[];mc.fillRect=(x,y,w,h)=>fills.push([x,y,w,h]);mc.translate=(x,y)=>moves.push([x,y]);' +
+        'paintTransition(mc);mc.fillRect=undefined;mc.translate=undefined;JSON.stringify({fills,moves})'
+    )
+  );
+run('launchMini()');
+assert.equal(run('mini.screen'), 'intro');
+let painted = card();
+assert.deepEqual(painted.fills[0], [0, 0, 450, 800], 'the intro card covers the portrait canvas');
+assert.deepEqual(painted.moves[0], [225, 395], 'and centers on it');
+run('mini.portrait=false');
+painted = card();
+assert.deepEqual(painted.fills[0], [0, 0, 800, 450], 'the wide card is unchanged');
+assert.deepEqual(painted.moves[0], [400, 220]);
+close();
+run('delete window.innerWidth;delete window.innerHeight;resize()');
+run('if(realPortrait)games[0].portraitCanvas=realPortrait;else delete games[0].portraitCanvas');
+console.log('PASS: activeCanvas, mini.portrait flips, data-portrait, miniPoint and the intro card follow the portrait canvas.');
+
+// ---- Phone toast for the instruction line ----
+run('openMini(4);startMini();launchMini()');
+assert.equal(nodes.miniInstruction.dataset.show, '1', 'the instruction shows through the countdown');
+run('updateMini(1.6)');
+assert.equal(run('mini.screen'), 'play');
+assert.equal(nodes.miniInstruction.dataset.show, '1', 'and for the first seconds of play');
+for (let i = 0; i < 40; i++) run('updateMini(.1)');
+assert.equal(nodes.miniInstruction.dataset.show, '', 'then it gets out of the way');
+run('setInstructions("Something new")');
+assert.equal(nodes.miniInstruction.dataset.show, '1', 'a new line comes back');
+run('setInstructions("Something new");updateMini(3.1)');
+assert.equal(nodes.miniInstruction.dataset.show, '', 'the same line again does not');
+close();
+console.log('PASS: the instruction toast shows in the countdown, for 3 seconds of play, and on change.');
+
+// ---- Tap the room ----
+// On touch screens the floor is the controller. Mice never use it; state.controls 'stick' turns it off.
+const finger = {
+  down: (id, x, y) => nodes.game.events.pointerdown(touch(id, x, y)),
+  move: (id, x, y) => nodes.game.events.pointermove(touch(id, x, y)),
+  up: (id, x, y) => nodes.game.events.pointerup(touch(id, x, y)),
+  tap(id, x, y) {
+    this.down(id, x, y);
+    this.up(id, x, y);
+  }
+};
+const steps = (n, extra = '') => run(`for(let i=0;i<${n};i++){${extra}advanceSimulation(1/60)}`);
+run('setControlScheme("tap");state.hp=5;keys.clear();loadRoom(0);player.x=505;player.y=470;cameraX=0;wardCameraY=0');
+assert.equal(run('viewport.w'), 1000);
+finger.tap(10, 300, 470);
+assert.equal(run('JSON.stringify(wardGoal)'), '{"x":300,"y":470}', 'a tap on the floor sets a goal');
+steps(120);
+assert.ok(run('Math.hypot(player.x-300,player.y-470)') <= 12, 'Macy walks to the tapped spot');
+assert.equal(run('wardGoal'), null, 'and stops there');
+finger.down(11, 505, 300);
+finger.move(11, 520, 520);
+assert.equal(run('JSON.stringify(wardGoal)'), '{"x":520,"y":520}', 'a drag steers the goal');
+finger.up(11, 520, 520);
+// Tap a gremlin: walk into range and hit it, then stop after the swing.
+run('loadRoom(1);enemies=[makeEnemy(0,700,450)];enemies[0].cool=9;player.x=505;player.y=450;player.attackCd=0;equip(0)');
+finger.tap(12, 700, 420);
+assert.ok(run('wardPrey && wardPrey.e === enemies[0]'), 'a tap on a gremlin picks it');
+steps(90, 'enemies.length=1;');
+assert.ok(run('enemies[0].hp') < 3, 'Macy walks over and hits it');
+assert.equal(run('wardPrey'), null, 'a tap is one attack, then she stops');
+// Hold on a gremlin: keep swinging.
+run('enemies=[makeEnemy(0,560,450)];enemies[0].cool=9;enemies[0].hp=99;player.x=505;player.y=450;player.attackCd=0');
+finger.down(13, 560, 420);
+steps(150, 'enemies.length=1;enemies[0].x=560;enemies[0].y=450;');
+assert.ok(run('wardPrey.swings') >= 3, 'holding keeps swinging');
+finger.up(13, 560, 420);
+steps(60, 'enemies.length=1;');
+assert.equal(run('wardPrey'), null, 'letting go stops the swings');
+// Flick: a quick swipe of 40+ px dashes that way.
+run('enemies=[];player.x=505;player.y=450;player.dash=0;player.dashCd=0;wardGoal=null');
+finger.down(14, 500, 300);
+finger.move(14, 560, 300);
+finger.up(14, 600, 300);
+assert.ok(run('player.dash') > 0, 'a flick dashes');
+assert.ok(run('player.lastDx') > 0.99, 'in the flick direction');
+assert.equal(run('wardGoal'), null, 'and does not keep walking');
+// Two-finger tap: jump, and the first finger's walk is taken back.
+run('player.z=0;player.vz=0;player.jumpCd=0;player.dash=0;wardGoal=null');
+finger.down(15, 300, 500);
+finger.down(16, 360, 500);
+assert.ok(run('player.z') > 0, 'two fingers jump');
+assert.equal(run('wardGoal'), null, 'a two-finger tap is not a walk');
+finger.up(15, 300, 500);
+finger.up(16, 360, 500);
+assert.equal(run('wardGoal'), null);
+// Long-press on the floor: the ability.
+run('player.itemCd=0;player.z=0;player.vz=0;equip(1)');
+finger.down(17, 700, 520);
+steps(20);
+assert.equal(run('player.shield'), 0, 'not yet');
+steps(10);
+assert.ok(run('player.shield') > 0, 'a long-press raises the barf-bag shield');
+assert.equal(run('wardGoal'), null, 'and stops the walk');
+finger.up(17, 700, 520);
+run('equip(0)');
+// The beacon still opens its arcade, once; the click that follows is not a second tap.
+run('var gateBefore=wardLocked;wardLocked=()=>false;loadRoom(1);enemies=[]');
+finger.tap(18, run('rooms[1].station[0]'), run('rooms[1].station[1]'));
+assert.equal(run('mini.open'), true, 'tapping the beacon opens the arcade');
+close();
+nodes.game.events.click({ detail: 1, clientX: run('rooms[1].station[0]'), clientY: run('rooms[1].station[1]') });
+assert.equal(run('mini.open'), false, 'the follow-up click does not open it again');
+run('wardLocked=gateBefore');
+// The map-exit corner still works by walking into it.
+run('loadRoom(2);enemies=[];player.x=505;player.y=470');
+finger.tap(19, 955, 175);
+steps(300, 'enemies=[];if($("mapDialog").open)break;');
+assert.equal(nodes.mapDialog.open, true, 'walking into the corner opens the map');
+close();
+// Mice keep clicking; the joystick scheme switches the room off.
+run('loadRoom(0);player.x=505;player.y=470');
+nodes.game.events.pointerdown(touch(20, 300, 470, { pointerType: 'mouse' }));
+assert.equal(run('wardGoal'), null, 'a mouse press does not walk');
+nodes.game.events.pointerup(touch(20, 300, 470, { pointerType: 'mouse' }));
+nodes.pauseControls.events.click();
+assert.equal(run('state.controls'), 'stick', 'the pause menu switches to the joystick');
+assert.equal(saved().controls, 'stick', 'and saves it');
+assert.match(nodes.pauseControls.textContent, /Joystick/);
+finger.tap(21, 300, 470);
+assert.equal(run('wardGoal'), null, 'the joystick scheme ignores taps on the room');
+nodes.pauseControls.events.click();
+assert.equal(run('state.controls'), 'tap');
+assert.equal(saved().controls, 'tap');
+finger.tap(22, 300, 470);
+assert.ok(run('wardGoal') !== null, 'tap the room is back');
+run('wardTouchReset();enemies=[]');
+console.log('PASS: tap the room walks, hits, holds, flicks, jumps, long-presses, keeps the beacon and map exit, and switches.');
