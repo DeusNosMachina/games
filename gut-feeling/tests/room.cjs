@@ -108,7 +108,8 @@ run('state.wardClears[1] = 0; loadRoom(1); player.inv = 1000; player.x = 160; pl
 assert.ok(run('enemies.length') > 0, 'room 1 starts a fight');
 let idled = false;
 for (let i = 0; i < 100; i++) {
-  run('player.inv = 1000; advanceSimulation(0.1)');
+  run('player.inv = 1000');
+  step(0.1);
   if (run('macyIsIdle()')) idled = true;
 }
 assert.equal(idled, false, 'no idle during live combat');
@@ -164,7 +165,8 @@ assert.equal(run('roomSpotAction("enter")'), true, 'Enter works away from the be
 assert.equal(run('tvChannel()'), 2);
 key(' ');
 assert.equal(run('tvChannel()'), 0, 'channels cycle back to the cat cam');
-assert.equal(run('TV_CHANNELS.join()'), 'CAT CAM,RAMS GAME,GET WELL');
+assert.equal(run('TV_CHANNELS.slice(0, 3).join()'), 'CAT CAM,RAMS GAME,GET WELL');
+assert.equal(run('tvChannelCount(0)'), 3, 'three channels in her room by day');
 for (let ch = 0; ch < 3; ch++) {
   run('drawWorld(); advanceSimulation(0.3); drawWorld()');
   run('roomAction("attack")');
@@ -290,3 +292,167 @@ assert.equal(run('Object.keys(rec.hum).length'), 0, 'no hum');
 run('begin(); loadRoom(0); drawWorld(); loadRoom(2); drawWorld()');`
 );
 console.log('PASS: curtains sway, motes drift and a nurse passes; reduced motion stills all of it.');
+
+// ---- Macy at 5'10" ----
+assert.equal(run('MACY_SCALE'), 1.36, 'MACY_SCALE is exposed for the hallway');
+run(`var roomGirlScales = [];
+var roomRealGirl = girl;
+girl = function (...a) { roomGirlScales.push(a[3]); return roomRealGirl.apply(this, a); };
+loadRoom(0); enemies = []; drawWorld();
+girl = roomRealGirl`);
+assert.ok(run('roomGirlScales.includes(MACY_SCALE)'), 'the player draws at MACY_SCALE');
+assert.ok(run('!roomGirlScales.includes(1.24)'), 'nothing in the ward still draws her at the old scale');
+console.log('PASS: Macy stands at MACY_SCALE (1.36) in the ward.');
+
+// ---- The hospital has opinions ----
+const machines = JSON.parse(run('JSON.stringify(MACHINES)'));
+const order = JSON.parse(run('JSON.stringify(MACHINE_ORDER)'));
+assert.deepEqual(Object.keys(machines).sort(), [...order].sort(), 'every machine is in the rotation');
+const allLines = [];
+for (const id of order) {
+  const m = machines[id];
+  assert.ok(m.lines.length >= 4 && m.lines.length <= 6, `${id} has 4 to 6 lines`);
+  assert.ok(typeof m.honor === 'string' && m.honor.length > 0, `${id} has an Employee of the Month line`);
+  assert.ok(typeof m.name === 'string' && m.name.length > 0, `${id} has a name`);
+  allLines.push(...m.lines, m.honor);
+}
+assert.ok(allLines.length >= 30, `30+ lines (${allLines.length})`);
+assert.equal(new Set(allLines).size, allLines.length, 'every line is unique');
+assert.ok(allLines.every(l => !l.includes('\u2014') && !l.includes('\u2013')), 'no em or en dashes');
+assert.equal(machines.mri.lines[0], "DON'T BRING KEYS. DON'T. I CAN FEEL THEM.");
+assert.equal(machines.pump.lines[0], 'The patient approaches the window. Majestic.');
+for (const id of [...order, 'nobody']) run(`drawMachineIcon(c, ${JSON.stringify(id)}, 50, 50, 1); drawMachineIcon(c, ${JSON.stringify(id)}, 0, 0, 0.5)`);
+
+// A blurt within range, then nothing from that machine for 20 seconds.
+run('state.wardClears[1] = 1; delete wardProgress[1]; loadRoom(1); enemies = []; roomBark = null');
+run('player.x = 480; player.y = 560; advanceSimulation(0.05)');
+assert.equal(run('roomBark'), null, 'out of range, the MRI keeps it together');
+run('player.x = 480; player.y = 330; advanceSimulation(0.05)');
+assert.equal(run('roomBark && roomBark.id'), 'mri', 'within range, the MRI blurts');
+const first = run('roomBark.text');
+assert.ok(run('machineLines("mri").includes(roomBark.text)'));
+run('drawWorld()');
+let again = null;
+let waitedBark = 0.05;
+while (waitedBark < 25 && !again) {
+  run('player.x = 480; player.y = 330');
+  step(0.25);
+  waitedBark += 0.25;
+  if (run('roomBark && roomBark.text') && run('roomBark.text') !== first) again = waitedBark;
+}
+assert.ok(again !== null && again >= 19.9, `the next line waits out the cooldown (${again} s)`);
+console.log('PASS: machines blurt within 60 px, once per 20 s each, from unique dash-free pools.');
+
+// No opinions during a fight.
+run('state.wardClears[1] = 0; delete wardProgress[1]; loadRoom(1); player.inv = 1000; player.x = 480; player.y = 330');
+assert.ok(run('enemies.length') > 0);
+for (let i = 0; i < 60; i++) {
+  run('player.inv = 1000; player.x = 480; player.y = 330');
+  step(0.1);
+}
+assert.equal(run('roomBark'), null, 'machines stay quiet while gremlins are up');
+run('state.wardClears[1] = 1; delete wardProgress[1]; loadRoom(0); enemies = []');
+console.log('PASS: no blurts during live combat.');
+
+// Employee of the Month: one pick per date, the same all day, with its honor line first.
+const eom = JSON.parse(run('JSON.stringify(machineOfTheMonth("2026-11-02"))'));
+assert.deepEqual(JSON.parse(run('JSON.stringify(machineOfTheMonth("2026-11-02"))')), eom, 'deterministic');
+assert.deepEqual(JSON.parse(run('JSON.stringify(machineOfTheMonth(new Date(2026, 10, 2, 23, 59)))')), eom, 'same pick all day');
+assert.ok(order.includes(eom.id));
+assert.equal(eom.name, machines[eom.id].name);
+assert.equal(eom.line, machines[eom.id].honor);
+const picks = new Set();
+for (let d = 1; d <= 60; d++) picks.add(run(`machineOfTheMonth(roomDayKey(new Date(2026, 0, ${d}))).id`));
+assert.ok(picks.size >= 4, 'the honor gets around');
+assert.equal(run('machineLines(machineOfTheMonth().id)[0]'), run('machineOfTheMonth().line'), 'the winner leads with the honor');
+run('roomBark = null; drawWorld(); loadRoom(4); drawWorld(); loadRoom(0)');
+console.log('PASS: machineOfTheMonth() is deterministic per date; icons and badges draw.');
+
+// ---- The Ensure cult ----
+const cult = (n, trophy = false, room = 0) =>
+  run(`state.stats.ensureRefused = ${n}; state.stats.ensureTrophy = ${trophy}; loadRoom(${room}); enemies = []; roomCultRenderables().length`);
+run('roomPaDone = false');
+assert.equal(cult(0), 0, 'no refusals, no Ensure');
+assert.equal(cult(9), 0);
+assert.equal(cult(10), 0, 'at 10 the bottle is on the sill (wall layer)');
+assert.equal(run('roomEnsureN'), 10);
+assert.equal(cult(10, false, 2), 1, 'and one on the lounge table');
+assert.equal(cult(10, false, 1), 0);
+assert.equal(cult(20), 1, 'at 20 a six-pack under the bed');
+assert.equal(cult(20, false, 1), 1, 'one balanced on the MRI');
+assert.equal(cult(20, false, 2), 2, 'and the vending machine stocks them');
+assert.equal(nodes.toast.textContent === run('ROOM_PA'), false, 'no announcement yet');
+assert.equal(cult(30), 2, 'at 30 the drawer is ajar and spilling');
+assert.equal(nodes.toast.textContent, 'Attention: the cafeteria has been renamed The Ensure Experience.');
+run('toast("something else")');
+cult(30, false, 2);
+assert.notEqual(nodes.toast.textContent, run('ROOM_PA'), 'the PA speaks once per session');
+assert.equal(cult(50), 2, 'fifty without the trophy flag: no trophy');
+assert.equal(run('roomEnsureTrophy'), false);
+assert.equal(cult(50, true), 3, 'fifty with the trophy flag: the trophy case');
+assert.equal(run('roomEnsureTrophy'), true);
+run('tvChannels[0] = 2; drawWorld(); loadRoom(5); drawWorld(); tvCardShow(c, 160, 90, 0, [], "Macy", true); tvCardShow(c, 160, 90, 4, state.cards, "Macy", true)');
+run('ensureTrophyArt(c, 0, 0); ensureSixPack(c, 0, 0); for (let f = 0; f < 3; f++) roomBottle(c, 0, 0, f, 1, true)');
+run('state.stats = {}; state.stats.catCard = 1; tvChannels[0] = 0; loadRoom(0)');
+assert.equal(cult(0), 0);
+run('delete state.stats; loadRoom(0); drawWorld(); state.stats = { catCard: 1 }');
+console.log('PASS: Ensure piles up at 10, 20, 30 and 50 (with the trophy), and the PA speaks once.');
+
+// ---- The dream (src/dream.js) hooks, stubbed ----
+run(`var dreamLog = [];
+globalThis.updateDream = dt => { dreamLog.push('update'); return dreamOn; };
+globalThis.dreamActive = () => dreamOn;
+globalThis.drawDream = (g, w, h) => dreamLog.push('draw:' + Math.round(w) + 'x' + Math.round(h));
+globalThis.dreamWake = () => dreamLog.push('wake');
+var dreamOn = true;
+loadRoom(5); enemies = []; player.x = 505; player.y = 470`);
+key('d');
+run('for (let i = 0; i < 10; i++) updateWorld(1/60)');
+keyUp('d');
+assert.equal(run('player.x'), 505, 'a dream freezes the ward');
+assert.ok(run('dreamLog.filter(e => e === "update").length') >= 10, 'updateDream runs each step');
+run('dreamLog = []; setWardPause(true); updateWorld(1/60); setWardPause(false)');
+assert.equal(run('dreamLog.includes("update")'), false, 'not while paused');
+run('dreamLog = []; drawWorld()');
+assert.equal(run('dreamLog.join()'), 'draw:' + run('Math.round(viewport.w)') + 'x' + run('Math.round(viewport.h)'), 'drawDream paints last, at the view size');
+run('dreamLog = []; roomAction("attack")');
+assert.equal(run('dreamLog[0]'), 'wake', 'an action wakes the dream first');
+run('dreamLog = []; wardTouchDown(7, 10, 10, { x: 500, y: 400 }); wardTouchUp(7, 10, 10, true)');
+assert.equal(run('dreamLog[0]'), 'wake', 'so does a tap on the room');
+run('dreamLog = []; dreamOn = false; drawWorld(); updateWorld(1/60)');
+assert.equal(run('dreamLog.join()'), 'update', 'no dream, no drawDream');
+// Any of them missing is fine.
+run('globalThis.dreamActive = undefined; globalThis.drawDream = undefined; globalThis.dreamWake = undefined; drawWorld(); roomAction("attack"); advanceSimulation(0.1)');
+run('globalThis.updateDream = undefined; advanceSimulation(0.1); drawWorld()');
+console.log('PASS: dream hooks run in order when stubbed, and a missing one is tolerated.');
+
+// ---- The 3 AM channel (src/tvlate.js), stubbed ----
+run('loadRoom(5); tvChannels[0] = 0; player.x = 705; player.y = 252');
+assert.equal(run('tvChannelCount(5)'), 3, 'no tvlate.js, no 3 AM');
+for (let i = 0; i < 3; i++) run('roomAction("attack")');
+assert.equal(run('tvChannel()'), 0, 'three channels cycle');
+run(`var lateLog = [];
+globalThis.tvLateDraw = (g, w, h, t) => lateLog.push('draw');
+globalThis.tvLateTick = dt => lateLog.push('tick');
+globalThis.tvLateCaption = () => 'the static is breathing';`);
+assert.equal(run('tvChannelCount(5)'), 4, 'room 5 gets the fourth channel');
+assert.equal(run('tvChannelCount(0)'), 3, 'her room by day does not');
+assert.equal(run('tvChannelCount(2)'), 3, 'the lounge does not');
+const seen = [];
+for (let i = 0; i < 4; i++) {
+  run('roomAction("attack")');
+  seen.push(run('tvChannel()'));
+}
+assert.deepEqual(seen, [1, 2, 3, 0], 'cat cam, Rams, get-well, 3 AM, cat cam');
+run('roomAction("attack"); roomAction("attack"); roomAction("attack")');
+assert.equal(run('tvChannel()'), 3);
+run('lateLog = []; advanceSimulation(1/60); drawWorld()');
+assert.ok(run('lateLog.includes("tick")'), 'tvLateTick runs while the channel is on');
+assert.ok(run('lateLog.includes("draw")'), 'tvLateDraw paints the screen');
+run('loadRoom(0); enemies = []; advanceSimulation(1/60)');
+assert.equal(run('tvChannel()'), 0, 'by day the same TV is back on the cat cam');
+run('loadRoom(5); lateLog = []; tvChannels[0] = 3; advanceSimulation(1/60); drawWorld()');
+run('globalThis.tvLateDraw = undefined; globalThis.tvLateTick = undefined; globalThis.tvLateCaption = undefined');
+assert.equal(run('tvChannel()'), 0, 'without the module the channel quietly falls back');
+run('advanceSimulation(0.1); drawWorld(); tvChannels[0] = 0');
+console.log('PASS: the 3 AM channel exists only in room 5 and only with tvlate.js; it ticks, draws and captions.');

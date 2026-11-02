@@ -427,7 +427,13 @@ const MACY_DIGITS = {
 // Macy's jersey number (state.jersey, 22 by default), centered on (x, y), size tall, outlined so it
 // reads on either hoodie.
 function macyNumber(g, x, y, size, ink, edge, rot = 0) {
-  const digits = String(Number.isInteger(state.jersey) ? state.jersey : 22).split(''),
+  vectorDigits(g, String(Number.isInteger(state.jersey) ? state.jersey : 22), x, y, size, ink, edge, rot);
+}
+
+// Any run of digits in the jersey's vector style, centered on (x, y), size tall. edge null skips
+// the outline.
+function vectorDigits(g, text, x, y, size, ink, edge = null, rot = 0) {
+  const digits = String(text).split(''),
     w = size * 0.62,
     gap = size * 0.14,
     total = digits.length * w + (digits.length - 1) * gap;
@@ -448,7 +454,7 @@ function macyNumber(g, x, y, size, ink, edge, rot = 0) {
   };
   // Scaling inside the path keeps the stroke width uniform: the path is built scaled, then stroked
   // in the unscaled space.
-  path(g, p => trace(p), null, edge, size * 0.3);
+  if (edge) path(g, p => trace(p), null, edge, size * 0.3);
   path(g, p => trace(p), null, ink, size * 0.15);
   g.restore();
 }
@@ -983,6 +989,34 @@ function wallMonitor(g, x, y) {
   rr(g, x - 11, y + 1, 22, 9, 3, '#7e9ea6', '#5e7f88', 1);
   line(g, [[x, y - 18], [x, y + 3]], '#678d98', 5);
   monitorScreen(g, x, y);
+  // Her heart rate, the same 88 the IV pump shows. The monitor is very proud of it.
+  vectorDigits(g, '88', x + 22, y - 53, 7, '#ffe29b');
+}
+
+// A wall-mounted blood pressure unit: dial, cuff basket, coiled hose. (x, y) is the dial's center.
+function bpCuffArt(g, x, y, coils = 5) {
+  rr(g, x - 17, y - 18, 34, 58, 6, '#2a4b5222');
+  rr(g, x - 16, y - 20, 32, 56, 6, '#dfe8dc', '#7e9ea6', 1);
+  ellipse(g, x, y, 12.5, 12.5, '#5e7f88');
+  ellipse(g, x, y, 11, 11, '#fbfbf2');
+  for (let i = 0; i < 12; i++) {
+    const a = -Math.PI * 1.25 + (i / 11) * Math.PI * 1.5;
+    line(g, [[x + Math.cos(a) * 8.4, y + Math.sin(a) * 8.4], [x + Math.cos(a) * 10, y + Math.sin(a) * 10]], '#7e9ea6', 0.8);
+  }
+  line(g, [[x, y], [x + 6.4, y - 4.6]], '#d9534f', 1.4);
+  ellipse(g, x, y, 1.6, 1.6, '#2f3a40');
+  rr(g, x - 12, y + 16, 24, 16, 4, '#3e7cc1');
+  rr(g, x - 10, y + 18, 20, 5, 2, '#5e97d6');
+  path(
+    g,
+    p => {
+      p.moveTo(x + 6, y + 31);
+      for (let i = 0; i < coils; i++) p.quadraticCurveTo(x + 15, y + 34 + i * 6, x + 6, y + 37 + i * 6);
+    },
+    null,
+    '#3a3f45',
+    1.6
+  );
 }
 
 function monitorScreen(g, x, y) {
@@ -1434,6 +1468,7 @@ function roomIllustration(g, id, part = 'afternoon', curtains = true) {
     wallSign(g, 276, 221, 'ULTRA-SUSPICIOUS', 'NOW WITH 30% MORE GEL', '#557d76', '#6d8c78');
     windowArt(g, win.x, win.y, win.w, win.h, view);
     poster(g, 810, WALL_SIGN_TOP, 1, 0.78);
+    bpCuffArt(g, 755, 84);
     rr(g, 390, 305, 290, 172, 28, '#8fb7a44a');
     ellipse(g, 535, 387, 99, 45, '#b6d3b244');
   }
@@ -2514,7 +2549,8 @@ function catPepper(g, x, y, u, m, t) {
 // ---- The TV ----
 // Channel pictures at w by h, drawn in screen-local coordinates (world.js clips and places them).
 // Static backdrops are cached per size; the cats, the rally and the cards move on top.
-const TV_CHANNELS = ['CAT CAM', 'RAMS GAME', 'GET WELL'],
+// The fourth channel only exists in the room after dark, and only when src/tvlate.js is in the build.
+const TV_CHANNELS = ['CAT CAM', 'RAMS GAME', 'GET WELL', '3 AM'],
   tvStatics = new Map();
 
 function tvStatic(kind, w, h, paint) {
@@ -2655,10 +2691,11 @@ function tvCardRoom(g, w, h) {
 }
 
 // "Get well Macy": a slow slideshow of the cards, newest first.
-function tvCardShow(g, w, h, t, cards, name = 'Macy') {
+// trophy (optional): the Ensure trophy joins the show as its own slide, after the newest card.
+function tvCardShow(g, w, h, t, cards, name = 'Macy', trophy = false) {
   const u = h / 90,
     list = Array.isArray(cards) ? cards.filter(c => c && typeof c === 'object') : [],
-    n = list.length;
+    n = list.length + (trophy ? 1 : 0);
   g.drawImage(tvStatic('cards', w, h, tvCardRoom), 0, 0, w, h);
   label(g, 'GET WELL ' + String(name || 'Macy').toUpperCase(), w / 2, 11 * u, 8 * u, '#b8456a', 'center');
   heart(g, w / 2 - 50 * u, 4 * u, 0.5 * u, '#ef7f8f');
@@ -2677,6 +2714,18 @@ function tvCardShow(g, w, h, t, cards, name = 'Macy') {
     cy = h * 0.2,
     cw = w * 0.76,
     ch = h * 0.64;
+  if (!card) {
+    g.save();
+    g.globalAlpha *= fade;
+    rr(g, cx, cy, cw, ch, 3 * u, '#2c2333');
+    ensureTrophyArt(g, w * 0.32, cy + ch - 3 * u, 0.62 * u);
+    label(g, 'THE ENSURE TROPHY', cx + cw * 0.46, cy + 16 * u, 6 * u, '#f2c14e', 'left');
+    label(g, 'Refused fifty times.', cx + cw * 0.46, cy + 28 * u, 5 * u, '#f4ecd8', 'left');
+    label(g, 'Dietary gave up.', cx + cw * 0.46, cy + 36 * u, 5 * u, '#f4ecd8', 'left');
+    g.restore();
+    label(g, 'SLIDE ' + (n - idx) + ' OF ' + n, w / 2, h - 3 * u, 4.6 * u, '#9a6a7a', 'center');
+    return;
+  }
   g.save();
   g.globalAlpha *= fade;
   rr(g, cx + u, cy + 1.6 * u, cw, ch, 3 * u, '#3b2a1c33');
@@ -2697,7 +2746,7 @@ function tvCardShow(g, w, h, t, cards, name = 'Macy') {
   }
   lines.forEach((ln, i) => label(g, ln, cx + 32 * u, cy + 20 * u + i * 7.4 * u, 5.4 * u, '#4a3a42', 'left'));
   g.restore();
-  label(g, 'CARD ' + (n - idx) + ' OF ' + n, w / 2, h - 3 * u, 4.6 * u, '#9a6a7a', 'center');
+  label(g, (trophy ? 'SLIDE ' : 'CARD ') + (n - idx) + ' OF ' + n, w / 2, h - 3 * u, 4.6 * u, '#9a6a7a', 'center');
 }
 
 // Static between channels: a cached field of grey specks, slid around while it shows.
@@ -2719,7 +2768,7 @@ function tvNoise(g, w, h, t) {
 }
 
 // A soft glow the TV throws on the wall, one cached sprite per channel color.
-const TV_GLOW_COLORS = ['#ffe2a8', '#a9d2ff', '#ffc4d6'],
+const TV_GLOW_COLORS = ['#ffe2a8', '#a9d2ff', '#ffc4d6', '#c9b8ff'],
   tvGlows = new Map();
 
 function tvGlowSprite(col) {
@@ -2736,4 +2785,117 @@ function tvGlowSprite(col) {
     tvGlows.set(col, cv);
   }
   return cv;
+}
+
+// ---- The Ensure cult, room side ----
+// Barb's bottle from the hallway, same silhouette and colors: chocolate, vanilla, strawberry. (x, y)
+// is the bottom center.
+const ROOM_ENSURE_BANDS = ['#7a4b33', '#e9d39a', '#ef9fb0'],
+  ROOM_ENSURE_CAPS = ['#623c29', '#baa97b', '#bf7f8d'];
+
+function roomBottle(g, x, y, flavor = 0, s = 1, ground = false) {
+  const f = ((flavor % 3) + 3) % 3;
+  g.save();
+  g.translate(x, y);
+  g.scale(s, s);
+  if (ground) shadow(g, 0, 1, 8, 2.6);
+  rr(g, -5, -17, 10, 17, 3, '#f4efe2', '#a59c8a', 0.7);
+  rr(g, -5, -12, 10, 7, 1.5, ROOM_ENSURE_BANDS[f]);
+  rr(g, -3.4, -21, 6.8, 5, 1.6, ROOM_ENSURE_CAPS[f]);
+  line(g, [[-2.6, -15], [-2.6, -3]], '#ffffff88', 1);
+  g.restore();
+}
+
+// A cardboard six-pack: three bottles behind, three in front, a carrier band. (x, y) bottom center.
+function ensureSixPack(g, x, y, s = 1) {
+  g.save();
+  g.translate(x, y);
+  g.scale(s, s);
+  shadow(g, 0, 1, 20, 4);
+  for (let i = 0; i < 3; i++) roomBottle(g, -10 + i * 10, -3, i, 0.72);
+  for (let i = 0; i < 3; i++) roomBottle(g, -11 + i * 10.5, 0, 2 - i, 0.78);
+  rr(g, -17, -9, 34, 9, 2, '#c9a06a', '#9a7448', 0.8);
+  rr(g, -6, -15, 12, 7, 3, null, '#9a7448', 1.4);
+  line(g, [[-14, -5], [14, -5]], '#e3c08c', 0.8);
+  g.restore();
+}
+
+// The trophy: one bottle on a tiny pedestal in a glass case, labeled FINE. YOU WIN. (x, y) is the
+// bottom center of the stand.
+function ensureTrophyArt(g, x, y, s = 1) {
+  g.save();
+  g.translate(x, y);
+  g.scale(s, s);
+  shadow(g, 0, 2, 30, 6);
+  rr(g, -24, -14, 48, 15, 3, '#7a5a40', '#5a3f2c', 1);
+  rr(g, -22, -76, 44, 62, 4, '#e6f6fb33', '#9cc7d4', 1.4);
+  rr(g, -9, -34, 18, 16, 2, gradient(g, -9, -34, 18, 16, '#ffe08a', '#c9962c'));
+  rr(g, -11, -36, 22, 4, 1.5, '#f2c14e');
+  roomBottle(g, 0, -36, 0, 1.15);
+  rr(g, -20, -12, 40, 9, 2, '#3a2c1c');
+  label(g, 'FINE. YOU WIN.', 0, -5.6, 6.2, '#f2c14e', 'center');
+  line(g, [[-17, -72], [-12, -60]], '#ffffff66', 1.2);
+  line(g, [[15, -72], [17, -66]], '#ffffff44', 1);
+  spark(g, 12, -62, '#fff3c4', 0.32);
+  g.restore();
+}
+
+// The Employee of the Month badge: a tiny gold frame with a star. (x, y) is its bottom center.
+function machineBadge(g, x, y) {
+  rr(g, x - 8, y - 13, 16, 13, 2.5, '#f2c14e', '#a77a1c', 1);
+  rr(g, x - 5.5, y - 10.5, 11, 8, 1.5, '#fff3c4');
+  spark(g, x, y - 6.5, '#d49a22', 0.32);
+}
+
+// Small portraits for the Employee of the Month frame in the hallway. About 48 by 48 at s = 1,
+// centered on (x, y). No text, so they stay crisp at any size.
+function drawMachineIcon(g, id, x, y, s = 1) {
+  g.save();
+  g.translate(x, y);
+  g.scale(s, s);
+  if (id === 'mri' || id === 'ct') {
+    const warm = id === 'ct';
+    rr(g, -22, -18, 44, 40, 10, gradient(g, -22, -18, 44, 40, '#f0f1df', warm ? '#d8b98e' : '#92b9c0'), '#5f8c9d', 1);
+    ellipse(g, 0, -2, 15, 16, warm ? '#c9a06a' : '#87adb7');
+    ellipse(g, 0, -2, 11, 12, gradient(g, -11, -14, 22, 24, '#1d415b', '#4a7f91'));
+    rr(g, -8, 12, 16, 8, 3, '#edf2dd');
+    if (warm) for (const [sx, sy, c] of [[-10, -12, '#f08db5'], [9, -10, '#7fcbd6'], [-12, 6, '#f2c43f'], [11, 7, '#9fd38a']]) rr(g, sx, sy, 3, 1.4, 0.6, c);
+    else for (const a of [0.6, 2.2, 3.8]) spark(g, Math.cos(a) * 19, -2 + Math.sin(a) * 19, '#bfe9ff', 0.28);
+  } else if (id === 'cuff') {
+    g.scale(0.85, 0.85);
+    bpCuffArt(g, 0, -14, 2);
+  }
+  else if (id === 'ultrasound') {
+    rr(g, -20, -20, 34, 26, 4, '#4a7284', '#c3d5cf', 1);
+    rr(g, -17, -17, 28, 20, 2, '#153b50');
+    path(g, p => p.ellipse(-3, -6, 9, 6, 0, Math.PI * 1.1, Math.PI * 1.9), null, '#b5e7be', 1.4);
+    rr(g, -8, 6, 14, 14, 3, '#9dbebd');
+    rr(g, 12, -4, 7, 18, 3, '#e8e2d4', '#9aa', 0.8);
+    rr(g, 13, -10, 5, 7, 2, '#f1d17f');
+  } else if (id === 'vending') {
+    rr(g, -16, -22, 32, 44, 3, '#72899a');
+    rr(g, -13, -19, 20, 30, 2, '#3d6170');
+    for (let r = 0; r < 3; r++)
+      for (let c = 0; c < 3; c++) rect(g, -11 + c * 6.4, -16 + r * 9, 4, 5, (r + c) % 2 ? '#e0b383' : '#9ac6a3');
+    rr(g, 9, -12, 4, 10, 1.5, '#a2b4af');
+    rect(g, -11, 14, 16, 4, '#2c4d5d');
+  } else if (id === 'pump') {
+    line(g, [[0, -24], [0, 22]], '#a3c3c7', 3);
+    rr(g, 2, -24, 12, 16, 3, '#e7f1dccc', '#bbd5c9', 0.8);
+    rr(g, 4, -19, 8, 9, 2, '#edcb80');
+    rr(g, -12, -4, 24, 18, 4, '#386e7b', '#b0cbd0', 1);
+    rr(g, -9, -1, 18, 10, 2, '#acd9bb');
+    vectorDigits(g, '88', 0, 4, 7, '#296465');
+  } else if (id === 'monitor') {
+    rr(g, -22, -18, 44, 32, 5, gradient(g, 0, -18, 0, 32, '#82a6ac', '#4a7284'), '#c3d5cf', 1);
+    rr(g, -18, -14, 36, 24, 3, '#153b50');
+    line(g, [[-15, 0], [-8, 0], [-5, -5], [-2, 6], [2, -9], [5, 0], [8, 0]], '#b5e7be', 1.4);
+    vectorDigits(g, '88', 11, -7, 6, '#ffe29b');
+    line(g, [[0, 14], [0, 22]], '#678d98', 4);
+  } else if (id === 'bed') {
+    bed(g, 0, 24, 0.32);
+    label(g, 'z', 12, -14, 9, '#5a7f8a', 'center');
+  } else if (id === 'etype') etype(g, 0, 10, 0.66);
+  else spark(g, 0, 0, '#f2c14e', 1.2);
+  g.restore();
 }

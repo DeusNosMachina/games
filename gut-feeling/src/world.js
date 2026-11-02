@@ -16,6 +16,11 @@ const supplyAvailable = s =>
   s.room === state.room && !state.taken.includes(s.id) && stars() >= (s.unlock || 0);
 
 // Ward-side state that only this file touches.
+// Macy is 5'10" and stands about 120 world units tall in the ward. Visual only: hitboxes, reach and
+// collisions do not change. The hallway sizes its cast from MACY_SCALE.
+const MACY_SCALE = 1.36,
+  MACY_TALL = MACY_SCALE / 1.24;
+
 const ROOM_IRIS_SECONDS = 0.25,
   THICK_SKIN_SECONDS = 2.6,
   ARCADE_LOCKED_TOAST = 'Clear the ward first. The gremlins are sitting on the arcade.',
@@ -50,7 +55,8 @@ function coins(n) {
 // Gives an extra room the first say on an action ('attack', 'jump', 'dash', 'use', 'enter', 'tap').
 // point is in room coordinates for taps. True means it handled the action.
 function roomAction(kind, point) {
-  // Any action wakes Macy from an idle; the room's own hotspots (TV, E-Type, cards) go first.
+  // Any action wakes Macy (from a dream, then from an idle); the room's hotspots go first.
+  roomDreamWake();
   macyWake();
   if (roomSpotAction(kind, point)) return true;
   return typeof roomExtrasAction === 'function' && !!roomExtrasAction(kind, point);
@@ -485,6 +491,8 @@ function macyReactions() {
 
 function macyRoomLoaded() {
   macyWake();
+  roomBark = null;
+  roomEnsureRead();
   if (player.pose !== 'grin') macyClearPose();
   macyWaveSeen = null;
   tvWatch = 0;
@@ -499,14 +507,16 @@ const tvRoomKey = (id = state.room) => (id === 5 ? 0 : ROOM_TVS[id] ? id : -1);
 
 function tvChannel(id = state.room) {
   const k = tvRoomKey(id);
-  return k < 0 ? -1 : tvChannels[k] || 0;
+  if (k < 0) return -1;
+  const ch = tvChannels[k] || 0;
+  return ch < tvChannelCount(id) ? ch : 0;
 }
 
 // The remote: next channel, a click, a blink of static and the channel name.
 function tvChange(id = state.room) {
   const k = tvRoomKey(id);
   if (k < 0) return false;
-  tvChannels[k] = ((tvChannels[k] || 0) + 1) % TV_CHANNELS.length;
+  tvChannels[k] = (tvChannel(id) + 1) % tvChannelCount(id);
   tvFlash = reduced ? 0 : 0.22;
   tvOsd = 1.8;
   tvWatch = 0;
@@ -531,6 +541,7 @@ function tvVisible(id = state.room) {
 function tvTick(dt) {
   tvFlash = Math.max(0, tvFlash - dt);
   tvOsd = Math.max(0, tvOsd - dt);
+  if (tvChannel() === 3 && typeof tvLateTick === 'function') tvLateTick(dt);
   if (tvChannel() !== 0 || !tvVisible()) {
     tvWatch = 0;
     tvCounted = false;
@@ -579,14 +590,15 @@ function tvDraw(g, id) {
   g.translate(s.x, s.y);
   if (ch === 0) tvCatCam(g, s.w, s.h, time);
   else if (ch === 1) tvRamsGame(g, s.w, s.h, time);
-  else tvCardShow(g, s.w, s.h, time, state.cards, state.name);
+  else if (ch === 3 && tvLateHere(id)) tvLateDraw(g, s.w, s.h, time);
+  else tvCardShow(g, s.w, s.h, time, state.cards, state.name, roomEnsureTrophy);
   if (tvFlash > 0) {
     g.globalAlpha = Math.min(1, tvFlash * 6);
     tvNoise(g, s.w, s.h, time);
     g.globalAlpha = 1;
   }
   if (tvOsd > 0) {
-    const text = 'CH ' + (ch + 1) + ' · ' + TV_CHANNELS[ch];
+    const text = ch === 3 ? '3 AM · should not exist' : 'CH ' + (ch + 1) + ' · ' + TV_CHANNELS[ch];
     g.globalAlpha = Math.min(1, tvOsd * 3);
     rr(g, s.w - 8 - text.length * 4.6, 4, text.length * 4.6 + 4, 11, 3, '#0b1220cc');
     label(g, text, s.w - 6, 12.4, 7.5, '#a6f0b8', 'right');
@@ -594,6 +606,7 @@ function tvDraw(g, id) {
   }
   g.restore();
   poly(g, [[s.x + s.w * 0.58, s.y], [s.x + s.w * 0.76, s.y], [s.x + s.w * 0.46, s.y + s.h], [s.x + s.w * 0.28, s.y + s.h]], '#ffffff0b');
+  if (ch === 3) tvLateSubtitle(g, tv);
 }
 
 // ---- Hotspots ----
@@ -662,6 +675,7 @@ function roomSpotUse(s) {
   if (Math.abs(s.at[0] - player.x) > 8) player.dir = s.at[0] > player.x ? 1 : -1;
   if (s.id === 'tv') return tvChange();
   if (s.id === 'etype') {
+    if (roomBark && roomBark.id === 'etype') roomBark = null;
     const text = ETYPE_LINES[roomSpotSeq % ETYPE_LINES.length];
     roomSpotSeq++;
     roomFloat(roomWrap(text, 26), 307, 126, '#fff1c2', 2.8);
@@ -699,7 +713,10 @@ function drawRoomSpotPrompt(g) {
   if (!s) return;
   const text = (wardCoarsePointer ? 'TAP' : 'SPACE') + ' · ' + s.verb,
     w = text.length * 6.4 + 18,
-    [x, y] = s.tip;
+    // The 3 AM subtitle sits under the screen; the prompt steps down out of its way.
+    late = s.id === 'tv' && tvChannel() === 3 && tvLateHere(),
+    x = s.tip[0],
+    y = s.tip[1] + (late ? 24 : 0);
   rr(g, x - w / 2, y - 10, w, 20, 10, '#173847e6', '#ffe29b', 1.5);
   label(g, text, x, y + 4, 10, '#ffe29b', 'center');
 }
@@ -708,6 +725,7 @@ function drawRoomSpotPrompt(g) {
 function roomSpotClick(e) {
   if (typeof pressClick === 'function' && pressClick(canvas, e)) return;
   if (!e || e.clientX === undefined) return;
+  roomDreamWake();
   macyWake();
   roomSpotAction('tap', wardPoint(e));
 }
@@ -835,7 +853,350 @@ function roomWallLayer(g) {
   roomCurtains(g, id);
   roomNurse(g, id);
   if (id === 0 || id === 5) roomWallCards(g, id === 5);
+  roomCultWall(g, id);
   tvDraw(g, id);
+}
+
+// ---- The hospital has opinions ----
+// Every machine is a character. Walk within ROOM_BARK_RANGE of one (not during a fight) and it says
+// one line in a bubble, at most once every ROOM_BARK_COOLDOWN seconds. One bubble at a time.
+const ROOM_BARK_RANGE = 60,
+  ROOM_BARK_COOLDOWN = 20,
+  MACHINE_ORDER = ['mri', 'ct', 'cuff', 'ultrasound', 'vending', 'pump', 'monitor', 'bed', 'etype'],
+  MACHINES = {
+    mri: {
+      name: 'BRRR 3000, the MRI',
+      lines: [
+        "DON'T BRING KEYS. DON'T. I CAN FEEL THEM.",
+        "IS THAT A HAIR CLIP? I'M FINE. I'M FINE.",
+        "I'M NOT LOUD. I'M EXPRESSIVE.",
+        "HOLD STILL. NOT YOU. ME. I'M HOLDING STILL.",
+        'EVERY BANG IS A COMPLIMENT. BANG.'
+      ],
+      honor: 'EMPLOYEE OF THE MONTH? ME? I NEED TO LIE DOWN. I AM A TUBE.'
+    },
+    ct: {
+      name: 'Donut II, the CT scanner',
+      lines: [
+        'No brakes. Never needed them. Never will.',
+        'I spin faster than your bike ever dreamed.',
+        'They call me Donut II. Donut I could not handle the pressure.',
+        'Zero brakes. Zero regrets. One very good picture.',
+        'Stand back. I do donuts professionally.'
+      ],
+      honor: 'Employee of the Month. Still no brakes. Still winning.'
+    },
+    cuff: {
+      name: 'The blood pressure cuff',
+      lines: [
+        'You are under pressure. Good pressure. Diamond pressure.',
+        'Squeeze the day!',
+        'Every squeeze is a hug with numbers.',
+        "Breathe in. Breathe out. I've got your arm, champ.",
+        "Your numbers called. They said you're a legend."
+      ],
+      honor: "Employee of the Month. I'd like to thank everyone I've ever squeezed."
+    },
+    ultrasound: {
+      name: 'The ultrasound machine',
+      lines: [
+        "My gel is room temperature. That's a lie. It's freezing.",
+        'I once saw a kidney wave at me. We do not talk about it.',
+        'I can see inside people. I try not to make it weird. It is weird.',
+        'Fun fact: I am mostly vibes and a cold wand.',
+        'I dated a fax machine once. Mixed signals.'
+      ],
+      honor: "Employee of the Month. I cried into the gel. You'll never know."
+    },
+    vending: {
+      name: 'The vending machine',
+      lines: [
+        'Pretzels for a smile. Final offer. Fine, two smiles.',
+        "I don't take cards. I take compliments.",
+        'Chips are a dollar or one good joke. Your dad already tried.',
+        "B4 is stuck. I could unstick it. What's in it for me?",
+        "Free cookie if you tell the nurses I'm nice."
+      ],
+      honor: 'Employee of the Month. Autographs are a dollar. Negotiable.'
+    },
+    pump: {
+      name: 'The IV pump',
+      lines: [
+        'The patient approaches the window. Majestic.',
+        'Here we see the teenager in her natural habitat: the seventh floor.',
+        'She pauses. She considers the pudding. Nature is beautiful.',
+        'Observe the ponytail. It moves with purpose.',
+        'A rare sighting: the patient, standing still. Do not startle her.'
+      ],
+      honor: 'And here, in the wild, the Employee of the Month. Me. Hush now.'
+    },
+    monitor: {
+      name: 'Monitor 88',
+      lines: [
+        "88! That's you! I'm counting! Isn't this fun?",
+        "I'm on the team! I'm the beeping part of the team!",
+        'Just happy to be here. Beep.',
+        'Still 88. Still proud. Still beeping.',
+        "Can I come to the next game? I'll beep quietly."
+      ],
+      honor: "Employee of the Month?! I've never been this included!"
+    },
+    bed: {
+      name: 'The bed',
+      lines: [
+        "Zzz... oh. You're up. I'll keep it warm.",
+        'Zzz... five more minutes... zzz.',
+        "Zzz... snrk... I wasn't asleep. I was resting my springs.",
+        'Zzz... dreaming of pillows. The good kind.',
+        'Zzz... come back... the blanket misses you.'
+      ],
+      honor: 'Zzz... Employee of the Month... zzz... tell my mattress.'
+    },
+    etype: {
+      name: 'The E-Type',
+      lines: [
+        "Vroom. Vrrroom. That's British for hello.",
+        "Rev rev. I'd take you for a spin but I'm pocket-sized.",
+        'Brrm brrm. No engine. All spirit.',
+        'Vrrrm. Every brick where you put it. Thank you.',
+        'Vroom. British racing green and racing nowhere.'
+      ],
+      honor: 'VROOM. Employee of the Month. Somebody polish my wire wheels.'
+    }
+  },
+  // near: the box Macy walks up to; at: where the bubble's tail points (and the badge sits).
+  ROOM_MACHINES = {
+    0: [
+      { id: 'bed', near: [95, 176, 131, 105], at: [160, 128] },
+      { id: 'pump', near: [50, 150, 40, 122], at: [69, 154] },
+      { id: 'monitor', near: [266, 71, 72, 95], at: [302, 68] },
+      { id: 'etype', near: [265, 140, 85, 120], at: [307, 138] }
+    ],
+    1: [{ id: 'mri', near: [387, 166, 188, 129], at: [486, 92] }],
+    2: [{ id: 'vending', near: [50, 321, 90, 133], at: [95, 314] }],
+    3: [{ id: 'ct', near: [380, 167, 188, 130], at: [481, 92] }],
+    4: [
+      { id: 'ultrasound', near: [339, 150, 123, 150], at: [400, 144] },
+      { id: 'cuff', near: [739, 64, 32, 100], at: [755, 60] }
+    ]
+  };
+
+let roomBark = null;
+
+const roomBarkAt = {},
+  roomBarkSeq = {};
+
+const roomMachinesHere = () => ROOM_MACHINES[state.room === 5 ? 0 : state.room] || [];
+
+// Distance from Macy's feet to the nearest point of a box.
+function roomBoxDist(p, box) {
+  const [x, y, w, h] = box,
+    dx = Math.max(x - p.x, 0, p.x - (x + w)),
+    dy = Math.max(y - p.y, 0, p.y - (y + h));
+  return Math.hypot(dx, dy);
+}
+
+// The local date as YYYY-MM-DD (the Daily Dose's key when that file is loaded).
+const roomDayKey = (d = new Date()) =>
+  d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+// One machine a day gets the gold frame: the same pick all day, from the date alone.
+// day: a Date or 'YYYY-MM-DD' (default today). Returns { id, name, line }.
+function machineOfTheMonth(day) {
+  const key = day instanceof Date ? roomDayKey(day) : typeof day === 'string' && day ? day : roomDayKey();
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619) >>> 0;
+  const id = MACHINE_ORDER[h % MACHINE_ORDER.length];
+  return { id, name: MACHINES[id].name, line: MACHINES[id].honor };
+}
+
+// A machine's pool. The Employee of the Month opens with its honor line.
+function machineLines(id) {
+  const m = MACHINES[id];
+  if (!m) return [];
+  return machineOfTheMonth().id === id ? [m.honor, ...m.lines] : m.lines.slice();
+}
+
+function roomBlurt(m) {
+  const lines = machineLines(m.id),
+    n = roomBarkSeq[m.id] || 0,
+    text = lines[n % lines.length];
+  roomBarkSeq[m.id] = n + 1;
+  roomBarkAt[m.id] = time;
+  const life = Math.min(6, 3 + text.length * 0.035);
+  roomBark = { id: m.id, text, lines: roomWrap(text, 30), x: m.at[0], y: m.at[1], life, max: life };
+  return roomBark;
+}
+
+function roomOpinionsTick(dt) {
+  if (roomBark) {
+    roomBark.life -= dt;
+    if (roomBark.life <= 0) roomBark = null;
+  }
+  if (roomBark || !(state.room >= 0 && state.room <= 5) || deadDelay > 0 || macyGremlinsLive()) return;
+  let best = null,
+    bestD = ROOM_BARK_RANGE;
+  for (const m of roomMachinesHere()) {
+    const d = roomBoxDist(player, m.near);
+    if (d > bestD) continue;
+    if (time - (roomBarkAt[m.id] ?? -Infinity) < ROOM_BARK_COOLDOWN) continue;
+    best = m;
+    bestD = d;
+  }
+  if (best) roomBlurt(best);
+}
+
+// Text size for world-space bubbles: the hallway's bark size, so both read the same on every screen.
+function roomBarkSize() {
+  let css = 1;
+  try {
+    const r = canvas.getBoundingClientRect();
+    if (r && r.width > 0) css = r.width / Math.max(1, viewport.w);
+  } catch {
+    css = 1;
+  }
+  return clamp(Math.round(11 / clamp(css, 0.3, 2)), 12, 24);
+}
+
+function roomTextW(g, text, size) {
+  g.font = `700 ${size}px "Trebuchet MS", Arial, sans-serif`;
+  const m = typeof g.measureText === 'function' ? g.measureText(text) : null;
+  return m && Number.isFinite(m.width) ? m.width : text.length * size * 0.56;
+}
+
+// The badge over today's Employee of the Month, then the bubble: the hallway barks' style, in the room.
+function drawRoomOpinions(g) {
+  if (!(state.room >= 0 && state.room <= 5)) return;
+  const eom = machineOfTheMonth().id,
+    bob = reduced ? 0 : Math.sin(time * 2) * 1.2;
+  for (const m of roomMachinesHere()) if (m.id === eom) machineBadge(g, m.at[0], m.at[1] + bob);
+  const b = roomBark;
+  if (!b) return;
+  const fs = roomBarkSize(),
+    lh = fs + 3,
+    w = Math.max(...b.lines.map(ln => roomTextW(g, ln, fs))) + 22,
+    h = b.lines.length * lh + 9,
+    ax = b.x,
+    ay = b.y - (b.id === eom ? 15 : 0),
+    x = clamp(ax - w / 2, cameraX + 6, cameraX + viewport.w - w - 6),
+    y = Math.max(wardCameraY + 6, ay - 7 - h),
+    tip = clamp(ax, x + 12, x + w - 12);
+  g.save();
+  g.globalAlpha = clamp(Math.min(b.life * 3, (b.max - b.life) * 8), 0, 1);
+  rr(g, x, y, w, h, Math.min(h / 2, fs), '#fffaf0', '#244d53', 1.6);
+  poly(g, [[tip - 6, y + h - 1], [tip + 6, y + h - 1], [tip, y + h + 7]], '#fffaf0');
+  b.lines.forEach((ln, i) => label(g, ln, x + w / 2, y + 5 + lh * i + fs * 0.86, fs, '#244656', 'center'));
+  g.restore();
+}
+
+// ---- The Ensure cult, room side ----
+// Barb keeps offering. Every refusal (state.stats.ensureRefused, counted in the hallway) leaves a
+// little more Ensure around Macy's rooms. Read at each room load.
+const ROOM_PA = 'Attention: the cafeteria has been renamed The Ensure Experience.';
+
+let roomEnsureN = 0,
+  roomEnsureTrophy = false,
+  roomPaDone = false;
+
+function roomEnsureRead() {
+  const stats = state.stats && typeof state.stats === 'object' ? state.stats : {},
+    n = Number(stats.ensureRefused);
+  roomEnsureN = Number.isFinite(n) ? n : 0;
+  roomEnsureTrophy = roomEnsureN >= 50 && !!stats.ensureTrophy;
+  // Thirty refusals in, the PA has news. Once per session.
+  if (roomEnsureN >= 30 && !roomPaDone && state.started && state.room >= 0 && state.room <= 5) {
+    roomPaDone = true;
+    toast(ROOM_PA, 3.6);
+    sfx('ui');
+  }
+}
+
+// The Ensure that has piled up, as depth-sorted pieces for drawWorld.
+function roomCultRenderables() {
+  const n = roomEnsureN,
+    id = state.room,
+    out = [];
+  if (n < 10) return out;
+  if (id === 0 || id === 5) {
+    if (n >= 20) out.push({ y: 281, draw: g => ensureSixPack(g, 246, 287, 0.9) });
+    if (n >= 30)
+      out.push({
+        y: 266,
+        draw: g => {
+          rr(g, 274, 191, 67, 7, 2, '#4a3229');
+          roomBottle(g, 290, 202, 1, 0.72);
+          roomBottle(g, 306, 201, 0, 0.72);
+          roomBottle(g, 322, 203, 2, 0.72);
+          rr(g, 271, 197, 73, 28, 4, gradient(g, 271, 197, 73, 28, '#e3bd98', '#cda081'), '#a9806d88', 1);
+          line(g, [[297, 207], [317, 207]], '#567a7c', 3);
+          for (const [bx, by, f, r] of [[298, 287, 0, 1.45], [331, 293, 2, -1.5], [281, 296, 1, 1.6]]) {
+            g.save();
+            g.translate(bx, by);
+            g.rotate(r);
+            roomBottle(g, 0, 0, f, 0.72);
+            g.restore();
+          }
+        }
+      });
+    if (roomEnsureTrophy) out.push({ y: 548, draw: g => ensureTrophyArt(g, 720, 548) });
+  }
+  if (id === 1 && n >= 20)
+    out.push({
+      y: 303,
+      draw: g => {
+        g.save();
+        g.translate(520, 55);
+        g.rotate(reduced ? 0.04 : Math.sin(time * 1.7) * 0.07);
+        roomBottle(g, 0, 0, 2, 1.1);
+        g.restore();
+      }
+    });
+  if (id === 2) {
+    out.push({ y: 389, draw: g => roomBottle(g, 556, 360, 0, 1) });
+    if (n >= 20)
+      out.push({
+        y: 461,
+        draw: g => {
+          for (let i = 0; i < 3; i++) roomBottle(g, 74 + i * 19, 410, i, 0.62);
+        }
+      });
+  }
+  return out;
+}
+
+// Wall-layer Ensure: a bottle on her windowsill, and the trophy's spotlight.
+function roomCultWall(g, id) {
+  if (roomEnsureN < 10 || (id !== 0 && id !== 5)) return;
+  roomBottle(g, 540, 123, 2, 0.9);
+  if (!roomEnsureTrophy) return;
+  g.globalAlpha = 0.5;
+  poly(g, [[712, 0], [728, 0], [758, 540], [682, 540]], '#fff3c430');
+  ellipse(g, 720, 546, 40, 9, '#fff3c455');
+  g.globalAlpha = 1;
+}
+
+// ---- Optional neighbors: the dream (src/dream.js) and the 3 AM channel (src/tvlate.js) ----
+// Every call is guarded; the room runs the same without them.
+function roomDreamWake() {
+  if (typeof dreamWake === 'function') dreamWake();
+}
+
+// The 3 AM channel exists in the room after dark, and only when tvlate.js is in the build.
+const tvLateHere = (id = state.room) => id === 5 && typeof tvLateDraw === 'function';
+
+function tvChannelCount(id = state.room) {
+  return tvLateHere(id) ? 4 : 3;
+}
+
+function tvLateSubtitle(g, tv) {
+  const caption = typeof tvLateCaption === 'function' ? String(tvLateCaption() || '') : '';
+  if (!caption) return;
+  const fs = 9,
+    w = Math.min(roomTextW(g, caption, fs) + 16, 360),
+    x = tv.x + tv.w / 2,
+    y = tv.y + tv.h + 10;
+  rr(g, x - w / 2, y, w, fs + 8, 4, '#0b1220d8');
+  label(g, caption, x, y + fs + 2.5, fs, '#e6e0ff', 'center');
 }
 
 // ---- Title screen ----
@@ -1130,7 +1491,7 @@ function drawWeaponFlash(vw, vh) {
     fade = Math.min(1, wardWeaponFlash / 0.3),
     pop = reduced ? 1 : 1 + Math.max(0, 0.16 - age) * 1.6,
     x = clamp(player.x - cameraX, boxW / 2 + 8, vw - boxW / 2 - 8),
-    y = clamp(player.y - wardCameraY - player.z - 150, 70, vh - 40);
+    y = clamp(player.y - wardCameraY - player.z - 150 * MACY_TALL, 70, vh - 40);
   wardWeaponFlash = Math.max(0, wardWeaponFlash - renderDelta);
   c.save();
   c.globalAlpha = fade;
@@ -1206,6 +1567,7 @@ function wardSetGoal(p) {
 // id: pointer id; cx, cy: client coordinates; p: the same point in room coordinates.
 // Returns false when the ward is not taking input (the click handler then gets the tap).
 function wardTouchDown(id, cx, cy, p) {
+  roomDreamWake();
   if (!state.started || state.paused || isModal() || deadDelay > 0) return false;
   const finger = { id, x0: cx, y0: cy, t0: time, moved: false, long: false, kind: 'walk' };
   wardRipples.push({ x: p.x, y: p.y, t: 0 });
@@ -1382,6 +1744,7 @@ function updateWorld(dt) {
     return;
   }
   if (isModal() || state.paused) return;
+  if (typeof updateDream === 'function' && updateDream(dt)) return;
   for (let k of [
     'inv',
     'shield',
@@ -1469,6 +1832,7 @@ function updateWorld(dt) {
   updateEffects(dt);
   macyIdleStep(dt);
   tvTick(dt);
+  roomOpinionsTick(dt);
   $('dashBtn').style.opacity = player.dashCd > 0 ? '.45' : '1';
   $('useBtn').style.opacity = state.item && player.itemCd > 0 ? '.45' : '1';
 }
@@ -1550,22 +1914,23 @@ function drawWorld() {
   }
   drawWardGoal(c);
   const renderables = (roomProps[state.room] || []).map(p => ({ y: p.y, draw: p.draw }));
+  renderables.push(...roomCultRenderables());
   if (typeof roomExtraRenderables === 'function') renderables.push(...(roomExtraRenderables() || []));
   renderables.push({
     y: player.y,
     draw: g => {
       if (player.z > 0) shadow(g, player.x, player.y, 22, 6);
       if (player.shield > 0) {
-        ellipse(g, player.x, player.y - 37, 43, 56, '#ace8b047');
+        ellipse(g, player.x, player.y - 37 * MACY_TALL, 43 * MACY_TALL, 56 * MACY_TALL, '#ace8b047');
         g.strokeStyle = '#c1f2cc';
         g.lineWidth = 3;
         g.beginPath();
-        g.ellipse(player.x, player.y - 37, 43, 56, 0, 0, Math.PI * 2);
+        g.ellipse(player.x, player.y - 37 * MACY_TALL, 43 * MACY_TALL, 56 * MACY_TALL, 0, 0, Math.PI * 2);
         g.stroke();
       }
       if (player.dash > 0) {
         g.globalAlpha = 0.2;
-        girl(g, player.x - player.lastDx * 26, player.y - player.lastDy * 26, 1.24, player.walk, player.dir);
+        girl(g, player.x - player.lastDx * 26, player.y - player.lastDy * 26, MACY_SCALE, player.walk, player.dir);
         g.globalAlpha = 1;
       }
       g.save();
@@ -1576,7 +1941,7 @@ function drawWorld() {
         g,
         0,
         0,
-        1.24,
+        MACY_SCALE,
         player.walk,
         player.visualDir ?? player.dir,
         player.inv > 0 && player.vomit <= 0,
@@ -1584,15 +1949,15 @@ function drawWorld() {
         macyAct()
       );
       g.restore();
-      vomitArt(g, player.x, player.y - player.z, player.dir, player.vomit, 1.24);
+      vomitArt(g, player.x, player.y - player.z, player.dir, player.vomit, MACY_SCALE);
       if (player.eat > 0) {
-        nutrient(g, player.x + player.dir * 15, player.y - 48, 'shake', 0.9);
-        heart(g, player.x - 10, player.y - 110, 1.3, '#f3a08f');
+        nutrient(g, player.x + player.dir * 15 * MACY_TALL, player.y - 48 * MACY_TALL, 'shake', 0.9 * MACY_TALL);
+        heart(g, player.x - 10, player.y - 110 * MACY_TALL, 1.3, '#f3a08f');
       }
       if (player.attack > 0) {
         drawPillowSwing(g, player);
       }
-      if (state.name) label(g, state.name, player.x, player.y - 106 - player.z, 10, '#325a58', 'center');
+      if (state.name) label(g, state.name, player.x, player.y - 106 * MACY_TALL - player.z, 10, '#325a58', 'center');
     }
   });
   enemies.forEach(e => renderables.push({ y: e.y, draw: g => drawEnemy(g, e) }));
@@ -1635,6 +2000,7 @@ function drawWorld() {
   }
   c.globalAlpha = 1;
   drawRoomSpotPrompt(c);
+  drawRoomOpinions(c);
   if (typeof drawCombatFx === 'function') drawCombatFx(c);
   drawWardTaps(c);
   rect(c, 0, 603, roomWidth(), 22, '#244856');
@@ -1646,6 +2012,7 @@ function drawWorld() {
   drawWeaponFlash(vw, vh);
   if (state.paused) rect(c, 0, 0, vw, vh, '#102734aa');
   if (wardIris > 0) drawRoomIris(vw, vh);
+  if (typeof dreamActive === 'function' && dreamActive()) drawDream(c, vw, vh);
 }
 
 // A 250 ms iris opens on Macy after each room change (skipped under reduced motion).
@@ -1656,7 +2023,7 @@ function drawRoomIris(vw, vh) {
   c.save();
   c.beginPath();
   c.rect(0, 0, vw, vh);
-  c.arc(player.x - cameraX, player.y - 45 - wardCameraY, r, 0, Math.PI * 2, true);
+  c.arc(player.x - cameraX, player.y - 45 * MACY_TALL - wardCameraY, r, 0, Math.PI * 2, true);
   c.fillStyle = '#0b1b25';
   c.fill('evenodd');
   c.restore();
