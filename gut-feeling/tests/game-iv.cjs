@@ -529,14 +529,93 @@ const l2start = profile(1, false);
 assert.ok(l2start.w <= l1end.w * 1.5 && l2start.gap <= l1start.gap * 0.8, 'level 2 picks up near level 1’s finish');
 console.log('PASS: IV escalation: level 1 starts gentle and ends real; level 3 starts harder than level 1.');
 
-// Mandatory recovery always runs level 1, with the same three strikes.
+// ---- Mandatory recovery: one phase per collapse ----
+// The phase rotates with state.recoveries (pump, recipe, pressure, around again) and the level climbs:
+// level 1, then 2, then 3 for good. Quotas are three quarters of normal, rounded up; three strikes as ever.
+function forcedStart(count, difficulty = 1) {
+  close();
+  run(`ivRecovery=null;state.recoveries=${count};state.difficulty=${difficulty};openMini(0,true);startMini()`);
+}
+const quotaOf = ['tap.required', 'catch.need', 'press.need'];
+const quotaNow = ['mini.required', 'mini.catchNeed', 'mini.need'];
+for (let count = 0; count < 7; count++) {
+  const phase = count % 3;
+  const level = Math.min(2, count);
+  close();
+  run(`ivRecovery=null;state.recoveries=${count};state.medals[0]=[3,3,0];openMini(0,true)`);
+  assert.equal(run('JSON.stringify(ivRecoveryPlan())'), JSON.stringify({ phase, level, count }), `plan for collapse ${count}`);
+  run('startMini()');
+  assert.equal(run('mini.phase'), phase, `collapse ${count} plays phase ${phase + 1}`);
+  assert.equal(run('mini.tier'), level, `collapse ${count} plays level ${level + 1}`);
+  assert.equal(run('state.recoveries'), count + 1, 'starting a recovery counts the collapse');
+  assert.equal(run('JSON.stringify(ivRecoveryPlan())'), JSON.stringify({ phase, level, count }), 'the plan holds during the run');
+  assert.equal(run('mini.rules.misses'), 3, 'three strikes in a recovery too');
+  const normal = run(`IV_LEVELS[${level}].${quotaOf[phase]}`);
+  assert.equal(run(quotaNow[phase]), Math.ceil(normal * 0.75), `collapse ${count}: three quarters of the quota`);
+}
+forcedStart(0);
+assert.equal(run('mini.required'), 6, 'the first recovery is 6 drips, not 8');
+// The lobby and the briefing say which phase, which level, and that it is only one.
 close();
-run('state.medals[0]=[3,3,0];openMini(0,true);mini.tier=2;startMini()');
-assert.equal(run('mini.tier'), 0);
-assert.equal(run('mini.required'), 8);
-assert.equal(run('mini.rules.misses'), 3);
+run('ivRecovery=null;state.recoveries=4;openMini(0,true)');
+assert.equal(nodes.miniHeadline.textContent, 'One IV. Then back to the ward.');
+assert.match(nodes.miniDescription.textContent, /^One phase\. Level 3\. Then back to the ward\. .*Mix the recipe/);
+assert.doesNotMatch(nodes.miniDescription.textContent, /—/);
+run('startMini()');
+assert.equal(nodes.miniBriefTitle.textContent, 'Recovery / Mix the recipe · Level 3');
+assert.match(nodes.miniBriefGoal.textContent, /^One phase\. Level 3\. Then back to the ward\. Catch 11 sips/);
 close();
-console.log('PASS: IV forced recovery is level 1 with three strikes.');
+run('openMini(0)');
+assert.equal(nodes.miniHeadline.textContent, 'A three-course IV.', 'a normal run keeps the normal pitch');
+// Winning the one phase wins the run: no second phase, hearts back, and the next collapse plans anew.
+forcedStart(0);
+run('launchMini();updateMini(3.3);state.hp=0');
+run('mini.good=mini.required-1;mini.beatLock=0;mini.ivFumble=0;mini.pos=mini.ivSweep.wins.find(w=>!w.decoy).pos;ivTap()');
+assert.equal(run('mini.phase'), 0, 'no second phase');
+assert.equal(run('mini.screen'), 'outro');
+assert.equal(run('mini.pendingFinish.win'), true, 'the pump alone wins a recovery');
+run('updateMini(2.3)');
+assert.equal(run('mini.win'), true);
+assert.ok(run('state.hp') >= 3, 'hearts restored');
+assert.ok(run('Number.isFinite(mini.qualityFinal)') && run('mini.qualityFinal') > 0, 'a one-phase run still earns a real score');
+assert.equal(run('JSON.stringify(ivRecoveryPlan())'), JSON.stringify({ phase: 1, level: 1, count: 1 }), 'next collapse: recipe, level 2');
+forcedStart(1);
+run('launchMini();updateMini(3.3);mini.spawn=99;mini.caught=mini.catchNeed-1');
+run('mini.drops=[ivDrop(ivCupLane(),351,{kind:mini.recipe,planned:true})];updateIVGame(0.02)');
+assert.equal(run('mini.phase'), 1, 'the recipe alone wins it too');
+assert.equal(run('mini.pendingFinish.win'), true);
+// A retry after an explosion repeats the same phase and level and does not count another collapse.
+forcedStart(2);
+for (let retry = 0; retry < 2; retry++) {
+  run('launchMini();updateMini(3.3);finishMini(false);updateMini(2.3)');
+  assert.equal(run('mini.screen'), 'result');
+  nodes.miniRetry.events.click();
+  run('startMini()');
+  assert.equal(run('mini.phase'), 2, 'the retry is the same phase');
+  assert.equal(run('mini.tier'), 2, 'at the same level');
+  assert.equal(run('state.recoveries'), 3, 'retries do not count');
+  assert.equal(run('mini.need'), Math.ceil(run('IV_LEVELS[2].press.need') * 0.75));
+}
+// The bot gets back on its feet from every collapse, 0 to 5, on every prescription, in one phase.
+run(`globalThis.ivBotTick = function () {${require('./bots/iv.cjs').policy}}`);
+for (let d = 0; d < 3; d++)
+  for (let count = 0; count < 6; count++) {
+    forcedStart(count, d);
+    const result = JSON.parse(
+      run(`(()=>{const phases=new Set();launchMini();
+        for(let n=0;n<40000&&mini.screen!=='result';n++){
+          if(mini.screen==='play'){phases.add(mini.phase);ivBotTick();}
+          updateMini(1/60);
+        }
+        return JSON.stringify({win:mini.win,phases:[...phases],screen:mini.screen,miss:mini.miss});})()`)
+    );
+    assert.equal(result.screen, 'result', `P${d} collapse ${count} finishes`);
+    assert.equal(result.win, true, `P${d} collapse ${count}: the bot wins the recovery (${result.miss} strikes)`);
+    assert.deepEqual(result.phases, [count % 3], `P${d} collapse ${count} is one phase`);
+  }
+run('ivRecovery=null;state.recoveries=0');
+close();
+console.log('PASS: IV recovery: one phase per collapse, rotating, level climbing to 3, quick quotas, retries repeat.');
 
 // ---- The explosion ----
 function lose(forced) {
