@@ -1672,6 +1672,80 @@ AUDIO_SONGS.title = {
 AUDIO_MUSIC['room:6'] = { base: 'hallway' };
 AUDIO_MUSIC.title = { base: 'title' };
 
+// ---- The dream (src/dream.js) ----
+// music('dream'): the title hook at half speed, tuned 30 cents flat, under a slow, deep vibrato and a
+// long feedback echo that stands in for reverb. The chorus is pure data: the bass part doubles the lead
+// note for note (each bass step is the lead's step minus that bar's chord root) on dreamDouble, a sine
+// pitched 1.012 octaves up, so the two voices sit 14 cents apart and beat against each other.
+AUDIO_INST.dreamLead = { w: 'triangle', oct: 1, a: 0.09, d: 0.8, s: 0.7, r: 0.7, v: 0.17, vib: true };
+AUDIO_INST.dreamDouble = { w: 'sine', oct: 1.012, a: 0.14, d: 0.9, s: 0.75, r: 0.8, v: 0.15, vib: true };
+AUDIO_INST.dreamPad = { w: 'triangle', oct: 0, a: 0.9, d: 1.6, s: 0.8, r: 1.2, v: 0.05 };
+
+AUDIO_SONGS.dream = {
+  bpm: 66,
+  level: 1.2,
+  root: 54.7,
+  scale: 'major',
+  inst: { lead: 'dreamLead', bass: 'dreamDouble', pad: 'dreamPad', arp: 'bell' },
+  mix: { lead: 0.8, bass: 0.7, chord: 0.6, drum: 0.35 },
+  leadFilter: { type: 'lowpass', f: 2400, q: 0.4 },
+  echo: { steps: 3, fb: 0.58, mix: 0.45 },
+  vib: { rate: 0.85, depth: 24 },
+  form: ['A', 'B', 'A2'],
+  kits: {
+    drift: { k: ['x..g............', '................'], ping: ['................', '........x.......'] }
+  },
+  sections: {
+    A: {
+      chords: [0, 4, 5, 3],
+      drums: 'drift',
+      lead: ['0-2-4-7-----4-5-', '6-5-4-----2-4---', '5-4-2-0-----2-4-', '3---2---1-------'],
+      bass: ['0-2-4-7-----4-5-', '2-1-0-----b-0---', '0-a-c-e-----c-a-', '0---a---b-------'],
+      pad: 'x---------------',
+      arp: ['........3.......', '................', '........3.......', '................']
+    },
+    B: {
+      chords: [3, 0, 5, 4],
+      drums: 'drift',
+      lead: ['7-7-8-9---7-----', '8-7-4-7---4-----', '9-8-7-5-7---4---', '4---6---8---6---'],
+      bass: ['4-4-5-6---4-----', '8-7-4-7---4-----', '4-3-2-0-2---a---', '0---2---4---2---'],
+      pad: 'x---------------'
+    },
+    A2: {
+      chords: [0, 4, 5, 3],
+      drums: 'drift',
+      lead: ['0-2-4-7-----4-5-', '6-5-4-----2-4---', '5-4-2-0-----2-4-', '3-------2-------'],
+      bass: ['0-2-4-7-----4-5-', '2-1-0-----b-0---', '0-a-c-e-----c-a-', '0-------a-------'],
+      pad: 'x---------------',
+      arp: ['................', '........3.......', '................', '0...1...2...3...']
+    }
+  }
+};
+
+AUDIO_MUSIC.dream = { base: 'dream' };
+
+// sfx('dreamIn'): falling asleep, a soft whoosh that sinks while a music box tumbles down.
+// sfx('dreamOut'): waking up, the same whoosh rising and a quick climb back up the bells.
+SFX.dreamIn = {
+  gain: 1.4,
+  play(t, o, d) {
+    audioNoise(t, d, { ft: 'bandpass', f: 2600, f2: 380, q: 0.9, dur: 1.3, v: 0.1, a: 0.45 });
+    [1568, 1319, 1047, 880, 659].forEach((f, i) =>
+      audioOsc(t + 0.12 + i * 0.13, d, { w: 'bell', f: f * 0.985, dur: 0.9, v: 0.05 })
+    );
+    audioOsc(t, d, { w: 'sine', f: 520, f2: 260, slide: 1.1, dur: 1.2, v: 0.06, a: 0.3 });
+  }
+};
+
+SFX.dreamOut = {
+  gain: 1.4,
+  play(t, o, d) {
+    audioNoise(t, d, { ft: 'bandpass', f: 420, f2: 3000, q: 0.9, dur: 0.9, v: 0.1, a: 0.3 });
+    [659, 880, 1047, 1319].forEach((f, i) => audioOsc(t + 0.1 + i * 0.07, d, { w: 'bell', f, dur: 0.5, v: 0.05 }));
+    audioOsc(t, d, { w: 'sine', f: 260, f2: 560, slide: 0.7, dur: 0.8, v: 0.06, a: 0.2 });
+  }
+};
+
 function audioDegree(ch) {
   const i = '0123456789'.indexOf(ch);
   if (i >= 0) return i;
