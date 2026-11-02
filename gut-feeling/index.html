@@ -49,7 +49,7 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 /* v0.5: gestures need a real playfield and controls that stay within reach. */
 .ward-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 14px;background:#244550;color:#d8e9d1;font:700 10px/1.4 var(--mono)}
 .weapon-readout{padding:8px 14px 0;background:#203740;color:#e6d49d;font:10px/1.5 var(--mono)}
-.ward-strip .smallbtn{min-height:36px;font-size:10px}.touch-actions{display:grid;grid-template-columns:44px 44px 64px;grid-template-rows:44px 44px;gap:7px}.touch-actions .cycle,.touch-actions #useBtn{width:44px;height:44px;border-radius:13px}.touch-actions .cycle small{font-size:7px}.touch-actions .attack{grid-column:3;grid-row:1/3;width:64px;height:95px;border-radius:24px}.touch-actions #dashBtn{grid-column:1;grid-row:1}.touch-actions #jumpBtn{grid-column:2;grid-row:1}.touch-actions #cycleBtn{grid-column:1;grid-row:2}.touch-actions #useBtn{grid-column:2;grid-row:2}.touch-actions #useBtn svg{width:17px;height:17px}.touch-actions #useBtn span{font-size:6px}.touch-actions button{min-width:44px;min-height:44px}
+.ward-strip .smallbtn{min-height:36px;font-size:10px}
 .mini-dialog[data-arcade=gesture]{width:min(1040px,97vw)}
 .mini-dialog[data-arcade=gesture] #miniPlay{display:grid;grid-template-columns:minmax(300px,1fr) 250px;column-gap:20px;align-content:start;min-height:0}
 .mini-dialog[data-arcade=gesture] .mini-stage{grid-column:1;grid-row:1/7;aspect-ratio:1;width:min(100%,calc(96dvh - 130px));align-self:center}
@@ -62,7 +62,7 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 .mini-dialog[data-arcade=gesture] .mini-briefing{grid-column:1/3;z-index:5}.control-demo.aim b{transform:translate(20px,-15px) rotate(-30deg)}.control-demo.slice b{width:70%;height:5px;transform:rotate(-18deg);background:#b8e7d1}.control-demo.magnet b{border:6px solid #b8e7d1;border-top:0;background:transparent;border-radius:0 0 30px 30px}
 @media(max-width:700px){
  .mini-dialog[data-arcade=gesture] #miniPlay{display:flex;flex-direction:column;gap:0}.mini-dialog[data-arcade=gesture] .mini-rulebar{order:0;padding:8px 10px;display:block}.mini-dialog[data-arcade=gesture] .mini-rulebar strong{font-size:11px}.mini-dialog[data-arcade=gesture] .mini-rulebar span{font-size:10px;line-height:1.5;margin:5px 0 0}.mini-dialog[data-arcade=gesture] .mini-hud{order:1;flex-wrap:nowrap;margin:8px 0 5px}.mini-dialog[data-arcade=gesture] .mini-hud>div,.mini-dialog[data-arcade=gesture] .mini-hud>div:first-child{min-width:0;flex:1;flex-basis:0;font-size:11px;padding:7px}.mini-dialog[data-arcade=gesture] .mini-tactics{order:2;padding:3px 0 7px;font-size:9px}.mini-dialog[data-arcade=gesture] .mini-stage{order:3;width:min(100%,calc(97dvh - 340px));min-width:min(100%,290px)}.mini-dialog[data-arcade=gesture] .mini-instruction{order:4;font-size:10px;line-height:1.5;margin:8px 0}.mini-dialog[data-arcade=gesture] .mini-controls{order:5;flex-wrap:wrap;gap:7px}.mini-dialog[data-arcade=gesture] .mini-controls button{min-height:46px;min-width:70px;font-size:10px;flex:1;padding:9px}.mini-dialog[data-arcade=gesture] .mini-controls .assist{flex-basis:auto}.mini-dialog[data-arcade=gesture] .mini-briefing{order:6}.mini-dialog[data-arcade=gesture] #miniControls[data-game="3"] button{flex-basis:27%}
- .weapon-readout{font-size:9px;padding-top:8px}.ward-strip{font-size:9px}.key-guide{flex-wrap:wrap}.touch-actions{gap:6px;grid-template-columns:44px 44px 60px}.touch-actions .attack{width:60px;height:94px}.controlbar{padding:10px 12px}.mini-head h2{font-size:18px}
+ .weapon-readout{font-size:9px;padding-top:8px}.ward-strip{font-size:9px}.key-guide{flex-wrap:wrap}.controlbar{padding:10px 12px}.mini-head h2{font-size:18px}
 }
 @media(prefers-reduced-motion:reduce){.control-demo *{animation:none!important}}
 
@@ -576,6 +576,292 @@ body.returning .game-layout {
   background: var(--mint);
 }
 
+/* ---- Touch controls (v0.7) ----
+   Sizes are tokens so phones, short phones and tablets share one layout. #touchActions holds, in order:
+   the weapon strip, EAT, the ability, DASH, JUMP and the big attack. Tap-the-room (body.tap-controls)
+   hides the joystick, DASH and the attack: the room does those. */
+:root {
+  --slot: 48px;
+  --btn: 52px;
+  --btn-gap: 10px;
+  --attack-w: 74px;
+  --attack-h: 64px;
+  --joy: 124px;
+  --strip-gap: 4px;
+  --strip-w: calc(var(--slot) * 3 + var(--strip-gap) * 2);
+}
+@media (pointer: coarse) and (min-width: 600px) and (min-height: 600px) {
+  :root {
+    --slot: 58px;
+    --btn: 62px;
+    --btn-gap: 12px;
+    --attack-w: 92px;
+    --attack-h: 78px;
+    --joy: 156px;
+  }
+}
+@media (pointer: coarse) {
+  /* Touch screens have the EAT button; the tiny one by the hearts is for mice. */
+  .hud-eat {
+    display: none;
+  }
+}
+.joystick {
+  width: var(--joy);
+  height: var(--joy);
+}
+.joystick:before {
+  left: 50%;
+  top: 14%;
+  width: 1px;
+  height: 72%;
+}
+.joystick:after {
+  top: 50%;
+  left: 14%;
+  width: 72%;
+  height: 1px;
+}
+.stick {
+  left: 50%;
+  top: 50%;
+  width: 38%;
+  height: 38%;
+  margin: -19% 0 0 -19%;
+}
+#touchActions {
+  display: grid;
+  grid-template-columns: repeat(3, var(--slot)) var(--attack-w);
+  grid-template-areas:
+    'strip strip strip eat'
+    'use dash jump attack';
+  gap: 8px;
+  align-items: center;
+  justify-items: center;
+}
+#touchActions .weapon-strip {
+  grid-area: strip;
+}
+#touchActions .eat {
+  grid-area: eat;
+}
+#touchActions #useBtn {
+  grid-area: use;
+}
+#touchActions #dashBtn {
+  grid-area: dash;
+}
+#touchActions #jumpBtn {
+  grid-area: jump;
+}
+#touchActions .attack {
+  grid-area: attack;
+}
+.weapon-strip {
+  position: relative;
+  display: flex;
+  gap: var(--strip-gap);
+  padding: 0;
+  border-radius: 14px;
+  background: #0f222cd9;
+  box-shadow: 0 3px 10px #0006, inset 0 0 0 1px #ffffff1f;
+}
+.weapon-strip::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--slot);
+  height: var(--slot);
+  border-radius: 13px;
+  background: var(--yellow);
+  box-shadow: 0 0 0 2px #fff7d6aa, 0 4px 14px #ffe08a55;
+  transform: translateX(calc(var(--slot-i, 0) * (var(--slot) + var(--strip-gap))));
+  transition: transform 0.2s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.weapon-strip[data-active='1'] {
+  --slot-i: 1;
+}
+.weapon-strip[data-active='2'] {
+  --slot-i: 2;
+}
+#touchActions .wslot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--slot);
+  height: var(--slot);
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 13px;
+  box-shadow: none;
+  background: transparent;
+  color: #d5e8df;
+  touch-action: none;
+}
+#touchActions .wslot svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2;
+}
+#touchActions .wslot.selected {
+  color: var(--ink);
+}
+.weapon-strip[data-pop='a'] .wslot.selected svg {
+  animation: wslotPopA 0.42s ease-out;
+}
+.weapon-strip[data-pop='b'] .wslot.selected svg {
+  animation: wslotPopB 0.42s ease-out;
+}
+@keyframes wslotPopA {
+  0% {
+    transform: scale(0.6) rotate(-14deg);
+  }
+  60% {
+    transform: scale(1.25) rotate(6deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes wslotPopB {
+  0% {
+    transform: scale(0.6) rotate(-14deg);
+  }
+  60% {
+    transform: scale(1.25) rotate(6deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+#touchActions .act {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: var(--btn);
+  height: var(--btn);
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid #ffffff33;
+  border-radius: 16px;
+  background: #18323fe6;
+  color: var(--cream);
+  box-shadow: 0 3px 10px #0007;
+  font: 800 9px/1 var(--mono);
+  letter-spacing: 0.5px;
+  touch-action: none;
+}
+#touchActions .act .act-icon {
+  font-size: 19px;
+  line-height: 1;
+}
+#touchActions .act small {
+  font-size: 9px;
+}
+#touchActions .act svg {
+  width: 21px;
+  height: 21px;
+}
+#touchActions #useBtn {
+  background: #b5e8c5ee;
+  color: var(--ink);
+}
+#touchActions #useBtn span {
+  font-size: 9px;
+}
+#touchActions .eat {
+  background: #f3a69ce6;
+  color: var(--ink);
+}
+#touchActions .eat:disabled {
+  opacity: 0.4;
+}
+#touchActions .act-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: var(--yellow);
+  color: var(--ink);
+  box-shadow: 0 2px 6px #0006;
+  font: 800 11px/21px var(--mono);
+}
+#touchActions .attack {
+  width: var(--attack-w);
+  height: var(--attack-h);
+  min-width: 0;
+  min-height: 0;
+  border: 2px solid #101e29;
+  border-radius: 22px;
+  background: #ffa48ef2;
+  color: var(--ink);
+  box-shadow: 0 4px 12px #0007;
+  font: 800 11px var(--mono);
+  touch-action: none;
+}
+#touchActions .attack svg {
+  width: 26px;
+  height: 26px;
+}
+#touchActions button.pressed {
+  transform: scale(0.92);
+  filter: brightness(1.15);
+}
+/* Tap the room: the floor walks, hits and dashes, so those controls step aside. */
+body.tap-controls .joystick,
+body.tap-controls #touchActions #dashBtn,
+body.tap-controls #touchActions .attack {
+  display: none;
+}
+body.tap-controls #touchActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--btn-gap);
+  margin-left: auto;
+}
+/* Narrow phones outside arcade mode: the controls sit under the room in the page, so they shrink a bit. */
+@media (max-width: 540px) {
+  body:not(.arcade) {
+    --joy: 96px;
+    --attack-w: 64px;
+    --btn-gap: 6px;
+  }
+  body:not(.arcade) #touchActions {
+    gap: 6px;
+  }
+}
+.controls-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 4px;
+  font: 800 10px var(--mono);
+  letter-spacing: 1.2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.controls-pick span {
+  margin-right: 4px;
+}
+.controls-pick .smallbtn[aria-pressed='true'] {
+  background: var(--mint);
+  color: var(--ink);
+  border-color: var(--mint);
+}
+
 /* ---- Arcade mode: the cabinet owns the screen. ---- */
 html:has(body.arcade) {
   overflow: hidden;
@@ -607,11 +893,41 @@ body.arcade .cabinet {
   box-shadow: none;
   background: #142730;
 }
+/* The bar keeps the room name and four icons: play, map, pause, leave fullscreen. */
 body.arcade .gamebar {
   flex: 0 0 auto;
   flex-wrap: nowrap;
-  height: 48px;
-  padding: 0 10px;
+  height: 46px;
+  padding: 0 8px;
+  gap: 6px;
+}
+body.arcade .gamebar .room-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: auto;
+}
+body.arcade .gamebar .room-label > span,
+body.arcade .gamebar .room-label small,
+body.arcade .gamebar .btn-label,
+body.arcade .gamebar .launch-name {
+  display: none;
+}
+body.arcade .gamebar .room-label strong {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+body.arcade .gamebar .smallbtn,
+body.arcade .gamebar .arcade-launch {
+  order: 0;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 44px;
+  min-height: 40px;
+  justify-content: center;
+  padding: 6px 10px;
 }
 body.arcade .stage {
   flex: 1 1 auto;
@@ -621,78 +937,86 @@ body.arcade .stage {
 }
 body.arcade .controlbar {
   flex: 0 0 auto;
+  min-height: 0;
+}
+/* The ward strip (wave, grudge, rematch) is a small pill over the bottom of the room. */
+body.arcade .ward-strip {
+  position: relative;
+  z-index: 5;
+  align-self: center;
+  max-width: min(86%, 520px);
+  margin: -38px auto 8px;
+  padding: 5px 12px;
+  border-radius: 13px;
+  background: #132c37d0;
+  font-size: 9px;
+  text-align: center;
+}
+body.arcade .ward-strip .smallbtn {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 9px;
 }
 
-/* Portrait phone: canvas on top, controls below, nothing else. */
-@media (orientation: portrait) and (max-width: 540px) {
-  body.arcade .gamebar {
-    height: 46px;
-    gap: 6px;
-    padding: 0 8px;
-  }
-  body.arcade .gamebar .room-label {
-    display: none;
-  }
-  body.arcade .gamebar .arcade-launch {
-    order: 0;
-    flex: 1 1 auto;
-    width: auto;
-    min-width: 0;
-    justify-content: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+/* Portrait: the room on top, the controls under it. */
+@media (orientation: portrait) {
+  /* The room takes every pixel the controls leave. A tall room zooms in and the camera follows Macy. */
   body.arcade .stage {
-    flex: 0 0 auto;
-    aspect-ratio: 1;
-    max-height: calc(100dvh - 300px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    flex: 1 1 0;
   }
   body.arcade .controlbar {
-    flex: 1 1 auto;
-    min-height: 0;
-    padding: 10px 16px;
+    padding: 10px 12px 12px;
+  }
+  /* Toasts drop below the hearts and coins cards. */
+  body.arcade .toast {
+    top: 58px;
+    max-width: 90%;
   }
   body.arcade .touch-controls {
-    align-items: center;
+    align-items: flex-end;
+    gap: 12px;
   }
-  body.arcade .joystick {
-    width: 124px;
-    height: 124px;
+  /* Joystick on the left; the column hugs the right edge, strip on top and the attack at the bottom. */
+  body.arcade.stick-controls #touchActions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--btn-gap);
   }
-  body.arcade .joystick:before {
-    left: 61px;
-    top: 18px;
-    height: 88px;
+  body.arcade.tap-controls .controlbar {
+    padding: 8px 12px 10px;
   }
-  body.arcade .joystick:after {
-    top: 61px;
-    left: 18px;
-    width: 88px;
+  body.arcade.tap-controls .touch-controls {
+    justify-content: center;
   }
-  body.arcade .stick {
-    left: 38px;
-    top: 38px;
-    width: 48px;
-    height: 48px;
+  body.arcade.tap-controls #touchActions {
+    margin: 0 auto;
   }
-  body.arcade .touch-actions {
-    grid-template-columns: 54px 54px 76px;
-    grid-template-rows: 54px 54px;
-    gap: 9px;
+  body.arcade .turn-hint {
+    padding: 4px 6px 4px 12px;
+    font-size: 10px;
   }
-  body.arcade .touch-actions .cycle,
-  body.arcade .touch-actions #useBtn {
-    width: 54px;
-    height: 54px;
+}
+/* Short portrait screens (phone Safari with its toolbars): the column folds into three across. */
+@media (orientation: portrait) and (max-height: 719px) {
+  body.arcade.stick-controls #touchActions {
+    display: grid;
+    grid-template-columns: repeat(3, var(--btn));
+    grid-template-areas:
+      'strip strip strip'
+      'eat use jump'
+      'dash attack attack';
+    gap: 8px;
+    justify-items: end;
   }
-  body.arcade .touch-actions .attack {
-    width: 76px;
-    height: 117px;
+  body.arcade.stick-controls #touchActions .attack {
+    width: 100%;
   }
 }
 
-/* Landscape phone: the canvas fills the screen; controls float over its corners. */
-@media (orientation: landscape) and (max-height: 540px) {
+/* Landscape on touch screens: the room fills the screen. Joystick bottom left; the column rides
+   the right edge from the weapon strip at the top to the attack at the bottom. */
+@media (orientation: landscape) and (pointer: coarse), (orientation: landscape) and (max-height: 540px) {
   body.arcade .cabinet {
     display: block;
     padding: 0;
@@ -700,27 +1024,34 @@ body.arcade .controlbar {
   body.arcade .stage {
     position: absolute;
     inset: 0;
+    max-height: none;
   }
   body.arcade .gamebar {
     position: absolute;
     z-index: 6;
     top: calc(env(safe-area-inset-top) + 6px);
-    right: calc(env(safe-area-inset-right) + 8px);
+    right: calc(env(safe-area-inset-right) + 18px + var(--strip-w));
+    max-width: 46vw;
     height: auto;
     gap: 6px;
     padding: 0;
     border: 0;
     background: none;
   }
-  body.arcade .gamebar .room-label,
-  body.arcade .gamebar .btn-label,
-  body.arcade .gamebar .launch-name {
-    display: none;
+  body.arcade .gamebar .room-label {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 150px;
+    padding: 0 10px;
+    height: 38px;
+    border-radius: 19px;
+    background: #132c37c4;
+    display: flex;
+    align-items: center;
   }
   body.arcade .gamebar .smallbtn {
-    min-width: 40px;
+    min-width: 42px;
     min-height: 38px;
-    justify-content: center;
     padding: 6px 10px;
     border: 1px solid #8fb6b166;
     background: #132c37c4;
@@ -735,83 +1066,73 @@ body.arcade .controlbar {
     justify-content: flex-start;
   }
   body.arcade .toast {
-    top: calc(env(safe-area-inset-top) + 6px);
-    max-width: 36%;
+    top: calc(env(safe-area-inset-top) + 54px);
+    max-width: 44%;
   }
   body.arcade .ward-strip {
     position: absolute;
-    z-index: 5;
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom) + 8px);
-    max-width: 38%;
+    max-width: 40%;
+    margin: 0;
     transform: translateX(-50%);
-    gap: 8px;
-    padding: 5px 10px;
-    border-radius: 12px;
-    background: #132c37c4;
-    font-size: 9px;
   }
   body.arcade .controlbar {
-    position: absolute;
-    z-index: 4;
-    inset: auto 0 0 0;
-    min-height: 0;
-    padding: 0 calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 10px)
-      calc(env(safe-area-inset-left) + 14px);
+    position: static;
+    padding: 0;
     background: none;
     pointer-events: none;
   }
+  body.arcade .turn-hint,
   body.arcade .key-guide,
-  body.arcade .play-status,
-  body.arcade .turn-hint {
+  body.arcade .play-status {
     display: none;
   }
   body.arcade .touch-controls {
-    display: flex;
-    align-items: flex-end;
+    display: block;
   }
   body.arcade .joystick,
-  body.arcade .touch-actions button {
+  body.arcade #touchActions button {
     pointer-events: auto;
   }
   body.arcade .joystick {
-    width: 112px;
-    height: 112px;
+    position: absolute;
+    z-index: 4;
+    left: calc(env(safe-area-inset-left) + 16px);
+    bottom: calc(env(safe-area-inset-bottom) + 14px);
     background: #152c3599;
-    opacity: 0.8;
+    opacity: 0.85;
   }
-  body.arcade .joystick:before {
-    left: 55px;
-    top: 16px;
-    height: 80px;
+  body.arcade #touchActions,
+  body.arcade.tap-controls #touchActions {
+    position: absolute;
+    z-index: 4;
+    top: calc(env(safe-area-inset-top) + 6px);
+    right: calc(env(safe-area-inset-right) + 8px);
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: var(--btn-gap);
+    margin: 0;
+    pointer-events: none;
   }
-  body.arcade .joystick:after {
-    top: 55px;
-    left: 16px;
-    width: 80px;
+  /* Strip at the top, everything else stacked down to the bottom edge. */
+  body.arcade #touchActions .eat {
+    margin-top: auto;
   }
-  body.arcade .stick {
-    left: 32px;
-    top: 32px;
-    width: 48px;
-    height: 48px;
+  body.arcade #touchActions .act {
+    background: #132c37b8;
   }
-  body.arcade .touch-actions {
-    grid-template-columns: 50px 50px 70px;
-    grid-template-rows: 50px 50px;
-    gap: 8px;
+  body.arcade #touchActions #useBtn {
+    background: #b5e8c5cc;
   }
-  body.arcade .touch-actions button {
-    opacity: 0.84;
+  body.arcade #touchActions .eat {
+    background: #f3a69cd0;
   }
-  body.arcade .touch-actions .cycle,
-  body.arcade .touch-actions #useBtn {
-    width: 50px;
-    height: 50px;
-  }
-  body.arcade .touch-actions .attack {
-    width: 70px;
-    height: 108px;
+  body.arcade #touchActions .attack {
+    background: #ffa48ee0;
   }
   body.arcade .start-callout {
     left: 50%;
@@ -824,9 +1145,50 @@ body.arcade .controlbar {
     visibility: hidden;
   }
 }
+/* Short landscape screens: EAT joins the weapon strip's row so the column fits. */
+@media (orientation: landscape) and (max-height: 400px) {
+  :root {
+    --btn: 48px;
+    --btn-gap: 8px;
+    --attack-h: 58px;
+  }
+  body.arcade.stick-controls #touchActions .eat {
+    position: absolute;
+    top: 0;
+    right: calc(var(--strip-w) + 8px);
+    margin: 0;
+  }
+  body.arcade.stick-controls .gamebar {
+    right: calc(env(safe-area-inset-right) + 26px + var(--strip-w) + var(--btn));
+  }
+  body.arcade.stick-controls #touchActions #useBtn {
+    margin-top: auto;
+  }
+}
+@media (orientation: landscape) and (max-width: 760px) {
+  body.arcade .gamebar .room-label {
+    display: none;
+  }
+}
 
-/* ---- Arcade mode: the minigame dialog fills the screen too. ---- */
+/* ---- Arcade mode: the minigame dialog is the canvas plus the minimum. ---- */
+/* The canvas box is computed from the viewport: --mini-a (width / height of the active canvas, set by
+   fitMiniCanvas) fits it into what the controls leave. --cv-l/--cv-t place it, --hud-t places the pill
+   row (directly above the canvas when there is room, over its top edge when there is not). */
+#miniDialog {
+  --mini-a: 1.7778;
+}
 body.arcade #miniDialog {
+  --sa-t: env(safe-area-inset-top, 0px);
+  --sa-r: env(safe-area-inset-right, 0px);
+  --sa-b: env(safe-area-inset-bottom, 0px);
+  --sa-l: env(safe-area-inset-left, 0px);
+  --box-w: calc(100vw - var(--sa-l) - var(--sa-r));
+  --box-h: calc(100dvh - var(--sa-t) - var(--sa-b));
+  --hud-h: 44px;
+  --ctl: 66px;
+  --ctl-w: 140px;
+  --ctl-btn: 52px;
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -834,10 +1196,45 @@ body.arcade #miniDialog {
   max-width: none;
   max-height: none;
   margin: 0;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: var(--sa-t) var(--sa-r) var(--sa-b) var(--sa-l);
   border: 0;
   border-radius: 0;
   overflow: hidden;
+}
+@media (pointer: coarse) and (min-width: 600px) and (min-height: 600px) {
+  body.arcade #miniDialog {
+    --hud-h: 50px;
+    --ctl: 84px;
+    --ctl-w: 200px;
+    --ctl-btn: 62px;
+  }
+}
+@media (orientation: portrait) {
+  body.arcade #miniDialog {
+    --area-w: var(--box-w);
+    --area-h: calc(var(--box-h) - var(--ctl));
+    --hud-pad-r: 96px;
+    --top-y: calc(var(--sa-t) + var(--hud-t) + 4px);
+    --top-x: calc(var(--sa-r) + var(--cv-l) + 4px);
+  }
+}
+@media (orientation: landscape) {
+  body.arcade #miniDialog {
+    --area-w: calc(var(--box-w) - var(--ctl-w));
+    --area-h: var(--box-h);
+    --hud-pad-r: 6px;
+    --top-y: calc(var(--sa-t) + 6px);
+    --top-x: calc(var(--sa-r) + 8px);
+  }
+}
+body.arcade #miniDialog {
+  --fit-w: min(var(--area-w), calc(var(--area-h) * var(--mini-a)));
+  --fit-h: calc(var(--fit-w) / var(--mini-a));
+  --slack: max(0px, calc(var(--area-h) - var(--fit-h)));
+  --band: min(var(--hud-h), var(--slack));
+  --cv-t: calc(var(--band) + (var(--slack) - var(--band)) / 2);
+  --cv-l: calc((var(--area-w) - var(--fit-w)) / 2);
+  --hud-t: calc(var(--cv-t) - var(--band));
 }
 body.arcade #miniDialog[open] {
   display: flex;
@@ -861,65 +1258,115 @@ body.arcade #miniDialog .mini-body {
   overflow: auto;
   padding: 8px 10px;
 }
+/* Play screens: no title row. Pause and close float top right, over the briefing too. */
+body.arcade #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) .mini-head {
+  position: absolute;
+  z-index: 12;
+  top: var(--top-y);
+  right: var(--top-x);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
 body.arcade #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) .mini-titles {
-  visibility: hidden;
+  display: none;
+}
+body.arcade #miniDialog .mini-topactions .smallbtn,
+body.arcade #miniDialog .mini-topactions .close {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 38px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid #ffffff33;
+  border-radius: 12px;
+  background: #0b1c27c0;
+  color: var(--cream);
+}
+body.arcade #miniDialog .mini-topactions .hidden {
+  display: none;
+}
+body.arcade #miniDialog .mini-topactions .close svg {
+  width: 18px;
+  height: 18px;
 }
 body.arcade #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) .mini-body {
+  position: relative;
   overflow: hidden;
+  padding: 0;
 }
 body.arcade #miniDialog #miniPlay {
-  position: static;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
-  grid-template-areas: 'stage' 'controls';
-  gap: 8px;
+  position: relative;
+  display: block;
   height: 100%;
   min-height: 0;
 }
 body.arcade #miniDialog .mini-rulebar,
-body.arcade #miniDialog .mini-tactics,
-body.arcade #miniDialog .mini-instruction {
+body.arcade #miniDialog .mini-tactics {
   display: none;
 }
-body.arcade #miniDialog .mini-stage {
-  grid-area: stage;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
+body.arcade #miniDialog .mini-stage,
+body.arcade #miniDialog[data-arcade] .mini-stage {
+  position: absolute;
+  left: var(--cv-l);
+  top: var(--cv-t);
+  width: var(--fit-w);
+  height: var(--fit-h);
+  min-width: 0;
   max-width: none;
   margin: 0;
   aspect-ratio: auto;
   border: 0;
-  border-radius: 0;
-  background: transparent;
-  align-self: stretch;
+  border-radius: 6px;
+  background: #102932;
 }
-/* HUD condensed to one line, in the title row. */
-body.arcade #miniDialog .mini-hud {
+body.arcade #miniDialog #miniCanvas,
+body.arcade #miniDialog[data-arcade] #miniCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  aspect-ratio: auto;
+}
+/* HUD: translucent pills on the top corners of the canvas (progress left, time, strikes right). */
+body.arcade #miniDialog .mini-hud,
+body.arcade #miniDialog[data-arcade] .mini-hud {
   position: absolute;
   z-index: 7;
-  top: calc(env(safe-area-inset-top) + 7px);
-  left: calc(env(safe-area-inset-left) + 10px);
-  right: calc(env(safe-area-inset-right) + 96px);
+  left: var(--cv-l);
+  top: var(--hud-t);
   display: flex;
   flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 6px;
-  width: auto;
-  height: 32px;
+  width: var(--fit-w);
+  height: var(--hud-h);
   margin: 0;
+  padding: 6px var(--hud-pad-r) 0 6px;
+  pointer-events: none;
 }
 body.arcade #miniDialog .mini-hud > div,
-body.arcade #miniDialog .mini-hud > div:first-child {
+body.arcade #miniDialog[data-arcade] .mini-hud > div,
+body.arcade #miniDialog[data-arcade] .mini-hud > div:first-child {
   display: flex;
   align-items: center;
   gap: 6px;
   flex: 0 1 auto;
   min-width: 0;
+  height: 30px;
   margin: 0;
-  padding: 4px 9px;
+  padding: 0 11px;
   overflow: hidden;
-  font-size: 12px;
+  border: 1px solid #ffffff26;
+  border-radius: 15px;
+  background: #0b1c27b8;
+  color: #f6eed6;
+  font: 700 12px var(--mono);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -927,30 +1374,140 @@ body.arcade #miniDialog .mini-hud small {
   display: none;
   margin: 0;
   font-size: 8px;
+  color: #a9c9c3;
 }
-@media (min-width: 760px) {
+@media (min-width: 760px) and (min-height: 600px) {
   body.arcade #miniDialog .mini-hud small {
     display: inline;
   }
+  body.arcade #miniDialog .mini-hud > div,
+  body.arcade #miniDialog[data-arcade] .mini-hud > div {
+    height: 34px;
+    font-size: 14px;
+  }
 }
-body.arcade #miniDialog #miniControls {
-  grid-area: controls;
+/* The instruction line: a toast under the pills for the countdown, the first seconds and any change. */
+body.arcade #miniDialog .mini-instruction,
+body.arcade #miniDialog[data-arcade] .mini-instruction {
+  position: absolute;
+  z-index: 6;
+  left: calc(var(--cv-l) + var(--fit-w) / 2);
+  top: calc(var(--hud-t) + var(--hud-h));
+  display: block;
+  width: max-content;
+  max-width: calc(var(--fit-w) - 24px);
+  min-height: 0;
+  margin: 0;
+  padding: 7px 12px;
+  border: 1px solid #ffe29b55;
+  border-radius: 12px;
+  background: #0d2230e6;
+  color: #f7ecd0;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -4px);
+  transition: opacity 0.2s, transform 0.2s, visibility 0s linear 0.2s;
+  pointer-events: none;
+}
+body.arcade #miniDialog .mini-instruction[data-show='1'] {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  transition: opacity 0.2s, transform 0.2s;
+}
+body.arcade #miniDialog .mini-instruction:empty {
+  display: none;
+}
+/* Controls: one compact row under the canvas (portrait) or a column on the right (landscape). The
+   assist is the small one. Key hints are for keyboards. */
+body.arcade #miniDialog #miniControls,
+body.arcade #miniDialog[data-arcade] #miniControls {
+  position: absolute;
+  z-index: 5;
+  display: flex;
   flex-wrap: nowrap;
+  justify-content: center;
+  align-items: stretch;
   gap: 6px;
   min-height: 0;
-  overflow-x: auto;
+  margin: 0;
+  overflow: hidden;
 }
-body.arcade #miniDialog #miniControls button {
+body.arcade #miniDialog #miniControls button,
+body.arcade #miniDialog[data-arcade] #miniControls button {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 46px;
-  padding: 8px 6px;
+  min-height: var(--ctl-btn);
+  padding: 4px 6px;
   font-size: 11px;
+  line-height: 1.15;
+  white-space: normal;
 }
-body.arcade #miniDialog #miniControls .assist {
-  flex: 1.3 1 0;
-  max-width: none;
-  min-height: 46px;
+body.arcade #miniDialog #miniControls .assist,
+body.arcade #miniDialog[data-arcade] #miniControls .assist {
+  flex: 0.7 1 0;
+  max-width: 34%;
+  min-height: 42px;
+  align-self: center;
+  font-size: 9px;
+  opacity: 0.92;
+}
+@media (pointer: coarse) {
+  body.arcade #miniDialog #miniControls small {
+    display: none;
+  }
+}
+@media (orientation: portrait) {
+  body.arcade #miniDialog #miniControls,
+  body.arcade #miniDialog[data-arcade] #miniControls {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--ctl);
+    padding: 7px 8px;
+  }
+}
+@media (orientation: landscape) {
+  body.arcade #miniDialog #miniControls,
+  body.arcade #miniDialog[data-arcade] #miniControls {
+    top: 52px;
+    right: 0;
+    bottom: 0;
+    width: var(--ctl-w);
+    flex-direction: column;
+    justify-content: center;
+    padding: 6px 8px 8px 0;
+  }
+  body.arcade #miniDialog #miniControls button,
+  body.arcade #miniDialog[data-arcade] #miniControls button {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+  body.arcade #miniDialog #miniControls .assist,
+  body.arcade #miniDialog[data-arcade] #miniControls .assist {
+    flex: 0 0 auto;
+    width: 84%;
+    max-width: none;
+    margin-top: 4px;
+  }
+  /* Five or six buttons: two across, the assist under them. */
+  body.arcade #miniDialog #miniControls:is([data-count='5'], [data-count='6'], [data-count='7']) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: center;
+  }
+  body.arcade #miniDialog #miniControls:is([data-count='5'], [data-count='6'], [data-count='7']) .assist {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+  /* One or two buttons: make them thumb-sized. */
+  body.arcade #miniDialog #miniControls:is([data-count='2'], [data-count='3']) button:not(.assist) {
+    min-height: 92px;
+    font-size: 13px;
+  }
 }
 /* Results stay on one screen: the art shrinks before the numbers and buttons scroll away. */
 body.arcade #miniDialog .mini-result-art {
@@ -987,7 +1544,7 @@ body.arcade #miniDialog .mini-result-art {
     margin: 8px 0 2px;
   }
 }
-/* Briefing and GO cards sit over everything. */
+/* Briefing and GO cards sit over everything but pause and close. */
 body.arcade #miniDialog .mini-briefing {
   position: fixed;
   inset: 0;
@@ -995,30 +1552,19 @@ body.arcade #miniDialog .mini-briefing {
   padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 12px);
   border-radius: 0;
 }
-@media (orientation: landscape) and (max-height: 540px) {
-  body.arcade #miniDialog #miniPlay {
-    grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: 'stage controls';
-  }
-  body.arcade #miniDialog #miniControls {
-    flex-direction: column;
-    justify-content: center;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-  body.arcade #miniDialog #miniControls button,
-  body.arcade #miniDialog #miniControls .assist {
-    flex: 0 0 auto;
-    width: 100%;
-    min-height: 42px;
-  }
-  /* Results in two columns: the scene and verdict left, numbers and buttons right. */
+/* Results in two columns on landscape phones and on tablets: scene and verdict left, numbers and
+   buttons right. */
+@media (orientation: landscape) and (max-height: 540px), (min-width: 760px) {
   body.arcade #miniDialog #miniResult {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: 18px;
+    column-gap: 22px;
     align-items: center;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  body.arcade #miniDialog #miniResult.hidden {
+    display: none;
   }
   body.arcade #miniDialog #miniResult > * {
     grid-column: 1;
@@ -1038,11 +1584,90 @@ body.arcade #miniDialog .mini-briefing {
     grid-row: 4;
   }
 }
-
-/* Arcade mode: the canvas hugs its drawing instead of leaving letterbox space around a square game. */
-body.arcade #miniDialog .mini-stage{display:flex;align-items:center;justify-content:center}
-body.arcade #miniDialog[data-arcade=gesture] #miniCanvas{width:auto;height:100%;max-width:100%;max-height:100%;aspect-ratio:1;margin:auto;display:block}
-body.arcade #miniDialog[data-arcade=iv] #miniCanvas{width:auto;height:100%;max-width:100%;max-height:100%;aspect-ratio:16/9;margin:auto;display:block}
+/* Tablets: the lobby uses the width. Preview and pitch on the left, levels and the big start right. */
+@media (min-width: 760px) and (min-height: 600px) {
+  body.arcade #miniDialog #miniLobby {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    column-gap: 28px;
+    align-items: start;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  body.arcade #miniDialog #miniLobby.hidden {
+    display: none;
+  }
+  body.arcade #miniDialog #miniLobby > * {
+    grid-column: 2;
+  }
+  body.arcade #miniDialog #miniLobby .lobby-intro {
+    grid-column: 1;
+    grid-row: 1 / span 6;
+    grid-template-columns: 1fr;
+    align-self: center;
+  }
+  body.arcade #miniDialog #miniLobby .lobby-intro h3 {
+    font-size: 26px;
+  }
+  body.arcade #miniDialog #miniLobby .lobby-intro p {
+    font-size: 13px;
+  }
+  body.arcade #miniDialog #miniLobby .tier-grid {
+    margin-top: 0;
+  }
+  body.arcade #miniDialog:is([data-screen='lobby'], [data-screen='result']) .mini-body {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 24px;
+  }
+  /* Centered when it fits, scrollable from the top when it does not. */
+  body.arcade #miniDialog #miniLobby,
+  body.arcade #miniDialog #miniResult {
+    width: 100%;
+    margin-block: auto;
+  }
+}
+/* Tablets: bigger arcade buttons and labels. */
+@media (pointer: coarse) and (min-width: 600px) and (min-height: 600px) {
+  body.arcade #miniDialog[data-arcade] #miniControls button {
+    font-size: 15px;
+  }
+  body.arcade #miniDialog[data-arcade] #miniControls .assist {
+    font-size: 12px;
+  }
+  body.arcade #miniDialog[data-arcade] .mini-instruction {
+    font-size: 15px;
+  }
+  #touchActions .act small,
+  #touchActions #useBtn span {
+    font-size: 11px;
+  }
+}
+/* Outside arcade mode a tablet still gets a roomy dialog. */
+@media (pointer: coarse) and (min-width: 760px) {
+  .mini-dialog {
+    width: min(1180px, 96vw);
+  }
+}
+/* A portrait canvas outside arcade mode gets a tall box instead of the 16:9 one. */
+#miniDialog[data-portrait='1'] .mini-stage {
+  width: min(100%, calc((100dvh - 300px) * var(--mini-a)));
+  aspect-ratio: var(--mini-a);
+  margin-inline: auto;
+}
+#miniDialog[data-portrait='1'] #miniCanvas {
+  width: 100%;
+  height: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .weapon-strip::before,
+  body.arcade #miniDialog .mini-instruction {
+    transition: none;
+  }
+  .weapon-strip .wslot svg {
+    animation: none !important;
+  }
+}
 
 </style>
 </head>
@@ -1075,9 +1700,9 @@ body.arcade #miniDialog[data-arcade=iv] #miniCanvas{width:auto;height:100%;max-w
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="start-callout" id="startCallout"><small id="calloutKicker">MAIN QUEST / GET THE HECK HOME</small><h2 id="calloutTitle">Hospitalized. Not defeated.</h2><p id="calloutText">Explore the hospital. Master six arcade games. Earn your discharge. Ralph would prefer you didn’t.</p><button id="startBtn" class="primary coral"><span id="startLabel">Let’s cause a little trouble</span> <svg style="width:16px;height:16px"><use href="#i-arrow"/></svg></button></div>
 <div class="scene-tag" id="sceneTag">COZY ROOM / CHAOTIC ENERGY</div>
-<div class="ward-pause hidden" id="wardPaused" role="group" aria-labelledby="wardPausedTitle"><div class="ward-pause-card"><strong id="wardPausedTitle">Paused.</strong><p>The gremlins are pretending to be furniture.</p><button class="primary coral" id="wardResume">Resume</button><div class="ward-pause-grid"><button class="smallbtn" id="pauseMap">Map</button><button class="smallbtn" id="pauseShop">Gift shop</button><button class="smallbtn" id="pauseHelp">How to play</button><button class="smallbtn" id="pauseSound">Sound on</button><button class="smallbtn" id="pauseFull">Fullscreen</button></div></div></div>
+<div class="ward-pause hidden" id="wardPaused" role="group" aria-labelledby="wardPausedTitle"><div class="ward-pause-card"><strong id="wardPausedTitle">Paused.</strong><p>The gremlins are pretending to be furniture.</p><button class="primary coral" id="wardResume">Resume</button><div class="ward-pause-grid"><button class="smallbtn" id="pauseMap">Map</button><button class="smallbtn" id="pauseShop">Gift shop</button><button class="smallbtn" id="pauseHelp">How to play</button><button class="smallbtn" id="pauseSound">Sound on</button><button class="smallbtn" id="pauseFull">Fullscreen</button><button class="smallbtn" id="pauseControls">Controls: Tap the room</button></div></div></div>
 </div>
-<div class="ward-strip"><span id="wardStatus">HOME BASE</span><button id="rematchBtn" class="smallbtn hidden">Another round ↻</button></div><div id="weaponReadout" class="weapon-readout"></div><div class="controlbar"><div class="key-guide"><span><b>W A S D</b> move</span><span><b>SPACE</b> attack</span><span><b>E</b> ability</span><span><b>Q</b> dash</span><span><b>SHIFT</b> jump</span><span><b>1–3</b> equip</span></div><div class="play-status"><i></i><span id="playStatus">READY WHEN YOU ARE</span></div><div class="touch-controls"><div class="joystick" id="joystick" role="group" aria-label="Movement joystick"><div class="stick" id="stick"></div></div><div class="touch-actions"><button class="cycle" id="dashBtn" aria-label="Dash">»<small>DASH</small></button><button class="cycle" id="jumpBtn" aria-label="Jump">↑<small>JUMP</small></button><button class="cycle" id="cycleBtn" aria-label="Switch item">↻<small>SWAP</small></button><button id="useBtn" aria-label="Use equipped item"><svg id="useIcon"><use href="#i-pillow"/></svg><span>USE</span></button><button class="attack" id="attackBtn" aria-label="Attack with equipped weapon"><svg><use href="#i-pillow"/></svg><span>SWAT!</span></button></div></div></div>
+<div class="ward-strip"><span id="wardStatus">HOME BASE</span><button id="rematchBtn" class="smallbtn hidden">Another round ↻</button></div><div id="weaponReadout" class="weapon-readout"></div><div class="controlbar"><div class="key-guide"><span><b>W A S D</b> move</span><span><b>SPACE</b> attack</span><span><b>E</b> ability</span><span><b>Q</b> dash</span><span><b>SHIFT</b> jump</span><span><b>1–3 / C</b> equip</span><span><b>F</b> eat</span></div><div class="play-status"><i></i><span id="playStatus">READY WHEN YOU ARE</span></div><div class="touch-controls"><div class="joystick" id="joystick" role="group" aria-label="Movement joystick"><div class="stick" id="stick"></div></div><div class="touch-actions" id="touchActions"><div class="weapon-strip" id="weaponStrip" role="group" aria-label="Weapons" data-active="0"><button class="wslot selected" id="wslot0" data-item="0" aria-label="Equip the pillow" aria-pressed="true"><svg><use href="#i-pillow"/></svg></button><button class="wslot" id="wslot1" data-item="1" aria-label="Equip the barf bag" aria-pressed="false"><svg><use href="#i-bag"/></svg></button><button class="wslot" id="wslot2" data-item="2" aria-label="Equip the brick" aria-pressed="false"><svg><use href="#i-brick"/></svg></button></div><button class="act eat" id="touchEat" aria-label="Eat a nutrient. 0 carried." disabled><span class="act-icon" aria-hidden="true">+♥</span><small>EAT</small><b class="act-badge" id="touchEatCount">0</b></button><button class="act" id="useBtn" aria-label="Use your ability"><svg id="useIcon"><use href="#i-pillow"/></svg><span>SPIN</span></button><button class="act" id="dashBtn" aria-label="Dash"><span class="act-icon" aria-hidden="true">»</span><small>DASH</small></button><button class="act" id="jumpBtn" aria-label="Jump"><span class="act-icon" aria-hidden="true">↑</span><small>JUMP</small></button><button class="attack" id="attackBtn" aria-label="Attack with equipped weapon"><svg><use href="#i-pillow"/></svg><span>SWING</span></button></div></div></div>
 <div class="turn-hint" id="turnHint"><span>Turn your phone sideways for the full ward.</span><button id="turnHintClose" aria-label="Hide this hint">✕</button></div>
 </div>
 <div class="supplybar"><button id="eatBtn" class="smallbtn">♧ Drink / eat <span id="foodCount">0 / 3</span></button><span id="supplyNote">Find glowing nutrients. Each restores one heart.</span><button id="difficultyBtn" class="smallbtn">Questionable Decisions ⚙</button></div>
@@ -1092,7 +1717,7 @@ body.arcade #miniDialog[data-arcade=iv] #miniCanvas{width:auto;height:100%;max-w
 <h3 class="hall-title">Hall of Nonsense</h3>
 <div id="mapHall" class="hall"></div>
 </div></dialog>
-<dialog id="helpDialog"><div class="modal-head"><h2>A patient’s guide to causing trouble.</h2><button class="close" data-close aria-label="Close instructions"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="help-grid"><div><strong>Wandering the ward</strong><p>WASD / arrows: move<br>Space: attack with what you’re holding<br>Shift / J: jump over low attacks<br>Q: dash through trouble<br>E: spin / shield / trap · 1–3: equip<br>F: eat a nutrient<br>M: map · Enter: nearby arcade<br>Esc: pause</p></div><div><strong>Phone controls</strong><p>Joystick: move<br>Tap attack: swing or throw<br>Drag attack: aim, release to throw<br>JUMP: leap over incoming trouble<br>DASH: quick invulnerable escape<br>SPIN / SHIELD / TRAP: your ability<br>↻: switch equipment<br>+♥ by your hearts: eat a nutrient<br>Tap the glowing beacon: play</p></div><div><strong>Medals matter</strong><p>Bronze is 1 discharge star, silver 2, gold 3. Only your best medal per level counts. A bronze unlocks the next level. Spend coins in the gift shop.</p></div><div><strong>Health has a budget</strong><p>Nutrients glow in the rooms. Carry up to 3 (5 with Pocket snacks); each restores a heart. Pickups stay collected. A few fresh ones appear at 6 and 12 stars. No bottomless snack fountain.</p></div></div><p class="modal-note">At zero hearts, finish Drip or Die to get out of bed. Its three stages are timing, filtering and pressure. A failed recovery gets spectacularly anatomical. Progress survives.</p><label for="heroName">Name your heroine</label><div class="name-row"><input id="heroName" maxlength="18" autocomplete="off" placeholder="Macy"><button class="primary" id="saveName">Save</button></div><p class="modal-note">Progress saves in this browser when storage is available. No account or internet needed. All medical mechanics are gloriously fictional.</p><p id="storageNote">This browser has disabled local saves. Keep this tab open to keep your progress.</p><button id="resetBtn" class="textbtn" style="color:var(--coral)">Start a fresh adventure</button></div></dialog>
+<dialog id="helpDialog"><div class="modal-head"><h2>A patient’s guide to causing trouble.</h2><button class="close" data-close aria-label="Close instructions"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="help-grid"><div><strong>Wandering the ward</strong><p>WASD / arrows: move<br>Space: attack with what you’re holding<br>Shift / J: jump over low attacks<br>Q: dash through trouble<br>E: spin / shield / trap<br>1–3: equip · C: next weapon<br>F: eat a nutrient<br>M: map · Enter: nearby arcade<br>Esc: pause</p></div><div><strong>Phones and tablets: tap the room</strong><p>Tap the floor: walk there<br>Tap a gremlin: go bonk it. Hold to keep swinging<br>Flick: dash that way<br>Two-finger tap: jump<br>Long-press the floor: spin / shield / trap<br>Weapon strip: tap a weapon · EAT: one nutrient, one heart<br>Tap the glowing beacon: play</p></div><div><strong>Joystick instead</strong><p>Joystick: move<br>SWING / THROW / LOB: press to attack, hold to keep going<br>Drag the attack button: aim while you hold<br>JUMP, DASH and your ability ride the right edge<br>Same weapon strip and EAT button</p></div><div><strong>Medals matter</strong><p>Bronze is 1 discharge star, silver 2, gold 3. Only your best medal per level counts. A bronze unlocks the next level. Spend coins in the gift shop.</p></div><div><strong>Health has a budget</strong><p>Nutrients glow in the rooms. Carry up to 3 (5 with Pocket snacks); each restores a heart. Pickups stay collected. A few fresh ones appear at 6 and 12 stars. No bottomless snack fountain.</p></div></div><div class="controls-pick" id="controlsPick" role="group" aria-label="Touch controls"><span>Touch controls</span><button class="smallbtn" data-controls="tap" aria-pressed="true">Tap the room</button><button class="smallbtn" data-controls="stick" aria-pressed="false">Joystick</button></div><p class="modal-note">At zero hearts, finish Drip or Die to get out of bed. Its three stages are timing, filtering and pressure. A failed recovery gets spectacularly anatomical. Progress survives.</p><label for="heroName">Name your heroine</label><div class="name-row"><input id="heroName" maxlength="18" autocomplete="off" placeholder="Macy"><button class="primary" id="saveName">Save</button></div><p class="modal-note">Progress saves in this browser when storage is available. No account or internet needed. All medical mechanics are gloriously fictional.</p><p id="storageNote">This browser has disabled local saves. Keep this tab open to keep your progress.</p><button id="resetBtn" class="textbtn" style="color:var(--coral)">Start a fresh adventure</button></div></dialog>
 <dialog id="difficultyDialog"><div class="modal-head"><h2>Choose your prescription for chaos.</h2><button class="close" data-close aria-label="Close difficulty settings"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="difficulty-options" id="difficultyOptions"></div><p class="modal-note">Change it between challenges. Medals stay earned. Difficulty changes enemy pressure, arcade speed and precision, and coin payouts. It never refills your health or restocks nutrients.</p></div></dialog>
 <dialog id="shopDialog"><div class="modal-head"><h2>Questionable gift shop.</h2><button class="close" data-close aria-label="Close gift shop"><svg><use href="#i-close"/></svg></button></div><div class="modal-body">
 <div class="shop-top"><canvas id="shopMacy" width="96" height="124" aria-label="Macy in her current outfit"></canvas><div><p id="shopBalance"></p><p class="modal-note">Upgrades are permanent. Wardrobe items are pure vanity and can be swapped any time.</p></div></div>
@@ -1247,6 +1872,8 @@ let state = {
   briefed: Array.isArray(saved.briefed) ? saved.briefed.filter(x => typeof x === 'string') : [],
   // Arcade (fullscreen) preference: null until chosen, then true or false.
   arcade: typeof saved.arcade === 'boolean' ? saved.arcade : null,
+  // Touch scheme: 'tap' (the room is the controller, the default) or 'stick' (joystick and buttons).
+  controls: saved.controls === 'stick' ? 'stick' : 'tap',
   // Daily Dose: last day played (YYYY-MM-DD), that day's best score, consecutive-day streak.
   daily: {
     last: typeof savedDaily.last === 'string' ? savedDaily.last : '',
@@ -1367,6 +1994,7 @@ function save() {
         played: state.played,
         briefed: state.briefed,
         arcade: state.arcade,
+        controls: state.controls,
         daily: state.daily
       })
     );
@@ -4477,6 +5105,13 @@ function hud() {
   $('hudEat').textContent = '+♥ ' + state.food;
   $('hudEat').disabled = state.food === 0 || state.hp >= max;
   $('hudEat').setAttribute('aria-label', `Eat a nutrient. ${state.food} carried.`);
+  // The touch EAT button: the badge counts nutrients; it greys out when empty or at full hearts.
+  $('touchEat').disabled = state.food === 0 || state.hp >= max;
+  $('touchEatCount').textContent = String(state.food);
+  $('touchEat').setAttribute(
+    'aria-label',
+    state.hp >= max ? `Eat a nutrient. Hearts full. ${state.food} carried.` : `Eat a nutrient. ${state.food} carried.`
+  );
   $('difficultyBtn').textContent = cfg().name + ' ⚙';
   $('heroName').value = state.name;
   $('passport').innerHTML = rooms
@@ -4540,6 +5175,7 @@ function clearHeld() {
   mini.fireHeld = false;
   joyPointer = null;
   $('stick').style.transform = 'translate(0,0)';
+  wardTouchReset();
 }
 
 function modalOpen(d) {
@@ -4578,6 +5214,7 @@ function loadRoom(id) {
   player.vz = 0;
   player.attack = 0;
   player.attackCd = 0;
+  wardTouchReset();
   wardHpSeen = state.hp;
   const toastsBefore = toastSerial;
   // The room track starts first so a boss intro inside startEncounter can take over the music.
@@ -4610,6 +5247,9 @@ function begin() {
   $('startCallout').classList.add('hidden');
   $('playStatus').textContent = 'EXPLORE / PLAY / GET HOME';
   loadRoom(state.room);
+  // First steps on a touch screen: the room is the controller.
+  if (wardCoarsePointer && tapScheme())
+    toast('Tap to walk. Tap a gremlin to bonk it. Flick to dash. Two fingers: jump.', 4.5);
   canvas.focus({ preventScroll: true });
   sfx('ui');
 }
@@ -4681,6 +5321,277 @@ function eat() {
   hud();
 }
 
+// ---- Weapon changes ----
+// equip() (combat.js) swaps the buttons. This notices any change (strip, keys, sidebar), slides the
+// strip highlight and flashes the weapon over Macy for a second, so a swap is never a surprise.
+const WEAPON_FLASH_SECONDS = 1,
+  WEAPON_ICON_PATHS = {
+    pillow: 'm4 3 3 2h10l3-2 1 3-2 3v7l2 4-4-1H7l-4 2 1-5V8L2 4zM8 8h8m-9 7h9',
+    bag: 'M7 3h10l-1 5 3 13H5L8 8zM7 6h10m-7 8h4m-2-2v4',
+    brick: 'm3 10 9-5 9 5v8l-9 5-9-5zM3 10l9 5 9-5m-9 5v8M7 7V4l3-2 3 2v3m0-1V3l3-2 3 2v5'
+  };
+
+let wardWeaponSeen = state.item,
+  wardWeaponFlash = 0;
+
+// Returns true when the weapon changed since the last call.
+function wardWeaponSync() {
+  if (state.item === wardWeaponSeen) return false;
+  wardWeaponSeen = state.item;
+  wardWeaponFlash = WEAPON_FLASH_SECONDS;
+  const strip = $('weaponStrip');
+  strip.dataset.active = String(state.item);
+  // Alternating names restart the CSS pop on every change.
+  strip.dataset.pop = strip.dataset.pop === 'a' ? 'b' : 'a';
+  sfx('select');
+  return true;
+}
+
+function drawWeaponFlash(vw, vh) {
+  if (wardWeaponFlash <= 0) return;
+  const w = weapons[state.item],
+    text = w.name.toUpperCase() + ' · ' + w.verb,
+    boxW = 74 + text.length * 11.5,
+    age = WEAPON_FLASH_SECONDS - wardWeaponFlash,
+    fade = Math.min(1, wardWeaponFlash / 0.3),
+    pop = reduced ? 1 : 1 + Math.max(0, 0.16 - age) * 1.6,
+    x = clamp(player.x - cameraX, boxW / 2 + 8, vw - boxW / 2 - 8),
+    y = clamp(player.y - wardCameraY - player.z - 150, 70, vh - 40);
+  wardWeaponFlash = Math.max(0, wardWeaponFlash - renderDelta);
+  c.save();
+  c.globalAlpha = fade;
+  c.translate(x, y);
+  c.scale(pop, pop);
+  rr(c, -boxW / 2, -25, boxW, 50, 25, '#173847ee', '#ffe29b', 2.5);
+  c.save();
+  c.translate(-boxW / 2 + 16, -16);
+  c.scale(1.35, 1.35);
+  c.strokeStyle = '#ffe29b';
+  c.lineWidth = 1.9;
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+  c.stroke(new Path2D(WEAPON_ICON_PATHS[w.icon]));
+  c.restore();
+  label(c, text, 22, 7, 20, '#ffe29b', 'center');
+  c.restore();
+}
+
+// ---- Tap the room ----
+// On touch screens the floor is the controller: tap to walk there, tap a gremlin to go and hit it (hold
+// to keep swinging), flick to dash, tap with two fingers to jump, long-press the floor for the ability.
+// state.controls === 'stick' swaps this for the joystick and the full button column. Mice never use it.
+const TAP_ARRIVE = 12,
+  TAP_SLOP = 12,
+  TAP_GREMLIN_RADIUS = 40,
+  FLICK_DISTANCE = 40,
+  FLICK_SECONDS = 0.25,
+  LONG_PRESS_SECONDS = 0.45,
+  TWO_FINGER_SECONDS = 0.2,
+  TAP_STUCK_SECONDS = 0.6,
+  TAP_PREY_GIVE_UP = 3,
+  TAP_RIPPLE_SECONDS = 0.45;
+
+// wardTouches: pointerId -> finger. wardGoal: floor point Macy walks to. wardPrey: the gremlin she is after.
+let wardTouches = new Map(),
+  wardGoal = null,
+  wardPrey = null,
+  wardGoalBest = Infinity,
+  wardStuck = 0,
+  wardRipples = [];
+
+function tapScheme() {
+  return state.controls !== 'stick';
+}
+
+function wardTouchReset() {
+  wardTouches.clear();
+  wardGoal = null;
+  wardPrey = null;
+}
+
+// The live gremlin nearest a tap, within TAP_GREMLIN_RADIUS of its feet or its body.
+function wardGremlinAt(p) {
+  let best = null,
+    bestD = Infinity;
+  for (const e of wardFighters()) {
+    const d = Math.min(dist(p, e), dist(p, { x: e.x, y: e.y - (e.z || 0) - 32 }));
+    if (d < TAP_GREMLIN_RADIUS && d < bestD) {
+      best = e;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+function wardSetGoal(p) {
+  wardGoal = { x: clamp(p.x, 40, 960), y: clamp(p.y, 170, 574) };
+  wardGoalBest = Infinity;
+  wardStuck = 0;
+}
+
+// id: pointer id; cx, cy: client coordinates; p: the same point in room coordinates.
+// Returns false when the ward is not taking input (the click handler then gets the tap).
+function wardTouchDown(id, cx, cy, p) {
+  if (!state.started || state.paused || isModal() || deadDelay > 0) return false;
+  const finger = { id, x0: cx, y0: cy, t0: time, moved: false, long: false, kind: 'walk' };
+  wardRipples.push({ x: p.x, y: p.y, t: 0 });
+  if (wardTouches.size) {
+    // Any second finger jumps. A first finger that landed a moment ago was half of the same tap,
+    // so its walk is taken back.
+    finger.kind = 'jump';
+    for (const f of wardTouches.values())
+      if (!f.moved && f.kind !== 'jump' && time - f.t0 < TWO_FINGER_SECONDS) {
+        f.kind = 'jump';
+        wardGoal = f.goalBefore;
+        wardPrey = f.preyBefore;
+      }
+    wardTouches.set(id, finger);
+    jump();
+    return true;
+  }
+  finger.goalBefore = wardGoal;
+  finger.preyBefore = wardPrey;
+  wardTouches.set(id, finger);
+  const e = wardGremlinAt(p);
+  if (e) {
+    finger.kind = 'prey';
+    wardPrey = { e, held: true, swings: 0, idle: 0 };
+    wardGoal = null;
+  } else if (!arcadeBlocked() && beaconTapped(p)) finger.kind = 'beacon';
+  else {
+    wardPrey = null;
+    wardSetGoal(p);
+  }
+  return true;
+}
+
+// Dragging steers: once a finger wanders past TAP_SLOP, the goal follows it.
+function wardTouchMove(id, cx, cy, p) {
+  const f = wardTouches.get(id);
+  if (!f || f.kind === 'jump' || f.long) return;
+  if (!f.moved && Math.hypot(cx - f.x0, cy - f.y0) > TAP_SLOP) f.moved = true;
+  if (!f.moved) return;
+  if (f.kind === 'prey' && wardPrey) wardPrey.held = false;
+  f.kind = 'walk';
+  wardPrey = null;
+  wardSetGoal(p);
+}
+
+// cancel = true when the pointer was lost; a lost finger never acts.
+function wardTouchUp(id, cx, cy, cancel = false) {
+  const f = wardTouches.get(id);
+  if (!f) return;
+  wardTouches.delete(id);
+  if (f.kind === 'prey' && wardPrey) wardPrey.held = false;
+  if (cancel || f.kind === 'jump' || f.long) return;
+  const dx = cx - f.x0,
+    dy = cy - f.y0,
+    d = Math.hypot(dx, dy);
+  if (d >= FLICK_DISTANCE && time - f.t0 < FLICK_SECONDS) {
+    // A flick dashes that way and then stands still.
+    wardGoal = null;
+    wardPrey = null;
+    player.lastDx = dx / d;
+    player.lastDy = dy / d;
+    dash();
+    return;
+  }
+  if (f.kind === 'beacon' && !f.moved) tryOpenArcade();
+}
+
+function wardAimAt(e, d) {
+  // The brick lands where it is aimed, so its aim length sets the distance (attack() reads it as power).
+  const k = state.item === 2 ? clamp(d / 230, 0.65, 1.35) : 1;
+  wardAim = { dx: ((e.x - player.x) / d) * 65 * k, dy: ((e.y - player.y) / d) * 65 * k };
+}
+
+// One simulation step of the tap scheme. Returns the steering vector for this step.
+function wardTouchStep(dt) {
+  for (const f of wardTouches.values())
+    if (f.kind === 'walk' && !f.moved && !f.long && wardTouches.size === 1 && time - f.t0 >= LONG_PRESS_SECONDS) {
+      f.long = true;
+      wardGoal = null;
+      useItem();
+    }
+  if (wardPrey) {
+    const prey = wardPrey,
+      e = prey.e;
+    prey.idle += dt;
+    if (e.hp <= 0 || e.gone || (!prey.held && (prey.swings > 0 || prey.idle > TAP_PREY_GIVE_UP))) wardPrey = null;
+    else {
+      const d = Math.max(1, dist(player, e)),
+        range = state.item === 0 ? 86 : 300;
+      if (d <= range) {
+        const ready = player.attackCd <= 0;
+        wardAimAt(e, d);
+        attack();
+        wardAim = null;
+        if (ready && player.attackCd > 0) {
+          prey.swings++;
+          prey.idle = 0;
+        }
+        return { x: 0, y: 0 };
+      }
+      return { x: (e.x - player.x) / d, y: (e.y - player.y) / d };
+    }
+  }
+  if (!wardGoal) return { x: 0, y: 0 };
+  const d = dist(player, wardGoal);
+  if (d <= TAP_ARRIVE) {
+    wardGoal = null;
+    return { x: 0, y: 0 };
+  }
+  // Furniture in the way: give up once Macy stops getting closer.
+  if (d < wardGoalBest - 0.5) {
+    wardGoalBest = d;
+    wardStuck = 0;
+  } else if ((wardStuck += dt) > TAP_STUCK_SECONDS) {
+    wardGoal = null;
+    return { x: 0, y: 0 };
+  }
+  return { x: (wardGoal.x - player.x) / d, y: (wardGoal.y - player.y) / d };
+}
+
+// Floor layer: the dashed walk line and the goal ring.
+function drawWardGoal(g) {
+  if (!wardGoal || !player.moving) return;
+  g.setLineDash([7, 9]);
+  line(g, [[player.x, player.y], [wardGoal.x, wardGoal.y]], '#fff4c8aa', 3);
+  g.setLineDash([]);
+  g.strokeStyle = '#fff4c8cc';
+  g.lineWidth = 2.5;
+  g.beginPath();
+  g.ellipse(wardGoal.x, wardGoal.y, 14, 5, 0, 0, Math.PI * 2);
+  g.stroke();
+}
+
+// Top layer: tap ripples and a ring on the gremlin Macy is after.
+function drawWardTaps(g) {
+  for (const r of wardRipples) {
+    const k = r.t / TAP_RIPPLE_SECONDS;
+    g.globalAlpha = Math.max(0, 1 - k);
+    g.strokeStyle = '#fff4c8';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(r.x, r.y, 8 + k * 26, 0, Math.PI * 2);
+    g.stroke();
+    r.t += renderDelta;
+  }
+  g.globalAlpha = 1;
+  wardRipples = wardRipples.filter(r => r.t < TAP_RIPPLE_SECONDS);
+  if (!wardPrey) return;
+  const e = wardPrey.e;
+  g.strokeStyle = '#ffb19c';
+  g.lineWidth = 2.5;
+  g.setLineDash([5, 6]);
+  g.lineDashOffset = reduced ? 0 : -time * 22;
+  g.beginPath();
+  g.ellipse(e.x, e.y, 30, 10, 0, 0, Math.PI * 2);
+  g.stroke();
+  g.setLineDash([]);
+  g.lineDashOffset = 0;
+}
+
 function updateWorld(dt) {
   time += dt;
   player.visualDir =
@@ -4723,14 +5634,17 @@ function updateWorld(dt) {
     hitStop -= dt;
     return;
   }
+  const steer = wardTouchStep(dt);
   let dx =
       (keys.has('d') || keys.has('arrowright') ? 1 : 0) -
       (keys.has('a') || keys.has('arrowleft') ? 1 : 0) +
-      joy.x,
+      joy.x +
+      steer.x,
     dy =
       (keys.has('s') || keys.has('arrowdown') ? 1 : 0) -
       (keys.has('w') || keys.has('arrowup') ? 1 : 0) +
-      joy.y;
+      joy.y +
+      steer.y;
   let len = Math.hypot(dx, dy);
   if (len > 1) {
     dx /= len;
@@ -4758,7 +5672,12 @@ function updateWorld(dt) {
       state.taken.push(s.id);
       state.food++;
       floating('+1 ' + s.type.toUpperCase(), s.x, s.y - 50, '#b7e6bd');
-      toast('Nutrient stashed. Drink / eat (F) when you need a heart.', 2.7);
+      toast(
+        wardCoarsePointer
+          ? 'Nutrient stashed. Tap EAT when you need a heart.'
+          : 'Nutrient stashed. Drink / eat (F) when you need a heart.',
+        2.7
+      );
       save();
       hud();
       sfx('pickup');
@@ -4798,8 +5717,10 @@ function drawWorld() {
   syncWardPause();
   c.clearRect(0, 0, vw, vh);
   cameraX += (clamp(player.x - vw / 2, 0, Math.max(0, 1000 - vw)) - cameraX) * ease;
-  // Screens wider than 1.6 show a horizontal slice of the room and follow Macy vertically.
-  wardCameraY += (clamp(player.y - vh * 0.58, 0, Math.max(0, 625 - vh)) - wardCameraY) * ease;
+  // Screens wider than 1.6 show a horizontal slice of the room and follow Macy vertically. A tall
+  // portrait view (taller than the room) centers it, with a band above and below.
+  const camYGoal = vh > 625 ? -(vh - 625) / 2 : clamp(player.y - vh * 0.58, 0, 625 - vh);
+  wardCameraY += (camYGoal - wardCameraY) * ease;
   c.save();
   c.translate(-cameraX + (shake ? rand(-3, 3) : 0), -wardCameraY + (shake ? rand(-2, 2) : 0));
   roomBg(c, state.room);
@@ -4839,6 +5760,7 @@ function drawWorld() {
     brick(c, tr.x - 15, tr.y, '#e38878');
     brick(c, tr.x + 2, tr.y + 5, '#6faeab');
   }
+  drawWardGoal(c);
   const renderables = roomProps[state.room].map(p => ({ y: p.y, draw: p.draw }));
   renderables.push({
     y: player.y,
@@ -4920,10 +5842,13 @@ function drawWorld() {
   }
   c.globalAlpha = 1;
   if (typeof drawCombatFx === 'function') drawCombatFx(c);
+  drawWardTaps(c);
   rect(c, 0, 603, 1000, 22, '#244856');
   rect(c, 24, 603, 952, 4, '#90b6a2');
   c.restore();
   if (typeof drawCombatOverlay === 'function') drawCombatOverlay(c, vw);
+  wardWeaponSync();
+  drawWeaponFlash(vw, vh);
   if (state.paused) rect(c, 0, 0, vw, vh, '#102734aa');
   if (wardIris > 0) drawRoomIris(vw, vh);
 }
@@ -5041,18 +5966,24 @@ function hudBucket(px) {
   return px >= 52 ? 'l' : px >= 36 ? 'm' : px >= 28 ? 's' : 'xs';
 }
 
+// A tall phone still sees at least this much of the room's 1000 px width.
+const WARD_MIN_VIEW_W = 540;
+
 function resize() {
   const r = $('stage').getBoundingClientRect();
   if (r.width > 0 && r.height > 0) {
     const aspect = r.width / r.height;
-    viewport.w = Math.min(1000, 625 * aspect);
-    viewport.h = viewport.w < 1000 ? 625 : clamp(1000 / aspect, 300, 625);
-    $('stage').dataset.hud = hudBucket(((WALL_SIGN_TOP - 4) * r.height) / viewport.h);
+    viewport.w = clamp(625 * aspect, WARD_MIN_VIEW_W, 1000);
+    viewport.h = viewport.w < 1000 ? Math.max(625, viewport.w / aspect) : clamp(1000 / aspect, 300, 625);
+    // Cards end above the wall signs; a centered tall view moves the signs down by its top band.
+    const band = Math.max(0, viewport.h - 625) / 2;
+    $('stage').dataset.hud = hudBucket(((WALL_SIGN_TOP - 4 + band) * r.height) / viewport.h);
   }
   configureCanvas(canvas, viewport.w, viewport.h);
-  // A closed arcade keeps the 800 × 450 canvas it starts with.
-  const size = mini.open ? games[mini.id].canvas : { w: 800, h: 450 };
-  configureCanvas($('miniCanvas'), size.w, size.h);
+  // An open arcade re-reads the screen shape (a portrait canvas flips in and out as the phone turns).
+  // A closed one keeps the 800 × 450 canvas it starts with.
+  if (mini.open) orientMini();
+  else configureCanvas($('miniCanvas'), 800, 450);
 }
 
 // Fixed small simulation steps keep 30, 60 and 120 Hz displays moving identically.
@@ -8597,6 +9528,39 @@ function recordDaily(score) {
   return { bonus, record };
 }
 
+// ---- Canvas shape ----
+// A game may declare portraitCanvas {w, h} beside canvas. mini.portrait is true while an upright screen
+// shows a game that has one, and can flip mid-run when the phone turns; activeCanvas() is the size the
+// run draws at right now. Games should read it (or mini.portrait) when they lay out, not cache it.
+function activeCanvas() {
+  const def = games[mini.id];
+  return mini.portrait && def.portraitCanvas ? def.portraitCanvas : def.canvas;
+}
+
+function miniPortraitWanted() {
+  const def = games[mini.id],
+    upright = window.innerHeight > window.innerWidth;
+  return !!(mini.open && $('miniDialog').open && def && def.portraitCanvas && upright);
+}
+
+// Sizes #miniCanvas to the active canvas and tells CSS its shape (data-portrait, --mini-a).
+function fitMiniCanvas() {
+  const { w, h } = activeCanvas(),
+    dialog = $('miniDialog');
+  configureCanvas($('miniCanvas'), w, h);
+  dialog.dataset.portrait = mini.portrait ? '1' : '';
+  dialog.style.setProperty('--mini-a', (w / h).toFixed(4));
+}
+
+// resize() calls this while the dialog is open. Returns true when the run flipped canvases.
+function orientMini() {
+  const portrait = miniPortraitWanted(),
+    flipped = portrait !== !!mini.portrait;
+  mini.portrait = portrait;
+  fitMiniCanvas();
+  return flipped;
+}
+
 // Department card and lobby preview art.
 function miniScene(g, id, w, h) {
   games[id].scene(g, w, h);
@@ -8726,8 +9690,14 @@ function startMini() {
     helpTime: 0,
     helpUsed: 0,
     precisions: [],
-    inputLock: 0
+    inputLock: 0,
+    portrait: false,
+    tipT: 0,
+    tipShown: false
   };
+  // The game's init may lay out for the canvas it will draw on, so pick it first.
+  mini.portrait = miniPortraitWanted();
+  $('miniInstruction').dataset.show = '';
   $('miniLobby').classList.add('hidden');
   $('miniPlay').classList.remove('hidden');
   $('miniResult').classList.add('hidden');
@@ -8738,7 +9708,7 @@ function startMini() {
     def.init();
     if (def.controls) def.controls();
   });
-  configureCanvas($('miniCanvas'), def.canvas.w, def.canvas.h);
+  fitMiniCanvas();
   $('miniDialog').dataset.arcade = def.layout;
   mini.initialized = true;
   prepareBriefing();
@@ -8746,13 +9716,34 @@ function startMini() {
   drawMini();
 }
 
+// Arcade mode on phones shows the instruction line as a toast over the canvas: through the countdown,
+// for the first MINI_TIP_SECONDS of play, and again whenever the line changes. Wider layouts always show it.
+const MINI_TIP_SECONDS = 3;
+
 function setInstructions(t) {
+  const changed = $('miniInstruction').textContent !== t;
   $('miniInstruction').textContent = t;
+  if (changed && mini.initialized) showMiniTip();
+}
+
+function showMiniTip(sec = MINI_TIP_SECONDS) {
+  mini.tipT = sec;
+  syncMiniTip();
+}
+
+// data-show on #miniInstruction follows the screen and the tip clock; CSS decides what it means.
+function syncMiniTip() {
+  const on = mini.screen === 'intro' || (mini.screen === 'play' && mini.tipT > 0);
+  if (on === !!mini.tipShown) return;
+  mini.tipShown = on;
+  $('miniInstruction').dataset.show = on ? '1' : '';
 }
 
 // Buttons: {id, text, key?, hot?, pad?}. Each click sends miniAction(id); the assist button is always appended.
 function setControls(buttons) {
   $('miniControls').dataset.game = mini.id;
+  // Arcade mode lays out by button count (the assist included).
+  $('miniControls').dataset.count = String(buttons.length + 1);
   const html = buttons.map(
     b =>
       `<button data-action="${b.id}" class="${b.hot ? 'hot ' : ''}${b.pad ? 'pad' : ''}" ${b.pad ? `style="--pad:${b.pad}"` : ''}` +
@@ -8812,6 +9803,7 @@ function pauseMini() {
 
 function updateMini(dt) {
   if (!mini.open || document.hidden) return;
+  syncMiniTip();
   if (updateTransition(dt)) return;
   if (mini.screen === 'result') {
     // Result splatter (spawned by a game's onLose) keeps falling on the result art.
@@ -8832,6 +9824,8 @@ function updateMini(dt) {
     return;
   }
   if (mini.screen !== 'play' || mini.paused) return;
+  mini.tipT = Math.max(0, (mini.tipT || 0) - dt);
+  syncMiniTip();
   mini.flash = Math.max(0, mini.flash - dt);
   mini.inputLock = Math.max(0, mini.inputLock - dt);
   mini.helpTime = Math.max(0, mini.helpTime - dt);
@@ -9062,14 +10056,15 @@ function checkDischarge() {
 function drawMini() {
   if (!['briefing', 'intro', 'play', 'outro'].includes(mini.screen)) return;
   const def = games[mini.id],
+    size = activeCanvas(),
     g = mc;
-  g.clearRect(0, 0, def.canvas.w, def.canvas.h);
+  g.clearRect(0, 0, size.w, size.h);
   def.draw(g);
   if (def.overlay) def.overlay(g);
   else drawArcadeOverlays(g);
 }
 
-// ---- Shared plumbing for the gesture games (600 × 600) ----
+// ---- Shared plumbing for the gesture games (600 × 600 unless they declare otherwise) ----
 let arcadePointer = null,
   strokeSerial = 0;
 
@@ -9124,7 +10119,7 @@ function arcadeTimeUp() {
 // object-fit: contain, so a letterboxed arcade (fullscreen) still maps exactly.
 function miniPoint(e) {
   const r = $('miniCanvas').getBoundingClientRect(),
-    { w, h } = games[mini.id].canvas,
+    { w, h } = activeCanvas(),
     s = Math.min(r.width / w, r.height / h) || 1,
     left = r.left + (r.width - w * s) / 2,
     top = r.top + (r.height - h * s) / 2;
@@ -9174,18 +10169,22 @@ function arcadeBurst(x, y, col, n = 12) {
 
 // Particles, shift banner, flash banner, and the countdown / finish card.
 function drawArcadeOverlays(g) {
+  const { w, h } = activeCanvas(),
+    cx = w / 2,
+    cy = h / 2,
+    cardW = Math.min(510, w - 30);
   for (const p of mini.fx) {
     g.globalAlpha = Math.min(1, p.life * 3);
     ellipse(g, p.x, p.y, 4, 4, p.col);
   }
   g.globalAlpha = 1;
   if (mini.notice > 0 && mini.screen === 'play') {
-    rr(g, 170, 48, 260, 48, 15, '#16374bdf', '#b6d9ca66', 1);
+    rr(g, cx - 130, 48, 260, 48, 15, '#16374bdf', '#b6d9ca66', 1);
     label(
       g,
       (mini.shift === 2 ? 'FINAL ' : mini.shift === 1 ? 'SECOND ' : 'FIRST ') +
         (games[mini.id].shiftName || 'SHIFT'),
-      300,
+      cx,
       79,
       18,
       '#f1e2b9',
@@ -9194,19 +10193,19 @@ function drawArcadeOverlays(g) {
   }
   if (mini.flash > 0) {
     g.globalAlpha = Math.min(1, mini.flash * 3);
-    rr(g, 30, 115, 540, 37, 12, '#173349ed');
-    label(g, mini.flashText, 300, 139, 13, '#ffe5b8', 'center');
+    rr(g, 30, 115, w - 60, 37, 12, '#173349ed');
+    label(g, mini.flashText, cx, 139, 13, '#ffe5b8', 'center');
     g.globalAlpha = 1;
   }
   if (mini.screen === 'intro' || mini.screen === 'outro') {
     const intro = mini.screen === 'intro';
-    rect(g, 0, 0, 600, 600, '#102c4299');
-    rr(g, 45, 225, 510, 145, 22, '#112e45ee', '#9dc7be66', 1);
+    rect(g, 0, 0, w, h, '#102c4299');
+    rr(g, cx - cardW / 2, cy - 75, cardW, 145, 22, '#112e45ee', '#9dc7be66', 1);
     label(
       g,
       intro ? countdownLabel() : mini.pendingFinish.win ? 'SHIFT COMPLETE' : 'WELL. THAT HAPPENED.',
-      300,
-      295,
+      cx,
+      cy - 5,
       intro ? 64 : 27,
       '#f4ebcf',
       'center'
@@ -9214,8 +10213,8 @@ function drawArcadeOverlays(g) {
     label(
       g,
       intro ? 'The clock starts on GO.' : 'Score ' + mini.score + ' · Best chain ' + mini.maxCombo,
-      300,
-      334,
+      cx,
+      cy + 34,
       15,
       '#bad8cc',
       'center'
@@ -9291,6 +10290,7 @@ function launchMini() {
   $('miniPauseBtn').classList.remove('hidden');
   $('miniPauseBtn').textContent = 'Ⅱ';
   $('miniCanvas').focus({ preventScroll: true });
+  syncMiniTip();
   sfx('countdown');
   music('game:' + mini.id);
   updateMiniHUD();
@@ -9319,6 +10319,7 @@ function updateTransition(dt) {
       mini.transition = 0;
       clearHeld();
       $('miniDialog').dataset.screen = 'play';
+      showMiniTip();
       sfx('go');
       updateMiniHUD();
     } else if (countdownLabel() !== mini.countTick) {
@@ -9350,16 +10351,20 @@ function finishMini(win, reason) {
   sfx(win ? 'clear' : 'miss');
 }
 
-// Countdown / finish card for the wide 800 × 450 canvas (the IV game).
+// Countdown / finish card for games with their own overlay (the IV game). It fills the active canvas,
+// wide or portrait, and shrinks the 500 px card to fit a narrow one.
 function paintTransition(g) {
   const intro = mini.screen === 'intro',
     outro = mini.screen === 'outro';
   if (!intro && !outro) return;
   const duration = intro ? INTRO_SECONDS : OUTRO_SECONDS,
-    t = clamp(mini.transition / duration, 0, 1);
+    t = clamp(mini.transition / duration, 0, 1),
+    { w, h } = activeCanvas(),
+    fit = Math.min(1, (w - 40) / 500);
   g.save();
-  rect(g, 0, 0, 800, 450, outro && !mini.pendingFinish.win ? '#301f3eb5' : '#143849aa');
-  g.translate(400, 220);
+  rect(g, 0, 0, w, h, outro && !mini.pendingFinish.win ? '#301f3eb5' : '#143849aa');
+  g.translate(w / 2, h / 2 - 5);
+  g.scale(fit, fit);
   if (!reduced) {
     const z = 0.97 + 0.03 * Math.min(1, t * 5);
     g.scale(z, z);
@@ -21842,13 +22847,12 @@ function uiUnlockAudio() {
 
 // ---- Arcade mode (fullscreen) ----
 // body.arcade pins the cabinet to the screen and hides the page around it. The Fullscreen API is
-// used where it exists (desktop, Android); iPhone Safari has none for pages, so CSS does the work.
+// used where it exists (desktop, Android, iPad); iPhone Safari has none for pages, so CSS does the work.
 let arcadeFullscreen = false;
 
-function isPhone() {
-  const w = window.innerWidth || 1000,
-    h = window.innerHeight || 1000;
-  return matchMedia('(pointer: coarse)').matches && Math.min(w, h) <= 540;
+// Phones and tablets: a finger is the main pointer. They start in arcade mode.
+function isTouchScreen() {
+  return matchMedia('(pointer: coarse)').matches;
 }
 
 function fullscreenElement() {
@@ -21958,29 +22962,95 @@ $('miniDialog').addEventListener('cancel', e => {
   } else if (!mini.forced) leaveMini();
 });
 
+// ---- Press-to-act buttons ----
+// Game buttons act on pointerdown, not click. Phones never turn a tap into a click while another
+// finger is down (the thumb on the joystick), and a thumb that rolls a few pixels cancels the click
+// too: that is why JUMP needed smashing. The click that can follow a press is ignored; a click with
+// no press before it (Enter or Space on a focused button, assistive tech) still acts.
+const PRESS_CLICK_MS = 1500;
+
+// The element the latest handled press landed on. A press can change the screen (the beacon opens an
+// arcade, a tap ends a phase), and the click that follows must not land on whatever appeared under
+// the finger: until the next pointerdown, clicks only reach the pressed element.
+let pressTarget = null;
+
+document.addEventListener('pointerdown', () => (pressTarget = null), true);
+document.addEventListener(
+  'click',
+  e => {
+    if (!pressTarget || e.detail === 0 || Date.now() - pressTarget.pressedAt > PRESS_CLICK_MS) return;
+    if (pressTarget.contains(e.target)) return;
+    e.preventDefault();
+    e.stopPropagation();
+  },
+  true
+);
+
+// Starts a press on el. Returns false for buttons other than the primary one.
+function pressStart(el, e) {
+  if (e.button > 0) return false;
+  e.preventDefault();
+  try {
+    el.setPointerCapture(e.pointerId);
+  } catch {}
+  el.pressedAt = Date.now();
+  pressTarget = el;
+  return true;
+}
+
+// True for the click a pointer press already handled.
+function pressClick(el, e) {
+  return e.detail > 0 && Date.now() - (el.pressedAt || 0) < PRESS_CLICK_MS;
+}
+
+// Wires a ward button: it acts on press and shows .pressed until the finger lifts.
+function onPress(el, act) {
+  el.addEventListener('pointerdown', e => {
+    if (!pressStart(el, e)) return;
+    el.classList.add('pressed');
+    act(e);
+  });
+  el.addEventListener('click', e => {
+    if (!pressClick(el, e)) act(e);
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+    el.addEventListener(type, () => el.classList.remove('pressed'))
+  );
+}
+
 // ---- Arcade touch controls ----
-// HOLD / FIRE buttons stay pressed while the pointer is down; other buttons act on click.
+// Every button acts on press. HOLD and FIRE stay pressed until that pointer lifts. Games re-render
+// their buttons mid-press, so the press time lives on the row, not on the button.
 let miniHoldPointer = null;
 
 $('miniControls').addEventListener('pointerdown', e => {
-  let b = e.target.closest('[data-action]');
-  if (!b || !['hold', 'fire'].includes(b.dataset.action) || mini.screen !== 'play' || mini.paused) return;
-  e.preventDefault();
-  miniHoldPointer = e.pointerId;
-  b.setPointerCapture(e.pointerId);
-  if (b.dataset.action === 'fire') {
-    mini.fireHeld = true;
-    miniAction('fire');
-  } else mini.held = true;
+  const b = e.target.closest('[data-action]');
+  if (!b || !pressStart(b, e)) return;
+  $('miniControls').pressedAt = b.pressedAt;
   b.classList.add('active');
+  b.dataset.pointer = String(e.pointerId);
+  const a = b.dataset.action;
+  if (a === 'hold' || a === 'fire') {
+    if (mini.screen !== 'play' || mini.paused) return;
+    miniHoldPointer = e.pointerId;
+    if (a === 'fire') {
+      mini.fireHeld = true;
+      miniAction('fire');
+    } else mini.held = true;
+    return;
+  }
+  miniAction(a);
 });
 
 function releaseMiniHold(e) {
-  if (e && e.pointerId !== undefined && e.pointerId !== miniHoldPointer) return;
+  const id = e && e.pointerId !== undefined ? String(e.pointerId) : null;
+  $$('#miniControls .active').forEach(b => {
+    if (id === null || b.dataset.pointer === id) b.classList.remove('active');
+  });
+  if (id !== null && e.pointerId !== miniHoldPointer) return;
   mini.held = false;
   mini.fireHeld = false;
   miniHoldPointer = null;
-  $$('#miniControls .active').forEach(b => b.classList.remove('active'));
 }
 
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
@@ -21988,9 +23058,8 @@ function releaseMiniHold(e) {
 );
 
 $('miniControls').addEventListener('click', e => {
-  let b = e.target.closest('[data-action]');
-  if (!b) return;
-  if (b.dataset.action === 'hold') return;
+  const b = e.target.closest('[data-action]');
+  if (!b || b.dataset.action === 'hold' || pressClick($('miniControls'), e)) return;
   miniAction(b.dataset.action);
 });
 
@@ -22059,14 +23128,16 @@ joystick.addEventListener('pointermove', handleJoy);
   })
 );
 
-// Dragging the attack button aims; releasing it attacks.
+// The attack button hits on press and keeps hitting while held, like holding Space. Dragging it
+// aims the follow-up hits; letting go stops.
 $('attackBtn').addEventListener('pointerdown', e => {
-  if (attackPointer !== null) return;
-  e.preventDefault();
+  if (attackPointer !== null || !pressStart($('attackBtn'), e)) return;
   attackPointer = e.pointerId;
   attackOrigin = { x: e.clientX, y: e.clientY };
   wardAim = { dx: 0, dy: 0 };
-  e.currentTarget.setPointerCapture(e.pointerId);
+  heldAttack = true;
+  $('attackBtn').classList.add('pressed');
+  attack();
 });
 
 $('attackBtn').addEventListener('pointermove', e => {
@@ -22077,7 +23148,7 @@ $('attackBtn').addEventListener('pointermove', e => {
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
   $('attackBtn').addEventListener(type, e => {
     if (e.pointerId !== attackPointer) return;
-    if (type === 'pointerup') attack();
+    $('attackBtn').classList.remove('pressed');
     attackPointer = null;
     attackOrigin = null;
     wardAim = null;
@@ -22086,10 +23157,21 @@ $('attackBtn').addEventListener('pointermove', e => {
 );
 
 $('attackBtn').addEventListener('click', e => {
-  if (e.detail === 0) attack();
+  if (!pressClick($('attackBtn'), e)) attack();
 });
 
-$('jumpBtn').addEventListener('click', jump);
+onPress($('jumpBtn'), jump);
+onPress($('dashBtn'), dash);
+onPress($('useBtn'), useItem);
+onPress($('touchEat'), eat);
+
+// The weapon strip equips on press; the strip and the canvas both announce the change.
+[0, 1, 2].forEach(i =>
+  onPress($('wslot' + i), () => {
+    equip(i);
+    wardWeaponSync();
+  })
+);
 
 $('rematchBtn').addEventListener('click', () => {
   if (isModal() || state.room === 0 || !encounter.complete) return;
@@ -22097,9 +23179,6 @@ $('rematchBtn').addEventListener('click', () => {
   else startEncounter();
 });
 
-$('useBtn').addEventListener('click', useItem);
-$('dashBtn').addEventListener('click', dash);
-$('cycleBtn').addEventListener('click', () => equip((state.item + 1) % 3));
 $('eatBtn').addEventListener('click', eat);
 $('hudEat').addEventListener('click', eat);
 
@@ -22156,6 +23235,7 @@ window.addEventListener('keydown', e => {
     openMap();
   }
   if (['1', '2', '3'].includes(k)) equip(+k - 1);
+  if (k === 'c') equip((state.item + 1) % 3);
   if (k === 'enter') {
     let [x, y] = rooms[state.room].station;
     if (dist(player, { x, y }) < 85) tryOpenArcade();
@@ -22188,8 +23268,56 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) loseFocus();
 });
 
-// A tap on the room resumes from pause; a tap on the beacon opens its arcade.
+// ---- Touch scheme: tap the room, or the joystick and buttons ----
+const CONTROL_NAMES = { tap: 'Tap the room', stick: 'Joystick' };
+
+function renderControls() {
+  const tap = tapScheme();
+  document.body.classList.toggle('tap-controls', tap);
+  document.body.classList.toggle('stick-controls', !tap);
+  $('pauseControls').textContent = 'Controls: ' + CONTROL_NAMES[state.controls];
+  $$('[data-controls]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.controls === state.controls)));
+}
+
+function setControlScheme(scheme) {
+  state.controls = scheme === 'stick' ? 'stick' : 'tap';
+  save();
+  clearHeld();
+  renderControls();
+  resize();
+}
+
+$('pauseControls').addEventListener('click', () => setControlScheme(tapScheme() ? 'stick' : 'tap'));
+$('controlsPick').addEventListener('click', e => {
+  const b = e.target.closest('[data-controls]');
+  if (b) setControlScheme(b.dataset.controls);
+});
+
+// Tap the room: a finger on the canvas walks, hits, dashes, jumps and uses the ability (world.js).
+// Mice keep the click below.
+function roomTouch(e) {
+  return e.pointerType !== 'mouse' && e.button <= 0 && tapScheme();
+}
+
+canvas.addEventListener('pointerdown', e => {
+  if (roomTouch(e) && wardTouchDown(e.pointerId, e.clientX, e.clientY, wardPoint(e))) pressStart(canvas, e);
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (wardTouches.has(e.pointerId)) wardTouchMove(e.pointerId, e.clientX, e.clientY, wardPoint(e));
+});
+
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+  canvas.addEventListener(type, e => wardTouchUp(e.pointerId, e.clientX, e.clientY, type !== 'pointerup'))
+);
+
+// A tap on the room resumes from pause; a tap on the beacon opens its arcade. A touch the room
+// already handled is not tapped twice.
 canvas.addEventListener('click', e => {
+  if (pressClick(canvas, e)) {
+    canvas.focus({ preventScroll: true });
+    return;
+  }
   if (state.paused) setWardPause(false);
   else if (state.started && !isModal() && e && e.clientX !== undefined && beaconTapped(wardPoint(e)))
     tryOpenArcade();
@@ -22197,8 +23325,8 @@ canvas.addEventListener('click', e => {
 });
 
 $('startBtn').addEventListener('click', () => {
-  // Phones go fullscreen on the first start unless the player already said no.
-  if (state.arcade === true || (state.arcade === null && isPhone())) enterArcade(true);
+  // Phones and tablets go fullscreen on the first start unless the player already said no.
+  if (state.arcade === true || (state.arcade === null && isTouchScreen())) enterArcade(true);
   begin();
 });
 
@@ -22252,7 +23380,8 @@ $('departmentGrid').addEventListener('click', e => {
   if (b) goRoom(+b.dataset.room);
 });
 
-$$('[data-item]').forEach(b => b.addEventListener('click', () => equip(+b.dataset.item)));
+// Sidebar weapon cards (the touch strip has its own press handlers above).
+$$('.item[data-item]').forEach(b => b.addEventListener('click', () => equip(+b.dataset.item)));
 
 $('saveName').addEventListener('click', () => {
   state.name = $('heroName').value.trim().slice(0, 18) || 'Macy';
@@ -22315,6 +23444,9 @@ function welcomeBack() {
 }
 
 new ResizeObserver(resize).observe($('stage'));
+// Turning the phone re-fits both canvases and flips an arcade run to its portrait canvas, if it has one.
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
 buildDepartments();
 setupIllustrations();
 loadRoom(0);
@@ -22322,10 +23454,11 @@ hud();
 equip(0);
 drawPortrait();
 uiRenderSound();
+renderControls();
 if (typeof audio !== 'undefined' && typeof audio.toggle !== 'function') audio.enabled = !!state.sound;
 if (state.played) welcomeBack();
-// A phone that chose arcade mode starts in it (CSS only until the first tap allows real fullscreen).
-if (state.arcade === true && isPhone()) enterArcade(false);
+// A phone or tablet that chose arcade mode starts in it (CSS only until a tap allows real fullscreen).
+if (state.arcade === true && isTouchScreen()) enterArcade(false);
 renderArcadeButtons();
 resize();
 checkDischarge();
