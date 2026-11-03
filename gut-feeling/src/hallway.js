@@ -61,7 +61,7 @@ const HALLWAY_ID = 6,
   HALLWAY_SHOP_X = 2570,
   HALLWAY_EXIT_X = 3100,
   HALLWAY_MAX_BOTTLES = 9,
-  // Where Macy actually is: Valley Hospital in Paramus, seventh floor, Room 5.
+  // Where Macy actually is: Valley Hospital in Paramus, seventh floor, Room 10 (she was in Room 5 at first).
   HALLWAY_FLOOR = '7',
   HALLWAY_STRIPE = 'VALLEY · 7F · PEDIATRICS',
   HALLWAY_STRIPE_X = [400, 1300, 2200],
@@ -77,7 +77,7 @@ const HALLWAY_ID = 6,
 
 // Doors along the back wall. The night version of Macy's room uses the same door: it is still her room.
 const HALLWAY_DOORS = [
-  { room: 0, x: 600, name: 'Your room', plate: 'ROOM 5' },
+  { room: 0, x: 600, name: 'Your room', plate: 'ROOM 10' },
   { room: 1, x: 1080, name: 'MRI', plate: 'MRI' },
   { room: 2, x: 1560, name: 'Family lounge', plate: 'FAMILY LOUNGE', double: true },
   { room: 3, x: 2010, name: 'CT scan', plate: 'CT SCAN' },

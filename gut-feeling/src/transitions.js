@@ -12,7 +12,10 @@ function lesson() {
 
 // Each game (and each IV phase) gets the full briefing once; after that a short GO card.
 // The recovery has its own briefing, apart from the room's arcade.
+// A game may name its own briefing key (the recovery keys on which of its two phases is playing).
 function briefKey() {
+  const def = miniGame();
+  if (def && typeof def.briefKey === 'function') return def.briefKey();
   return (mini.forced && games.recovery ? 'recovery' : mini.id) + ':' + (mini.phase || 0);
 }
 

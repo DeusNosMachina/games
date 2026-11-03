@@ -622,11 +622,8 @@ for (let last = 0; last < 4; last++) {
   assert.equal(plan.level, last, `the recovery follows the last run: level ${last + 1}`);
   assert.ok([0, 1].includes(plan.phase), 'the pump or the pressure');
   assert.equal(plan.count, 2);
-  // openMini still clamps a forced run's level at 2, so the Legendary lobby waits on the framework.
-  if (last < 3) {
-    assert.equal(run('mini.tier'), last, `the recovery lobby shows level ${last + 1}`);
-    assert.match(nodes.tierGrid.innerHTML, new RegExp(`tier-card selected" data-tier="${last}" >`), 'that level is the one on offer');
-  }
+  assert.equal(run('mini.tier'), last, `the recovery lobby shows level ${last + 1}`);
+  assert.match(nodes.tierGrid.innerHTML, new RegExp(`tier-card selected( legendary)?" data-tier="${last}" >`), 'that level is the one on offer');
   run('mini.forced=false');
   close();
 }

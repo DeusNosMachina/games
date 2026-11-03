@@ -274,7 +274,7 @@ function miniScene(g, id, w, h) {
   def.scene(g, w, h);
 }
 
-const MINI_RECOVERY_LINE = 'Land eight drips to get out of bed. Pop, and you can try again or get patched up for coins.';
+const MINI_RECOVERY_LINE = 'One IV gets you out of bed. Pop, and you can try again or get patched up for coins.';
 
 // The definition the current run uses. A forced recovery runs the game registered as `recovery`
 // (games/iv.js) in place of the room's own arcade, when one is registered.
@@ -304,10 +304,16 @@ function dischargeMissing() {
 function openMini(id, forced = false) {
   clearHeld();
   if ($('mapDialog').open) $('mapDialog').close();
-  // A forced recovery runs the level games/iv.js plans for this collapse (it climbs with each one).
+  // A forced recovery runs the phase and level games/iv.js plans for this collapse (the level of her last run).
   const plan = forced && typeof ivRecoveryPlan === 'function' ? ivRecoveryPlan() : null;
   let next = state.medals[id].findIndex(m => !m),
-    tier = forced ? (plan ? clamp(Math.floor(plan.level) || 0, 0, 2) : 0) : next < 0 ? 2 : next;
+    tier = forced
+      ? plan
+        ? clamp(Math.floor(plan.level) || 0, 0, miniTierCount(games.recovery || games[id]) - 1)
+        : 0
+      : next < 0
+        ? 2
+        : next;
   ceremonyStop();
   mini = {
     open: true,
@@ -386,7 +392,7 @@ function showLobby() {
       : 'Let’s make poor decisions →';
   $('miniRewardInfo').textContent = mini.forced ? MINI_RECOVERY_LINE : '';
   $('miniBest').textContent = mini.forced
-    ? 'No medals in bed. Just land the drips.'
+    ? 'No medals in bed. Just get out of it.'
     : 'Best here: ' + (state.records[mini.id][mini.tier] || 'nothing yet') + '.';
   $('miniDifficulty').textContent = 'Chaos prescription: ' + cfg().name + ' ↗';
   miniScene($('miniPreview').getContext('2d'), mini.id, 420, 240);

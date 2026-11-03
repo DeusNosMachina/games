@@ -1,5 +1,5 @@
 // Hospital map (src/map.js): layouts per aspect, drawing in every state, the Valley Hospital floor 7
-// signage (header, corridor, elevator chip, Room 5), every arcade's name and medal dots on its room's
+// signage (header, corridor, elevator chip, Room 10), every arcade's name and medal dots on its room's
 // plate (tap to play), her room by day and after dark (LIGHTS OUT / LIGHTS ON), hit testing, the locked
 // and cleared ward markers, the exit that explains itself, the restroom that knocks back, mounting into
 // a stub element, and every map action.
@@ -75,7 +75,7 @@ for (const [w, h, kind] of SIZES) {
 }
 console.log('PASS: 900x560, 390x600 and 800x360 pick wide, portrait and strip layouts and draw them.');
 
-// Valley Hospital, seventh floor, Room 5: the header, the corridor stripe, the elevator chip, her plate.
+// Valley Hospital, seventh floor, Room 10: the header, the corridor stripe, the elevator chip, her plate.
 const mapSrc = fs.readFileSync(path.join(__dirname, '../src/map.js'), 'utf8');
 for (const old of ['4F', 'FLOOR 4', 'floor 4', 'fourth', 'Fourth', '412']) assert.ok(!mapSrc.includes(old), `map.js no longer says ${old}`);
 assert.equal(run('HOSPITAL_MAP_COPY.header'), 'VALLEY HOSPITAL · FLOOR 7');
@@ -90,7 +90,7 @@ for (const [w, h, kind] of SIZES) {
   const texts = run(`hmBase(${w}, ${h}).concat(hmDraw(${w}, ${h}))`);
   assert.ok(texts.includes('VALLEY · 7F · PEDIATRICS'), `${kind} corridor says where we are`);
   assert.ok(texts.includes('7'), `${kind} elevator chip shows 7`);
-  assert.ok(texts.includes('ROOM 5'), `${kind} Macy's plate says Room 5`);
+  assert.ok(texts.includes('ROOM 10'), `${kind} Macy's plate says Room 10`);
   for (const gone of ['4', 'GUT WING · 4F', '4F', 'FLOOR 4']) assert.ok(!texts.includes(gone), `${kind} has no ${gone}`);
 }
 // The longer stripe still fits in the corridor between the elevator and the Daily Dose poster.
@@ -104,7 +104,7 @@ for (const [w, h, kind] of [...SIZES, [322, 537, 'portrait'], [300, 500, 'portra
   })()`);
   assert.ok(fit.from > fit.after && fit.to < fit.before, `${kind} ${w}x${h}: the corridor stripe fits (${JSON.stringify(fit)})`);
 }
-assert.match(run('hospitalMapButtonsHtml()'), /Your room \(Room 5\)\./, 'the hidden list says Room 5 too');
+assert.match(run('hospitalMapButtonsHtml()'), /Your room \(Room 10\)\./, 'the hidden list says Room 10 too');
 // The header line goes into the dialog's kicker: through closest('dialog') when the element has it,
 // else #mapDialog.
 run(`var hmKicker = { textContent: 'Gut wing · floor 4' };
@@ -114,14 +114,14 @@ assert.equal(run('hmKicker.textContent'), 'VALLEY HOSPITAL · FLOOR 7', 'the hea
 run('hospitalMapHeader({})');
 assert.equal(nodes.mapDialogchild.textContent, 'VALLEY HOSPITAL · FLOOR 7', 'or #mapDialog');
 assert.equal(run('hospitalMapHeader(null) !== undefined'), true, 'and is safe without an element');
-console.log('PASS: VALLEY HOSPITAL · FLOOR 7 in the header, the 7F stripe, a 7 on the elevator and ROOM 5 on her plate.');
+console.log('PASS: VALLEY HOSPITAL · FLOOR 7 in the header, the 7F stripe, a 7 on the elevator and ROOM 10 on her plate.');
 
 // Every room's plate: its name, then its arcade's name with one medal dot per level (four, Legendary
 // included), in every layout. Her room carries both arcades: Fastpitch Fever by day, Bedside Blaster
 // after dark under the moon.
 const copy0 = J('hospitalMapPlaceCopy(hospitalMapLayout(900, 560).places.find(p => p.id === 0))');
 assert.equal(copy0.name, 'Your room');
-assert.equal(copy0.tag, 'ROOM 5');
+assert.equal(copy0.tag, 'ROOM 10');
 assert.deepEqual(copy0.arcades.map(a => [a.id, a.text, a.glyph]), [
   [0, 'Fastpitch Fever', 'play'],
   [5, 'Bedside Blaster · after dark', 'moon']

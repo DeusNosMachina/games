@@ -308,8 +308,8 @@ const HOSPITAL_MAP_COPY = {
   shop: 'Gift shop',
   floor: 'VALLEY · 7F · PEDIATRICS',
   lift: '7',
-  // Macy's room is Room 5: its plate says so next to the name when there is room.
-  home: 'ROOM 5',
+  // Macy's room is Room 10: its plate says so next to the name when there is room.
+  home: 'ROOM 10',
   // Her room's second arcade line, under the moon.
   night: ' · after dark',
   lightsOut: 'LIGHTS OUT',
@@ -693,7 +693,7 @@ function hospitalMapWalls(L) {
 }
 
 // ---- Name plates ----
-// What a plate says. A room: its name (her room adds ROOM 5, and goes "after dark" at night), then
+// What a plate says. A room: its name (her room adds ROOM 10, and goes "after dark" at night), then
 // each arcade in it with a glyph (play, padlock, or the moon for the night shift) and its medals.
 // Her room has two: Fastpitch Fever by day, Bedside Blaster after dark. Other places: name and a line.
 function hospitalMapPlaceCopy(place) {
@@ -2230,7 +2230,7 @@ function hospitalMapTargets() {
   for (const r of rooms) {
     if (r.noArcade || r.id === 5 || r.id >= ARCADE_COUNT) continue;
     const info = hospitalMapRoomState(r.id);
-    let text = r.id === 0 ? `${r.name} (Room 5).` : `${r.name}.`;
+    let text = r.id === 0 ? `${r.name} (Room 10).` : `${r.name}.`;
     if (info.here) text += cur === 5 ? ' You are here, after dark.' : ' You are here.';
     if (info.grudge) text += ` Grudge level ${info.grudge}.`;
     out.push({ key: 'room:' + r.id, label: `${text} Go there.` });

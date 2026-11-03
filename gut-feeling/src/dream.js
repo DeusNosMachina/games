@@ -977,7 +977,7 @@ function dreamHallway(g, sw, t, v, dur, full) {
     dreamCrayon(g, [[x0, y0], [x1, y1]], '#4b6760', 4, x0 + y0, t);
   // The sign, swinging from the ceiling.
   const ui = Math.min(dreamView.ui, 1.4),
-    title = 'ROOM 5 · 5 MILES',
+    title = 'ROOM 10 · 10 MILES',
     size = Math.min(30 * ui, (sw - 80) / (title.length * 0.62)),
     sub = v.sub,
     subSize = Math.min(13 * ui, (sw - 80) / (sub.length * 0.6)),

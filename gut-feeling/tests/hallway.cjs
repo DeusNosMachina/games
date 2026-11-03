@@ -15,7 +15,7 @@ assert.ok(!/Math\.random/.test(src), 'hallway.js uses rand() and pick(), never M
 assert.equal(run('JSON.stringify(HALLWAY_LINES).includes("\\u2014")'), false, 'no em dashes in the dialogue');
 console.log('PASS: no Math.random in hallway.js and no em dashes in what anyone says.');
 
-// ---- Names and signage: Mimi and Dodo, Valley Hospital, seventh floor, Room 5 ----
+// ---- Names and signage: Mimi and Dodo, Valley Hospital, seventh floor, Room 10 ----
 // The 'grandma' and 'grandpa' voice ids belong to audio.js; nothing anyone sees or reads says Grandma.
 assert.ok(!/Grand(ma|pa)|grand(mother|father)/.test(src), 'no Grandma, Grandpa, grandmother or grandfather in hallway.js');
 for (const old of ['412', '409', '4F', 'FLOOR 4', 'FOURTH', 'fourth', 'Fourth'])
@@ -40,7 +40,7 @@ assert.ok(run('JSON.stringify(HALLWAY_LINES.dodo.talks).includes("Mimi")'), 'Dod
 assert.ok(run('JSON.stringify(HALLWAY_LINES.norah.talks).includes("Mimi tried")'), 'Norah tells on Mimi');
 assert.ok(run('HALLWAY_DAD_CHEERS.some(t => t.startsWith("Mimi has told"))'), 'Dad brags about Mimi bragging');
 assert.ok(run('HALLWAY_DAD_GROANS.includes("Dodo told it better.")'), 'Macy says Dodo told it better');
-assert.equal(run('HALLWAY_DOORS.find(d => d.room === 0).plate'), 'ROOM 5', "Macy's door is Room 5");
+assert.equal(run('HALLWAY_DOORS.find(d => d.room === 0).plate'), 'ROOM 10', "Macy's door is Room 10");
 assert.match(run('rooms[6].sub'), /^SEVENTH FLOOR/);
 // Any TV on the floor is the lounge's 75-inch.
 const tvLines = JSON.parse(
@@ -64,12 +64,12 @@ run(`var signLog = [];
   hallwayRoomBg(signCtx);
   roomProps[6].forEach(p => p.draw(signCtx));`);
 const signs = JSON.parse(run('JSON.stringify(signLog)'));
-for (const want of ['ROOM 5', '7', 'FLOOR', 'VALLEY · 7F · PEDIATRICS', 'VALLEY HOSPITAL', 'PARAMUS · 7TH FLOOR', "NURSES’ STATION"])
+for (const want of ['ROOM 10', '7', 'FLOOR', 'VALLEY · 7F · PEDIATRICS', 'VALLEY HOSPITAL', 'PARAMUS · 7TH FLOOR', "NURSES’ STATION"])
   assert.ok(signs.includes(want), `the corridor shows ${want}`);
 assert.equal(signs.filter(t => t === 'VALLEY · 7F · PEDIATRICS').length, 3, 'the wall stripe repeats about once a screen');
 for (const gone of ['ROOM 412', '4', '4F', 'FLOOR 4']) assert.ok(!signs.includes(gone), `no ${gone} on the walls`);
 assert.ok(!signs.some(t => /412|4F|FLOOR 4|FOURTH/.test(t)));
-console.log('PASS: Mimi and Dodo by name everywhere; ROOM 5, the 7 in the elevator, the Valley Hospital stripe and plaque.');
+console.log('PASS: Mimi and Dodo by name everywhere; ROOM 10, the 7 in the elevator, the Valley Hospital stripe and plaque.');
 
 // ---- Install ----
 run('hallwayInstall(); hallwayInstall()');

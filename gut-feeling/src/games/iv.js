@@ -338,8 +338,13 @@ const IV = registerGame({
     const words = IV_WORDS.filter(w => w !== ivLastWord);
     mini.ivWord = pick(words);
     ivLastWord = mini.ivWord;
-    ivBriefMirror();
     ivSetup();
+  },
+  // Each phase gets its full briefing once. A save from before the pressure phase returned was only ever
+  // briefed on the pump, under the shared key.
+  briefKey() {
+    if (mini.ivPhase === IV_PRESSURE) return 'recovery:pressure';
+    return state.briefed.includes('recovery:0') && !state.briefed.includes('recovery:pump') ? 'recovery:0' : 'recovery:pump';
   },
   controls() {
     if (mini.ivPhase === IV_PRESSURE) setControls([{ id: 'hold', text: 'HOLD TO PUMP', key: 'Space', hot: true }]);
@@ -711,24 +716,6 @@ function ivRecoveryStart() {
     save();
   }
   return { ...ivRecovery };
-}
-
-// The framework keys the full briefing on mini.phase, which stays 0 because a recovery is one phase. Each
-// of the two phases still gets its own full briefing once: 'recovery:pump' and 'recovery:pressure' say
-// which ones she has seen, and the drawn phase's answer is mirrored into 'recovery:0' before the framework
-// reads it.
-function ivBriefMirror() {
-  const shared = 'recovery:0',
-    own = mini.ivPhase === IV_PRESSURE ? 'recovery:pressure' : 'recovery:pump',
-    seenList = state.briefed;
-  // A save from before the pressure phase returned has only ever been briefed on the pump.
-  if (seenList.includes(shared) && !seenList.includes('recovery:pump') && !seenList.includes('recovery:pressure'))
-    seenList.push('recovery:pump');
-  const seen = seenList.includes(own),
-    at = seenList.indexOf(shared);
-  if (seen && at < 0) seenList.push(shared);
-  if (!seen && at >= 0) seenList.splice(at, 1);
-  if (!seen) seenList.push(own);
 }
 
 // What getting patched up costs right now: a share of her coins, rounded down, never below zero.
