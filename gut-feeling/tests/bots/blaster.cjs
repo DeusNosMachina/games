@@ -1,5 +1,6 @@
-// Bedside Blaster controller: taps the most urgent gremlin's head (leading crawlers a little), drags
-// the room when the target is off-screen, hits the green on every reload, and shoots juice when low.
+// Bedside Blaster controller: taps the most urgent gremlin's head (leading crawlers a little), taps the
+// edge arrow (or slides into the edge band) when the target is off-screen, hits the green on every
+// reload, and shoots juice when low.
 module.exports = {id: 5, policy: `
 if (mini.reload > 0) {
   const w = blasterReloadWindow();
@@ -16,18 +17,39 @@ let e = live[0];
 const bottle = mini.targets.find(b => b.kind === 'bottle');
 if ((!e || urgency(e) < 3) && bottle && mini.ammo <= 4) e = bottle;
 if (!e) {
+  if (bot.look) {
+    bot.look = false;
+    arcadeUp();
+  }
   if (mini.ammo < 4) miniAction('reload');
   return;
 }
 const p = shooterProjection(e), s = p.s, lead = e.mode === 'crawl' ? 0.1 : 0;
 const ax = e.kind === 'bottle' ? p.x : e.kind === 'boss' ? p.x + 2 * s : p.x + s + (e.vx || 0) * lead;
 const ay = e.kind === 'bottle' ? p.y : e.kind === 'boss' ? p.y + 17 * s : p.y + 2 * s + (e.vy || 0) * lead;
-if (ax < 30 || ax > 570 || ay < 60 || ay > 540) {
-  const r = e.r || 1;
-  arcadeDown({x: 300, y: 300});
-  arcadeMove({x: 300 + clamp((ax - 300) / r / 1.8, -280, 280), y: 300 + clamp((ay - 290) / r / 1.1, -200, 200)});
+// Off-screen: slide a finger into the edge band and hold it there until the gremlin scrolls in, then
+// lift (a lift while the room still scrolls is only a look).
+const off = ax < 30 || ax > 570 || ay < 60 || ay > 540;
+if (bot.look) {
+  if (off) return;
+  bot.look = false;
   arcadeUp();
-  bot.wait = mini.total + 0.15;
+  return;
+}
+// Past the edge: tap its arrow, which turns the room to face it.
+if (ax < 0 || ax > 600) {
+  const a = blasterArrows().find(q => q.side === (ax < 0 ? -1 : 1));
+  if (a) {
+    arcadeDown({x: a.x + 30, y: a.y});
+    arcadeUp();
+    bot.wait = mini.total + 0.15;
+    return;
+  }
+}
+if (off) {
+  bot.look = true;
+  arcadeDown({x: 300, y: 300});
+  arcadeMove({x: ax < 30 ? 2 : ax > 570 ? 598 : 300, y: ay < 60 ? 2 : ay > 540 ? 598 : 300});
   return;
 }
 arcadeDown({x: ax, y: ay});

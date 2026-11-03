@@ -5,8 +5,9 @@
 // they misjudge by about a fifth (never past the furniture a gremlin is climbing onto), and tap at the
 // head with a fingertip's scatter that grows with the reach. They do not see a shot land until the delay
 // catches up, so a gremlin they just shot is left alone for a beat, except armor, which gets a quick
-// double tap. They stay with what is in view and swipe toward an edge arrow when it turns red or the
-// view goes quiet. They reload late: when the magazine runs dry, or with one charge left and nothing
+// double tap. They stay with what is in view and tap an edge arrow when it turns red or the view goes
+// quiet (or, for something just past the top or bottom, slide into the edge band and lift a beat after
+// it scrolls in). They reload late: when the magazine runs dry, or with one charge left and nothing
 // to shoot, and press for the green on a slightly late, shaky thumb. Juice gets shot when charges run
 // low. No charged shots, and no assists unless ASSIST=1. The bot wins everything by design; this says
 // whether a person can.
@@ -29,7 +30,7 @@ run(`
 var hu = null;
 function huReset(seed) {
   let s = seed >>> 0;
-  hu = { hist: [], plan: null, busy: 0, sent: {}, taps: {}, finger: { x: 300, y: 430 }, reloadAt: -1,
+  hu = { hist: [], plan: null, look: null, busy: 0, sent: {}, taps: {}, finger: { x: 300, y: 430 }, reloadAt: -1,
     rnd: () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; } };
   hu.gauss = () => { let u = 0; for (let i = 0; i < 6; i++) u += hu.rnd(); return (u - 3) / Math.sqrt(0.5); };
 }
@@ -56,6 +57,19 @@ function huTick(R, assist) {
   let i = hu.hist.length - 1;
   while (i > 0 && hu.hist[i].t > now - R) i--;
   const seen = hu.hist[i], before = hu.hist[0], span = Math.max(0.016, seen.t - before.t);
+  // Looking around: the finger sits in the edge band while the room scrolls. They lift a beat after
+  // they see the gremlin come in (or give up on it), and a lift while the room scrolls never fires.
+  if (hu.look) {
+    const L = hu.look, o = seen.list.find(q => q.id === L.id), p = o && blasterProjectAt(o, o.leap);
+    if (!p || (p.x > 150 && p.x < 450 && p.y > 60 && p.y < 560))
+      L.liftAt = Math.min(L.liftAt, now + 0.06 + hu.rnd() * 0.05);
+    if (now >= L.liftAt) {
+      arcadeUp();
+      hu.look = null;
+      hu.busy = now + 0.04;
+    }
+    return;
+  }
   // The reload: a predictable bar, so no reaction delay, just a late and shaky thumb.
   if (mini.reload > 0) {
     if (hu.reloadAt < 0) {
@@ -71,11 +85,20 @@ function huTick(R, assist) {
     if (now < hu.plan.at) return;
     const P = hu.plan;
     hu.plan = null;
-    if (P.drag) {
-      arcadeDown({ x: 300, y: 300 });
-      arcadeMove({ x: 300 + P.dx, y: 300 + P.dy });
+    if (P.arrow) {
+      const a = blasterArrows().find(q => q.side === P.side);
+      if (!a) return;
+      const x = a.x + 30 + hu.gauss() * 6, y = a.y + hu.gauss() * 6;
+      arcadeDown({ x, y });
       arcadeUp();
-      hu.busy = now + 0.08 + Math.abs(P.dx) / 2400;
+      hu.finger = { x, y };
+      hu.busy = now + 0.15;
+      return;
+    }
+    if (P.look) {
+      arcadeDown({ x: hu.finger.x, y: hu.finger.y });
+      arcadeMove({ x: P.x, y: P.y });
+      hu.look = { id: P.id, liftAt: now + P.hold };
       return;
     }
     arcadeDown({ x: P.x, y: P.y });
@@ -121,12 +144,22 @@ function huTick(R, assist) {
   }
   const o = c.o, p = c.p, s = p.s;
   if (!c.on) {
-    // Swipe toward the arrow, enough to bring the gremlin in from that edge.
-    const r = o.r || 1, k = 1 + hu.gauss() * 0.2, goal = p.x < 0 ? 170 : p.x > 600 ? 430 : 300;
-    let dx = clamp(((p.x - goal) / r / 1.8) * k, -280, 280),
-      dy = p.y < 40 || p.y > 588 ? clamp(((p.y - 300) / r / 1.1) * k, -200, 200) : 0;
-    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) dx = p.x < 300 ? -20 : 20;
-    hu.plan = { drag: true, at: now + 0.1, dx, dy };
+    // Past the edge: tap its arrow, which turns the room to face it.
+    if (p.x < 0 || p.x > 600) {
+      hu.plan = { arrow: true, side: p.x < 0 ? -1 : 1, at: now + 0.1 };
+      return;
+    }
+    // Just past the top or bottom, or a sliver past a side: slide into the edge band (not quite all the
+    // way) and hold about as long as the turn should take (a fifth either way), lifting early if the
+    // gremlin shows up first.
+    const depth = 4 + hu.rnd() * 12, r = o.r || 1, goal = p.x < 0 ? 170 : p.x > 600 ? 430 : 300,
+      x = p.x < 12 ? depth : p.x > 588 ? 600 - depth : clamp(hu.finger.x, 120, 480),
+      y = p.y < 40 ? depth : p.y > 588 ? 600 - depth : clamp(hu.finger.y, 120, 480),
+      edge = blasterEdge(x, y),
+      tx = edge.x ? Math.abs((p.x - goal) / r / (edge.x * BLASTER_EDGE_YAW)) : 0,
+      ty = edge.y ? Math.abs((p.y - 300) / r / (edge.y * BLASTER_EDGE_PITCH)) : 0;
+    hu.plan = { look: true, id: o.id, at: now + 0.1, x, y,
+      hold: Math.max(0.05, Math.max(tx, ty) * (1 + hu.gauss() * 0.2)) };
     return;
   }
   // A peeking head gets a tap where it pops up and a crouched one where it sits; a crawler gets led by

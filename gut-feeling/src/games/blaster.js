@@ -1,6 +1,7 @@
 // Bedside Blaster (your room, after dark). Macy sits up in bed with a toy blaster and a flashlight
-// while gremlins crawl out from behind the furniture. Tap or click where the shot should land, drag
-// to look around a three-layer room, and splat everything before it lands on your face.
+// while gremlins crawl out from behind the furniture. Tap or click where the shot should land, slide
+// the sight to an edge (or tap an edge arrow) to look around a three-layer room, and splat everything
+// before it lands on your face. An optional thumbstick steers the sight for anyone who wants one.
 // Canvas 600 × 600.
 const BLASTER = registerGame({
   id: 5,
@@ -14,10 +15,10 @@ const BLASTER = registerGame({
       'Lights out, gremlins in. Sweep a flashlight across your dark room, tap whatever moves and splat it before it lands on your face. Seven charges, one pump, zero chill.',
     goal: 'Survive three night watches and hit the eviction quota.',
     control:
-      'Tap a gremlin to shoot it. Drag to look around. Hold still, then let go, for a piercing shot. Mouse: the sight follows the pointer, click fires, right-drag or Shift-drag looks around. Space fires, R reloads, arrows look.',
+      'Tap a gremlin to shoot it, or slide your finger and the sight rides along: let go to shoot. Tap an edge arrow, or slide to the edge, to look around. Hold still before you let go for a piercing shot. Tap STICK for a thumbstick. Mouse: the sight follows the pointer, click fires, right-drag or Shift-drag looks around. Space fires, R reloads, arrows look.',
     avoid:
       'Glowing eyes mean company. An orange ring means it is about to jump at your face. Bedpan helmets pop off with a headshot, bruisers shrug off body shots, and pouncers barely wait. Reload in the green for a hot magazine.',
-    cue: 'Tap to shoot · drag to look · hold and let go to pierce · R in the green · E stun'
+    cue: 'Tap or slide, let go to shoot · arrows and edges look · hold to pierce · R in the green · E stun'
   },
   tierNotes: [
     '105s · one at a time · hints on · slow crawlers',
@@ -45,7 +46,9 @@ const BLASTER = registerGame({
   draw(g) {
     drawShooter(g);
   },
-  // Canvas presses. Touch: a tap fires where it lands, a drag looks around, a still hold charges.
+  // Canvas presses. Touch: a tap fires where it lands, a slide carries the sight and fires on release
+  // (the edges scroll the room), an edge arrow turns to face its gremlin, a held finger charges, the
+  // chip shows or hides the stick, and the stick steers when it is shown.
   // Mouse: the left button aims and fires at the pointer, the right button or Shift drags the room.
   down(p) {
     const meta = blasterPointerMeta;
@@ -278,7 +281,14 @@ const BLASTER_MAGAZINE = 7,
   BLASTER_BEAM = 12, // half-width of the piercing beam
   BLASTER_YAW = [300, 1500],
   BLASTER_PITCH = [190, 320],
-  BLASTER_GUN = { x: 452, y: 662, reach: 224 };
+  BLASTER_GUN = { x: 452, y: 662, reach: 224 },
+  // Touch aiming: a sliding finger carries the sight, and inside this band the room scrolls that way.
+  BLASTER_EDGE = 70,
+  BLASTER_EDGE_YAW = 2200, // yaw per second with the finger on the very edge
+  BLASTER_EDGE_PITCH = 320,
+  // The thumbstick (an option, remembered in state.stats.blasterStick) and its show/hide chip.
+  BLASTER_STICK = { x: 76, y: 452, r: 48, grab: 66, speed: 760, dead: 0.15 },
+  BLASTER_CHIP = { x: 222, y: 544, w: 76, h: 42 };
 
 // Parallax layers: screen x = layer x - 600 + rate × (900 - yaw). Scale sizes what lives there.
 const BLASTER_LAYERS = {
@@ -984,10 +994,104 @@ function blasterAimAt(x, y, dur) {
   mini.sweep = { fx: mini.sight.x, fy: mini.sight.y, tx: x, ty: y, t: 0, dur };
 }
 
+// The stick is a touch option: it shows when she turned it on and the last press was a finger.
+function blasterStickShown() {
+  return !!(state.stats && state.stats.blasterStick === 1) && !mini.blasterMouse;
+}
+
+function blasterInStick(p) {
+  return Math.hypot(p.x - BLASTER_STICK.x, p.y - BLASTER_STICK.y) <= BLASTER_STICK.grab;
+}
+
+function blasterInChip(p) {
+  const c = BLASTER_CHIP;
+  return p.x >= c.x - 6 && p.x <= c.x + c.w + 6 && p.y >= c.y - 6 && p.y <= c.y + c.h + 6;
+}
+
+function blasterToggleStick() {
+  const on = !(state.stats && state.stats.blasterStick === 1);
+  (state.stats ||= {}).blasterStick = on ? 1 : 0;
+  save();
+  sfx('ui');
+  mini.flash = 1;
+  mini.flashText = on ? 'THUMBSTICK ON · FIRE ON THE BUTTON' : 'THUMBSTICK OFF · YOUR FINGER IS THE SIGHT';
+}
+
+// How deep a point sits in the scroll band on each axis, -1 (left or top) to 1 (right or bottom).
+function blasterEdge(x, y) {
+  const E = BLASTER_EDGE,
+    d = v => (v <= 0 ? 0 : Math.min(1, v) ** 1.6);
+  return { x: d((x - (600 - E)) / E) - d((E - x) / E), y: d((y - (600 - E)) / E) - d((E - y) / E) };
+}
+
+// The edge arrows: one per side with gremlins past it, at their average height.
+function blasterArrows() {
+  const out = [];
+  for (const side of [-1, 1]) {
+    const off = mini.targets.filter(e => {
+      if (!BLASTER_KINDS[e.kind] || e.mode === 'dying') return false;
+      const x = shooterProjection(e).x;
+      return side < 0 ? x < 0 : x > 600;
+    });
+    if (!off.length) continue;
+    out.push({
+      side,
+      off,
+      danger: off.some(e => e.mode === 'wind' || e.mode === 'leap' || e.kind === 'boss'),
+      x: side < 0 ? 8 : 532,
+      y: clamp(off.reduce((a, e) => a + shooterProjection(e).y, 0) / off.length, 150, 440)
+    });
+  }
+  return out;
+}
+
+// A finger on an edge arrow turns to face what it points at: the jumpiest first, then the nearest.
+function blasterArrowAt(p) {
+  return blasterArrows().find(a => p.x >= a.x - 8 && p.x <= a.x + 68 && p.y >= a.y - 38 && p.y <= a.y + 38);
+}
+
+function blasterFollowArrow(a) {
+  const rank = e =>
+      (e.mode === 'leap' ? 3 : e.mode === 'wind' || e.kind === 'boss' ? 2 : 0) -
+      Math.abs(shooterProjection(e).x - 300) / 2000,
+    e = a.off.slice().sort((u, v) => rank(v) - rank(u))[0],
+    p = shooterProjection(e),
+    r = e.r || 1;
+  blasterPan((p.x - (a.side < 0 ? 170 : 430)) / r, p.y < 60 || p.y > 560 ? (p.y - 300) / r : 0);
+  mini.blasterPanned = true;
+}
+
 function blasterPressStart(id, p, how) {
-  mini.blasterMouse = how !== 'touch';
-  mini.blasterPresses[id] = { sx: p.x, sy: p.y, lastX: p.x, lastY: p.y, t: 0, how, moved: false, hold: false };
+  // The chip and the arrows give way to a gremlin in view that is right under the finger.
+  const finger = how === 'touch' && !mini.blasterMouse,
+    clear = () => !blasterHitsAt(p.x, p.y).some(h => h.e.kind !== 'bottle'),
+    arrow = how === 'touch' ? blasterArrowAt(p) : null;
+  if (finger && blasterInChip(p) && clear()) {
+    blasterToggleStick();
+    how = 'chip';
+  }
+  // A thumb on the stick's corner grabs it even right after a mouse hid it (a tablet with a trackpad).
+  else if (how === 'touch' && state.stats && state.stats.blasterStick === 1 && blasterInStick(p)) how = 'stick';
+  else if (arrow && clear()) {
+    blasterFollowArrow(arrow);
+    how = 'arrow';
+  }
+  mini.blasterMouse = how === 'aim' || how === 'pan';
+  const b = { sx: p.x, sy: p.y, lastX: p.x, lastY: p.y, t: 0, how, moved: false, hold: false, scrolled: false };
+  b.kx = b.ky = 0;
+  mini.blasterPresses[id] = b;
   if (how === 'aim') blasterAimAt(p.x, p.y, 0);
+  if (how === 'stick') blasterStickAt(b, p);
+}
+
+function blasterStickAt(b, p) {
+  const S = BLASTER_STICK,
+    dx = p.x - S.x,
+    dy = p.y - S.y,
+    d = Math.hypot(dx, dy),
+    k = d > S.r ? S.r / d : 1;
+  b.kx = (dx * k) / S.r;
+  b.ky = (dy * k) / S.r;
 }
 
 function blasterPressMove(id, p) {
@@ -1001,23 +1105,38 @@ function blasterPressMove(id, p) {
     blasterAimAt(p.x, p.y, 0);
     return;
   }
-  if (b.how === 'touch' && !b.moved) {
+  if (b.how === 'stick') {
+    blasterStickAt(b, p);
+    return;
+  }
+  if (b.how === 'pan') {
+    blasterPan(dx * 1.8, dy * 1.1);
+    mini.blasterPanned = true;
+    return;
+  }
+  if (b.how !== 'touch') return;
+  // A finger that slides carries the sight with it, anywhere in the room, and keeps its charge.
+  if (!b.moved) {
     if (Math.hypot(p.x - b.sx, p.y - b.sy) <= BLASTER_SLOP) return;
     b.moved = true;
-    b.hold = false;
   }
-  blasterPan(dx * 1.8, dy * 1.1);
-  mini.blasterPanned = true;
+  blasterAimAt(p.x, p.y, 0);
 }
 
 function blasterPressEnd(id, cancel) {
   const b = mini.blasterPresses && mini.blasterPresses[id];
   if (!b) return;
   delete mini.blasterPresses[id];
-  if (cancel || b.moved || b.how === 'pan' || mini.screen !== 'play' || mini.paused) return;
+  if (cancel || b.how === 'pan' || b.how === 'stick' || b.how === 'chip' || b.how === 'arrow') return;
+  if (mini.screen !== 'play' || mini.paused) return;
   const charged = b.t >= BLASTER_CHARGE;
   if (b.how === 'aim') blasterQueueShot(mini.sight.x, mini.sight.y, charged);
-  else blasterQueueShot(b.sx, b.sy, charged);
+  // Let go of a slide to shoot where the sight sits. Letting go in the edge band after it scrolled the
+  // room was a look, not a shot.
+  else if (b.moved) {
+    const edge = blasterEdge(b.lastX, b.lastY);
+    if (!(b.scrolled && (edge.x || edge.y))) blasterQueueShot(b.lastX, b.lastY, charged);
+  } else blasterQueueShot(b.sx, b.sy, charged);
 }
 
 // A tap sweeps the sight to the spot, then the shot resolves against whatever is under it.
@@ -1074,7 +1193,7 @@ function blasterHover(p) {
 function blasterChargeLevel() {
   let t = mini.blasterTrigger ? mini.blasterTrigger.t : 0;
   for (const b of Object.values(mini.blasterPresses || {}))
-    if (!b.moved && (b.how === 'aim' || b.hold)) t = Math.max(t, b.t);
+    if (b.how === 'aim' || (b.how === 'touch' && (b.hold || b.moved))) t = Math.max(t, b.t);
   return t < 0.15 ? 0 : clamp(t / BLASTER_CHARGE, 0, 1);
 }
 
@@ -1159,6 +1278,20 @@ function blasterUpdateLook(dt) {
     if (y < 90) dpitch -= ((90 - y) / 90) * 220 * dt;
     if (y > 540) dpitch += ((y - 540) / 60) * 220 * dt;
   }
+  // Touch play: a sliding finger or the stick scrolls the room while the sight is in the edge band.
+  const drivers = Object.values(mini.blasterPresses).filter(
+    b => (b.how === 'touch' && b.moved) || (b.how === 'stick' && Math.hypot(b.kx, b.ky) > BLASTER_STICK.dead)
+  );
+  if (drivers.length) {
+    const edge = blasterEdge(mini.sight.x, mini.sight.y),
+      yaw = mini.lookTarget.yaw,
+      pitch = mini.lookTarget.pitch;
+    blasterPan(edge.x * BLASTER_EDGE_YAW * dt, edge.y * BLASTER_EDGE_PITCH * dt);
+    if (Math.abs(mini.lookTarget.yaw - yaw) + Math.abs(mini.lookTarget.pitch - pitch) > 1e-6) {
+      mini.blasterPanned = true;
+      for (const b of drivers) b.scrolled = true;
+    }
+  }
   if (dyaw || dpitch) blasterPan(dyaw, dpitch);
   const ease = 1 - Math.exp(-dt * 22);
   mini.look.yaw += (mini.lookTarget.yaw - mini.look.yaw) * ease;
@@ -1181,6 +1314,12 @@ function blasterUpdateInput(dt) {
   }
   for (const b of Object.values(mini.blasterPresses)) {
     b.t += dt;
+    // The stick steers the sight: gentle near the middle, quick at the rim.
+    const k = Math.hypot(b.kx, b.ky);
+    if (b.how === 'stick' && k > BLASTER_STICK.dead) {
+      const v = BLASTER_STICK.speed * k ** 1.6 * dt;
+      blasterAimAt(mini.sight.x + (b.kx / k) * v, mini.sight.y + (b.ky / k) * v, 0);
+    }
     if (b.how === 'touch' && !b.moved && !b.hold && b.t > 0.18) {
       b.hold = true;
       blasterAimAt(b.sx, b.sy, BLASTER_SWEEP);
@@ -2156,21 +2295,12 @@ function blasterHud(g) {
     label(g, 'RUSH', 300, 28, 15, '#ffb0a0', 'center');
   }
   // Edge arrows point at whatever is off-screen, red when it is about to jump.
-  for (const side of [-1, 1]) {
-    const off = mini.targets.filter(e => {
-      if (!BLASTER_KINDS[e.kind] || e.mode === 'dying') return false;
-      const x = shooterProjection(e).x;
-      return side < 0 ? x < 0 : x > 600;
-    });
-    if (!off.length) continue;
-    const danger = off.some(e => e.mode === 'wind' || e.mode === 'leap' || e.kind === 'boss'),
-      y = clamp(off.reduce((a, e) => a + shooterProjection(e).y, 0) / off.length, 150, 440),
-      x = side < 0 ? 8 : 532,
-      pulse = danger ? 0.5 + 0.5 * Math.sin(time * 14) : 0,
-      fill = danger ? `rgba(120, 30, 40, ${0.7 + pulse * 0.25})` : '#122a40cc',
-      text = side < 0 ? '◀ ' + off.length : off.length + ' ▶';
-    rr(g, x, y - 30, 60, 60, 14, fill, danger ? '#ff9a7a' : '#7fa3b066', 1.5);
-    label(g, text, x + 30, y + 7, 20, danger ? '#ffd2b0' : '#e9bd95', 'center');
+  for (const a of blasterArrows()) {
+    const pulse = a.danger ? 0.5 + 0.5 * Math.sin(time * 14) : 0,
+      fill = a.danger ? `rgba(120, 30, 40, ${0.7 + pulse * 0.25})` : '#122a40cc',
+      text = a.side < 0 ? '◀ ' + a.off.length : a.off.length + ' ▶';
+    rr(g, a.x, a.y - 30, 60, 60, 14, fill, a.danger ? '#ff9a7a' : '#7fa3b066', 1.5);
+    label(g, text, a.x + 30, a.y + 7, 20, a.danger ? '#ffd2b0' : '#e9bd95', 'center');
   }
   for (const c of mini.captions) {
     const left = c.side < 0,
@@ -2214,6 +2344,42 @@ function blasterHud(g) {
     const m = x + clamp(mini.reloadT / D, 0, 1) * w;
     line(g, [[m, y - 4], [m, y + 28]], '#ffe0a1', 3);
   }
+  blasterStickArt(g);
+}
+
+// The thumbstick, bottom left, and the chip that shows or hides it. Neither appears for a mouse.
+function blasterStickArt(g) {
+  if (mini.blasterMouse) return;
+  const C = BLASTER_CHIP,
+    on = blasterStickShown();
+  rr(g, C.x, C.y, C.w, C.h, 13, on ? '#2c5a55dd' : '#0b1d30dd', on ? '#9fe0c4aa' : '#5f8a9a88', 1.5);
+  label(g, on ? 'HIDE' : 'STICK', C.x + C.w / 2, C.y + 19, 12, on ? '#d8f5e6' : '#b9d3dc', 'center');
+  label(g, on ? 'STICK' : 'SHOW', C.x + C.w / 2, C.y + 34, 9, '#8fb0bb', 'center');
+  if (!on) return;
+  const S = BLASTER_STICK,
+    b = Object.values(mini.blasterPresses || {}).find(p => p.how === 'stick'),
+    kx = b ? b.kx * S.r : 0,
+    ky = b ? b.ky * S.r : 0;
+  g.globalAlpha = b ? 0.9 : 0.6;
+  ellipse(g, S.x, S.y, S.r + 8, S.r + 8, '#0b1d30aa');
+  g.strokeStyle = '#9fd8c899';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(S.x, S.y, S.r + 8, 0, Math.PI * 2);
+  g.stroke();
+  for (const [ax, ay] of [[0, -1], [1, 0], [0, 1], [-1, 0]])
+    poly(
+      g,
+      [
+        [S.x + ax * 46 - ay * 5, S.y + ay * 46 + ax * 5],
+        [S.x + ax * 46 + ay * 5, S.y + ay * 46 - ax * 5],
+        [S.x + ax * 53, S.y + ay * 53]
+      ],
+      '#9fd8c877'
+    );
+  ellipse(g, S.x + kx, S.y + ky, 24, 24, b ? '#c8f0da' : '#7fa9a6');
+  ellipse(g, S.x + kx - 6, S.y + ky - 7, 8, 6, '#ffffff55');
+  g.globalAlpha = 1;
 }
 
 function blasterTag(g, text, x, y, arrow) {
@@ -2239,11 +2405,17 @@ function blasterHints(g) {
     const p = shooterProjection(seen[0]);
     blasterTag(g, (mini.blasterMouse ? 'CLICK' : 'TAP') + ' THE GREMLIN', p.x, p.y - 34 * p.s - 22, true);
   } else if (!mini.blasterPanned && gremlins.length && !seen.length) {
-    const how = mini.blasterMouse ? 'PUSH THE SIGHT TO THE EDGE TO LOOK' : 'DRAG TO LOOK · FOLLOW THE ARROW';
+    const how = mini.blasterMouse ? 'PUSH THE SIGHT TO THE EDGE TO LOOK' : 'TAP THE ARROW · OR SLIDE TO THE EDGE';
     blasterTag(g, how, 300, 330, false);
   }
   if (mini.reload > 0 && !mini.reloadTry)
-    blasterTag(g, mini.blasterMouse ? 'R IN THE GREEN = HOT RELOAD' : 'RELOAD: TAP IN THE GREEN', 114, 486, true);
+    blasterTag(
+      g,
+      mini.blasterMouse ? 'R IN THE GREEN = HOT RELOAD' : 'RELOAD: TAP IN THE GREEN',
+      blasterStickShown() ? 236 : 114,
+      486,
+      true
+    );
   const bruiser = seen.find(e => e.kind === 'bruiser');
   if (bruiser && !mini.chargedShots) {
     const p = shooterProjection(bruiser);
