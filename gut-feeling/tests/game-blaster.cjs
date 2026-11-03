@@ -1,4 +1,5 @@
-// Bedside Blaster: direct aim (tap, mouse, two fingers), damage zones, armor, the charged pierce, the
+// Bedside Blaster: direct aim (tap, slide, mouse, two fingers, edge scrolling, edge arrows, the
+// optional thumbstick), damage zones, armor, the charged pierce, the
 // active reload, juice pickups, pouncer timing, Ralph Jr.'s weak spot, pacing, and determinism.
 // Test objects live on T so they never collide with the game's globals.
 const {run,close,assert}=require('./harness.cjs');
@@ -24,7 +25,14 @@ function bbTouch(type, id, x, y) {
   blasterPointerEvent({ type, pointerType: 'touch', pointerId: id, button: 0, target: $('miniCanvas'),
     ...bbClient(x, y) });
 }
-// Invert miniPoint's letterboxed mapping for the harness's 1000x625 canvas rect.
+// A real finger: the blaster's window listener first (capture), then the framework's canvas listener.
+function bbFinger(type, id, x, y) {
+  const ev = { type, pointerType: 'touch', pointerId: id, button: 0, target: $('miniCanvas'),
+    currentTarget: $('miniCanvas'), preventDefault() {}, ...bbClient(x, y) };
+  blasterPointerEvent(ev);
+  $('miniCanvas').events[type](ev);
+}
+// Invert miniPoint's letterboxed mapping for the harness's canvas rect (1000x625 unless a test swaps it).
 function bbClient(x, y) {
   const r = $('miniCanvas').getBoundingClientRect(), { w, h } = games[mini.id].canvas,
     s = Math.min(r.width / w, r.height / h) || 1;
@@ -44,15 +52,111 @@ assert.deepEqual(sight(),[200,260],'the sight snapped to the tap');
 assert.equal(n('mini.ammo'),6);assert.equal(n('mini.got'),1);assert.equal(n('mini.headshots'),1);
 n('mini.targets=[];bbTick(.2);arcadeDown({x:520,y:120});arcadeUp();bbTick(.1)');
 assert.equal(n('mini.shotsFired'),2);assert.equal(n('mini.shotsHit'),1,'a tap on empty floor misses');
-// A drag looks around and never fires; a second finger can tap while the first one looks.
-n('T.yaw=mini.lookTarget.yaw;arcadeDown({x:300,y:300});arcadeMove({x:200,y:300})');
-assert.equal(n('mini.lookTarget.yaw'),n('T.yaw')-180,'dragging pans the room');
-n('bbTick(.5);arcadePointer=1;T.b=bbGremlin("crawler",420,240);bbTouch("pointerdown",9,420,240);bbTouch("pointerup",9,420,240)');
-n('arcadeUp();arcadePointer=null;bbTick(.12)');
-assert.equal(n('mini.shotsFired'),3,'only the second finger fired');
+// A second finger can tap while the first one is down.
+n('bbTick(.5);arcadeDown({x:300,y:300});arcadePointer=1;T.b=bbGremlin("crawler",420,240);bbTouch("pointerdown",9,420,240);bbTouch("pointerup",9,420,240)');
+n('arcadeUp();arcadePointer=null;bbTick(.3)');
+assert.equal(n('mini.shotsFired'),4,'the second finger fired, and so did the first one\'s tap');
 assert.equal(n('T.b.mode'),'dying','the second finger tap hit its target');
 close();
-console.log('PASS: tap-to-fire with a sight sweep, misses, drag to look, and two-finger tapping.');
+console.log('PASS: tap-to-fire with a sight sweep, misses, and two-finger tapping.');
+
+// Touch aiming: a sliding finger carries the sight anywhere, ceiling and top corners included, and
+// letting go shoots there. Checked through the real pointer path in a wide and a tall canvas box.
+for (const box of [{ left: 0, top: 0, width: 1000, height: 625 }, { left: 8, top: 150, width: 374, height: 600 }]) {
+  n(`bbStart(1);mini.ammo=mini.magazine=60;$("miniCanvas").getBoundingClientRect=()=>(${JSON.stringify(box)})`);
+  const tag = box.width > box.height ? 'wide' : 'tall';
+  for (const [x, y] of [[3, 3], [597, 3], [300, 2], [2, 300]]) {
+    n(`T.shots=mini.shotsFired;bbFinger("pointerdown",5,${x},${y});bbFinger("pointerup",5,${x},${y});bbTick(.2)`);
+    assert.deepEqual(sight(), [x, y], `${tag}: a tap reaches ${x},${y}`);
+    assert.equal(n('mini.shotsFired-T.shots'), 1, `${tag}: and fires there`);
+  }
+  // A slide: the sight rides the finger at every step, up to the ceiling, and the room holds still.
+  n('T.yaw=mini.lookTarget.yaw;T.pitch=mini.lookTarget.pitch;T.shots=mini.shotsFired;bbFinger("pointerdown",5,300,450)');
+  for (const [x, y] of [[290, 440], [260, 330], [180, 200], [120, 90], [300, 75]]) {
+    n(`bbFinger("pointermove",5,${x},${y});bbTick(.02)`);
+    assert.deepEqual(sight(), [x, y], `${tag}: the sight follows the finger to ${x},${y}`);
+  }
+  assert.equal(n('mini.lookTarget.yaw'), n('T.yaw'), `${tag}: aiming does not turn the room`);
+  assert.equal(n('mini.shotsFired'), n('T.shots'), `${tag}: no shot until the finger lifts`);
+  n('T.g=bbGremlin("crawler",300,75);bbFinger("pointerup",5,300,75);bbTick(.1)');
+  assert.equal(n('T.g.mode'), 'dying', `${tag}: letting go shoots the gremlin under the sight`);
+  // Into the top-left corner: the sight gets there, the room scrolls that way, and the lift is only a look.
+  n('T.yaw=mini.lookTarget.yaw;T.pitch=mini.lookTarget.pitch;T.shots=mini.shotsFired;bbFinger("pointerdown",5,300,300);bbFinger("pointermove",5,150,150);bbFinger("pointermove",5,2,2);bbTick(.3)');
+  assert.deepEqual(sight(), [2, 2], `${tag}: the sight reaches the top-left corner`);
+  assert.ok(n('mini.lookTarget.yaw') < n('T.yaw') - 300, `${tag}: the left edge scrolls the room left`);
+  assert.ok(n('mini.lookTarget.pitch') < n('T.pitch'), `${tag}: the top edge tilts it up`);
+  n('bbFinger("pointerup",5,2,2);bbTick(.2)');
+  assert.equal(n('mini.shotsFired'), n('T.shots'), `${tag}: lifting while it scrolls never fires`);
+  n('$("miniCanvas").getBoundingClientRect=()=>({width:1000,height:625,left:0,top:0})');
+  close();
+}
+// The right edge scrolls the other way; at the end of the room a slide into the band still shoots.
+n('bbStart(1);T.yaw=mini.lookTarget.yaw;arcadeDown({x:300,y:300});arcadeMove({x:598,y:300});bbTick(.25)');
+assert.ok(n('mini.lookTarget.yaw') > n('T.yaw') + 300, 'the right edge scrolls right');
+n('arcadeUp();mini.lookTarget.yaw=BLASTER_YAW[1];T.shots=mini.shotsFired;arcadeDown({x:300,y:300});arcadeMove({x:590,y:300});bbTick(.1);arcadeUp();bbTick(.2)');
+assert.equal(n('mini.shotsFired-T.shots'), 1, 'nothing left to scroll, so the lift shoots');
+// Hold still, then slide: the charge keeps building and the piercing shot goes where the finger ends up.
+n('mini.targets=[];T.c=bbGremlin("bruiser",420,250);arcadeDown({x:250,y:330});bbTick(.3);arcadeMove({x:420,y:250});bbTick(.4)');
+assert.equal(n('blasterChargeLevel()'), 1, 'a held, sliding finger charges');
+n('arcadeUp();bbTick(.1)');
+assert.equal(n('mini.chargedShots'), 1);assert.equal(n('T.c.mode'), 'dying', 'the charged shot landed where the slide ended');
+close();
+// An edge arrow: a tap on it turns the room to face its gremlin, and is not a shot.
+n('bbStart(1);T.ar=spawnCrawler("crawler","cabinetR");T.ar.mode="crawl";T.ar.stun=99;T.a=blasterArrows()[0]');
+assert.equal(n('T.a&&T.a.side'), 1, 'a gremlin past the right edge gets an arrow');
+n('T.shots=mini.shotsFired;arcadeDown({x:T.a.x+30,y:T.a.y});arcadeUp();bbTick(.4);T.px=shooterProjection(T.ar).x');
+assert.ok(n('T.px>300&&T.px<560'), 'the arrow brought it into view');
+assert.equal(n('mini.shotsFired'), n('T.shots'), 'the arrow tap did not fire');
+close();
+console.log('PASS: touch aims anywhere in a wide and a tall box, slides carry the sight, edges and arrows look.');
+
+// The thumbstick: off by default, the chip shows it and the choice is saved, it steers the sight, a
+// finger still aims and fires with it shown, and the chip hides it again.
+n('bbStart(1);delete state.stats.blasterStick');
+assert.equal(n('blasterStickShown()'), false, 'no stick until she asks');
+n('arcadeDown({x:260,y:565});arcadeUp();bbTick(.1)');
+assert.equal(n('state.stats.blasterStick'), 1, 'the chip turns the stick on');
+assert.equal(n('blasterStickShown()'), true);
+assert.equal(n('mini.shotsFired'), 0, 'the chip is not a shot');
+assert.equal(JSON.parse(n('localStorage.getItem(STORE)')).stats.blasterStick, 1, 'and the choice is saved');
+n('T.chipG=bbGremlin("crawler",250,560);arcadeDown({x:250,y:560});arcadeUp();bbTick(.12)');
+assert.equal(n('T.chipG.mode'), 'dying', 'a gremlin over the chip gets shot, not the setting');
+assert.equal(n('state.stats.blasterStick'), 1);
+n('mini.targets=[];bbTick(.3)');
+n('mini.sight={x:300,y:300};arcadeDown({x:76,y:452});arcadeMove({x:76,y:380});bbTick(.3)');
+assert.ok(n('mini.sight.y') < 150 && Math.abs(n('mini.sight.x') - 300) < 1, 'pushing the stick up raises the sight');
+n('arcadeMove({x:180,y:452});T.sx=mini.sight.x;bbTick(.2)');
+assert.ok(n('mini.sight.x') > n('T.sx') + 80, 'and right moves it right');
+n('T.sy=mini.sight.y;arcadeMove({x:80,y:455});bbTick(.3)');
+assert.ok(Math.abs(n('mini.sight.y') - n('T.sy')) < 2, 'a centred stick holds the sight still');
+n('T.yaw=mini.lookTarget.yaw;arcadeMove({x:10,y:452});bbTick(1.2)');
+assert.deepEqual(sight().map(v => v === 0), [true, false], 'the stick pins the sight on the left edge');
+assert.ok(n('mini.lookTarget.yaw') < n('T.yaw') - 200, 'where it scrolls the room');
+n('T.shots=mini.shotsFired;arcadeUp();bbTick(.1)');
+assert.equal(n('mini.shotsFired'), n('T.shots'), 'letting go of the stick never fires');
+n('T.st=bbGremlin("crawler",420,240);mini.sight={x:300,y:300};arcadeDown({x:76,y:452});arcadeMove({x:76,y:420});arcadePointer=1;bbTouch("pointerdown",9,420,240);bbTouch("pointerup",9,420,240);bbTick(.3)');
+assert.equal(n('T.st.mode'), 'dying', 'a second finger taps and fires with a thumb on the stick');
+n('arcadeUp();arcadePointer=null;mini.fireHeld=false;mini.sight={x:200,y:200};miniAction("fire");bbTick(.05)');
+assert.equal(n('mini.shotsFired'), n('T.shots') + 2, 'FIRE shoots at the sight');
+n('T.f=bbGremlin("crawler",450,300);arcadeDown({x:450,y:300});arcadeUp();bbTick(.12)');
+assert.equal(n('T.f.mode'), 'dying', 'a tap in the room still fires where it lands with the stick shown');
+n('drawMini();arcadeDown({x:90,y:440});drawMini();arcadeUp();mini.ammo=0;reloadBlaster();drawMini()');
+n('arcadeDown({x:260,y:565});arcadeUp()');
+assert.equal(n('state.stats.blasterStick'), 0, 'the chip hides it again');
+assert.equal(JSON.parse(n('localStorage.getItem(STORE)')).stats.blasterStick, 0);
+n('mini.sight={x:300,y:300};arcadeDown({x:76,y:452});arcadeMove({x:76,y:380});bbTick(.3);arcadeUp();bbTick(.12)');
+assert.deepEqual(sight(), [76, 380], 'hidden, that corner is just room again: the finger slid the sight');
+close();
+n('bbStart(1);state.stats.blasterStick=1;bbMouse("pointermove",76,452)');
+assert.equal(n('blasterStickShown()'), false, 'a mouse never sees the stick');
+assert.deepEqual(sight(), [76, 452], 'and aims there as before');
+n('bbMouse("pointerdown",260,565);arcadeDown({x:260,y:565});arcadeUp()');
+assert.equal(n('state.stats.blasterStick'), 1, 'nor toggles it with a click');
+n('bbMouse("pointermove",300,300);arcadeDown({x:76,y:452});T.how=mini.blasterPresses.main.how;arcadeUp()');
+assert.equal(n('T.how'), 'stick', 'a thumb after the mouse still grabs the stick');
+n('state.stats.blasterStick=0');
+close();
+console.log('PASS: thumbstick off by default, chip toggles and saves, stick steers and scrolls, fingers still fire.');
 
 // Mouse: the sight follows the pointer, a left click fires there, right-drag or Shift-drag looks, edges auto-pan.
 n('bbStart(1);bbMouse("pointermove",150,330)');
