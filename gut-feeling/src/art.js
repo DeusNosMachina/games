@@ -140,8 +140,11 @@ function macyLook() {
 // ---- Macy's poses ----
 // An act is { kind, t }: kind names a pose below, t is seconds into it. girl() turns it into a rig of
 // small offsets (arms, eyes, mouth, head, a prop). Idles play in the ward when she stands still;
-// reactions play on a hit, a cleared wave and a medal. With no act, girl() draws exactly as before.
+// reactions play on a hit, a cleared wave and a medal; greetings play next to the visitors in the
+// hallway (macyGreet in world.js). act.len, when set, stretches a pose to that many seconds.
+// With no act, girl() draws exactly as before.
 const MACY_IDLES = ['look', 'ball', 'scrunchie', 'dance', 'yawn', 'iv'],
+  MACY_GREETS = ['hug', 'fistbump', 'selfie', 'highfive', 'wave'],
   MACY_POSES = {
     look: 2.6,
     scrunchie: 2.2,
@@ -151,7 +154,12 @@ const MACY_IDLES = ['look', 'ball', 'scrunchie', 'dance', 'yawn', 'iv'],
     dance: 2.8,
     flinch: 0.4,
     pump: 1.3,
-    grin: 2.4
+    grin: 2.4,
+    hug: 2.4,
+    fistbump: 1.4,
+    selfie: 2.6,
+    highfive: 1.2,
+    wave: 1.8
   };
 
 // 0 before a, 1 after b, smooth in between.
@@ -186,8 +194,8 @@ function macyBallY(p) {
 
 function macyRig(act, dir) {
   const kind = act.kind,
-    len = MACY_POSES[kind] || 1,
-    t = clamp(act.t, 0, len),
+    len = act.len > 0 ? act.len : MACY_POSES[kind] || 1,
+    t = clamp(Number.isFinite(act.t) ? act.t : 0, 0, len),
     back = -dir,
     rig = { arms: [null, null] };
   if (kind === 'look') {
@@ -322,6 +330,112 @@ function macyRig(act, dir) {
     };
     return rig;
   }
+  if (kind === 'hug') {
+    // Both arms wrapped forward around whoever is there, eyes shut, a smile, a little rock side to side.
+    const k = macyEnvelope(t, len, 0.3, 0.35),
+      rock = Math.sin(t * 3.2) * k,
+      side = dir < 0 ? 0 : 1;
+    rig.arms[side] = macyArm(dir, k, dir * 25, -47 + rock, dir * 24, -54, { front: true });
+    rig.arms[1 - side] = macyArm(-dir, k, dir * 21, -50 - rock, dir * 4, -57, { front: true });
+    rig.lean = dir * 0.07 * k + rock * 0.02;
+    rig.dx = dir * 2 * k;
+    rig.headDx = dir * 1.2 * k;
+    rig.eyes = k > 0.35 ? 'happy' : null;
+    rig.mouth = k > 0.35 ? 'smile' : null;
+    rig.prop = g => {
+      if (k <= 0.2) return;
+      const q = (t * 0.6) % 1;
+      g.save();
+      g.globalAlpha *= k * Math.sin(q * Math.PI);
+      heart(g, dir * 14, -92 - q * 16, 0.32, '#f39aa8');
+      g.restore();
+    };
+    return rig;
+  }
+  if (kind === 'fistbump') {
+    // Punch out, hold the bump, a pop of sparks at the knuckles.
+    const k = macyEnvelope(t, len, 0.22, 0.3),
+      side = dir < 0 ? 0 : 1,
+      pop = macyEase(t, 0.22, 0.3) * (1 - macyEase(t, 0.45, 0.65));
+    rig.arms[side] = macyArm(dir, k, dir * 31, -46, dir * 22, -47, { front: true, fist: true });
+    rig.lean = dir * 0.04 * k;
+    rig.lookX = dir * 0.8 * k;
+    rig.mouth = k > 0.4 ? 'grin' : null;
+    rig.prop = g => {
+      if (pop <= 0) return;
+      g.save();
+      g.globalAlpha *= pop;
+      spark(g, dir * 37, -52, '#ffe29b', 0.4);
+      spark(g, dir * 37, -40, '#ffffff', 0.3);
+      g.restore();
+    };
+    return rig;
+  }
+  if (kind === 'selfie') {
+    // Phone up high in the back hand, peace sign by her cheek, the big grin, and one flash.
+    const k = macyEnvelope(t, len, 0.3, 0.35),
+      side = dir < 0 ? 0 : 1,
+      flash = macyEase(t, 1, 1.06) * (1 - macyEase(t, 1.12, 1.4)),
+      px = -dir * 21,
+      py = -97;
+    rig.arms[1 - side] = macyArm(-dir, k, px, py + 6, -dir * 26, -70, { top: true });
+    rig.arms[side] = macyArm(dir, k, dir * 16, -63, dir * 23, -46, { front: true, peace: k > 0.5 });
+    rig.headDx = -dir * 1.4 * k;
+    rig.lookX = -dir * 0.6 * k;
+    rig.lookY = -1 * k;
+    rig.eyes = flash > 0.3 ? 'squeeze' : null;
+    rig.mouth = k > 0.3 ? 'grin' : null;
+    rig.prop = g => {
+      if (k <= 0) return;
+      g.save();
+      g.globalAlpha *= clamp(k * 1.5, 0, 1);
+      g.translate(px, py);
+      g.rotate(-dir * 0.18);
+      rr(g, -4.2, -7, 8.4, 14, 2, '#2c3442', '#11161f', 0.8);
+      ellipse(g, -dir * 1.6, -4.6, 1, 1, '#7b8aa0');
+      ellipse(g, 0, 6.2, 3.3, 3.6, '#e8ac8b');
+      g.restore();
+      if (flash > 0) {
+        g.save();
+        g.globalAlpha *= flash;
+        ellipse(g, px, py - 2, 13, 13, '#ffffffaa');
+        spark(g, px, py - 2, '#ffffff', 0.6);
+        g.restore();
+      }
+    };
+    return rig;
+  }
+  if (kind === 'highfive') {
+    // Open hand up high, a smack at the top, then down.
+    const k = macyEnvelope(t, len, 0.2, 0.3),
+      side = dir < 0 ? 0 : 1,
+      smack = macyEase(t, 0.2, 0.28) * (1 - macyEase(t, 0.4, 0.6));
+    rig.arms[side] = macyArm(dir, k, dir * 23, -94 - smack * 2, dir * 25, -66, { front: true, open: true });
+    rig.dy = -smack * 2;
+    rig.lookX = dir * 0.6 * k;
+    rig.lookY = -1.2 * k;
+    rig.eyes = smack > 0.3 ? 'happy' : null;
+    rig.mouth = k > 0.3 ? 'grin' : null;
+    rig.prop = g => {
+      if (smack <= 0) return;
+      g.save();
+      g.globalAlpha *= smack;
+      spark(g, dir * 26, -106, '#fff3c4', 0.5);
+      g.restore();
+    };
+    return rig;
+  }
+  if (kind === 'wave') {
+    // Hand up, side to side.
+    const k = macyEnvelope(t, len, 0.25, 0.3),
+      side = dir < 0 ? 0 : 1,
+      w = Math.sin(t * 10) * k;
+    rig.arms[side] = macyArm(dir, k, dir * (22 + w * 4), -86 - Math.abs(w), dir * 24, -62, { front: true, open: true });
+    rig.lookX = dir * 0.5 * k;
+    rig.mouth = k > 0.3 ? 'smile' : null;
+    rig.eyes = k > 0.5 && t % 1.2 > 0.8 ? 'happy' : null;
+    return rig;
+  }
   if (kind === 'grin') {
     const k = macyEnvelope(t, len, 0.25, 0.35),
       side = dir < 0 ? 0 : 1,
@@ -354,6 +468,14 @@ function macyDrawArm(g, side, a, hood) {
   if (a.fist) {
     ellipse(g, a.x, a.y - 1.5, 4, 4, '#e8ac8b');
     line(g, [[a.x - 2.2, a.y - 3], [a.x + 2.2, a.y - 3]], '#c98c70', 0.8);
+  } else if (a.open) {
+    // An open palm, fingers fanned up, thumb out to the side.
+    for (let i = 0; i < 4; i++) {
+      const fx = a.x - 2.4 + i * 1.6;
+      line(g, [[fx, a.y - 1], [fx + (i - 1.5) * 0.7, a.y - 6.6 + Math.abs(i - 1.5) * 0.7]], '#e8ac8b', 1.7);
+    }
+    line(g, [[a.x - 2.6, a.y + 1], [a.x - 5.2, a.y - 1.6]], '#e8ac8b', 1.7);
+    ellipse(g, a.x, a.y + 0.6, 3.4, 3.6, '#e8ac8b');
   } else ellipse(g, a.x, a.y + 2, 3.3, 4.4, '#e8ac8b');
   if (a.peace) {
     line(g, [[a.x - 1, a.y - 1], [a.x - 2.6, a.y - 8]], '#e8ac8b', 2.2);
