@@ -272,7 +272,7 @@ function miniScene(g, id, w, h) {
   games[id].scene(g, w, h);
 }
 
-const MINI_RECOVERY_LINE = 'Finish one IV phase to get out of bed. Each collapse makes the next one harder.';
+const MINI_RECOVERY_LINE = 'Finish one IV phase to get out of bed. Fail it and the nurses patch you up for a few coins.';
 
 // The definition the current run uses. A forced recovery runs the game registered as `recovery`
 // (games/iv.js) in place of the room's own arcade, when one is registered.
