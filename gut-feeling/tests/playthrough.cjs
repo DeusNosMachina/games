@@ -20,4 +20,4 @@ let results=[];
 for(let difficulty=0;difficulty<3;difficulty++)for(const b of bots)for(let tier=0;tier<3;tier++)results.push(run(`playTest(${JSON.stringify(b.id)},${b.room??b.id},${!!b.forced},${tier},${difficulty})`));
 for(const r of results)assert.equal(r.win,true,JSON.stringify(r));
 console.log(`PASS: ${results.length} input-driven complete runs across all games, tiers, and difficulty prescriptions.`);
-console.log('Active seconds by game (automated inputs; human aim/decision time adds to volley games):',JSON.stringify(bots.map(b=>{const a=results.filter(r=>r.id===b.id);return {game:b.id,min:Math.min(...a.map(r=>r.seconds)),max:Math.max(...a.map(r=>r.seconds))}})));
+console.log('Active seconds by game (automated inputs; human aim and decision time add to every game):',JSON.stringify(bots.map(b=>{const a=results.filter(r=>r.id===b.id);return {game:b.id,min:Math.min(...a.map(r=>r.seconds)),max:Math.max(...a.map(r=>r.seconds))}})));
