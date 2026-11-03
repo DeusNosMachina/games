@@ -1,15 +1,18 @@
 // Not part of the suite. A human-speed yardstick for Gel Yeah!: a player who sees the sonar screen a
 // quarter second late, swipes one stroke at a time along slightly bowed, shaky lines at finger speed,
 // aims where a gremlin will be (with an error that grows with its speed), lifts and moves the finger
-// between strokes, and only notices a bomb once it has been on screen for a beat. It never reads text:
-// helmets get swiped again because they are still there, and the jumbo gets scribbled on because it
-// keeps counting. The bot wins everything by design; this says whether a person can.
+// between strokes, and only notices a hazard (pink bomb or purple gas) once it has been on screen for a
+// beat. Under laughing-gas fog it aims two and a half times worse. It never reads text: helmets get
+// swiped again because they are still there, and the jumbo gets scribbled on because it keeps counting.
+// The bot wins everything by design; this says whether a person can.
+// Targets: level 1 nearly always (and still at 0.35 s), level 2 most of the time, level 3 sometimes,
+// Legendary about one time in four, all at 0.25 s on prescription 1.
 // Usage from the repository root (reaction s, trials, prescription 0-2):
 //   node gut-feeling/tests/tools/slice-human.cjs 0.25 40 1
-// ONLY=0 runs one level. PORTRAIT=1 plays on the 450 × 800 canvas. NAIVE=1 ignores gold and swipes the
-// jumbo like any other gremlin (no scribbling), to check the game still works for a player who never
-// figured those out. Read the per-level line: wins, average sliced against the quota, oops causes,
-// best swipe, combos per run, and the medal split of the wins.
+// ONLY=0 runs one level (0-3). PORTRAIT=1 plays on the 450 × 800 canvas. NAIVE=1 ignores gold and
+// swipes the jumbo like any other gremlin (no scribbling), to check the game still works for a player
+// who never figured those out. Read the per-level line: wins, average sliced against the quota, oops
+// causes, gas pops, best swipe, combos per run, and the medal split of the wins.
 const { run, close } = require('../harness.cjs');
 const REACT = +process.argv[2] || 0.25,
   TRIALS = +process.argv[3] || 40,
@@ -35,8 +38,8 @@ function humanTrial(tier, diff, react, seed, naive, portrait) {
   while (mini.screen === 'play' && n++ < 30000) {
     const now = mini.total, A = sliceArena();
     const rate = sliceRate();
-    hist.push({ t: now, rate, G: A.G, gels: mini.gels.filter(o => !o.dead && !o.blown).map(o => ({ id: o.id, kind: o.kind,
-      x: o.x, y: o.y, vx: o.vx || 0, vy: o.vy || 0, r: o.r, hover: o.hover })) });
+    hist.push({ t: now, rate, G: A.G, fog: mini.sliceFog > 0, gels: mini.gels.filter(o => !o.dead && !o.blown).map(o => ({ id: o.id, kind: o.kind,
+      x: o.x, y: o.y, vx: o.vx || 0, vy: o.vy || 0, r: o.r, hover: o.hover, grav: o.grav || 1, hazard: !!SLICE_KINDS[o.kind].hazard })) });
     while (hist.length > 2 && hist[1].t <= now - react - 0.6) hist.shift();
     for (const o of hist[hist.length - 1].gels) if (firstSeen[o.id] === undefined && o.y < A.H) firstSeen[o.id] = now;
     if (H.mode === 'stroke') {
@@ -72,7 +75,7 @@ function humanTrial(tier, diff, react, seed, naive, portrait) {
   const quality = won ? SLICE.quality() : 0;
   delete window.innerWidth; delete window.innerHeight;
   return { won, got: mini.got, goal: mini.goal, miss: mini.miss, misses: mini.rules.misses, t: +mini.phaseTime.toFixed(1),
-    causes, strokes, best: mini.maxCombo, combos: mini.sliceCombos, frenzies: mini.sliceFrenzies, jumbo: mini.sliceJumboHits,
+    causes, strokes, gas: mini.sliceGas, best: mini.maxCombo, combos: mini.sliceCombos, frenzies: mini.sliceFrenzies, jumbo: mini.sliceJumboHits,
     dropped: mini.sliceDropped, score: mini.score, medal: won ? (quality >= 88 ? 3 : quality >= 68 ? 2 : 1) : 0 };
 }
 
@@ -80,14 +83,14 @@ function humanTrial(tier, diff, react, seed, naive, portrait) {
 function humanPlan(view, now, H, naive, firstSeen, hr, gauss, notice, A) {
   const lag = now - view.t, V = 1700 * (0.85 + hr() * 0.3), k = view.rate, G = view.G;
   const gels = view.gels.filter(o => o.y < A.H - 15 && o.y > 40 && o.x > 15 && o.x < A.W - 15);
-  const bombs = gels.filter(o => o.kind === 'bomb' && firstSeen[o.id] !== undefined && view.t - firstSeen[o.id] >= notice);
-  const targets = gels.filter(o => o.kind !== 'bomb');
+  const bombs = gels.filter(o => o.hazard && firstSeen[o.id] !== undefined && view.t - firstSeen[o.id] >= notice);
+  const targets = gels.filter(o => !o.hazard);
   if (!targets.length) return null;
-  const at = (o, t) => (o.hover > 0 ? { x: o.x, y: o.y } : { x: o.x + o.vx * k * t, y: o.y + o.vy * k * t + 0.5 * G * k * k * t * t });
-  // Perception noise per gremlin for this plan, bigger for fast movers.
-  const err = {};
+  const at = (o, t) => (o.hover > 0 ? { x: o.x, y: o.y } : { x: o.x + o.vx * k * t, y: o.y + o.vy * k * t + 0.5 * G * o.grav * k * k * t * t });
+  // Perception noise per gremlin for this plan, bigger for fast movers and in the fog.
+  const err = {}, fog = view.fog ? 2.5 : 1;
   for (const o of gels) {
-    const sp = Math.hypot(o.vx, o.vy) * k, e = 4 + sp * 0.03;
+    const sp = Math.hypot(o.vx, o.vy) * k, e = (4 + sp * 0.03) * fog;
     err[o.id] = { x: gauss() * e, y: gauss() * e };
   }
   const guess = (o, t) => { const p = at(o, t); return { x: p.x + err[o.id].x, y: p.y + err[o.id].y }; };
@@ -159,7 +162,7 @@ function humanPlan(view, now, H, naive, firstSeen, hr, gauss, notice, A) {
 }
 `);
 
-for (const tier of ONLY !== undefined ? [+ONLY] : [0, 1, 2]) {
+for (const tier of ONLY !== undefined ? [+ONLY] : [0, 1, 2, 3]) {
   const runs = [],
     causes = {};
   for (let trial = 0; trial < TRIALS; trial++) {
@@ -174,7 +177,7 @@ for (const tier of ONLY !== undefined ? [+ONLY] : [0, 1, 2]) {
   console.log(
     `L${tier + 1} P${DIFF} react ${REACT}${NAIVE ? ' naive' : ''}${PORTRAIT ? ' portrait' : ''}: won ${won.length}/${runs.length}` +
       ` · sliced ${avg(r => r.got)}/${runs[0].goal} (min ${Math.min(...runs.map(r => r.got))})` +
-      ` · oops ${avg(r => r.miss)}/${runs[0].misses} ${JSON.stringify(causes)} · dropped ${avg(r => r.dropped)}` +
+      ` · oops ${avg(r => r.miss)}/${runs[0].misses} ${JSON.stringify(causes)} · gas ${avg(r => r.gas)} · dropped ${avg(r => r.dropped)}` +
       ` · best swipe ${avg(r => r.best)} · combos ${avg(r => r.combos)} · frenzies ${avg(r => r.frenzies)} · jumbo ${avg(r => r.jumbo)}` +
       ` · medals b/s/g ${medals}`
   );
