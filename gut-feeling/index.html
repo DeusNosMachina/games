@@ -39790,7 +39790,7 @@ const RACE_TOP = 50, // top speed in segments per second (Questionable Decisions
   RACE_SCRAPE = 0.55, // top speed against a tunnel wall
   RACE_PW = 0.2, // the gurney's half-width
   RACE_LEN = 1.1, // how close (in segments) two gurneys must be to touch
-  RACE_SPIN = 0.75, // a crash spins you this long
+  RACE_SPIN = 0.6, // a crash spins you this long
   RACE_GHOST = 0.9, // then you blink through traffic this long
   RACE_SPIN_CAP = 0.3, // top speed while spinning
   RACE_BOOST = 2.2, // seconds of boost
@@ -39804,39 +39804,75 @@ const RACE_TOP = 50, // top speed in segments per second (Questionable Decisions
   RACE_WAKE = 230, // traffic starts moving this far ahead
   RACE_SLEEP = 70; // and retires this far behind
 
+// ---- Off the road, pads and ramps ----
+const RACE_RUMBLE_X = 0.84, // the outer caster is on the rumble strip: the gurney shakes, a warning
+  RACE_GRAZE = [0.42, 0.34, 0.3, 0.28], // per level: seconds past the rumble strip (deeper counts faster) before a spin-out
+  RACE_SPINOUT = 1.5, // a spin-out lasts this long: two full turns
+  RACE_SPINOUT_V = 0.55, // only at speed: slower than this share of top speed, the grass just slows you
+  RACE_SPINOUT_CAP = 0.2, // top speed while spinning out
+  RACE_PAD_LEN = 4, // segments of orange arrows
+  RACE_PAD_W = 0.24, // pad half-width; your middle has to be on it
+  RACE_PAD_T = 1.1, // seconds of burst a pad gives
+  RACE_PAD_KICK = 1.14, // and the speed it kicks you to at once
+  RACE_RAMP_LEN = 5, // segments of slope up to the lip
+  RACE_RAMP_W = 0.3, // a lane ramp's half-width; full-width crest ramps say so
+  RACE_RAMP_H = 0.16, // lip height in road half-widths, for drawing
+  RACE_LIFT = 320, // peak height of a jump at top speed above the lip line, world units
+  RACE_CAM_LIFT = 0.2; // the camera rises this share of the jump
+
 // Courses as a list of pieces. s: straight (length, hill), c: curve (in, hold, out, curve, hill),
 // g: donut gate, t: tunnel on/off, n: night on/off, f: finish. Hill is a rise in segment lengths;
-// curve is how hard the road bends (and how hard it pushes you outward).
+// curve is how hard the road bends (and how hard it pushes you outward). Placed by hand, dz segments
+// on from where they sit in the list (negative reaches back): b: boost pad (x, dz), r: wheelchair
+// ramp (x, dz, half-width; the lip is RACE_RAMP_LEN past dz), o: something parked (kind, lane, dz),
+// i: a roadside sign (text, dz). Level 4 runs at night from the start (RACE_TIERS night).
 const RACE_COURSES = [
   [
+    ['b', 0, 45],
     ['s', 70],
     ['s', 160, 8],
     ['c', 40, 110, 40, 2.2, -8],
+    ['b', 0.62, 30],
+    ['r', 0, 95],
+    ['o', 'wetfloor', 1, 118],
+    ['o', 'wetfloor', 0, 118],
     ['s', 180],
     ['c', 40, 90, 40, 2.6, 6],
+    ['b', -0.62, 140],
     ['s', 120, -6],
     ['s', 90],
     ['c', 35, 60, 35, 3, 0],
     ['c', 35, 60, 35, -3, 10],
     ['g'],
+    ['b', 0, 30],
+    ['r', 0.62, 110],
+    ['o', 'parked', 2, 135],
     ['s', 230, -10],
     ['c', 50, 120, 50, 2.4, 0],
+    ['b', 0.3, 0],
     ['s', 150, 6],
     ['c', 40, 80, 40, -2.2, -6],
+    ['b', 0, 40],
     ['s', 170],
     ['f']
   ],
   [
     ['s', 60],
+    ['b', 0.5, 45],
     ['c', 30, 70, 30, 3.5, 10],
     ['s', 90, -10],
     ['c', 30, 60, 30, -4.5, 0],
     ['c', 30, 60, 30, 4, 12],
+    ['b', -0.62, 30],
     ['s', 130, -12],
     ['c', 30, 50, 30, -3.5, 6],
+    ['r', -0.62, 30],
+    ['o', 'parked', 0, 52],
+    ['o', 'wetfloor', 1, 56],
     ['s', 100, -6],
     ['s', 70],
     ['t'],
+    ['b', 0, 50],
     ['s', 150],
     ['c', 25, 70, 25, 2.5, 0],
     ['s', 70],
@@ -39844,33 +39880,46 @@ const RACE_COURSES = [
     ['g'],
     ['s', 90, 14],
     ['c', 40, 90, 40, -5, -14],
+    ['b', -0.62, 25],
     ['s', 120],
     ['c', 25, 50, 25, 4.5, 8],
+    ['b', -0.5, 40],
     ['c', 25, 50, 25, -4.5, -8],
     ['s', 60],
+    ['r', 0, 15],
+    ['o', 'parked', 1, 40],
+    ['o', 'parked', 0, 46],
     ['s', 100],
     ['c', 30, 70, 30, 5, 10],
     ['s', 120, -10],
     ['g'],
     ['s', 120, 16],
+    ['r', 0.62, -5],
     ['s', 130, -16],
     ['c', 40, 100, 40, 4, 0],
+    ['b', 0.62, 20],
     ['s', 100],
     ['c', 30, 60, 30, -3.5, 10],
+    ['b', 0, 40],
     ['s', 170, -10],
     ['f']
   ],
   [
     ['s', 60],
+    ['b', 0.55, 55],
     ['c', 30, 60, 30, 4, 20],
     ['s', 80, 25],
     ['c', 30, 50, 30, -5.5, 15],
+    ['r', 0.62, -5],
     ['s', 70, -30],
     ['c', 30, 70, 30, 5, -10],
+    ['b', -0.72, -20],
     ['s', 110, 30],
+    ['r', -0.62, -5],
     ['s', 90, -35],
     ['c', 30, 60, 30, -6, 0],
     ['c', 30, 60, 30, 6, 20],
+    ['b', 0, 30],
     ['s', 130, 30],
     ['c', 40, 80, 40, -4.5, 25],
     ['g'],
@@ -39878,15 +39927,18 @@ const RACE_COURSES = [
     ['n'],
     ['s', 90, -20],
     ['c', 30, 60, 30, 5, 15],
+    ['b', 0.62, 30],
     ['s', 120, -15],
     ['c', 30, 60, 30, -5.5, 0],
     ['s', 80],
     ['g'],
     ['t'],
+    ['b', -0.62, 40],
     ['s', 120],
     ['c', 30, 90, 30, -3.5, 0],
     ['s', 60],
     ['c', 30, 90, 30, 3.5, 0],
+    ['b', 0.62, 20],
     ['s', 110],
     ['t'],
     ['s', 80, 15],
@@ -39897,48 +39949,129 @@ const RACE_COURSES = [
     ['s', 140, 20],
     ['c', 30, 60, 30, 5.5, -20],
     ['c', 30, 60, 30, -5.5, 0],
+    ['b', 0, 30],
+    ['r', -0.62, 90],
+    ['o', 'parked', 0, 112],
+    ['o', 'wetfloor', 1, 118],
     ['s', 200, 10],
+    ['b', 0.62, 50],
     ['s', 150, -10],
+    ['f']
+  ],
+  [
+    ['b', 0, 30],
+    ['s', 60],
+    ['c', 30, 60, 30, 5, 15],
+    ['i', 'JUMP 200 m', 0],
+    ['s', 100, 30],
+    ['r', 0, -5, 1.2],
+    ['s', 120, -40],
+    ['c', 30, 70, 30, -6, -5],
+    ['b', 0.7, 20],
+    ['c', 30, 70, 30, 6, 10],
+    ['s', 140, 35],
+    ['g'],
+    ['s', 110, -45],
+    ['c', 30, 60, 30, -6.5, 0],
+    ['s', 90],
+    ['t'],
+    ['b', 0.62, 30],
+    ['s', 100],
+    ['c', 25, 80, 25, 4, 0],
+    ['c', 25, 80, 25, -4, 0],
+    ['b', -0.62, 30],
+    ['s', 80],
+    ['t'],
+    ['s', 120, 30],
+    ['r', 0.62, -5],
+    ['c', 30, 50, 30, 5.5, -30],
+    ['s', 100],
+    ['g'],
+    ['c', 30, 70, 30, -6, 20],
+    ['b', 0, 40],
+    ['i', 'KEEP LEFT 200 m', 60],
+    ['s', 160, 40],
+    ['r', -0.62, -5],
+    ['o', 'parked', 1, 20],
+    ['o', 'parked', 2, 24],
+    ['s', 160, -45],
+    ['c', 40, 80, 40, 6.5, 0],
+    ['b', -0.75, 0],
+    ['s', 100],
+    ['c', 30, 60, 30, -5.5, 15],
+    ['g'],
+    ['s', 120, -15],
+    ['t'],
+    ['b', 0, 50],
+    ['s', 140],
+    ['c', 30, 100, 30, 3.5, 0],
+    ['t'],
+    ['i', 'JUMP 200 m', 20],
+    ['s', 120, 35],
+    ['r', 0, -5, 1.2],
+    ['s', 140, -35],
+    ['c', 30, 60, 30, -6, 0],
+    ['c', 30, 60, 30, 6, 0],
+    ['b', -0.62, 40],
+    ['r', 0.62, 100],
+    ['o', 'parked', 2, 125],
+    ['o', 'wetfloor', 1, 130],
+    ['b', 0, 160],
+    ['s', 260],
     ['f']
   ]
 ];
 
 // Rivals per level: kind, name, the average share of your top speed you need to beat them to the
-// line, head start in segments, look. raceInit turns that into each rival's cruising pace. They line
-// up ahead of you in the order given; the quick ones start furthest up the road.
+// line, head start in segments, look, encores (Ralph only: how many times he comes back for another
+// block). raceInit turns that into each rival's cruising pace. They line up ahead of you in the order
+// given; the quick ones start furthest up the road.
 const RACE_FIELDS = [
   [
-    ['iv', 'Rolling IV', 0.62, 22],
-    ['cart', 'Med Cart 4', 0.7, 40],
-    ['gremlin', 'Gus', 0.76, 58, 0],
-    ['gremlin', 'Pudding', 0.79, 76, 1],
-    ['gremlin', 'Gloop', 0.82, 94, 2],
-    ['gremlin', 'Sprocket', 0.91, 112, 3],
-    ['barb', 'Barb', 0.97, 130]
+    ['iv', 'Rolling IV', 0.68, 22],
+    ['cart', 'Med Cart 4', 0.75, 40],
+    ['gremlin', 'Gus', 0.8, 58, 0],
+    ['gremlin', 'Pudding', 0.84, 76, 1],
+    ['gremlin', 'Gloop', 0.88, 94, 2],
+    ['gremlin', 'Sprocket', 0.97, 112, 3],
+    ['barb', 'Barb', 1.03, 130]
   ],
   [
-    ['iv', 'Rolling IV', 0.67, 20],
-    ['cart', 'Med Cart 4', 0.73, 38],
-    ['gremlin', 'Gus', 0.78, 56, 0],
-    ['gremlin', 'Pudding', 0.82, 74, 1],
-    ['cart', 'Crash Cart', 0.85, 92],
-    ['gremlin', 'Gloop', 0.87, 110, 2],
-    ['gremlin', 'Sprocket', 0.9, 128, 3],
-    ['gremlin', 'Snot Rocket', 0.93, 146, 0],
-    ['barb', 'Barb', 0.97, 164]
+    ['iv', 'Rolling IV', 0.73, 20],
+    ['cart', 'Med Cart 4', 0.79, 38],
+    ['gremlin', 'Gus', 0.83, 56, 0],
+    ['gremlin', 'Pudding', 0.86, 74, 1],
+    ['cart', 'Crash Cart', 0.89, 92],
+    ['gremlin', 'Gloop', 0.92, 110, 2],
+    ['gremlin', 'Sprocket', 0.94, 128, 3],
+    ['gremlin', 'Snot Rocket', 0.96, 146, 0],
+    ['barb', 'Barb', 1, 164]
   ],
   [
-    ['iv', 'Rolling IV', 0.7, 20],
-    ['cart', 'Med Cart 4', 0.75, 36],
-    ['gremlin', 'Gus', 0.79, 52, 0],
-    ['gremlin', 'Pudding', 0.83, 68, 1],
-    ['cart', 'Crash Cart', 0.86, 84],
-    ['gremlin', 'Gloop', 0.89, 100, 2],
+    ['iv', 'Rolling IV', 0.73, 20],
+    ['cart', 'Med Cart 4', 0.78, 36],
+    ['gremlin', 'Gus', 0.81, 52, 0],
+    ['gremlin', 'Pudding', 0.84, 68, 1],
+    ['cart', 'Crash Cart', 0.87, 84],
+    ['gremlin', 'Gloop', 0.9, 100, 2],
     ['gremlin', 'Sprocket', 0.93, 116, 3],
-    ['gremlin', 'Snot Rocket', 0.965, 132, 0],
-    ['gremlin', 'Bile Bandit', 0.975, 148, 1],
-    ['barb', 'Barb', 0.99, 164],
+    ['gremlin', 'Snot Rocket', 0.97, 132, 0],
+    ['gremlin', 'Bile Bandit', 0.99, 148, 1],
+    ['barb', 'Barb', 1.03, 164],
     ['ralph', 'Ralph', 0.87, 700]
+  ],
+  [
+    ['iv', 'Rolling IV', 0.8, 20],
+    ['cart', 'Med Cart 4', 0.84, 36],
+    ['gremlin', 'Gus', 0.87, 52, 0],
+    ['cart', 'Crash Cart', 0.9, 68],
+    ['gremlin', 'Pudding', 0.92, 84, 1],
+    ['gremlin', 'Gloop', 0.93, 100, 2],
+    ['gremlin', 'Sprocket', 0.95, 116, 3],
+    ['gremlin', 'Snot Rocket', 0.96, 132, 0],
+    ['gremlin', 'Bile Bandit', 0.99, 148, 1],
+    ['barb', 'Barb', 1.03, 164],
+    ['ralph', 'Ralph', 0.81, 300, 0, 1]
   ]
 ];
 
@@ -39963,8 +40096,8 @@ const RACE_KINDS = {
 const RACE_TIERS = [
   {
     course: 'Lobby Sprint',
-    time: 35,
-    gates: [26],
+    time: 37,
+    gates: [24],
     traffic: { from: 380, gap: [210, 290], mix: { laundry: 3, wheelchair: 2 }, pair: 0, weave: 0 },
     props: { vend: 2, bench: 2, plant: 2, chair: 1, lamp: 1 },
     boosts: 3,
@@ -39972,8 +40105,8 @@ const RACE_TIERS = [
   },
   {
     course: 'Imaging Wing',
-    time: 32,
-    gates: [27, 23],
+    time: 36,
+    gates: [27, 24],
     traffic: {
       from: 220,
       gap: [115, 170],
@@ -39987,7 +40120,7 @@ const RACE_TIERS = [
   },
   {
     course: 'Night Shift Summit',
-    time: 33,
+    time: 41,
     gates: [17, 23, 20],
     traffic: {
       from: 170,
@@ -39997,6 +40130,22 @@ const RACE_TIERS = [
       weave: 0.3
     },
     props: { vend: 2, bench: 1, plant: 1, chair: 1, ensure: 2, lamp: 2 },
+    boosts: 3,
+    balls: 5
+  },
+  {
+    course: 'Midnight Rounds',
+    night: true,
+    time: 35,
+    gates: [22, 22, 28],
+    traffic: {
+      from: 160,
+      gap: [115, 165],
+      mix: { laundry: 3, wheelchair: 3, wetfloor: 2, parked: 2 },
+      pair: 0.25,
+      weave: 0.4
+    },
+    props: { vend: 2, bench: 1, plant: 1, chair: 1, ensure: 2, lamp: 3 },
     boosts: 3,
     balls: 5
   }
@@ -40011,21 +40160,23 @@ const RACE = registerGame({
   layout: 'gesture',
   info: {
     game: 'Gurney Grand Prix',
-    genre: 'STEER · OVERTAKE · BOOST · BONK',
+    genre: 'STEER · BOOST · JUMP · BONK',
     headline: 'No brakes. Real standings. Barb is not slowing down.',
     desc:
-      'A proper race across the hospital campus. Steer a runaway gurney through curves, over hills and through the CT donut, pass gremlin gurneys, med carts, a runaway IV and Barb from Dietary, and reach each donut gate before the clock runs dry. Finish top three.',
+      'A proper race across the hospital campus. Steer a runaway gurney through curves, over hills and through the CT donut, hit the boost arrows, fly the wheelchair ramps, pass gremlin gurneys, med carts, a runaway IV and Barb from Dietary, and reach each donut gate before the clock runs dry. Finish top three.',
     goal: 'Finish in the top three before the clock runs out. Every donut gate adds time.',
     control:
       'Hold the left or right side of the screen to steer, or drag to steer gently. Swipe up to BOOST. Tap a gurney up the road to bonk it with a softball. Keyboard: arrows steer, Space throws, Shift boosts. The buttons work too.',
     avoid:
-      'Curves push you to the outside, so steer into them early. The grass is slow. Rear-ending anything spins you out and costs speed, never a heart. Save boosts for straights.',
+      'Curves push you wide, so steer in early. The rumble strip shakes before the edge: go past it at speed and you spin out. Rear-ending anything spins you too, never a heart. Save boosts for straights.',
     cue: 'Hold left or right to steer · swipe up to boost · tap a gurney to throw'
   },
+  legendary: true,
   tierNotes: [
-    'Lobby Sprint · 8 racers · long straights · light traffic',
-    'Imaging Wing · 10 racers · sharp curves · a donut tunnel',
-    'Night Shift Summit · 12 racers · hills · night tunnel · Ralph'
+    'Lobby Sprint · 8 racers · long straights · boost pads · two ramps',
+    'Imaging Wing · 10 racers · sharp curves · ramps · a donut tunnel',
+    'Night Shift Summit · 12 racers · hills · crest jumps · night tunnel · Ralph',
+    'Midnight Rounds · 12 racers · lights out · blind jumps · Ralph, twice'
   ],
   shiftName: 'LEG',
   init() {
@@ -40065,6 +40216,8 @@ const RACE = registerGame({
     mini.raceNitroT = RACE_NITRO;
     mini.raceGhost = Math.max(mini.raceGhost, RACE_NITRO);
     mini.raceSpin = 0;
+    mini.raceSpinOut = false;
+    mini.raceOffT = 0;
     mini.raceBoostT = 0;
     mini.flash = 1.2;
     mini.flashText = 'NITRO · YOU ARE A GHOST FOR THREE SECONDS';
@@ -40101,6 +40254,10 @@ const RACE = registerGame({
       [
         'LEG 2 · Lights out soon. Tail lights mean traffic over the crest.',
         'FINAL LEG · Ralph is out of bed. Juke him or bonk him.'
+      ],
+      [
+        'LEG 2 · Blind crest ahead. The sign says keep left. Believe the sign.',
+        'FINAL LEG · One more jump, then the long straight. Ralph is not done.'
       ]
     ][mini.tier][shift - 1],
   timeUp() {
@@ -40109,7 +40266,7 @@ const RACE = registerGame({
     mini.raceOut = 'time';
     finishMini(
       false,
-      'Out of time. Each donut gate adds seconds and the grass eats them. Stay on the floor and steer into curves early.'
+      'Out of time. Each donut gate adds seconds and every spin-out eats some. Stay on the floor and steer into curves early.'
     );
   },
   lesson() {
@@ -40123,9 +40280,10 @@ const RACE = registerGame({
         `Finish top three out of ${field} before the clock runs out. ` +
         (gates === 1 ? 'One donut gate adds time.' : `${gates} donut gates add time.`) +
         [
-          ' Long straights and light traffic. Pass them one at a time.',
-          ' Sharper curves, more traffic and a tunnel with walls that bite.',
-          ' Hills hide traffic, the tunnel is dark, and Ralph drives a motorized bed like he owns the place.'
+          ' Drive over the orange arrows for a free burst. Line up the blue ramp and fly the wet floor signs.',
+          ' Pads sit on the inside of curves, ramps clear the traffic jams, and the tunnel walls bite.',
+          ' Hills hide traffic, crest ramps launch you blind, the tunnel is dark, and Ralph drives a motorized bed like he owns the place.',
+          ' Lights out the whole way. Blind jumps, the fastest field in the building, and Ralph comes back for seconds.'
         ][mini.tier],
       control: i.control,
       avoid: i.avoid,
@@ -40139,7 +40297,7 @@ const RACE = registerGame({
   lives: () => '⚡ ' + mini.raceBoosts + ' · ⚾ ' + mini.raceBalls,
   tactics: () =>
     `${raceKph()} KPH · ${Math.round(raceProgress() * 100)}% · ${mini.racePasses} PASSES · ` +
-    `${mini.raceCrashes} SPINS · ${mini.raceHits} BONKS`,
+    `${mini.raceCrashes} SPINS · ${mini.raceJumps} JUMPS · ${mini.raceHits} BONKS`,
   assistText: () => 'NITRO · ' + mini.helps + ' (E)',
   // First place with two spins or fewer is gold, second is silver, third is bronze unless it was clean.
   quality() {
@@ -40200,16 +40358,18 @@ const raceEaseIn = (a, b, p) => a + (b - a) * p * p,
   raceEaseInOut = (a, b, p) => a + (b - a) * (0.5 - Math.cos(p * Math.PI) / 2);
 
 // Segments with curve, height (y1 at the near edge, y2 at the far edge), tunnel and night flags, props,
-// gates and donut rings. The same level always builds the same course, so it can be learned.
+// gates, donut rings, boost pads and ramps (lip marks a ramp's last segment). The same level always
+// builds the same course, so it can be learned.
 function raceBuildCourse(tier) {
   const segs = [],
-    gates = [];
+    gates = [],
+    marks = [];
   let y = 0,
     tunnel = false,
-    night = false,
+    night = !!RACE_TIERS[tier].night,
     finish = 0;
   const push = (curve, y2) => {
-    segs.push({ i: segs.length, curve, y1: y, y2, tunnel, night, props: [], gate: null, ring: false });
+    segs.push({ i: segs.length, curve, y1: y, y2, tunnel, night, props: [], gate: null, ring: false, pad: null, ramp: null, lip: null });
     y = y2;
   };
   const road = (enter, hold, leave, curve, hill = 0) => {
@@ -40230,9 +40390,23 @@ function raceBuildCourse(tier) {
     else if (p[0] === 't') tunnel = !tunnel;
     else if (p[0] === 'n') night = !night;
     else if (p[0] === 'f') finish = segs.length;
+    else marks.push({ p, at: segs.length });
   }
   road(0, RACE_DRAW + 60, 0, 0);
-  const course = { segs, start, finish, gates, tier };
+  const course = { segs, start, finish, gates, tier, pads: [], ramps: [], parked: [], signs: [] };
+  for (const { p, at } of marks) {
+    if (p[0] === 'b') {
+      const pad = { z: at + p[2], x: p[1], w: RACE_PAD_W, len: RACE_PAD_LEN };
+      course.pads.push(pad);
+      for (let i = 0; i < pad.len; i++) segs[pad.z + i].pad = pad;
+    } else if (p[0] === 'r') {
+      const r = { z: at + p[2], end: at + p[2] + RACE_RAMP_LEN, x: p[1], w: p[3] || RACE_RAMP_W };
+      course.ramps.push(r);
+      for (let i = r.z; i < r.end; i++) segs[i].ramp = r;
+      segs[r.end - 1].lip = r;
+    } else if (p[0] === 'o') course.parked.push({ kind: p[1], lane: p[2], z: at + p[3] });
+    else if (p[0] === 'i') course.signs.push({ z: at + p[2], text: p[1] });
+  }
   raceDecorate(course);
   return course;
 }
@@ -40285,6 +40459,7 @@ function raceDecorate(course) {
     s.props.push({ kind: 'sign', x: 1.62, w: RACE_PROP_W.sign, solid: true, text });
   };
   for (const g of gates) sign(g - 100, 'CT GATE 200 m');
+  for (const s of course.signs) sign(s.z, s.text);
   sign(finish - 150, 'RADIOLOGY 300 m');
   sign(finish - 50, 'FINISH 100 m');
 }
@@ -40303,6 +40478,8 @@ function raceCar(o) {
       calm: 0,
       laneT: 0,
       blink: 0,
+      air: 0,
+      airT: 0,
       out: false,
       near: false,
       knocked: false,
@@ -40313,6 +40490,8 @@ function raceCar(o) {
   );
 }
 
+// Random traffic stays off the run-up and the landing of every ramp (those are set by hand), and
+// nothing parks on a boost pad.
 function raceSpawnTraffic(course, T) {
   const tr = T.traffic,
     kinds = Object.keys(tr.mix),
@@ -40321,6 +40500,11 @@ function raceSpawnTraffic(course, T) {
   let z = course.start + tr.from,
     id = 100;
   while (z < course.finish - 40) {
+    const ramp = course.ramps.find(r => z > r.z - 45 && z < r.end + 60);
+    if (ramp) {
+      z = ramp.end + 60 + rand(0, 20);
+      continue;
+    }
     const lanes = [0, 1, 2],
       n = rand(0, 1) < tr.pair ? 2 : 1;
     for (let k = 0; k < n; k++) {
@@ -40334,12 +40518,15 @@ function raceSpawnTraffic(course, T) {
           break;
         }
       }
+      if (!RACE_TRAFFIC[kind].pace && course.pads.some(p => Math.abs(p.z - z) < 14 && Math.abs(p.x - RACE_LANES[lane]) < 0.45))
+        kind = 'laundry';
       const car = raceCar({ id: id++, kind, racer: false, z: z + k * rand(0, 5), lane, pace: RACE_TRAFFIC[kind].pace });
       if (kind === 'wheelchair' && rand(0, 1) < tr.weave) car.weave = true;
       cars.push(car);
     }
     z += rand(tr.gap[0], tr.gap[1]);
   }
+  for (const o of course.parked) cars.push(raceCar({ id: id++, kind: o.kind, racer: false, z: o.z, lane: o.lane, pace: 0 }));
   return cars;
 }
 
@@ -40361,6 +40548,7 @@ function raceInit() {
       z: course.start + f[3],
       lane: order[n],
       look: f[4] || 0,
+      encore: f[5] || 0,
       racer: true
     })
   );
@@ -40377,12 +40565,23 @@ function raceInit() {
     raceSteer: 0,
     raceOff: false,
     raceSpin: 0,
+    raceSpinLen: RACE_SPIN,
+    raceSpinOut: false,
     raceSpinDir: 1,
     raceGhost: 0,
     raceShake: 0,
+    raceBuzz: 0,
     raceScrape: 0,
     raceBoostT: 0,
     raceNitroT: 0,
+    racePadT: 0,
+    racePadLast: null,
+    raceOffT: 0,
+    raceRumble: false,
+    raceAir: 0,
+    raceAirT: 0,
+    raceLift: 0,
+    raceBounce: 0,
     raceBoosts: T.boosts,
     raceBalls: T.balls,
     raceRivals: rivals,
@@ -40402,11 +40601,15 @@ function raceInit() {
     raceStandings: null,
     racePasses: 0,
     raceCrashes: 0,
+    raceSpinOuts: 0,
+    raceJumps: 0,
+    racePads: 0,
     raceHits: 0,
     raceSkyX: 0,
     raceNightK: course.segs[course.start].night ? 1 : 0,
     raceTunnelK: 0,
     raceEngineT: 0,
+    raceRumbleT: 0,
     raceBeep: 0
   });
   mini.goal = rivals.length - 2;
@@ -40573,24 +40776,41 @@ function raceUpdate(dt) {
   raceEffects(dt);
 }
 
+function raceBoosting() {
+  return mini.raceNitroT > 0 || mini.raceBoostT > 0 || mini.racePadT > 0;
+}
+
 function raceStep(h) {
   const top = mini.raceTop,
-    seg = raceSeg(mini.raceZ);
+    z0 = mini.raceZ,
+    seg = raceSeg(z0),
+    air = mini.raceAir > 0;
   mini.raceSpin = Math.max(0, mini.raceSpin - h);
+  if (mini.raceSpin <= 0) mini.raceSpinOut = false;
   mini.raceGhost = Math.max(0, mini.raceGhost - h);
   mini.raceBoostT = Math.max(0, mini.raceBoostT - h);
   mini.raceNitroT = Math.max(0, mini.raceNitroT - h);
+  mini.racePadT = Math.max(0, mini.racePadT - h);
   mini.raceShake = Math.max(0, mini.raceShake - h);
+  mini.raceBuzz = Math.max(0, mini.raceBuzz - h);
   mini.raceScrape = Math.max(0, mini.raceScrape - h);
+  mini.raceBounce = Math.max(0, mini.raceBounce - h);
   // Steering eases in quickly; a curve pushes outward with the square of your speed. A spin takes
-  // the wheel away and slides you sideways.
+  // the wheel away and slides you sideways (a spin-out slides you back to the edge of the floor).
+  // In the air the road bends away under you and the wheel has a third of its grip.
   const steer = mini.raceSpin > 0 ? 0 : raceSteerInput(),
     pct = mini.raceV / top;
   mini.raceSteer = steer;
-  const want = steer * RACE_STEER * (0.3 + 0.7 * Math.min(1, pct));
-  mini.raceVx += (want - mini.raceVx) * Math.min(1, h * 14);
-  const push = seg.curve * RACE_CENT * Math.min(1.44, pct * pct);
-  mini.raceX += (mini.raceVx - push + (mini.raceSpin > 0 ? mini.raceSpinDir * 0.2 : 0)) * h;
+  const want = steer * RACE_STEER * (0.3 + 0.7 * Math.min(1, pct)) * (air ? 0.35 : 1);
+  mini.raceVx += (want - mini.raceVx) * Math.min(1, h * (air ? 5 : 14));
+  const push = seg.curve * RACE_CENT * Math.min(1.44, pct * pct),
+    slide =
+      mini.raceSpin <= 0
+        ? 0
+        : mini.raceSpinOut
+          ? clamp((Math.sign(mini.raceX) * 0.92 - mini.raceX) * 4, -1.3, 1.3) * (Math.abs(mini.raceX) > 0.92 ? 1 : 0)
+          : mini.raceSpinDir * 0.2;
+  mini.raceX += (mini.raceVx - push + slide) * h;
   const wall = seg.tunnel ? RACE_TUNNEL_WALL : RACE_WALL;
   if (Math.abs(mini.raceX) > wall) {
     mini.raceX = Math.sign(mini.raceX) * wall;
@@ -40601,25 +40821,170 @@ function raceStep(h) {
     }
   }
   mini.raceXLag += (mini.raceX - mini.raceXLag) * Math.min(1, h * 2);
-  // Speed: the gurney always pushes toward its cap. Grass, walls and spins lower it; boosts raise it.
-  const boosting = mini.raceNitroT > 0 || mini.raceBoostT > 0,
-    off = Math.abs(mini.raceX) > RACE_EDGE;
-  let cap = top * (mini.raceNitroT > 0 ? RACE_NITRO_MUL : mini.raceBoostT > 0 ? RACE_BOOST_MUL : 1);
+  // Speed: the gurney always pushes toward its cap. Grass, walls and spins lower it; boosts and pads
+  // raise it. In the air nothing touches the floor, so speed holds.
+  const boosting = raceBoosting(),
+    edge = Math.abs(mini.raceX) - RACE_EDGE,
+    off = !air && edge > 0;
+  let cap = top * (mini.raceNitroT > 0 ? RACE_NITRO_MUL : boosting ? RACE_BOOST_MUL : 1);
   if (off) cap = Math.min(cap, top * (seg.tunnel ? RACE_SCRAPE : RACE_GRASS) * (boosting ? 1.2 : 1));
-  if (mini.raceSpin > 0) cap = Math.min(cap, top * RACE_SPIN_CAP);
+  if (mini.raceSpin > 0) cap = Math.min(cap, top * (mini.raceSpinOut ? RACE_SPINOUT_CAP : RACE_SPIN_CAP));
   const v = mini.raceV;
-  if (v < cap) mini.raceV = Math.min(cap, v + (top * 0.12 + (cap - v) * (boosting ? 1.8 : 0.75)) * h);
+  if (air) {
+    if (boosting && v < cap) mini.raceV = Math.min(cap, v + top * 0.3 * h);
+  } else if (v < cap) mini.raceV = Math.min(cap, v + (top * 0.12 + (cap - v) * (boosting ? 1.8 : 0.75)) * h);
   else mini.raceV = Math.max(cap, v - Math.max((v - cap) * 2.5, top * 0.4) * h);
   mini.raceOff = off;
+  mini.raceRumble = !air && !seg.tunnel && !off && Math.abs(mini.raceX) > RACE_RUMBLE_X;
   mini.raceZ += mini.raceV * h;
   mini.raceSkyX += seg.curve * pct * h * 0.004;
   raceStepCars(h);
-  raceHitProps();
-  raceHitCars();
+  if (air) {
+    mini.raceAir = Math.max(0, mini.raceAir - h);
+    if (mini.raceAir <= 0) raceLand();
+  } else {
+    raceEdge(h, seg, edge);
+    racePadCheck();
+    const lip = seg.lip;
+    if (lip && Math.floor(mini.raceZ) > Math.floor(z0) && Math.abs(mini.raceX - lip.x) < lip.w) raceLaunch(lip);
+    else {
+      raceHitProps();
+      raceHitCars();
+    }
+  }
   raceStepShots(h);
   raceCheckGates();
   raceCheckPlace(h);
   if (mini.raceZ >= mini.raceCourse.finish) raceFinish();
+}
+
+// The edge of the floor. The rumble strip buzzes; past it the gurney is on linoleum or grass and
+// slows, and a few tenths of a second out there at speed (less the deeper you go) spins you out.
+// A quick graze is only a slowdown. Nitro and a spin already under way are immune.
+function raceEdge(h, seg, edge) {
+  if (mini.raceRumble) mini.raceBuzz = Math.max(mini.raceBuzz, 0.06);
+  if (seg.tunnel || mini.raceSpin > 0 || mini.raceNitroT > 0 || edge <= 0) {
+    mini.raceOffT = Math.max(0, mini.raceOffT - h * 2);
+    return;
+  }
+  mini.raceOffT += h * (1 + edge * 3);
+  mini.raceBuzz = Math.max(mini.raceBuzz, 0.1 + mini.raceOffT * 0.5);
+  if (mini.raceOffT >= RACE_GRAZE[mini.tier] && mini.raceV > mini.raceTop * RACE_SPINOUT_V) raceSpinOut(false);
+}
+
+const RACE_SPINOUT_LINES = {
+  grass: ['GRASS STAINS ON THE SHEETS', 'THE LAWN SAYS HELLO', 'OFF-ROAD IS NOT COVERED'],
+  floor: ['SKIDDED ON THE LINOLEUM', 'FRESHLY WAXED. OOPS.', 'SPIN CYCLE'],
+  land: ['LANDED IN THE FLOWERBED', 'STUCK THE LANDING. IN THE GRASS.']
+};
+
+// Off the road at speed: two full turns, speed dumped, the wheel gone for a second and a half, then
+// you are back on the edge of the floor to pick it up again. Never a heart.
+function raceSpinOut(landing) {
+  const top = mini.raceTop,
+    C = activeCanvas(),
+    grass = Math.abs(mini.raceX) > 1.42;
+  mini.raceSpin = mini.raceSpinLen = RACE_SPINOUT;
+  mini.raceSpinOut = true;
+  mini.raceGhost = RACE_SPINOUT + 0.6;
+  mini.raceSpinDir = mini.raceX > 0 ? -1 : 1;
+  mini.raceV = Math.min(mini.raceV, top * 0.4);
+  mini.raceVx = 0;
+  mini.raceBoostT = 0;
+  mini.racePadT = 0;
+  mini.raceOffT = 0;
+  mini.raceShake = 0.45;
+  mini.raceCrashes++;
+  mini.raceSpinOuts++;
+  mini.combo = 0;
+  racePop(pick(RACE_SPINOUT_LINES[landing ? 'land' : grass ? 'grass' : 'floor']), 0.5, 0.5, '#f8b8b0', 1, 1.4);
+  arcadeBurst(C.w / 2, C.h * 0.84, grass || landing ? '#a8d08a' : '#e3dbc4', 18);
+  sfx('stun');
+}
+
+// Orange arrows: drive over one with your middle on it for a burst. Each pad pays once.
+function racePadCheck() {
+  const p = raceSeg(mini.raceZ).pad;
+  if (!p || mini.racePadLast === p || mini.raceSpin > 0 || Math.abs(mini.raceX - p.x) > p.w + 0.08) return;
+  mini.racePadLast = p;
+  mini.racePadT = RACE_PAD_T;
+  mini.raceV = Math.max(mini.raceV, mini.raceTop * RACE_PAD_KICK);
+  mini.racePads++;
+  mini.raceShake = Math.max(mini.raceShake, 0.08);
+  praise(60);
+  racePop('BOOST PAD', 0.5, 0.62, '#ffc36a', 0.9, 0.8);
+  sfx('dash');
+}
+
+// Off the lip of a wheelchair ramp. Air time and height grow with speed; traffic passes underneath.
+function raceLaunch(r) {
+  const pct = clamp(mini.raceV / mini.raceTop, 0.3, 1.4);
+  mini.raceAir = mini.raceAirT = 0.5 + 0.45 * pct;
+  mini.raceLift = RACE_LIFT * pct;
+  mini.raceOffT = 0;
+  mini.raceJumps++;
+  racePop(r.w >= 1 ? 'AIRBORNE' : 'RAMP!', 0.5, 0.38, '#bfe0ff', 1.1, 0.9);
+  sfx('jump');
+}
+
+// How high a ramp's slope is at (z, x), in road half-widths: zero off the ramp.
+function raceRampLift(z, x) {
+  const r = raceSeg(z).ramp;
+  return r && Math.abs(x - r.x) < r.w ? RACE_RAMP_H * clamp((z - r.z) / RACE_RAMP_LEN, 0, 1) : 0;
+}
+
+// Height above the road in world units: up the slope, then off the lip on an arc back down.
+function raceLiftNow() {
+  if (!mini.raceCourse) return 0;
+  if (mini.raceAir <= 0) return raceRampLift(mini.raceZ, mini.raceX) * RACE_ROAD;
+  const p = 1 - mini.raceAir / mini.raceAirT;
+  return mini.raceLift * 4 * p * (1 - p) + RACE_RAMP_H * RACE_ROAD * (1 - p);
+}
+
+function raceCarLift(c) {
+  if (c.air <= 0) return raceRampLift(c.z, c.x) * RACE_ROAD;
+  const p = 1 - c.air / c.airT;
+  return RACE_LIFT * 0.8 * 4 * p * (1 - p) + RACE_RAMP_H * RACE_ROAD * (1 - p);
+}
+
+// Touchdown. In the grass at speed it is a spin-out; on top of something, the something loses; on a
+// clean floor you get a little kick for sticking it.
+function raceLand() {
+  const top = mini.raceTop,
+    seg = raceSeg(mini.raceZ);
+  mini.raceBounce = 0.35;
+  mini.raceShake = Math.max(mini.raceShake, 0.16);
+  sfx('bounce');
+  if (!seg.tunnel && Math.abs(mini.raceX) > RACE_EDGE && mini.raceNitroT <= 0) {
+    if (mini.raceV > top * RACE_SPINOUT_V) raceSpinOut(true);
+    return;
+  }
+  let under = null;
+  for (const c of mini.raceCars) {
+    if (c.out || c.knocked || c.air > 0 || c.chase) continue;
+    if (Math.abs(c.z - mini.raceZ) > RACE_LEN + 0.6 || Math.abs(c.x - mini.raceX) >= c.w + RACE_PW) continue;
+    under = c;
+    c.wob = 0.8;
+    if (c.racer) {
+      c.spin = Math.max(c.spin, 1.2);
+      c.v *= 0.6;
+      if (c.kind === 'ralph') c.calm = 6;
+    } else {
+      c.knocked = true;
+      c.tx = (c.x >= mini.raceX ? 1 : -1) * 1.7;
+      c.v = 0;
+    }
+  }
+  if (under) {
+    mini.raceGhost = Math.max(mini.raceGhost, 0.5);
+    racePop('LANDED ON ' + raceCarName(under).toUpperCase() + '. SORRY.', 0.5, 0.46, '#ffe1a0', 0.9, 1.2);
+    sfx('hit');
+    return;
+  }
+  mini.raceV = Math.max(mini.raceV, top * 1.06);
+  mini.racePadT = Math.max(mini.racePadT, 0.5);
+  praise(80);
+  racePop('STUCK THE LANDING', 0.5, 0.46, '#b5f0cf', 1, 1);
 }
 
 // Traffic sleeps until you are close and retires once you are well past. Rivals always drive; near
@@ -40648,11 +41013,15 @@ function raceDriveCar(c, h, near) {
   c.laneT = Math.max(0, c.laneT - h);
   let want = c.pace * top * (c.racer ? 1 + 0.025 * Math.sin(mini.total * 0.55 + c.id * 1.7) : 1) * raceBand(c),
     lat = c.racer ? 1 : 0.55;
+  if (c.kind === 'ralph' && c.encore !== undefined) raceRalphEncore(c);
   if (c.knocked) {
     want = 0;
     lat = 2.6;
   } else if (c.spin > 0) want = Math.min(want, top * 0.25);
-  else if (near) {
+  else if (c.chase) {
+    want = top * 1.2;
+    lat = 1.4;
+  } else if (near) {
     const ahead = raceAhead(c, near);
     if (ahead) {
       if (ahead.v < want - 0.5 && ahead.dz < 18 && c.laneT <= 0 && c.pace > 0) raceChangeLane(c, near);
@@ -40665,7 +41034,14 @@ function raceDriveCar(c, h, near) {
   c.x += clamp(tx - c.x, -lat * h, lat * h);
   if (c.v < want) c.v = Math.min(want, c.v + (top * 0.12 + (want - c.v) * 0.75) * h);
   else c.v = Math.max(want, c.v - Math.max((c.v - want) * 2.5, top * 0.25) * h);
+  const z0 = c.z;
   c.z = Math.min(c.z + c.v * h, mini.raceCourse.segs.length - 3);
+  // Rivals and traffic fly the ramps too.
+  if (c.air > 0) c.air = Math.max(0, c.air - h);
+  else {
+    const lip = raceSeg(z0).lip;
+    if (lip && Math.floor(c.z) > Math.floor(z0) && Math.abs(c.x - lip.x) < lip.w) c.air = c.airT = 0.45 + 0.45 * clamp(c.v / top, 0.3, 1.2);
+  }
   if (c.racer && !c.done && c.z >= mini.raceCourse.finish) {
     c.done = true;
     c.doneT = mini.total;
@@ -40716,8 +41092,10 @@ function raceChangeLane(c, near) {
       }
       if (dz >= 3 && dz < room && o.v < c.pace * mini.raceTop) room = dz;
     }
-    const pz = mini.raceZ - c.z;
-    if (Math.abs(mini.raceX - x) < 0.45 && pz > -9 && pz < 4) room = -1;
+    // Nobody swerves into Macy's line less than about a second before she would reach them.
+    const pz = mini.raceZ - c.z,
+      close = Math.max(0, mini.raceV - c.v);
+    if (Math.abs(mini.raceX - x) < 0.5 && pz > -9 - close && pz < 4) room = -1;
     if (room > 14 && room > pickRoom) {
       pickRoom = room;
       pickL = L;
@@ -40743,12 +41121,44 @@ function raceRalph(c) {
     c.blocking = true;
     if (!c.taunted) {
       c.taunted = true;
-      racePop('RALPH: MY HALLWAY.', 0.5, 0.3, '#e3c8ff', 1.1, 1.8);
+      racePop(c.round2 ? 'RALPH: ROUND TWO.' : 'RALPH: MY HALLWAY.', 0.5, 0.3, '#e3c8ff', 1.1, 1.8);
       sfx('boss');
     }
   }
   c.tx = clamp(mini.raceXLag, -0.72, 0.72);
   return 0.7;
+}
+
+// On Legendary Ralph does not stay passed. A few seconds after you get by him he finds the turbo
+// button, ghosts up the far lane past you and gets back in front, then he is a slow bed again and
+// blocks one more time.
+function raceRalphEncore(c) {
+  if (c.chase) {
+    c.tx = Math.abs(mini.raceX - RACE_LANES[0]) > Math.abs(mini.raceX - RACE_LANES[2]) ? RACE_LANES[0] : RACE_LANES[2];
+    if (c.z - mini.raceZ > 45 || c.z >= mini.raceCourse.finish - 60) {
+      c.chase = false;
+      c.tx = undefined;
+      c.lane = 1;
+      c.passedT = -99;
+      c.taunted = false;
+      c.round2 = true;
+    }
+    return;
+  }
+  if (c.encore <= 0 || c.done) return;
+  if (c.passedAt === undefined) {
+    if (c.z < mini.raceZ - 1.5) c.passedAt = mini.total;
+    return;
+  }
+  if (mini.total - c.passedAt > 5 && mini.raceZ - c.z > 25 && mini.raceZ < mini.raceCourse.finish - 500) {
+    c.encore--;
+    c.chase = true;
+    c.spin = 0;
+    c.calm = 0;
+    c.blocking = false;
+    racePop('RALPH FOUND THE TURBO BUTTON', 0.5, 0.3, '#e3c8ff', 1, 1.8);
+    sfx('boss');
+  }
 }
 
 // Some wheelchairs on level 3 drift a lane over, after blinking for a second.
@@ -40771,7 +41181,7 @@ function raceWeave(c, h) {
 function raceHitCars() {
   if (mini.raceGhost > 0) return;
   for (const c of mini.raceCars) {
-    if (c.out || c.knocked || !(c.near || c.racer)) continue;
+    if (c.out || c.knocked || c.air > 0 || c.chase || !(c.near || c.racer)) continue;
     const dz = c.z - mini.raceZ;
     if (dz > RACE_LEN || dz < -RACE_LEN || Math.abs(c.x - mini.raceX) >= c.w + RACE_PW) continue;
     if (dz > -0.3) {
@@ -40815,10 +41225,11 @@ const RACE_CRASH_LINES = {
 function raceCrash(c, prop) {
   const top = mini.raceTop,
     C = activeCanvas();
-  mini.raceSpin = RACE_SPIN;
+  mini.raceSpin = mini.raceSpinLen = RACE_SPIN;
+  mini.raceSpinOut = false;
   mini.raceGhost = RACE_SPIN + RACE_GHOST;
   mini.raceSpinDir = c ? (mini.raceX >= c.x ? 1 : -1) : mini.raceX > 0 ? -1 : 1;
-  mini.raceV = Math.min(mini.raceV, top * 0.55);
+  mini.raceV = Math.min(mini.raceV, top * 0.65);
   mini.raceVx = 0;
   mini.raceShake = 0.5;
   mini.raceCrashes++;
@@ -40835,7 +41246,16 @@ function raceCrash(c, prop) {
       c.knocked = true;
       c.tx = (c.x >= mini.raceX ? 1 : -1) * 1.7;
       c.v = 0;
-    } else c.v = Math.max(c.v, mini.raceV + 2);
+    } else {
+      // A bumped rival lurches ahead and moves over a lane, so one bump does not become five.
+      c.v = Math.max(c.v, mini.raceV + 2);
+      if (c.kind !== 'ralph' && c.laneT <= 0) {
+        const away = c.x >= mini.raceX ? 1 : -1,
+          to = c.lane + away >= 0 && c.lane + away <= 2 ? c.lane + away : c.lane - away;
+        c.lane = clamp(to, 0, 2);
+        c.laneT = 1.2;
+      }
+    }
   }
   const line = c ? (c.kind === 'gremlin' ? 'BUMPED ' + c.name.toUpperCase() : RACE_CRASH_LINES[c.kind]) : RACE_CRASH_LINES[prop.kind];
   racePop(line || 'SPUN OUT', 0.5, 0.5, '#f8b8b0', 1, 1.3);
@@ -40946,6 +41366,7 @@ function raceStandingsLine() {
 function raceFinish() {
   if (mini.raceDone) return;
   mini.raceDone = true;
+  mini.raceAir = 0;
   const place = racePlaceNow(),
     field = mini.raceRivals.length + 1,
     win = place <= 3;
@@ -40974,9 +41395,15 @@ function raceEffects(dt) {
   mini.raceEngineT -= dt;
   if (mini.raceEngineT <= 0) {
     const pct = mini.raceV / mini.raceTop,
-      boost = mini.raceBoostT > 0 || mini.raceNitroT > 0;
-    tone(70 + 120 * Math.min(1.4, pct) + (boost ? 40 : 0), 0.07, 'sawtooth', 0.006 + 0.004 * Math.min(1, pct));
+      boost = raceBoosting();
+    tone(70 + 120 * Math.min(1.4, pct) + (boost ? 40 : 0) + (mini.raceAir > 0 ? 30 : 0), 0.07, 'sawtooth', 0.006 + 0.004 * Math.min(1, pct));
     mini.raceEngineT = 0.09 - 0.035 * Math.min(1, pct);
+  }
+  // The rumble strip and the edge growl, so the warning reaches you without looking.
+  mini.raceRumbleT -= dt;
+  if ((mini.raceRumble || mini.raceOff) && mini.raceSpin <= 0 && mini.raceRumbleT <= 0) {
+    tone(mini.raceOff ? 38 : 52, 0.05, 'square', mini.raceOff ? 0.016 : 0.011);
+    mini.raceRumbleT = 0.07;
   }
   const left = Math.ceil(mini.limit - mini.phaseTime);
   if (left <= 5 && left > 0 && left !== mini.raceBeep) {
@@ -41006,7 +41433,7 @@ function raceView(C = activeCanvas(), z = mini.raceZ) {
     ps = raceSeg(z),
     pf = z - Math.floor(z),
     py = ps.y1 + (ps.y2 - ps.y1) * pf,
-    camY = py + RACE_CAM,
+    camY = py + RACE_CAM + raceLiftNow() * RACE_CAM_LIFT,
     camX = mini.raceX * RACE_ROAD,
     base = clamp(Math.floor(camZ / RACE_SEG), 0, segs.length - 1),
     bf = camZ / RACE_SEG - base,
@@ -41059,6 +41486,11 @@ function drawRace(g) {
     g.translate(v.W / 2 + Math.sin(mini.total * 91) * a, v.H / 2 + Math.cos(mini.total * 77) * a * 0.6);
     g.scale(1.04, 1.04);
     g.translate(-v.W / 2, -v.H / 2);
+  }
+  // The rumble strip and the edge buzz the whole picture: small, fast, and growing the longer you stay out.
+  if (mini.raceBuzz > 0 && !reduced && !outro) {
+    const a = Math.min(0.3, mini.raceBuzz) * 26 * v.u;
+    g.translate(Math.sin(mini.total * 131) * a, Math.cos(mini.total * 97) * a * 0.7);
   }
   raceDrawSky(g, v);
   raceDrawRoad(g, v);
@@ -41158,8 +41590,26 @@ function raceDrawRoad(g, v) {
     raceQuad(g, x1, y1, w1 * 1.1, x2, y2, w2 * 1.1, band ? '#f3ecd8' : '#de7a76');
     raceQuad(g, x1, y1, w1, x2, y2, w2, band ? '#647b8b' : '#5c7384');
     if (band) for (const L of [-1 / 3, 1 / 3]) raceQuad(g, x1 + L * w1, y1, w1 * 0.022, x2 + L * w2, y2, w2 * 0.022, '#f4edd4');
+    if (s.pad) raceDrawPad(g, v, s, x1, y1, w1, x2, y2, w2);
     if (s.gate) raceDrawLine(g, s.gate.kind, x1, y1, w1, x2, y2, w2);
   }
+}
+
+// A boost pad: orange panel, one chevron per segment pointing up the road, lit in a wave that runs
+// away from you.
+function raceDrawPad(g, v, s, x1, y1, w1, x2, y2, w2) {
+  const p = s.pad,
+    a1 = x1 + p.x * w1,
+    a2 = x2 + p.x * w2,
+    h1 = p.w * w1,
+    h2 = p.w * w2,
+    k = s.i - p.z,
+    lit = (((k - Math.floor(mini.total * 9)) % 4) + 4) % 4 === 0;
+  raceQuad(g, a1, y1, h1, a2, y2, h2, '#d9662e');
+  const ym = y1 - (y1 - y2) * 0.5,
+    am = (a1 + a2) / 2;
+  poly(g, [[a1 - h1 * 0.8, y1], [am, y2 + (y1 - y2) * 0.1], [a1 + h1 * 0.8, y1], [a1 + h1 * 0.4, y1], [am, ym], [a1 - h1 * 0.4, y1]], lit ? '#fff1b8' : '#ffc04a');
+  if (raceDark() > 0.05 && h1 > 3) v.glows.push({ x: am, y: ym, r: h1 * 1.2, col: lit ? '#ffc86a66' : '#ff9a4a33' });
 }
 
 // The start and finish are checkered; a donut gate paints a mint band across the road.
@@ -41209,6 +41659,7 @@ function raceDrawSprites(g, v) {
       for (const c of cars) raceDrawCar(g, v, c);
     }
     for (const sh of mini.raceShots) if (Math.floor(sh.z) - v.base === n) raceDrawShot(g, v, sh);
+    if (r.s.lip) raceDrawRamp(g, v, r.s.lip);
     if (n < 115) for (const p of r.s.props) raceDrawProp(g, v, r, p);
     if (r.s.gate || r.s.ring) raceDrawDonut(g, v, r);
   }
@@ -41234,13 +41685,17 @@ function raceDark() {
 function raceDrawCar(g, v, c) {
   const s = raceSpot(v, c.z, c.x);
   if (!s || s.w < 1.2) return;
-  const k = (s.w / RACE_ART) * v.sp,
-    top = s.y - c.h * s.w * v.sp;
+  const lift = (raceCarLift(c) * s.w * v.fy) / (RACE_ROAD * v.fx),
+    k = (s.w / RACE_ART) * v.sp,
+    top = s.y - lift - c.h * s.w * v.sp;
   if (s.x < -s.w || s.x > v.W + s.w || top >= s.clip) return;
-  raceClip(g, v, s.y, s.clip, () => raceCarArt(g, c, s.x, s.y, k));
+  raceClip(g, v, s.y, s.clip, () => {
+    if (c.air > 0) ellipse(g, s.x, s.y, c.w * s.w * 1.1, Math.max(1, s.w * 0.05), '#10303f40');
+    raceCarArt(g, c, s.x, s.y - lift, k);
+  });
   if (raceDark() > 0.05 && !c.knocked && s.y < s.clip + 2)
     for (const d of [-1, 1])
-      v.glows.push({ x: s.x + d * c.w * s.w * 0.75, y: s.y - s.w * 0.12, r: Math.max(3, s.w * 0.13), col: '#ff5a4acc' });
+      v.glows.push({ x: s.x + d * c.w * s.w * 0.75, y: s.y - lift - s.w * 0.12, r: Math.max(3, s.w * 0.13), col: '#ff5a4acc' });
   const dz = c.z - mini.raceZ;
   if (c.racer && dz > 0 && dz < 45 && s.y < s.clip + 2) v.tags.push({ x: s.x, y: top - 4 * v.u, c, dz });
 }
@@ -41296,6 +41751,50 @@ function raceDrawProp(g, v, r, p) {
     if (p.kind === 'lamp') v.glows.push({ x: x + 22 * k, y: y - 196 * k, r: Math.max(6, 60 * k), col: '#ffe9a6aa' });
     if (p.kind === 'vend') v.glows.push({ x, y: y - 70 * k, r: Math.max(5, 50 * k), col: '#9fe9ff88' });
   }
+}
+
+// A wheelchair ramp seen from behind: blue slope rising to a yellow lip, an arrow up the middle,
+// reflectors on the corners after dark. Drawn once, at its far row, so nearer sprites cover it.
+function raceDrawRamp(g, v, rp) {
+  let i0 = Math.max(rp.z, v.base + 1);
+  while (i0 < rp.end && !(v.rows[i0 - v.base] && v.rows[i0 - v.base].ok)) i0++;
+  const near = v.rows[i0 - v.base],
+    far = v.rows[rp.end - 1 - v.base];
+  if (i0 >= rp.end || !near || !far || !far.ok || near.w1 < 2) return;
+  const ratio = v.fy / v.fx,
+    f0 = (i0 - rp.z) / RACE_RAMP_LEN,
+    L = rp.x - rp.w,
+    R = rp.x + rp.w,
+    hn = RACE_RAMP_H * f0 * near.w1 * ratio,
+    hf = RACE_RAMP_H * far.w2 * ratio,
+    gl = [near.x1 + L * near.w1, near.y1],
+    gr = [near.x1 + R * near.w1, near.y1],
+    nl = [gl[0], gl[1] - hn],
+    nr = [gr[0], gr[1] - hn],
+    bl = [far.x2 + L * far.w2, far.y2],
+    br = [far.x2 + R * far.w2, far.y2],
+    fl = [bl[0], bl[1] - hf],
+    fr = [br[0], br[1] - hf];
+  if (Math.max(gr[0], br[0]) < 0 || Math.min(gl[0], bl[0]) > v.W || Math.min(fl[1], fr[1]) >= near.clip) return;
+  // A point on the slope: u across (0 left, 1 right), t up it (0 near, 1 the lip).
+  const P = (u, t) => [nl[0] + (nr[0] - nl[0]) * u + (fl[0] + (fr[0] - fl[0]) * u - nl[0] - (nr[0] - nl[0]) * u) * t, nl[1] + (nr[1] - nl[1]) * u + (fl[1] + (fr[1] - fl[1]) * u - nl[1] - (nr[1] - nl[1]) * u) * t];
+  raceClip(g, v, near.y1, near.clip, () => {
+    poly(g, [gl, nl, fl, bl], '#2a5688');
+    poly(g, [gr, nr, fr, br], '#2a5688');
+    poly(g, [nl, nr, fr, fl], '#4682cc');
+    const e = Math.min(0.08, 0.05 / rp.w);
+    poly(g, [P(0, 0), P(e, 0), P(e, 1), P(0, 1)], '#ffd23a');
+    poly(g, [P(1 - e, 0), P(1, 0), P(1, 1), P(1 - e, 1)], '#ffd23a');
+    const arrows = rp.w >= 1 ? [0.22, 0.5, 0.78] : [0.5],
+      aw = rp.w >= 1 ? 0.07 : 0.16;
+    for (const u of arrows) {
+      poly(g, [P(u - aw * 0.35, 0.12), P(u + aw * 0.35, 0.12), P(u + aw * 0.35, 0.58), P(u - aw * 0.35, 0.58)], '#eef4ff');
+      poly(g, [P(u - aw, 0.52), P(u, 0.94), P(u + aw, 0.52)], '#eef4ff');
+    }
+    line(g, [fl, fr], '#ffe680', Math.max(1, far.w2 * 0.03));
+  });
+  if (raceDark() > 0.05 && far.w2 > 4)
+    for (const q of [fl, fr]) v.glows.push({ x: q[0], y: q[1], r: Math.max(4, far.w2 * 0.12), col: '#ffcf5a88' });
 }
 
 // A CT donut stands over the road: gates carry a banner, tunnels are rows of them.
@@ -41375,26 +41874,63 @@ function raceDrawDark(g, v) {
   g.restore();
 }
 
+// How far round the gurney has turned: one turn for a crash, two easing out for a spin-out.
+function raceSpinAngle() {
+  if (mini.raceSpin <= 0) return 0;
+  const p = 1 - mini.raceSpin / (mini.raceSpinLen || RACE_SPIN);
+  return mini.raceSpinOut ? (1 - (1 - p) * (1 - p)) * Math.PI * 4 : p * Math.PI * 2;
+}
+
+// Macy's gurney. Up a ramp and in the air it rides above its shadow (the camera rises a little with
+// it); a landing squashes it; a spin-out is two full turns with dust flying.
 function raceDrawGurney(g, v) {
   const { W, hy, fy, fx } = v,
     k = ((2 * fx) / RACE_ART) * (v.tall ? 1 : 0.82),
     seg = raceSeg(mini.raceZ),
-    rough = mini.raceOff || mini.raceScrape > 0 ? Math.sin(mini.total * 47) * 2.5 * v.u : 0,
-    spin = mini.raceSpin > 0 ? (1 - mini.raceSpin / RACE_SPIN) * Math.PI * 2 : 0,
-    boost = mini.raceNitroT > 0 ? 1.3 : mini.raceBoostT > 0 ? 1 : 0;
-  raceGurneyArt(g, W / 2, hy + fy + rough, k, {
+    unit = (RACE_DEPTH / RACE_EYE) * fy,
+    lift = raceLiftNow(),
+    air = mini.raceAir > 0,
+    ground = hy + fy + lift * RACE_CAM_LIFT * unit,
+    y = hy + fy - lift * (1 - RACE_CAM_LIFT) * unit,
+    shaky = !air && (mini.raceOff || mini.raceRumble || mini.raceScrape > 0),
+    rough = shaky ? Math.sin(mini.total * 47) * (mini.raceRumble ? 1.5 : 2.5) * v.u : 0,
+    out = mini.raceSpin > 0 && mini.raceSpinOut,
+    p = mini.raceSpin > 0 ? 1 - mini.raceSpin / (mini.raceSpinLen || RACE_SPIN) : 0,
+    spin = raceSpinAngle(),
+    boost = mini.raceNitroT > 0 ? 1.3 : raceBoosting() ? 1 : 0,
+    squash = mini.raceBounce > 0 ? Math.sin((1 - mini.raceBounce / 0.35) * Math.PI) * 0.14 : 0;
+  if (air) {
+    const a = clamp(1 - lift / (RACE_LIFT * 3), 0.4, 1);
+    ellipse(g, W / 2, ground + 1, 58 * k * a, 9 * k * a, '#10303f40');
+  }
+  if (out)
+    for (let i = 0; i < 7; i++) {
+      const ang = (i / 7) * Math.PI * 2 + mini.total * 3,
+        r = (7 + 4 * Math.sin(mini.total * 9 + i)) * k * (1 - p * 0.5);
+      ellipse(g, W / 2 + Math.cos(ang) * 62 * k, ground - 8 * k + Math.sin(ang) * 12 * k, r, r * 0.8, Math.abs(mini.raceX) > 1.42 ? '#b9d79acc' : '#ece3cccc');
+    }
+  g.save();
+  if (squash) {
+    g.translate(W / 2, y);
+    g.scale(1 + squash, 1 - squash);
+    g.translate(-W / 2, -y);
+  }
+  raceGurneyArt(g, W / 2, y + rough, k, {
     macy: true,
     t: mini.total,
     lean: clamp(mini.raceVx / RACE_STEER, -1, 1) * 0.09 + clamp(seg.curve * 0.012, -0.08, 0.08),
     spin,
+    tilt: out ? 0.22 : 0,
     boost,
+    air,
     ghost: mini.raceGhost > 0 && mini.raceSpin <= 0
   });
-  if (mini.raceScrape > 0 || (mini.raceOff && mini.raceV > mini.raceTop * 0.3))
+  g.restore();
+  if (!air && (mini.raceScrape > 0 || (mini.raceOff && mini.raceV > mini.raceTop * 0.3)))
     for (let i = 0; i < 4; i++) {
       const side = mini.raceX > 0 ? 1 : -1,
         a = raceHash(i + Math.floor(mini.total * 30));
-      ellipse(g, W / 2 + side * 46 * k + a * 20 * k, hy + fy - a * 16 * k, 3 * k, 3 * k, mini.raceScrape > 0 ? '#ffd27a' : '#cfe6a8');
+      ellipse(g, W / 2 + side * 46 * k + a * 20 * k, y - a * 16 * k, 3 * k, 3 * k, mini.raceScrape > 0 ? '#ffd27a' : '#cfe6a8');
     }
 }
 
@@ -41464,7 +42000,7 @@ function raceDrawHud(g, v) {
     by = H - 12 * u;
   rr(g, lx, by - 66 * u, 112 * u, 66 * u, 14 * u, '#0b1c27b8', '#ffffff2a', 1);
   raceText(g, RACE_ORD[mini.raceShown], lx + 10 * u, by - 30 * u, 32 * u, mini.raceShown <= 3 ? '#ffe1a0' : '#f6eed6', 'left');
-  label(g, 'OF ' + field + ' · ' + raceKph() + ' KPH', lx + 10 * u, by - 10 * u, 12 * u, mini.raceBoostT > 0 || mini.raceNitroT > 0 ? '#ffd28a' : '#bfe3d6');
+  label(g, 'OF ' + field + ' · ' + raceKph() + ' KPH', lx + 10 * u, by - 10 * u, 12 * u, raceBoosting() ? '#ffd28a' : '#bfe3d6');
   // Kit, bottom right: boosts and softballs.
   const rx = W - 12 * u - 112 * u;
   rr(g, rx, by - 66 * u, 112 * u, 66 * u, 14 * u, '#0b1c27b8', '#ffffff2a', 1);
@@ -41488,6 +42024,23 @@ function raceDrawHud(g, v) {
       m = Math.max(0, Math.round((nextZ - mini.raceZ) * 2));
     raceText(g, String(Math.ceil(left)), W / 2, 136 * u, 46 * u * pulse, '#ff9a90');
     label(g, (mini.raceGateIdx < gates.length ? 'DONUT GATE IN ' : 'FINISH IN ') + m + ' m', W / 2, 158 * u, 13 * u, '#ffd9d2', 'center');
+  }
+  // The edge warning: chevrons on the side you are drifting off, pointing back to the floor. Amber on
+  // the rumble strip, red once you are past it.
+  if (mini.screen === 'play' && (mini.raceRumble || mini.raceOff) && mini.raceSpin <= 0 && mini.raceAir <= 0 && !raceSeg(mini.raceZ).tunnel) {
+    const side = mini.raceX > 0 ? 1 : -1,
+      col = mini.raceOff ? '#ff6a52' : '#ffc06a',
+      ex = side > 0 ? W - 22 * u : 22 * u,
+      ey = H * 0.56;
+    g.globalAlpha = (mini.raceOff ? 0.75 : 0.5) + 0.25 * Math.sin(mini.total * 24);
+    rect(g, side > 0 ? W - 10 * u : 0, H * 0.3, 10 * u, H * 0.5, gradient(g, 0, H * 0.3, 0, H * 0.5, col + '00', col));
+    for (let i = 0; i < 3; i++) {
+      const cx = ex - side * i * 15 * u,
+        pts = [[cx + side * 7 * u, ey - 13 * u], [cx - side * 6 * u, ey], [cx + side * 7 * u, ey + 13 * u]];
+      line(g, pts, '#0b1c27aa', 8 * u);
+      line(g, pts, col, 5 * u);
+    }
+    g.globalAlpha = 1;
   }
   // A rival on your tail.
   let tail = null;
@@ -41632,9 +42185,13 @@ function raceGurneyArt(g, x, y, k, o = {}) {
   g.save();
   g.translate(x, y);
   g.scale(k, k);
-  ellipse(g, 0, 1, 58, 9, '#10303f38');
+  if (!o.air) ellipse(g, 0, 1, 58, 9, '#10303f38');
   if (o.boost) raceExhaust(g, t, o.boost);
-  if (o.spin) g.scale(Math.cos(o.spin) || 0.05, 1);
+  if (o.spin) {
+    if (o.tilt) g.rotate(Math.sin(o.spin) * o.tilt);
+    const c = Math.cos(o.spin);
+    g.scale(Math.abs(c) < 0.12 ? (c < 0 ? -0.12 : 0.12) : c, 1);
+  }
   if (o.lean) g.rotate(o.lean);
   if (o.ghost) g.globalAlpha = 0.55 + 0.3 * Math.sin(t * 22);
   for (const s of [-1, 1]) ellipse(g, s * 30, -17, 5, 4, '#2c4350');
