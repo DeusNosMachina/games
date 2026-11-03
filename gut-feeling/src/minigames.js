@@ -1179,7 +1179,7 @@ function leaveMini() {
   canvas.focus({ preventScroll: true });
 }
 
-// Discharge needs 12 stars, a medal in all six arcades, a level 2 medal, and Ralph out of the way.
+// Discharge needs DISCHARGE_STARS (21) stars, a medal in all six arcades, a level 2 medal, and Ralph out of the way.
 // Until combat reports state.ralph, a complete passport only sends Ralph to Macy's room.
 function checkDischarge() {
   if (state.won || !(stars() >= DISCHARGE_STARS && stamps() === ARCADE_COUNT && levelTwo())) return;
