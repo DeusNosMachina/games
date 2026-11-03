@@ -341,7 +341,7 @@ $('miniRetry').addEventListener('click', () => {
     $('miniClose').classList.remove('hidden');
   }
   // A Daily Dose keeps its fixed level; normal runs move up after a win.
-  if (mini.win && mini.tier < 2 && !mini.daily) mini.tier++;
+  if (mini.win && mini.tier < miniTierCount() - 1 && !mini.daily) mini.tier++;
   $('miniDialog').classList.remove('gory');
   gore = [];
   showLobby();
@@ -887,8 +887,8 @@ $('resetBtn').addEventListener('click', () => {
     return;
   }
   resetPending = false;
-  state.medals = Array.from({ length: ARCADE_COUNT }, () => [0, 0, 0]);
-  state.records = Array.from({ length: ARCADE_COUNT }, () => [0, 0, 0]);
+  state.medals = Array.from({ length: ARCADE_COUNT }, () => Array.from({ length: TIER_COUNT }, () => 0));
+  state.records = Array.from({ length: ARCADE_COUNT }, () => Array.from({ length: TIER_COUNT }, () => 0));
   state.hp = 5;
   state.coins = 0;
   state.food = 0;

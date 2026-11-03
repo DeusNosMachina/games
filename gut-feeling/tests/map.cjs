@@ -275,8 +275,8 @@ assert.match(run('hospitalMapView.notice'), /gremlins/i, 'a locked arcade leaves
 const tapExit = '(() => { const z = hmLayout().exitZone; hmTap(z.x + z.w * 0.6, z.y + z.h / 2); })()';
 run(tapExit);
 assert.deepEqual(calls(), [], 'a locked exit does nothing');
-assert.match(run('hospitalMapView.notice'), /12 more stars/);
-run('state.medals = [[3, 3, 0], [2, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]]');
+assert.match(run('hospitalMapView.notice'), /21 more stars/);
+run('state.medals = [[3, 3, 0], [3, 3, 0], [3, 0, 0], [3, 0, 0], [2, 0, 0], [1, 0, 0]]');
 assert.equal(run('hospitalMapDischargeReady()'), true);
 run(tapExit);
 assert.deepEqual(calls(), ['discharge'], 'a complete passport calls checkDischarge');

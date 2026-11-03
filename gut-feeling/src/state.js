@@ -67,7 +67,12 @@ const difficulties = [
   }
 ];
 
-const tiers = ['First Rodeo', 'Uh-oh Protocol', 'Code Brown'],
+// Level 4, Legendary, exists for a game that sets `legendary: true` on its registration (a ruleset a
+// quarter-second player wins about one time in four). Everything else is sized by TIER_COUNT.
+const tiers = ['First Rodeo', 'Uh-oh Protocol', 'Code Brown', 'Legendary'],
+  TIER_COUNT = 4,
+  // Discharge needs this many stars (bronze 1, silver 2, gold 3, summed over every level of every arcade).
+  DISCHARGE_STARS = 21,
   medalNames = ['Unstamped', 'Bronze', 'Silver', 'Gold'];
 
 const STORE = 'gut-feeling-v2';
@@ -145,10 +150,10 @@ let state = {
   // Sound preference. audio.js reads it at init and writes it on toggle; save() persists it.
   sound: saved.sound === undefined ? true : !!saved.sound,
   medals: Array.from({ length: ARCADE_COUNT }, (_, i) =>
-    Array.from({ length: 3 }, (_, j) => clamp(Math.floor(Number(saved.medals?.[i]?.[j]) || 0), 0, 3))
+    Array.from({ length: TIER_COUNT }, (_, j) => clamp(Math.floor(Number(saved.medals?.[i]?.[j]) || 0), 0, 3))
   ),
   records: Array.from({ length: ARCADE_COUNT }, (_, i) =>
-    Array.from({ length: 3 }, (_, j) => savedCount(saved.records?.[i]?.[j]))
+    Array.from({ length: TIER_COUNT }, (_, j) => savedCount(saved.records?.[i]?.[j]))
   ),
   taken: Array.isArray(saved.taken) ? saved.taken : [],
   defeated: Array.isArray(saved.defeated) ? saved.defeated : [],
@@ -180,6 +185,8 @@ let state = {
   controlsChosen: saved.controlsChosen === true || saved.controls === 'stick',
   // Mandatory recoveries since the last medal outside one (the Frequent Flyer sticker reads it).
   recoveries: savedCount(saved.recoveries),
+  // The level of the last arcade run she started (not a recovery): the recovery opens on it.
+  lastTier: clamp(savedCount(saved.lastTier), 0, TIER_COUNT - 1),
   // Daily Dose: last day played (YYYY-MM-DD), that day's best score, consecutive-day streak.
   daily: {
     last: typeof savedDaily.last === 'string' ? savedDaily.last : '',
@@ -319,6 +326,7 @@ function save() {
         controls: state.controls,
         controlsChosen: state.controlsChosen,
         recoveries: state.recoveries,
+        lastTier: state.lastTier,
         daily: state.daily,
         stats: state.stats,
         stickers: state.stickers,

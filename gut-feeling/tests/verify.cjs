@@ -109,9 +109,11 @@ close();
 console.log('PASS: briefings show in full once per game, then a skippable GO card; the recovery briefs as itself.');
 
 // Every game, tier and prescription has finite physics and fails when idle.
+let idleCombos = 0;
 for (let d = 0; d < 3; d++)
   for (let id = 0; id < 6; id++)
-    for (let tier = 0; tier < 3; tier++) {
+    for (let tier = 0, tiersHere = run(`miniTierCount(games[${id}])`); tier < tiersHere; tier++) {
+      idleCombos++;
       run(`state.difficulty=${d};openMini(${id});mini.tier=${tier};startMini();drawMini();launchMini();updateMini(3.3)`);
       assert.ok(run('mini.limit') >= 30, `${id}/${tier}/${d} limit`);
       for (let n = 0; n < 4000 && run('mini.screen') === 'play'; n++) run('updateMini(.1)');
@@ -120,7 +122,7 @@ for (let d = 0; d < 3; d++)
       assert.equal(run('mini.win'), false, `${id}/${tier}/${d} idle won`);
       close();
     }
-console.log('PASS: all 54 game/tier/difficulty combinations reject idle play.');
+console.log(`PASS: all ${idleCombos} game/tier/difficulty combinations reject idle play.`);
 
 // 30/60/120 Hz must produce the same movement distance.
 let xs = [];
@@ -228,7 +230,9 @@ close();
 console.log('PASS: shop purchases, six-heart HUD, upgrade effects, and wardrobe saving.');
 
 // The sixth passport stamp participates in discharge, Ralph guards the exit, and mandatory IV cannot be skipped.
-run('state.won=false;state.ralph=false;state.ralphReady=false;state.medals=rooms.map((_,i)=>i<5?[3,i===0?1:0,0]:[0,0,0]);checkDischarge()');
+// 30 stars across five arcades (21 needed) but the sixth is unstamped, so the passport is short.
+run('state.won=false;state.ralph=false;state.ralphReady=false;state.medals=rooms.map((_,i)=>i<5?[3,3,0,0]:[0,0,0,0]);checkDischarge()');
+assert.deepEqual(JSON.parse(run('JSON.stringify(dischargeMissing())')), ['a medal in Bedside Blaster', 'Ralph evicted from your room'], 'the checklist names what is missing');
 assert.equal(run('state.won'), false);
 assert.equal(run('state.ralphReady'), false);
 run('state.medals[5][0]=1;checkDischarge()');

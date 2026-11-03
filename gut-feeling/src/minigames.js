@@ -282,6 +282,25 @@ function miniGame(id = mini.id) {
   return mini.forced && games.recovery ? games.recovery : games[id];
 }
 
+// Levels the current run's game offers: three, or four when it registers `legendary: true`.
+function miniTierCount(def = miniGame()) {
+  return def && def.legendary ? TIER_COUNT : 3;
+}
+
+// What the exit still wants, as short phrases in order. Empty means discharge is ready or done.
+function dischargeMissing() {
+  const out = [],
+    need = DISCHARGE_STARS - stars();
+  if (need > 0) out.push(`${need} more ${need === 1 ? 'star' : 'stars'} (${stars()}/${DISCHARGE_STARS})`);
+  const unstamped = [];
+  for (let i = 0; i < ARCADE_COUNT; i++)
+    if (!state.medals[i].some(Boolean)) unstamped.push(games[i] ? games[i].info.game : rooms[i].name);
+  if (unstamped.length) out.push('a medal in ' + unstamped.join(', '));
+  if (!levelTwo()) out.push('any level 2 medal');
+  if (!state.ralph) out.push('Ralph evicted from your room');
+  return out;
+}
+
 function openMini(id, forced = false) {
   clearHeld();
   if ($('mapDialog').open) $('mapDialog').close();
@@ -332,13 +351,14 @@ function showLobby() {
   // A level unlocks once the previous one has any medal; forced recovery stays on level 1.
   // A Daily Dose fixes the level and Show-off rules.
   $('tierGrid').innerHTML = tiers
+    .slice(0, miniTierCount())
     .map((t, i) => {
       const medal = state.medals[mini.id][i],
         locked = mini.daily || mini.forced ? i !== mini.tier : i > 0 && !state.medals[mini.id][i - 1];
       return (
-        `<button class="tier-card ${mini.tier === i ? 'selected' : ''}" data-tier="${i}" ${locked ? 'disabled' : ''}>` +
-        `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : 'The real deal'}</span>` +
-        `<strong>${t}</strong><small>${def.tierNotes[i]}</small>` +
+        `<button class="${['tier-card', mini.tier === i ? 'selected' : '', i === 3 ? 'legendary' : ''].filter(Boolean).join(' ')}" data-tier="${i}" ${locked ? 'disabled' : ''}>` +
+        `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : i === 3 ? 'Wins one in four' : 'The real deal'}</span>` +
+        `<strong>${t}</strong><small>${def.tierNotes[i] || ''}</small>` +
         `<div class="medals">${'★'.repeat(medal)}${'☆'.repeat(3 - medal)}</div></button>`
       );
     })
@@ -375,6 +395,8 @@ function showLobby() {
 function startMini() {
   const { id, tier, forced, approach = 0, daily = false, dailyDate = '', dailySeed = 0 } = mini,
     def = miniGame();
+  // The recovery opens on the level of the last real run.
+  if (!forced) state.lastTier = clamp(tier, 0, TIER_COUNT - 1);
   clearHeld();
   ceremonyStop();
   $('miniLivesLabel').textContent = 'OOPS ALLOWANCE';
@@ -709,7 +731,7 @@ function resolveMiniResult(win, reason) {
     $('miniResult').dataset.medal = forced ? '0' : String(mini.grade);
     $('resultJourney').textContent = forced
       ? 'Out of bed. Hearts back, nothing stamped. The ward is waiting.'
-      : `${stars()}/12 stars · ${stamps()}/${ARCADE_COUNT} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins paid.'}`;
+      : `${stars()}/${DISCHARGE_STARS} stars · ${stamps()}/${ARCADE_COUNT} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins paid.'}`;
     // The ceremony plays the thud and the win sting when the medal lands.
     $('miniDialog').classList.remove('gory');
   } else {
@@ -1148,7 +1170,7 @@ function leaveMini() {
 // Discharge needs 12 stars, a medal in all six arcades, a level 2 medal, and Ralph out of the way.
 // Until combat reports state.ralph, a complete passport only sends Ralph to Macy's room.
 function checkDischarge() {
-  if (state.won || !(stars() >= 12 && stamps() === ARCADE_COUNT && levelTwo())) return;
+  if (state.won || !(stars() >= DISCHARGE_STARS && stamps() === ARCADE_COUNT && levelTwo())) return;
   if (!state.ralph) {
     if (!state.ralphReady) {
       state.ralphReady = true;

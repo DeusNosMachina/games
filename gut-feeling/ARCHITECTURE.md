@@ -34,7 +34,8 @@ Each game file calls `const NAME = registerGame({...})`. Hooks are called as `de
 | `portraitCanvas: {w, h}` | Optional, taller than wide. Used instead of `canvas` while `mini.portrait` is true: the dialog is open on a screen taller than wide. It can flip mid-run when the phone turns (`resize()` re-checks and re-sizes `#miniCanvas`), so read `activeCanvas()` or `mini.portrait` whenever you lay out or draw; never cache the size from `init`. |
 | `layout` | `'iv'` or `'gesture'`; becomes `miniDialog.dataset.arcade` for CSS layout. |
 | `info` | `{game, genre, headline, desc}` for map, cards and lobby, plus `{goal, control, avoid, cue}` for gesture-game briefings. |
-| `tierNotes` | Three lobby strings, one per level. |
+| `tierNotes` | One lobby string per level: three, or four with `legendary`. |
+| `legendary` | `true` when the game has a fourth level, Legendary (tier 3): the lobby offers it once level 3 has a medal, the idle and playthrough tests cover it, and its ruleset should be one a quarter-second player wins about one time in four. `tiers`, `TIER_COUNT` (4) and `miniTierCount(def)` live in state.js and minigames.js. |
 | `shiftName` | Optional banner noun for `updateArcade` shifts (default `SHIFT`). |
 | `music` | Optional track key for the run (default `'game:' + id`). |
 
@@ -102,7 +103,9 @@ Game-owned: `limit` (set it in `init`; the HUD clock and default `timeUp` use it
 - `arcade` remembers fullscreen ("arcade mode", `body.arcade`), which phones and tablets enter on first start.
 - `controls` is the touch scheme: `'stick'` (joystick bottom left, the attack cluster bottom right; the default on coarse pointers) or `'tap'` (the room is the controller; the default with a mouse). `controlsChosen` marks a scheme the player picked, which is then kept. `body.tap-controls` / `body.stick-controls` follow it.
 - `cosmetics.worn` feeds `macyLook()` for `girl()`.
-- `recoveries` counts forced IV recoveries (the Frequent Flyer sticker reads it); games/iv.js increments it. The recovery no longer escalates: `ivRecoveryPlan()` always answers level 0, and a lost recovery can end through `patchUp()` at a price in coins. `grantReward()` still resets the count on any medal outside a recovery.
+- `recoveries` counts forced IV recoveries (the Frequent Flyer sticker reads it); games/iv.js increments it. A lost recovery can end through `patchUp()` at a price in coins. `grantReward()` still resets the count on any medal outside a recovery.
+- `lastTier` is the level of the last arcade run she started (`startMini`, never a recovery); the recovery opens on it (`ivRecoveryPlan()` reads it).
+- Discharge needs `DISCHARGE_STARS` (21) stars, a medal in every arcade, any level 2 medal and Ralph. `dischargeMissing()` (minigames.js) lists what is still missing for the exit and the passport. Once `state.won`, the hallway exit calls `dischargeStart()` (src/discharge.js, the send-off); world.js hands the frame to `updateDischarge(dt)`, draws `drawDischarge(g, vw, vh)` while `dischargeActive()`, routes every action to `dischargeAction(kind, point)`, and toggles `body.discharging`.
 - `medals`, `records` and `wardClears` stay `ARCADE_COUNT` (six) long even when extra rooms join `rooms`.
 
 ## Title screen

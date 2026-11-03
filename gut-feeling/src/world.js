@@ -182,6 +182,8 @@ function coins(n) {
 // Gives an extra room the first say on an action ('attack', 'jump', 'dash', 'use', 'enter', 'tap').
 // point is in room coordinates for taps. True means it handled the action.
 function roomAction(kind, point) {
+  // The send-off takes every action while it plays (advance, skip).
+  if (typeof dischargeAction === 'function' && dischargeAction(kind, point)) return true;
   // Any action wakes Macy (from a dream, then from an idle); the room's hotspots go first.
   roomDreamWake();
   macyWake();
@@ -255,7 +257,7 @@ function hud() {
     `${stamps()}/${ARCADE_COUNT} arcades stamped · ${levelTwo() ? '✓' : '○'} Level 2 medal\n${passportRalphLine()}\nBronze 1★ · Silver 2★ · Gold 3★`;
   // The map dialog repeats the progress line, since arcade mode hides the passport card.
   $('mapPassport').textContent =
-    `★ ${stars()}/12 stars · ${stamps()}/${ARCADE_COUNT} arcades · ${levelTwo() ? '✓' : '○'} level 2 medal · ` +
+    `★ ${stars()}/${DISCHARGE_STARS} stars · ${stamps()}/${ARCADE_COUNT} arcades · ${levelTwo() ? '✓' : '○'} level 2 medal · ` +
     passportRalphLine().replace(/^[✓!○] /, '');
   $('storageNote').style.display = storageOK ? 'none' : 'block';
   renderHall();
@@ -1878,6 +1880,8 @@ function updateWorld(dt) {
   }
   if (isModal() || state.paused) return;
   if (typeof updateDream === 'function' && updateDream(dt)) return;
+  // The send-off (src/discharge.js) owns the frame while it plays.
+  if (typeof updateDischarge === 'function' && updateDischarge(dt)) return;
   for (let k of [
     'inv',
     'shield',
@@ -2154,6 +2158,9 @@ function drawWorld() {
   // DOM overlays (hearts, coins, toasts) step out of the way while she dreams.
   if (document.body && document.body.classList) document.body.classList.toggle('dreaming', dreaming);
   if (dreaming) drawDream(c, vw, vh);
+  const discharging = typeof dischargeActive === 'function' && dischargeActive();
+  if (document.body && document.body.classList) document.body.classList.toggle('discharging', discharging);
+  if (discharging) drawDischarge(c, vw, vh);
 }
 
 // A 250 ms iris opens on Macy after each room change (skipped under reduced motion).

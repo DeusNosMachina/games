@@ -425,13 +425,13 @@ function hospitalMapDailyPick() {
 }
 
 function hospitalMapDischargeReady() {
-  return !state.won && stars() >= 12 && stamps() === ARCADE_COUNT && levelTwo();
+  return !state.won && stars() >= DISCHARGE_STARS && stamps() === ARCADE_COUNT && levelTwo();
 }
 
 function hospitalMapExitLine() {
   if (state.won) return HOSPITAL_MAP_COPY.won;
   if (state.ralphReady && !state.ralph) return HOSPITAL_MAP_COPY.ralph;
-  const need = 12 - stars();
+  const need = DISCHARGE_STARS - stars();
   if (need > 0) return `The exit wants ${need} more ${need === 1 ? 'star' : 'stars'}. It has standards.`;
   if (stamps() < ARCADE_COUNT) return HOSPITAL_MAP_COPY.stamps;
   if (!levelTwo()) return HOSPITAL_MAP_COPY.levelTwo;

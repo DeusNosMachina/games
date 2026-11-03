@@ -2567,11 +2567,16 @@ function hallwayUseDoor(door) {
 }
 
 function hallwayExitNote() {
-  const text = state.won
-    ? 'Discharged. The doors are open and the parking lot has never looked better. Go home.'
-    : hallwayRalphWaiting()
-      ? 'Ralph is still in your room. The exit can wait. He cannot.'
-      : `The exit wants 12 stars (you have ${stars()}), every arcade stamped and Ralph evicted. Soon.`;
+  // Discharged: the send-off plays (src/discharge.js), as many times as she likes.
+  if (state.won && typeof dischargeStart === 'function') return dischargeStart();
+  const missing = typeof dischargeMissing === 'function' ? dischargeMissing() : [],
+    text = state.won
+      ? 'Discharged. The doors are open and the parking lot has never looked better. Go home.'
+      : hallwayRalphWaiting()
+        ? 'Ralph is still in your room. The exit can wait. He cannot.'
+        : missing.length
+          ? 'The exit still wants: ' + missing.join(' · ') + '.'
+          : `The exit wants ${DISCHARGE_STARS} stars, every arcade stamped and Ralph evicted. Soon.`;
   if (typeof toast === 'function') toast(text, 3.4);
   if (typeof sfx === 'function') sfx(state.won ? 'win' : 'ui');
   return true;
