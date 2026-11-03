@@ -32807,14 +32807,17 @@ const RACE_TOP = 50, // top speed in segments per second (Questionable Decisions
   RACE_SCRAPE = 0.55, // top speed against a tunnel wall
   RACE_PW = 0.2, // the gurney's half-width
   RACE_LEN = 1.1, // how close (in segments) two gurneys must be to touch
-  RACE_SPIN = 0.95, // a crash spins you this long
+  RACE_SPIN = 0.75, // a crash spins you this long
   RACE_GHOST = 0.9, // then you blink through traffic this long
+  RACE_SPIN_CAP = 0.3, // top speed while spinning
   RACE_BOOST = 2.2, // seconds of boost
   RACE_BOOST_MUL = 1.3,
   RACE_NITRO = 3.2, // the assist
   RACE_NITRO_MUL = 1.42,
   RACE_BALL_RANGE = 75, // segments a softball flies
   RACE_BALL_SPEED = 95, // segments per second on top of yours
+  RACE_BAND_AHEAD = 0.06, // a rival far up the road eases off by up to this share of its pace
+  RACE_BAND_BEHIND = 0.03, // and one far behind pushes this much harder: the field bunches up
   RACE_WAKE = 230, // traffic starts moving this far ahead
   RACE_SLEEP = 70; // and retires this far behind
 
@@ -32925,8 +32928,8 @@ const RACE_FIELDS = [
     ['iv', 'Rolling IV', 0.62, 22],
     ['cart', 'Med Cart 4', 0.7, 40],
     ['gremlin', 'Gus', 0.76, 58, 0],
-    ['gremlin', 'Pudding', 0.81, 76, 1],
-    ['gremlin', 'Gloop', 0.85, 94, 2],
+    ['gremlin', 'Pudding', 0.79, 76, 1],
+    ['gremlin', 'Gloop', 0.82, 94, 2],
     ['gremlin', 'Sprocket', 0.91, 112, 3],
     ['barb', 'Barb', 0.97, 130]
   ],
@@ -32935,23 +32938,23 @@ const RACE_FIELDS = [
     ['cart', 'Med Cart 4', 0.73, 38],
     ['gremlin', 'Gus', 0.78, 56, 0],
     ['gremlin', 'Pudding', 0.82, 74, 1],
-    ['cart', 'Crash Cart', 0.86, 92],
-    ['gremlin', 'Gloop', 0.89, 110, 2],
-    ['gremlin', 'Sprocket', 0.925, 128, 3],
-    ['gremlin', 'Snot Rocket', 0.95, 146, 0],
-    ['barb', 'Barb', 0.985, 164]
+    ['cart', 'Crash Cart', 0.85, 92],
+    ['gremlin', 'Gloop', 0.87, 110, 2],
+    ['gremlin', 'Sprocket', 0.9, 128, 3],
+    ['gremlin', 'Snot Rocket', 0.93, 146, 0],
+    ['barb', 'Barb', 0.97, 164]
   ],
   [
-    ['iv', 'Rolling IV', 0.68, 20],
-    ['cart', 'Med Cart 4', 0.73, 36],
-    ['gremlin', 'Gus', 0.77, 52, 0],
-    ['gremlin', 'Pudding', 0.81, 68, 1],
-    ['cart', 'Crash Cart', 0.84, 84],
-    ['gremlin', 'Gloop', 0.86, 100, 2],
-    ['gremlin', 'Sprocket', 0.9, 116, 3],
-    ['gremlin', 'Snot Rocket', 0.925, 132, 0],
-    ['gremlin', 'Bile Bandit', 0.95, 148, 1],
-    ['barb', 'Barb', 0.98, 164],
+    ['iv', 'Rolling IV', 0.7, 20],
+    ['cart', 'Med Cart 4', 0.75, 36],
+    ['gremlin', 'Gus', 0.79, 52, 0],
+    ['gremlin', 'Pudding', 0.83, 68, 1],
+    ['cart', 'Crash Cart', 0.86, 84],
+    ['gremlin', 'Gloop', 0.89, 100, 2],
+    ['gremlin', 'Sprocket', 0.93, 116, 3],
+    ['gremlin', 'Snot Rocket', 0.965, 132, 0],
+    ['gremlin', 'Bile Bandit', 0.975, 148, 1],
+    ['barb', 'Barb', 0.99, 164],
     ['ralph', 'Ralph', 0.87, 700]
   ]
 ];
@@ -32977,8 +32980,8 @@ const RACE_KINDS = {
 const RACE_TIERS = [
   {
     course: 'Lobby Sprint',
-    time: 33,
-    gates: [24],
+    time: 35,
+    gates: [26],
     traffic: { from: 380, gap: [210, 290], mix: { laundry: 3, wheelchair: 2 }, pair: 0, weave: 0 },
     props: { vend: 2, bench: 2, plant: 2, chair: 1, lamp: 1 },
     boosts: 3,
@@ -32987,7 +32990,7 @@ const RACE_TIERS = [
   {
     course: 'Imaging Wing',
     time: 32,
-    gates: [24, 20],
+    gates: [27, 23],
     traffic: {
       from: 220,
       gap: [115, 170],
@@ -33002,7 +33005,7 @@ const RACE_TIERS = [
   {
     course: 'Night Shift Summit',
     time: 33,
-    gates: [15, 21, 18],
+    gates: [17, 23, 20],
     traffic: {
       from: 170,
       gap: [100, 150],
@@ -33620,7 +33623,7 @@ function raceStep(h) {
     off = Math.abs(mini.raceX) > RACE_EDGE;
   let cap = top * (mini.raceNitroT > 0 ? RACE_NITRO_MUL : mini.raceBoostT > 0 ? RACE_BOOST_MUL : 1);
   if (off) cap = Math.min(cap, top * (seg.tunnel ? RACE_SCRAPE : RACE_GRASS) * (boosting ? 1.2 : 1));
-  if (mini.raceSpin > 0) cap = Math.min(cap, top * 0.22);
+  if (mini.raceSpin > 0) cap = Math.min(cap, top * RACE_SPIN_CAP);
   const v = mini.raceV;
   if (v < cap) mini.raceV = Math.min(cap, v + (top * 0.12 + (cap - v) * (boosting ? 1.8 : 0.75)) * h);
   else mini.raceV = Math.max(cap, v - Math.max((v - cap) * 2.5, top * 0.4) * h);
@@ -33660,7 +33663,7 @@ function raceDriveCar(c, h, near) {
   c.wob = Math.max(0, c.wob - h);
   c.calm = Math.max(0, c.calm - h);
   c.laneT = Math.max(0, c.laneT - h);
-  let want = c.pace * top * (c.racer ? 1 + 0.025 * Math.sin(mini.total * 0.55 + c.id * 1.7) : 1),
+  let want = c.pace * top * (c.racer ? 1 + 0.025 * Math.sin(mini.total * 0.55 + c.id * 1.7) : 1) * raceBand(c),
     lat = c.racer ? 1 : 0.55;
   if (c.knocked) {
     want = 0;
@@ -33684,6 +33687,16 @@ function raceDriveCar(c, h, near) {
     c.done = true;
     c.doneT = mini.total;
   }
+}
+
+// Arcade bunching: a rival far ahead of Macy lifts off a little and one far behind leans on it, so
+// the race stays a race whether she is struggling or flying. Ralph keeps his own pace.
+function raceBand(c) {
+  if (!c.racer || c.done || c.kind === 'ralph') return 1;
+  const gap = c.z - mini.raceZ;
+  if (gap > 40) return 1 - Math.min(RACE_BAND_AHEAD, (gap - 40) / 2400);
+  if (gap < -60) return 1 + Math.min(RACE_BAND_BEHIND, (-gap - 60) / 3000);
+  return 1;
 }
 
 // The nearest thing in a car's path, Macy included, so nobody drives through her.
@@ -33822,7 +33835,7 @@ function raceCrash(c, prop) {
   mini.raceSpin = RACE_SPIN;
   mini.raceGhost = RACE_SPIN + RACE_GHOST;
   mini.raceSpinDir = c ? (mini.raceX >= c.x ? 1 : -1) : mini.raceX > 0 ? -1 : 1;
-  mini.raceV = Math.min(mini.raceV, top * 0.5);
+  mini.raceV = Math.min(mini.raceV, top * 0.55);
   mini.raceVx = 0;
   mini.raceShake = 0.5;
   mini.raceCrashes++;
