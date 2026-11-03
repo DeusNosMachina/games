@@ -2863,7 +2863,7 @@ body.discharging .hud,body.discharging .toast,body.discharging .ward-strip,body.
 <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
 <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 2 7 7 3-7 2-2 8-3-8-7-2 7-3z"/></symbol>
 </defs></svg>
-<div class="title-screen" id="titleScreen" data-state="up" role="dialog" aria-modal="true" aria-labelledby="titleLogo"><canvas id="titleArt" aria-hidden="true"></canvas><div class="title-top"><p class="title-tag">A very unofficial hospital adventure</p><h1 class="title-logo" id="titleLogo"><span class="operation">OPERATION:</span>GUT <em>FEELING</em><span class="title-dot">.</span></h1><p class="title-welcome" id="titleWelcome"></p></div><div class="title-bottom"><button class="title-start" id="titleStart">START</button><p class="title-press" aria-hidden="true"><span class="press-key">PRESS START</span><span class="press-touch">TAP TO START</span></p><p class="title-foot">Questionable Medical Adventures · Hospital arcade v0.6</p></div></div>
+<div class="title-screen" id="titleScreen" data-state="up" role="dialog" aria-modal="true" aria-labelledby="titleLogo"><canvas id="titleArt" aria-hidden="true"></canvas><div class="title-top"><p class="title-tag">A very unofficial hospital adventure</p><h1 class="title-logo" id="titleLogo"><span class="operation">OPERATION:</span>GUT <em>FEELING</em></h1><p class="title-welcome" id="titleWelcome"></p></div><div class="title-bottom"><button class="title-start" id="titleStart">START</button><p class="title-press" aria-hidden="true"><span class="press-key">PRESS START</span><span class="press-touch">TAP TO START</span></p><p class="title-foot">Questionable Medical Adventures · Hospital arcade v0.7</p></div></div>
 <div class="wrap">
 <header><div class="brand"><span class="brandmark"><svg><use href="#i-cross"/></svg></span>Questionable medical adventures</div><div class="header-actions"><span class="version">HOSPITAL ARCADE · v0.6</span><button id="soundBtn" class="iconbtn" aria-label="Turn sound off" title="Sound on"><svg><use href="#i-sound"/></svg><span>Sound on</span></button><button id="helpBtn" class="iconbtn" aria-label="How to play"><svg><use href="#i-help"/></svg></button><button id="fullBtn" class="iconbtn" aria-label="Play fullscreen" title="Fullscreen"><svg><use href="#i-expand"/></svg><span>Fullscreen</span></button></div></header>
 <main>
@@ -5111,8 +5111,9 @@ function arcadeBackdrop(g, top, glowColor, title) {
   label(g, 'L' + (mini.tier + 1), 576, 28, 12, '#efdab0', 'right');
 }
 
+// A softball is yellow (optic yellow, the real thing); white with red stitches is a baseball.
 function softball(g, x, y, r = 10) {
-  ellipse(g, x, y, r, r, '#fff1bf');
+  ellipse(g, x, y, r, r, '#f0e34a');
   g.save();
   g.translate(x, y);
   g.rotate(time * 3);

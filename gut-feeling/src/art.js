@@ -1800,8 +1800,9 @@ function arcadeBackdrop(g, top, glowColor, title) {
   label(g, 'L' + (mini.tier + 1), 576, 28, 12, '#efdab0', 'right');
 }
 
+// A softball is yellow (optic yellow, the real thing); white with red stitches is a baseball.
 function softball(g, x, y, r = 10) {
-  ellipse(g, x, y, r, r, '#fff1bf');
+  ellipse(g, x, y, r, r, '#f0e34a');
   g.save();
   g.translate(x, y);
   g.rotate(time * 3);
