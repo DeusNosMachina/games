@@ -3451,8 +3451,11 @@ function macyLook() {
 // ---- Macy's poses ----
 // An act is { kind, t }: kind names a pose below, t is seconds into it. girl() turns it into a rig of
 // small offsets (arms, eyes, mouth, head, a prop). Idles play in the ward when she stands still;
-// reactions play on a hit, a cleared wave and a medal. With no act, girl() draws exactly as before.
+// reactions play on a hit, a cleared wave and a medal; greetings play next to the visitors in the
+// hallway (macyGreet in world.js). act.len, when set, stretches a pose to that many seconds.
+// With no act, girl() draws exactly as before.
 const MACY_IDLES = ['look', 'ball', 'scrunchie', 'dance', 'yawn', 'iv'],
+  MACY_GREETS = ['hug', 'fistbump', 'selfie', 'highfive', 'wave'],
   MACY_POSES = {
     look: 2.6,
     scrunchie: 2.2,
@@ -3462,7 +3465,12 @@ const MACY_IDLES = ['look', 'ball', 'scrunchie', 'dance', 'yawn', 'iv'],
     dance: 2.8,
     flinch: 0.4,
     pump: 1.3,
-    grin: 2.4
+    grin: 2.4,
+    hug: 2.4,
+    fistbump: 1.4,
+    selfie: 2.6,
+    highfive: 1.2,
+    wave: 1.8
   };
 
 // 0 before a, 1 after b, smooth in between.
@@ -3497,8 +3505,8 @@ function macyBallY(p) {
 
 function macyRig(act, dir) {
   const kind = act.kind,
-    len = MACY_POSES[kind] || 1,
-    t = clamp(act.t, 0, len),
+    len = act.len > 0 ? act.len : MACY_POSES[kind] || 1,
+    t = clamp(Number.isFinite(act.t) ? act.t : 0, 0, len),
     back = -dir,
     rig = { arms: [null, null] };
   if (kind === 'look') {
@@ -3633,6 +3641,112 @@ function macyRig(act, dir) {
     };
     return rig;
   }
+  if (kind === 'hug') {
+    // Both arms wrapped forward around whoever is there, eyes shut, a smile, a little rock side to side.
+    const k = macyEnvelope(t, len, 0.3, 0.35),
+      rock = Math.sin(t * 3.2) * k,
+      side = dir < 0 ? 0 : 1;
+    rig.arms[side] = macyArm(dir, k, dir * 25, -47 + rock, dir * 24, -54, { front: true });
+    rig.arms[1 - side] = macyArm(-dir, k, dir * 21, -50 - rock, dir * 4, -57, { front: true });
+    rig.lean = dir * 0.07 * k + rock * 0.02;
+    rig.dx = dir * 2 * k;
+    rig.headDx = dir * 1.2 * k;
+    rig.eyes = k > 0.35 ? 'happy' : null;
+    rig.mouth = k > 0.35 ? 'smile' : null;
+    rig.prop = g => {
+      if (k <= 0.2) return;
+      const q = (t * 0.6) % 1;
+      g.save();
+      g.globalAlpha *= k * Math.sin(q * Math.PI);
+      heart(g, dir * 14, -92 - q * 16, 0.32, '#f39aa8');
+      g.restore();
+    };
+    return rig;
+  }
+  if (kind === 'fistbump') {
+    // Punch out, hold the bump, a pop of sparks at the knuckles.
+    const k = macyEnvelope(t, len, 0.22, 0.3),
+      side = dir < 0 ? 0 : 1,
+      pop = macyEase(t, 0.22, 0.3) * (1 - macyEase(t, 0.45, 0.65));
+    rig.arms[side] = macyArm(dir, k, dir * 31, -46, dir * 22, -47, { front: true, fist: true });
+    rig.lean = dir * 0.04 * k;
+    rig.lookX = dir * 0.8 * k;
+    rig.mouth = k > 0.4 ? 'grin' : null;
+    rig.prop = g => {
+      if (pop <= 0) return;
+      g.save();
+      g.globalAlpha *= pop;
+      spark(g, dir * 37, -52, '#ffe29b', 0.4);
+      spark(g, dir * 37, -40, '#ffffff', 0.3);
+      g.restore();
+    };
+    return rig;
+  }
+  if (kind === 'selfie') {
+    // Phone up high in the back hand, peace sign by her cheek, the big grin, and one flash.
+    const k = macyEnvelope(t, len, 0.3, 0.35),
+      side = dir < 0 ? 0 : 1,
+      flash = macyEase(t, 1, 1.06) * (1 - macyEase(t, 1.12, 1.4)),
+      px = -dir * 21,
+      py = -97;
+    rig.arms[1 - side] = macyArm(-dir, k, px, py + 6, -dir * 26, -70, { top: true });
+    rig.arms[side] = macyArm(dir, k, dir * 16, -63, dir * 23, -46, { front: true, peace: k > 0.5 });
+    rig.headDx = -dir * 1.4 * k;
+    rig.lookX = -dir * 0.6 * k;
+    rig.lookY = -1 * k;
+    rig.eyes = flash > 0.3 ? 'squeeze' : null;
+    rig.mouth = k > 0.3 ? 'grin' : null;
+    rig.prop = g => {
+      if (k <= 0) return;
+      g.save();
+      g.globalAlpha *= clamp(k * 1.5, 0, 1);
+      g.translate(px, py);
+      g.rotate(-dir * 0.18);
+      rr(g, -4.2, -7, 8.4, 14, 2, '#2c3442', '#11161f', 0.8);
+      ellipse(g, -dir * 1.6, -4.6, 1, 1, '#7b8aa0');
+      ellipse(g, 0, 6.2, 3.3, 3.6, '#e8ac8b');
+      g.restore();
+      if (flash > 0) {
+        g.save();
+        g.globalAlpha *= flash;
+        ellipse(g, px, py - 2, 13, 13, '#ffffffaa');
+        spark(g, px, py - 2, '#ffffff', 0.6);
+        g.restore();
+      }
+    };
+    return rig;
+  }
+  if (kind === 'highfive') {
+    // Open hand up high, a smack at the top, then down.
+    const k = macyEnvelope(t, len, 0.2, 0.3),
+      side = dir < 0 ? 0 : 1,
+      smack = macyEase(t, 0.2, 0.28) * (1 - macyEase(t, 0.4, 0.6));
+    rig.arms[side] = macyArm(dir, k, dir * 23, -94 - smack * 2, dir * 25, -66, { front: true, open: true });
+    rig.dy = -smack * 2;
+    rig.lookX = dir * 0.6 * k;
+    rig.lookY = -1.2 * k;
+    rig.eyes = smack > 0.3 ? 'happy' : null;
+    rig.mouth = k > 0.3 ? 'grin' : null;
+    rig.prop = g => {
+      if (smack <= 0) return;
+      g.save();
+      g.globalAlpha *= smack;
+      spark(g, dir * 26, -106, '#fff3c4', 0.5);
+      g.restore();
+    };
+    return rig;
+  }
+  if (kind === 'wave') {
+    // Hand up, side to side.
+    const k = macyEnvelope(t, len, 0.25, 0.3),
+      side = dir < 0 ? 0 : 1,
+      w = Math.sin(t * 10) * k;
+    rig.arms[side] = macyArm(dir, k, dir * (22 + w * 4), -86 - Math.abs(w), dir * 24, -62, { front: true, open: true });
+    rig.lookX = dir * 0.5 * k;
+    rig.mouth = k > 0.3 ? 'smile' : null;
+    rig.eyes = k > 0.5 && t % 1.2 > 0.8 ? 'happy' : null;
+    return rig;
+  }
   if (kind === 'grin') {
     const k = macyEnvelope(t, len, 0.25, 0.35),
       side = dir < 0 ? 0 : 1,
@@ -3665,6 +3779,14 @@ function macyDrawArm(g, side, a, hood) {
   if (a.fist) {
     ellipse(g, a.x, a.y - 1.5, 4, 4, '#e8ac8b');
     line(g, [[a.x - 2.2, a.y - 3], [a.x + 2.2, a.y - 3]], '#c98c70', 0.8);
+  } else if (a.open) {
+    // An open palm, fingers fanned up, thumb out to the side.
+    for (let i = 0; i < 4; i++) {
+      const fx = a.x - 2.4 + i * 1.6;
+      line(g, [[fx, a.y - 1], [fx + (i - 1.5) * 0.7, a.y - 6.6 + Math.abs(i - 1.5) * 0.7]], '#e8ac8b', 1.7);
+    }
+    line(g, [[a.x - 2.6, a.y + 1], [a.x - 5.2, a.y - 1.6]], '#e8ac8b', 1.7);
+    ellipse(g, a.x, a.y + 0.6, 3.4, 3.6, '#e8ac8b');
   } else ellipse(g, a.x, a.y + 2, 3.3, 4.4, '#e8ac8b');
   if (a.peace) {
     line(g, [[a.x - 1, a.y - 1], [a.x - 2.6, a.y - 8]], '#e8ac8b', 2.2);
@@ -6297,7 +6419,8 @@ function drawMachineIcon(g, id, x, y, s = 1) {
 // Drawing: drawRowdy(g, x, y, scale, pose, t, opts) puts his feet at (x, y), like girl().
 // At scale 1 he stands ROWDY_HEIGHT (86) units tall, horns included; ROWDY_SCALE (1.45) makes him
 // a head taller than Macy in the ward (girl() at 1.24). opts.face is 1 (right) or -1 (left);
-// opts.prop 'flag' swaps the cheer's front pom-pom for a spirit flag; opts.shadow false skips it.
+// opts.prop 'flag' swaps the cheer's front pom-pom for a spirit flag; opts.shadow false skips it;
+// opts.poms puts the gallop's poms up (the run-through) and opts.dust kicks dust behind him.
 //
 // Costume palette, sampled from docs/rowdy-references in the infocus repo (photos 1, 4, 12, 13):
 // royal blue jersey shoulders (#0960b3 to #056ac0), athletic gold horns and shorts (#d09219,
@@ -6484,15 +6607,21 @@ function rowdyPose(pose, t, opts = {}) {
         tilt: sw * 0.35
       };
     });
-    P.arms = [-1, 1].map(s => {
-      const sw = -Math.sin(ph + (s > 0 ? 0 : Math.PI));
-      return {
-        s,
-        e: [s * 14 + sw * 5.5, -38 - Math.abs(sw) * 1.5],
-        h: [s * 12.5 + sw * 10, -33 - Math.max(0, sw) * 5],
-        kind: 'fist'
-      };
-    });
+    P.arms = opts.poms
+      ? [-1, 1].map(s => {
+          // Run-through: poms up and shaking, out of step with the stride.
+          const shake = Math.sin(ph * 1.3 + (s > 0 ? 0 : 2));
+          return { s, e: [s * 17.5, -58], h: [s * (21 + shake * 2), -72 - Math.abs(shake) * 3], kind: 'pom' };
+        })
+      : [-1, 1].map(s => {
+          const sw = -Math.sin(ph + (s > 0 ? 0 : Math.PI));
+          return {
+            s,
+            e: [s * 14 + sw * 5.5, -38 - Math.abs(sw) * 1.5],
+            h: [s * 12.5 + sw * 10, -33 - Math.max(0, sw) * 5],
+            kind: 'fist'
+          };
+        });
     P.fx = 'lines';
   } else if (pose === 'hug') {
     const a = Math.sin(t * 3);
@@ -6544,6 +6673,7 @@ function rowdyPose(pose, t, opts = {}) {
   }
   P.head = [P.head[0], P.head[1] + P.dip];
   if (!P.legs.length) rowdyStandLegs(P);
+  P.dust = !!opts.dust;
   return P;
 }
 
@@ -7219,6 +7349,16 @@ function rowdyFx(g, P, t) {
   }
 }
 
+// Dust kicked up behind his heels (he faces +x here), on a clock so it never needs randomness.
+function rowdyDust(g, t) {
+  for (let i = 0; i < 4; i++) {
+    const k = (t * 2.4 + i / 4) % 1;
+    g.globalAlpha = (1 - k) * 0.5;
+    ellipse(g, -8 - k * 24 - i * 2, -1 - k * 7, 2.4 + k * 4.2, 1.8 + k * 3.2, i % 2 ? '#d8cab3' : '#c4b499');
+  }
+  g.globalAlpha = 1;
+}
+
 // Rowdy, feet at (x, y). See the header for scale and opts.
 function drawRowdy(g, x, y, scale = 1, pose = 'idle', t = 0, opts = {}) {
   const o = opts && typeof opts === 'object' ? opts : {},
@@ -7234,6 +7374,7 @@ function drawRowdy(g, x, y, scale = 1, pose = 'idle', t = 0, opts = {}) {
   }
   g.translate(0, -P.lift);
   g.scale(face * Math.max(0.14, Math.abs(P.spin)), 1);
+  if (P.dust) rowdyDust(g, tt);
   for (const L of P.legs) rowdyLeg(g, L, P.dip);
   for (const L of P.legs) rowdyShoe(g, L.a[0], L.a[1], L.tilt, P.back ? -0.4 : L.s > 0 ? 0.5 : 0.2);
   rowdyShorts(g, P);
@@ -7354,7 +7495,7 @@ const ROWDY_LINES = [
 const ROWDY_GREETS = [
   "THERE she is! Ramsey's own, back in the hallway!",
   'Clear the hallway! Star freshman coming through!',
-  '{name}! I galloped! Was that cool? I think that was cool.',
+  "{name}! I saved you a spot at the nurses' station!",
   'Hey hey! Your personal pep rally has arrived.',
   'Ladies and gentlemen and nurses, number one in your hearts: {name}!'
 ];
@@ -7546,21 +7687,43 @@ function rowdyBubbleTime(text) {
 // ---- Reference brain (optional) ----
 // The hallway may run its own NPC logic from the spec; rowdyTick is a working version of the notes.
 // npc: {x, y} plus fields this fills in (mode, pose, face, say...). env: {macy: {x, y} or null,
-// entered: true on the frame Macy walks into the hallway, st: state}. Returns {text, pose} on the
-// frame a new speech bubble starts (play sfx('talk', {voice: 'rowdy'}) then), otherwise null.
-// npc.greeted marks this visit's welcome gallop; clear it when a new visit starts.
+// entered: true on the frame Macy walks into the hallway, st: state, bounds: [left, right] of the
+// hallway (default [80, 3120]), home: [x, y] (default npc.homeX, npc.homeY)}. Returns {text, pose}
+// on the frame a new speech bubble starts (play sfx('talk', {voice: 'rowdy'}) then), otherwise null.
+//
+// He never moves toward Macy. He stays home by the nurses' station, faces her, and cheers on his
+// timer. Now and then he does a run-through: a sprint from home to the far end of the hallway, poms
+// up, screaming a cheer in bursts, then a jog back home. The first one comes 20 to 40 s after she
+// walks in (env.entered), then one every 100 to 160 s while she is in the hallway. His path depends
+// only on his home and the bounds, never on where she stands.
 
 const ROWDY_TIMING = {
   autoCheer: [40, 70],
-  gallopSpeed: 190,
+  // true: a timer cheer waits for Macy inside the watch radius. false: he cheers to an empty hallway.
+  cheerOnlyWatched: false,
+  runFirst: [20, 40],
+  runEvery: [100, 160],
+  sprintSpeed: 340,
+  jogSpeed: 150,
   homeSpeed: 120,
-  greetGap: 64,
-  greetHold: 2.2,
   watchRadius: 260,
   leaveRadius: 300,
   sad: 1,
   recover: 1.6
 };
+
+const ROWDY_BOUNDS = [80, 3120];
+
+// Run-through cheers: screamed in order, one burst per stretch of the sprint.
+const ROWDY_RUN_CHEERS = [
+  ['RAMS!', 'R! A! M! S!', "LET'S GO RAMSEY!"],
+  ['WHO ARE WE?', 'RAMS!', 'WHO ARE WE?', 'RAMSEY!'],
+  ['HORNS UP!', 'BLUE AND GOLD!', 'GO {name} GO!', 'RAMS!'],
+  ['MAKE SOME NOISE!', 'R! A! M! S!', 'ONE, TWO, THREE, RAMSEY!'],
+  ['NO RUNNING IN THE HALLWAY!', 'THIS IS GALLOPING!', 'GO RAMS!'],
+  ['CODE BLUE AND GOLD!', 'THIS IS NOT A DRILL!', 'IT IS A SPIRIT DRILL!', 'RAMS!'],
+  ['{name}! {name}!', "LET'S GO RAMSEY!", 'WE ARE... RAMSEY!']
+];
 
 function rowdySay(npc, text, pose, hold) {
   npc.say = text;
@@ -7582,10 +7745,64 @@ function rowdyStartCheer(npc, st) {
   return rowdySay(npc, text, b.pose, rowdyBubbleTime(text));
 }
 
+// Off he goes: to the end of the hallway farther from home, with a cheer he did not do last time.
+function rowdyStartRun(npc, bounds) {
+  const T = ROWDY_TIMING,
+    [left, right] = bounds,
+    far = Math.abs(npc.homeX - left) > Math.abs(right - npc.homeX) ? left : right;
+  let i = Math.floor(rand(0, ROWDY_RUN_CHEERS.length)) % ROWDY_RUN_CHEERS.length;
+  if (i === npc.runLast) i = (i + 1) % ROWDY_RUN_CHEERS.length;
+  npc.runLast = i;
+  npc.run = { from: npc.x, to: far, y: npc.homeY, bursts: ROWDY_RUN_CHEERS[i], next: 0 };
+  npc.mode = 'run';
+  npc.cheer = null;
+  npc.say = null;
+  npc.timer = 0;
+  npc.runs = (npc.runs || 0) + 1;
+  npc.nextRun = rand(T.runEvery[0], T.runEvery[1]);
+}
+
+// One frame of the sprint: on toward the far end, and the next burst once he reaches its stretch.
+function rowdyRunStep(npc, dt, st) {
+  const T = ROWDY_TIMING,
+    R = npc.run,
+    total = Math.abs(R.to - R.from) || 1,
+    n = R.bursts.length,
+    dx = R.to - npc.x,
+    step = T.sprintSpeed * dt;
+  npc.pose = 'gallop';
+  npc.face = R.to >= R.from ? 1 : -1;
+  if (Math.abs(dx) <= step) npc.x = R.to;
+  else npc.x += Math.sign(dx) * step;
+  npc.y += (R.y - npc.y) * Math.min(1, dt * 6);
+  if (npc.timer > 0) {
+    npc.timer -= dt;
+    if (npc.timer <= 0) npc.say = null;
+  }
+  if (R.next < n && Math.abs(npc.x - R.from) / total >= R.next / n) {
+    const text = rowdyFormat(R.bursts[R.next], st),
+      stretch = total / n / T.sprintSpeed;
+    R.next++;
+    return rowdySay(npc, text, 'gallop', clamp(Math.min(rowdyBubbleTime(text), stretch), 0.6, 2.8));
+  }
+  if (npc.x === R.to) {
+    npc.run = null;
+    npc.mode = 'home';
+    npc.say = null;
+    npc.timer = 0;
+  }
+  return null;
+}
+
 function rowdyTick(npc, dt, env = {}) {
   const T = ROWDY_TIMING,
     st = env.st || {},
-    macy = env.macy || null;
+    macy = env.macy || null,
+    bounds = Array.isArray(env.bounds) && env.bounds.length === 2 ? env.bounds : ROWDY_BOUNDS;
+  if (Array.isArray(env.home) && env.home.length === 2) {
+    npc.homeX = env.home[0];
+    npc.homeY = env.home[1];
+  }
   if (npc.homeX === undefined) npc.homeX = npc.x;
   if (npc.homeY === undefined) npc.homeY = npc.y;
   npc.mode ??= 'idle';
@@ -7598,30 +7815,24 @@ function rowdyTick(npc, dt, env = {}) {
     seeMacy = () => {
       if (macy && Math.abs(macy.x - npc.x) > 2) npc.face = macy.x > npc.x ? 1 : -1;
     };
-  if (env.entered && macy && !npc.greeted) {
-    npc.greeted = true;
-    npc.mode = 'gallop';
-    npc.say = null;
+  // A new visit books the first run-through. The clock only runs while she is in the hallway, and a
+  // run that comes due mid-cheer or mid-talk waits for him to be idle at home.
+  if (env.entered && macy) npc.nextRun = rand(T.runFirst[0], T.runFirst[1]);
+  else if (macy && Number.isFinite(npc.nextRun)) npc.nextRun -= dt;
+  if (npc.mode === 'run') {
+    if (npc.run) return rowdyRunStep(npc, dt, st);
+    npc.mode = 'home';
   }
-  if (npc.mode === 'gallop' || npc.mode === 'home') {
-    const toMacy = npc.mode === 'gallop' && macy,
-      side = toMacy && macy.x < npc.x ? 1 : -1,
-      tx = toMacy ? macy.x + side * T.greetGap : npc.homeX,
-      ty = toMacy ? macy.y : npc.homeY,
-      dx = tx - npc.x,
-      dy = ty - npc.y,
+  if (npc.mode === 'home') {
+    const dx = npc.homeX - npc.x,
+      dy = npc.homeY - npc.y,
       len = Math.hypot(dx, dy),
-      step = (toMacy ? T.gallopSpeed : T.homeSpeed) * dt;
+      step = T.jogSpeed * dt;
     npc.pose = 'gallop';
     if (Math.abs(dx) > 1) npc.face = dx > 0 ? 1 : -1;
     if (len <= step || len < 2) {
-      npc.x = tx;
-      npc.y = ty;
-      if (toMacy) {
-        npc.mode = 'greet';
-        seeMacy();
-        return rowdySay(npc, rowdyFormat(pick(ROWDY_GREETS), st), 'wave', T.greetHold);
-      }
+      npc.x = npc.homeX;
+      npc.y = npc.homeY;
       npc.mode = 'idle';
       npc.pose = 'idle';
       return null;
@@ -7674,16 +7885,25 @@ function rowdyTick(npc, dt, env = {}) {
     npc.say = null;
     return null;
   }
-  // Idle: bounce near the nurses' station, face Macy, cheer on a timer whether or not anyone watches.
+  // Idle: bounce at the nurses' station and face Macy. Off his spot (a talk cut a run short), jog home.
   npc.pose = 'idle';
   if (d < 400) seeMacy();
-  const away = Math.hypot(npc.x - npc.homeX, npc.y - npc.homeY) > 4;
-  if (away && d > T.watchRadius) {
+  if (Math.hypot(npc.x - npc.homeX, npc.y - npc.homeY) > 4) {
     npc.mode = 'home';
     return null;
   }
+  if (macy && npc.nextRun <= 0) {
+    rowdyStartRun(npc, bounds);
+    return rowdyRunStep(npc, 0, st);
+  }
   npc.nextCheer -= dt;
-  if (npc.nextCheer <= 0) return rowdyStartCheer(npc, st);
+  if (npc.nextCheer <= 0) {
+    if (T.cheerOnlyWatched && d > T.watchRadius) {
+      npc.nextCheer = 0;
+      return null;
+    }
+    return rowdyStartCheer(npc, st);
+  }
   return null;
 }
 
@@ -7706,10 +7926,13 @@ function rowdyNpcSpec() {
     voice: 'rowdy',
     // Draws him at npc.x, npc.y (feet). Reads npc.pose (one of poses), npc.face (1 or -1),
     // npc.scale (default scale) and npc.prop ('flag' for a spirit flag in the cheer pose).
+    // On a run-through (npc.mode 'run') the gallop goes poms up with dust behind.
     draw: (g, npc, t) =>
       drawRowdy(g, npc.x, npc.y, npc.scale || ROWDY_SCALE, npc.pose || 'idle', t, {
         face: npc.face || 1,
-        prop: npc.prop
+        prop: npc.prop,
+        poms: npc.mode === 'run',
+        dust: npc.mode === 'run'
       }),
     // Speech-box bust in an s × s box centered at (x, y); t optional (falls back to the ward clock).
     portrait: (g, x, y, s, t) => drawRowdyPortrait(g, x, y, s, t),
@@ -7722,10 +7945,10 @@ function rowdyNpcSpec() {
     radius: 22,
     // Every pose drawRowdy knows.
     poses: ROWDY_POSES.slice(),
-    // How he spends his day. He idles with bounces near the nurses' station; runs a random cheer
-    // every 40 to 70 s even when nobody is talking to him; gallops to Macy the first time she enters
-    // the hallway each visit and greets her with a wave; and if she walks away mid-cheer he holds
-    // 'sad' for a second, then recovers with a farewell line and a wave.
+    // How he spends his day. He bounces at the nurses' station and never walks toward Macy; runs a
+    // random cheer every 40 to 70 s even when nobody is talking to him; 20 to 40 s after she walks in,
+    // then every 100 to 160 s, sprints to the far end of the hallway screaming a cheer in bursts and
+    // jogs home; and if she walks away mid-cheer he holds 'sad' for a second, then a farewell wave.
     behavior: 'cheer',
     home: 'nurses-station',
     idlePose: 'idle',
@@ -7734,9 +7957,11 @@ function rowdyNpcSpec() {
     lines: ROWDY_LINES.slice(),
     // Bubble sequences: {id, name, when?, bubbles: [{text, pose}]}; see ROWDY_CHEERS for when.
     cheers: ROWDY_CHEERS.map(c => ({ ...c, bubbles: c.bubbles.map(b => ({ ...b })) })),
-    // First-entry welcome lines and walk-away lines.
+    // Welcome lines (the brain no longer uses them; free for the hallway) and walk-away lines.
     greet: ROWDY_GREETS.slice(),
     farewell: ROWDY_FAREWELLS.slice(),
+    // Run-through bursts: [[text, ...], ...], screamed in order across the sprint.
+    runCheers: ROWDY_RUN_CHEERS.map(c => c.slice()),
     // Helpers: state-aware lines, one talk line, cheer choice and eligibility, {name} fill.
     react: rowdyStateLines,
     line: rowdyLine,
@@ -14272,8 +14497,13 @@ const tvChannels = { 0: 0, 2: 0 },
   curtainSprites = new Map();
 
 // ---- Poses ----
+// macyGreeting is the greeting playing now ({ pose, dir }) or null. It holds off the idles and the
+// walk cycle, and any step, dash or jump ends it.
+let macyGreeting = null;
+
 function macySetPose(kind) {
   if (!MACY_POSES[kind]) return false;
+  macyGreeting = null;
   player.pose = kind;
   player.poseT = 0;
   player.poseLen = MACY_POSES[kind];
@@ -14281,16 +14511,38 @@ function macySetPose(kind) {
 }
 
 function macyClearPose() {
+  macyGreeting = null;
   player.pose = '';
   player.poseT = 0;
   player.poseLen = 0;
+}
+
+// A greeting next to a visitor: pose is any of MACY_POSES (hug, fistbump, selfie, highfive, wave,
+// flinch...), held for seconds (default the pose's own length, 0.3 to 12), facing dir (1 right, -1
+// left). A new call replaces a running one; moving cancels it. Returns false for an unknown pose.
+function macyGreet(pose, seconds, dir) {
+  if (!macySetPose(pose)) return false;
+  if (Number.isFinite(seconds) && seconds > 0) player.poseLen = clamp(seconds, 0.3, 12);
+  if (dir === 1 || dir === -1) player.dir = dir;
+  macyGreeting = { pose, dir: player.dir };
+  macyIdleT = 0;
+  macyIdleWait = 0;
+  player.walk = 0;
+  return true;
+}
+
+const macyGreetOn = () => !!macyGreeting && player.pose === macyGreeting.pose;
+
+// Moving, dashing or jumping ends a greeting.
+function macyGreetCancel() {
+  if (macyGreetOn() && (player.moving || player.dash > 0 || player.z > 0)) macyClearPose();
 }
 
 const macyIsIdle = () => MACY_IDLES.includes(player.pose);
 
 // What girl() should play right now, or null.
 function macyAct() {
-  return player.pose ? { kind: player.pose, t: player.poseT } : null;
+  return player.pose ? { kind: player.pose, t: player.poseT, len: player.poseLen } : null;
 }
 
 // The medal grin, straight at the camera. The result screen calls this; it clears on its own.
@@ -14348,6 +14600,10 @@ function macyBusy() {
 
 // After 4 to 7 still seconds (a fixed, repeatable spread), one idle from the rotation.
 function macyIdleStep(dt) {
+  if (macyGreetOn()) {
+    macyIdleT = 0;
+    return;
+  }
   if (macyBusy()) {
     macyWake();
     return;
@@ -15694,6 +15950,7 @@ function updateWorld(dt) {
     player.vy = dy * speed;
   }
   moveEntity(player, player.vx * dt, player.vy * dt);
+  macyGreetCancel();
   if (keys.has(' ') || heldAttack) attack();
   updateCombat(dt);
   if (typeof updateRoomExtras === 'function') updateRoomExtras(dt);
@@ -15841,7 +16098,7 @@ function drawWorld() {
         0,
         0,
         MACY_SCALE,
-        player.walk,
+        macyGreetOn() ? 0 : player.walk,
         player.visualDir ?? player.dir,
         player.inv > 0 && player.vomit <= 0,
         player.z <= 0,
