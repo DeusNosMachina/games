@@ -22,8 +22,12 @@ const BLASTER = registerGame({
   tierNotes: [
     '105s · one at a time · hints on · slow crawlers',
     '120s · helmets, bruisers, pouncers · short fuses',
-    '135s · the whole litter · Ralph Jr. on watch 3'
+    '135s · the whole litter · Ralph Jr. on watch 3',
+    '150s · every breed, short fuses · 6 charges · Ralph Jr. twice'
   ],
+  // Level 4 is Legendary: level 3's whole litter from the first watch, shorter fuses, six charges a
+  // magazine, a longer night and Ralph Jr. twice.
+  legendary: true,
   shiftName: 'WATCH',
   init() {
     initArcadeRun(105 + mini.tier * 15);
@@ -98,6 +102,10 @@ const BLASTER = registerGame({
     return false;
   },
   shiftMessage(shift) {
+    if (mini.tier === 3)
+      return shift === 1
+        ? 'WATCH 2 · Ralph Jr. is up past his bedtime.'
+        : 'WATCH 3 · Ralph Jr. is back, and he brought the whole litter.';
     if (shift === 1) return 'WATCH 2 · both sides now. Pouncers have short fuses.';
     return mini.tier === 2
       ? 'WATCH 3 · everything, everywhere. Ralph Jr. wants a word.'
@@ -117,7 +125,12 @@ const BLASTER = registerGame({
         ' Evict ' +
         mini.goal +
         '.' +
-        (mini.tier === 0 ? ' Hints are on. Ralph is not.' : mini.tier === 2 ? ' Ralph Jr. crashes watch 3.' : ''),
+        [
+          ' Hints are on. Ralph is not.',
+          '',
+          ' Ralph Jr. crashes watch 3.',
+          ' Legendary: every breed from the first second, shorter fuses, six charges a magazine, and Ralph Jr. on watches 2 and 3.'
+        ][mini.tier],
       control: i.control,
       avoid: i.avoid,
       demo: 'aim',
@@ -152,9 +165,12 @@ const BLASTER = registerGame({
     );
   },
   onWin() {
-    const tail = mini.bossDown
-      ? ' Ralph Jr. has been sent to his room. This is his room.'
-      : ' The gremlins are leaving a one-star review.';
+    const tail =
+      mini.bossDowns >= 2
+        ? ' Ralph Jr. got evicted twice. He is telling everyone it was a tie.'
+        : mini.bossDown
+          ? ' Ralph Jr. has been sent to his room. This is his room.'
+          : ' The gremlins are leaving a one-star review.';
     return `Room secured. ${mini.headshots} headshots, ${mini.cleanReloads} hot reloads.` + tail;
   },
   onLose() {
@@ -252,6 +268,9 @@ const BLASTER = registerGame({
 
 // ---- Rules ----
 const BLASTER_MAGAZINE = 7,
+  BLASTER_MAGAZINES = [7, 7, 7, 6], // charges per magazine by level
+  BLASTER_GOALS = [16, 26, 34, 40],
+  BLASTER_RALPH = [[], [], [2], [1, 2]], // the watches Ralph Jr. visits, by level
   BLASTER_CHARGE = 0.6, // seconds held for a piercing shot
   BLASTER_SWEEP = 0.08, // the sight's travel time before a tap resolves
   BLASTER_SLOP = 12, // pixels a touch may wander and still count as a tap
@@ -292,6 +311,11 @@ const BLASTER_MIX = [
   ],
   [
     { crawler: 5, helmet: 3, bruiser: 2 },
+    { crawler: 3, helmet: 3, bruiser: 2, pouncer: 3 },
+    { crawler: 3, helmet: 3, bruiser: 3, pouncer: 3 }
+  ],
+  [
+    { crawler: 4, helmet: 3, bruiser: 1, pouncer: 2 },
     { crawler: 3, helmet: 3, bruiser: 2, pouncer: 3 },
     { crawler: 3, helmet: 3, bruiser: 3, pouncer: 3 }
   ]
@@ -346,25 +370,27 @@ const BLASTER_PERCHES = [
   { layer: 'near', side: 2, x: 1330, top: 466 }
 ];
 
-// Level and watch pacing. Level 1 is slow and solitary; levels 2 and 3 crowd and hurry.
+// Level and watch pacing. Level 1 is slow and solitary; levels 2 and 3 crowd and hurry. Legendary
+// (level 4) keeps level 3's crowd with shorter fuses; the litter, the smaller magazine and the second
+// Ralph Jr. do the rest, so its spawns run a touch slower than level 3's.
 function blasterTuning(tier = mini.tier, shift = mini.shift || 0) {
   const pace = (mini.rules && mini.rules.mini) || 1;
   return {
-    interval: [[3.6, 3.1, 2.7], [2.8, 2.45, 2.15], [2.45, 2.15, 1.85]][tier][shift] / pace,
-    windup: [1.8, 1.25, 1][tier] / pace,
-    leap: [1.15, 0.92, 0.8][tier] / Math.sqrt(pace),
-    creep: [[6.2, 5.8, 5.4], [5, 4.6, 4.2], [4.4, 4, 3.6]][tier][shift] / pace,
-    peek: [1.6, 1.05, 0.8][tier] / pace,
-    cap: [[1, 2, 3], [2, 3, 3], [3, 3, 4]][tier][shift],
-    reload: [1.5, 1.4, 1.3][tier],
-    window: [[0.36, 0.7], [0.48, 0.67], [0.53, 0.66]][tier],
+    interval: [[3.6, 3.1, 2.7], [2.8, 2.45, 2.15], [2.45, 2.15, 1.85], [2.6, 2.3, 2]][tier][shift] / pace,
+    windup: [1.8, 1.25, 1, 0.92][tier] / pace,
+    leap: [1.15, 0.92, 0.8, 0.76][tier] / Math.sqrt(pace),
+    creep: [[6.2, 5.8, 5.4], [5, 4.6, 4.2], [4.4, 4, 3.6], [4.4, 4, 3.6]][tier][shift] / pace,
+    peek: [1.6, 1.05, 0.8, 0.8][tier] / pace,
+    cap: [[1, 2, 3], [2, 3, 3], [3, 3, 4], [3, 3, 4]][tier][shift],
+    reload: [1.5, 1.4, 1.3, 1.3][tier],
+    window: [[0.36, 0.7], [0.48, 0.67], [0.53, 0.66], [0.53, 0.66]][tier],
     shotCd: 0.13
   };
 }
 
 function initShooter() {
   Object.assign(mini, {
-    goal: [16, 26, 34][mini.tier],
+    goal: BLASTER_GOALS[mini.tier],
     look: { yaw: 700, pitch: 250 },
     lookTarget: { yaw: 700, pitch: 250 },
     sight: { x: 300, y: 285 },
@@ -380,8 +406,8 @@ function initShooter() {
     targetSerial: 0,
     lastSide: -1,
     rush: false,
-    ammo: BLASTER_MAGAZINE,
-    magazine: BLASTER_MAGAZINE,
+    ammo: BLASTER_MAGAZINES[mini.tier],
+    magazine: BLASTER_MAGAZINES[mini.tier],
     reload: 0,
     reloadT: 0,
     reloadDur: 0,
@@ -408,6 +434,9 @@ function initShooter() {
     bottlesShot: 0,
     bossSpawned: false,
     bossDown: false,
+    bossVisits: 0,
+    bossDowns: 0,
+    bossWatches: {},
     splat: null,
     tracers: [],
     pops: [],
@@ -655,9 +684,11 @@ function blasterSpawnBottle(perch = null) {
   return e;
 }
 
-// Ralph Jr. drops in for level 3's last watch. His mouth only opens when he roars.
+// Ralph Jr. drops in for level 3's last watch, and for Legendary's last two. His mouth only opens when he
+// roars.
 function blasterSpawnBoss() {
   mini.bossSpawned = true;
+  mini.bossVisits = (mini.bossVisits || 0) + 1;
   const k = BLASTER_KINDS.boss,
     e = {
       id: mini.targetSerial++,
@@ -683,7 +714,10 @@ function blasterSpawnBoss() {
     };
   mini.targets.push(e);
   mini.flash = 2.2;
-  mini.flashText = 'RALPH JR. HAS ENTERED THE CHAT · SHOOT THE MOUTH WHEN THE PACIFIER DROPS';
+  mini.flashText =
+    mini.bossVisits > 1
+      ? 'RALPH JR. IS BACK · SAME MOUTH, SAME PLAN'
+      : 'RALPH JR. HAS ENTERED THE CHAT · SHOOT THE MOUTH WHEN THE PACIFIER DROPS';
   sfx('explode');
   return e;
 }
@@ -861,7 +895,10 @@ function blasterApplyHit(h, charged, hot) {
   e.mode = 'dying';
   e.dying = e.kind === 'boss' ? 1 : 0.45;
   mini.got += e.kind === 'boss' ? 3 : 1;
-  if (e.kind === 'boss') mini.bossDown = true;
+  if (e.kind === 'boss') {
+    mini.bossDown = true;
+    mini.bossDowns = (mini.bossDowns || 0) + 1;
+  }
   praise(k.points + (head ? 60 : 0) + (midAir ? 80 : 0) + (hot ? 40 : 0), head ? 1 : charged ? 0.85 : 0.72);
   sfx(e.kind === 'boss' ? 'clear' : 'squelch');
   arcadeBurst(p.x, p.y + 8 * p.s, '#9be15d', e.kind === 'boss' ? 30 : 16);
@@ -1174,7 +1211,7 @@ function blasterUpdateSpawns(dt) {
     sfx('wave');
   }
   mini.rush = rush;
-  if (mini.tier === 2 && mini.shift === 2 && !mini.bossSpawned) blasterSpawnBoss();
+  blasterBossSchedule();
   mini.spawn -= dt;
   if (mini.spawn <= 0) {
     const alive = mini.targets.filter(e => BLASTER_KINDS[e.kind] && e.kind !== 'boss' && e.mode !== 'dying').length;
@@ -1188,6 +1225,16 @@ function blasterUpdateSpawns(dt) {
     mini.bottleT = mini.targets.some(e => e.kind === 'bottle') ? 3 : rand(12, 18);
     if (mini.bottleT > 3) blasterSpawnBottle();
   }
+}
+
+// Ralph Jr. visits on the watches his level lists, once each. A visit that comes due while he is still
+// in the room waits until he is gone, so there is never more than one of him.
+function blasterBossSchedule() {
+  const visits = BLASTER_RALPH[mini.tier] || [];
+  if (!visits.includes(mini.shift) || mini.bossWatches[mini.shift]) return;
+  if (mini.targets.some(e => e.kind === 'boss' && e.mode !== 'dying')) return;
+  mini.bossWatches[mini.shift] = true;
+  blasterSpawnBoss();
 }
 
 // Peek, duck, peek again, then go.

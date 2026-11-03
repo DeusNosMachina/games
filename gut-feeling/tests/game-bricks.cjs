@@ -326,3 +326,66 @@ n('BRICKS.scene(mc,420,240);BRICKS.scene(mc,260,135)');
 n('begin(0);mini.win=true;BRICKS.resultArt(mc);mini.win=false;BRICKS.resultArt(mc)');
 close();
 console.log('PASS: Brick Rebellion draws every state on both canvases.');
+
+// Legendary (level 4): level 3 turned up. The fastest ball, the smallest tray, the most goo, steel and
+// gremlins from the first rack, and Ralph's duplex: two fortresses, each guarded by its own weak points,
+// taking turns with the goo. Only the second fall makes the rack give up.
+assert.equal(n('BRICKS.legendary'), true, 'Brick Rebellion has a Legendary level');
+assert.equal(n('BRICKS.tierNotes.length'), 4);
+assert.equal(n('miniTierCount(BRICKS)'), 4);
+const L4 = L[3];
+assert.ok(L4.speed > L[2].speed && L4.cap > L[2].cap, 'the fastest ball');
+assert.ok(L4.tray < L[2].tray, 'the smallest tray');
+assert.ok(L4.pills.goo > L[2].pills.goo, 'the most goo');
+assert.ok(/a/.test(L4.racks[0].rows.join('')) && /g/.test(L4.racks[0].rows.join('')), 'steel and gremlins from the first rack');
+assert.equal(L4.racks[2].rows.join('').match(/F/g).length, 2, 'two fortresses');
+assert.ok(L4.balls.every((b, i) => b <= L[2].balls[i]), 'no more softballs than level 3');
+assert.ok(n('BRICKS.lesson.call(BRICKS)') !== undefined);
+n('begin(3);bricksBuildRack(2,false);mini.br.rack=2;bricksServe();T.fs=bricksFortresses()');
+assert.ok(n('BRICKS.lesson().avoid').includes('duplex'), 'the briefing explains the duplex');
+assert.equal(n('T.fs.length'), 2);
+assert.equal(n('T.fs[0].hp'), n('BRICKS_LEVELS[3].fortress[0]+BRICKS_LEVELS[3].fortress[1]*state.difficulty'));
+assert.equal(n('T.fs.map(f=>mini.br.bricks.filter(b=>b.kind==="weak"&&b.boss===f.id).length).join()'), '2,2', 'each fortress has two weak points of its own');
+n('for(const w of mini.br.bricks.filter(b=>b.kind==="weak"&&b.boss===T.fs[0].id))w.hp=1,bricksHit(w,1,null)');
+assert.equal(n('bricksGuarded(T.fs[0])'), false, 'breaking its weak points drops one shield');
+assert.equal(n('bricksGuarded(T.fs[1])'), true, 'and not the other');
+assert.ok(n('mini.flashText').startsWith('SHIELD DOWN'));
+n('T.hp1=T.fs[1].hp;bricksHit(T.fs[1],1,null)');
+assert.equal(n('T.fs[1].hp'), n('T.hp1'), 'the other half still clanks');
+// The goo comes from both, on a quicker beat than one fortress alone.
+n('tray(240);mini.br.goo=[];mini.br.ralphT=.001;step(.01);T.g1=mini.br.goo[0].x;T.beat=mini.br.ralphT;mini.br.ralphT=.001;step(.01);T.g2=mini.br.goo[1].x');
+assert.ok(Math.abs(n('T.g1-T.g2')) > 150, 'the two fortresses take turns throwing');
+assert.ok(n('T.beat') < 3.3 * 0.85, 'quicker than any single-fortress throw');
+n('T.left=bricksLeft();T.fs[0].hp=1;bricksHit(T.fs[0],1,null)');
+assert.equal(n('mini.br.fortressDown'), false, 'one half down is not a surrender');
+assert.ok(n('mini.flashText').includes('ONE TO GO'));
+n('step(.5)');
+assert.equal(n('bricksLeft()'), n('T.left-1'), 'nothing else crumbles');
+assert.equal(n('bricksFortresses().length'), 1);
+n('for(const w of mini.br.bricks.filter(b=>b.kind==="weak"&&b.hp>0))w.hp=1,bricksHit(w,1,null);T.fs[1].hp=1;bricksHit(T.fs[1],1,null)');
+assert.equal(n('mini.br.fortressDown'), true);
+n('step(2)');
+assert.equal(n('mini.screen'), 'outro', 'the second fall takes the rack with it');
+assert.equal(n('mini.pendingFinish.win'), true);
+assert.ok(n('BRICKS.onWin()').includes('duplex'));
+close();
+// Idle play loses Legendary on every prescription.
+for (let d = 0; d < 3; d++) {
+  n(`state.difficulty=${d};openMini(2);mini.tier=3;startMini();launchMini();updateMini(3.3);for(let i=0;i<7000&&mini.screen==="play";i++)updateMini(.05);updateMini(2.3)`);
+  assert.equal(n('mini.screen'), 'result');
+  assert.equal(n('mini.win'), false, `idle Legendary P${d} lost`);
+  close();
+}
+// Every screen of a Legendary run draws on both canvases, the duplex and Ralph Jr.'s half included.
+for (const portrait of [false, true]) {
+  if (portrait) n('window.innerWidth=390;window.innerHeight=844');
+  n('state.difficulty=1;openMini(2);mini.tier=3;startMini();drawMini();launchMini();drawMini();updateMini(3.3);drawMini()');
+  assert.equal(n('mini.screen'), 'play');
+  assert.equal(n('mini.portrait'), portrait);
+  n('bricksBuildRack(2,false);mini.br.rack=2;drawMini();for(const w of mini.br.bricks)if(w.kind==="weak")w.hp=0;drawMini();mini.br.ralphT=.001;step(.05);drawMini()');
+  n('finishMini(false);drawMini();updateMini(2.3);drawResultArt();BRICKS.resultArt(mc)');
+  assert.equal(n('mini.screen'), 'result');
+  close();
+  if (portrait) n('delete window.innerWidth;delete window.innerHeight;resize()');
+}
+console.log('PASS: Legendary: fastest ball, smallest tray, most goo, steel from rack 1, Ralph’s duplex, idle loses, every screen draws.');
