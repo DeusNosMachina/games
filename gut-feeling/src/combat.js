@@ -20,7 +20,6 @@
 // Macy's kit: one button per tool, nothing to switch. The pillow is the swing (hold to keep swinging; the
 // third swing of a held run is a SPIN once spinCool has passed). The barf bag is a bubble she holds up while
 // its meter lasts. Bricks are lobs with ammo: `bricks` per fight plus the extras hidden around the room.
-// The trap is one per wave.
 const WARD_KIT = {
   swingCool: 0.42,
   finisherCool: 0.56,
@@ -34,9 +33,6 @@ const WARD_KIT = {
   brickShow: 3.5,
   brickAway: 220,
   brickReach: 32,
-  traps: 1,
-  trapLife: 30,
-  trapMax: 3,
   // The bubble: shieldCap seconds on a full meter (shieldCapDeluxe with the Deluxe dignity bubble), refilling
   // shieldRefill a second while it is down. Held to empty, it pops and needs shieldMin back and a fresh press.
   shieldCap: 2.5,
@@ -74,7 +70,6 @@ const WARD = {
   spinStun: 0.9,
   brickStun: 1.3,
   bruiserBrickStun: 1.6,
-  trapStun: 2,
   stompStun: 0.8,
   stompRadius: 105,
   landWindow: 0.16,
@@ -285,9 +280,9 @@ let encounter = { room: -1, wave: 0, rest: 0, complete: true, calm: true, grudge
   wardAttackSerial = 0,
   wardQueueT = 0,
   wardComboShown = '',
-  // What is left in Macy's kit (bricks in the pocket, the trap for this wave), extra bricks lying on the
-  // floor waiting to be found, and the seconds until the next one turns up (-1: none due).
-  wardKit = { bricks: WARD_KIT.bricks, trap: WARD_KIT.traps },
+  // What is left in Macy's kit (bricks in the pocket), extra bricks lying on the floor waiting to be
+  // found, and the seconds until the next one turns up (-1: none due).
+  wardKit = { bricks: WARD_KIT.bricks },
   wardKitShown = '',
   wardBrickDrops = [],
   wardBrickDue = -1,
@@ -521,20 +516,17 @@ function equip() {
 
 const wardShieldCap = () => (wardHas('bag') ? WARD_KIT.shieldCapDeluxe : WARD_KIT.shieldCap);
 
-// BRICK and TRAP show what is left as a badge (and dim at zero); SHIELD drains a ring (--meter) while held.
+// BRICK shows what is left as a badge (and dims at zero); SHIELD drains a ring (--meter) while held.
 function wardKitSync() {
   const cap = wardShieldCap(),
     meter = Math.round(clamp((player.shieldMeter ?? cap) / cap, 0, 1) * 20) / 20,
     up = player.shield > 0,
-    key = [wardKit.bricks, wardKit.trap, meter, player.shieldBroken ? 1 : 0, up ? 1 : 0].join('|');
+    key = [wardKit.bricks, meter, player.shieldBroken ? 1 : 0, up ? 1 : 0].join('|');
   if (key === wardKitShown) return;
   wardKitShown = key;
   $('brickCount').textContent = String(wardKit.bricks);
   $('brickBtn').classList.toggle('empty', wardKit.bricks <= 0);
   $('brickBtn').setAttribute('aria-label', `Throw a brick. ${wardKit.bricks} left.`);
-  $('trapCount').textContent = String(wardKit.trap);
-  $('trapBtn').classList.toggle('empty', wardKit.trap <= 0);
-  $('trapBtn').setAttribute('aria-label', wardKit.trap > 0 ? 'Set a trap. One per wave.' : 'Trap set. A new one comes with the next wave.');
   const shield = $('shieldBtn');
   shield.classList.toggle('empty', !!player.shieldBroken);
   shield.classList.toggle('up', up);
@@ -547,10 +539,9 @@ function wardKitDirty() {
   wardKitSync();
 }
 
-// A fresh fight: three bricks in the pocket and a trap ready.
+// A fresh fight: three bricks in the pocket.
 function wardKitFill() {
   wardKit.bricks = Math.max(wardKit.bricks, WARD_KIT.bricks);
-  wardKit.trap = WARD_KIT.traps;
   wardKitDirty();
 }
 
@@ -785,8 +776,7 @@ function spawnWave(popIn = WARD.breather, roster = null) {
     enemies.push(e);
   });
   ensureArm(wave, encounter.ensure);
-  // A trap for every wave, and an extra brick turns up somewhere a little after the wave does.
-  wardKit.trap = WARD_KIT.traps;
+  // An extra brick turns up somewhere a little after the wave does.
   wardKitDirty();
   wardBrickDue = popIn + WARD_KIT.brickShow;
   wardRecord();
@@ -1229,24 +1219,6 @@ function throwBrick() {
   return true;
 }
 
-// TRAP: set at Macy's feet. One a wave (the next wave brings another); it waits for whoever steps on it.
-function layTrap() {
-  if (isModal() || state.paused || deadDelay > 0) return false;
-  if (!state.started) begin();
-  if (wardKit.trap <= 0) {
-    floating('NEXT WAVE', player.x, player.y - 115 * MACY_TALL, '#ffcfb0');
-    sfx('miss');
-    return false;
-  }
-  wardKit.trap--;
-  wardKitDirty();
-  traps.push({ x: player.x, y: player.y + 8, life: WARD_KIT.trapLife, serial: ++wardAttackSerial });
-  while (traps.length > WARD_KIT.trapMax) traps.shift();
-  floating('TRAP SET', player.x, player.y - 115 * MACY_TALL, '#ffcfb0');
-  sfx('trap');
-  return true;
-}
-
 // SHIELD: the barf-bag bubble stays up while it is held (the button, R, a long-press on the floor) and the
 // meter lasts. Released, it drops; emptied, it pops and wants a fresh press once shieldMin is back.
 function shieldHold(on) {
@@ -1387,7 +1359,7 @@ function wardStomp() {
 }
 
 // ---- Hits, kills and splits ----
-// opt.kind: pillow | finisher | spin | stomp | combo | brick | trap | returned | magnet | bedpan | donut.
+// opt.kind: pillow | finisher | spin | stomp | combo | brick | returned | magnet | bedpan | donut.
 // opt.from: hit origin.
 function hitEnemy(e, power = 1, knock = 36, opt = {}) {
   if (!e || e.hp <= 0 || e.emerge > 0 || e.iframes > 0) return false;
@@ -1428,7 +1400,7 @@ function hitEnemy(e, power = 1, knock = 36, opt = {}) {
   if (e.dizzy > 0 && (e.type === 2 || e.boss)) dmg += 1;
   if (e.boss) {
     knock = 0;
-    stun = kind === 'brick' ? 0.5 : kind === 'trap' ? 1 : 0;
+    stun = kind === 'brick' ? 0.5 : 0;
     if (kind === 'brick') dmg += 1;
   }
   if (dmg <= 0) {
@@ -2052,15 +2024,6 @@ function wardEnemy(e, dt) {
     return;
   }
   if (e.popT > 0) return;
-  for (const t of traps)
-    if (t.life > 0 && e.z < 10 && dist(e, t) < 32 + (e.boss ? 30 : 0)) {
-      t.life = 0;
-      e.iframes = 0;
-      hitEnemy(e, 2, 20, { kind: 'trap', stun: WARD.trapStun, from: t, serial: t.serial });
-      wardFx({ kind: 'ring', ground: true, x: t.x, y: t.y, r0: 8, r1: 46, life: 0.35, col: '#ffcfb0', w: 5 });
-      sfx('trap');
-      if (e.hp <= 0 || e.stun > 0) return;
-    }
   if (e.boss) wardRalph(e, dt);
   else if (e.type === 0) wardNibbler(e, dt);
   else if (e.type === 1) wardSpitter(e, dt);
@@ -2627,7 +2590,7 @@ function startRalph() {
     ensure: n
   };
   ensureNotice(n);
-  // Ralph gets the full kit thrown at him: three bricks, a trap a phase, and a brick turning up each phase.
+  // Ralph gets the full kit thrown at him: three bricks, and a fresh one turning up each phase.
   wardKitFill();
   wardBrickDue = r.emerge + WARD_KIT.brickShow;
   wardSetBanner('RALPH', 'has entered the chat', 3);
@@ -2844,7 +2807,6 @@ function wardRalphPhase(e) {
   e.cool = 0.4;
   e.act = null;
   e.minionT = next === 2 ? 0.2 : 8;
-  wardKit.trap = WARD_KIT.traps;
   wardKitDirty();
   wardBrickDue = WARD_KIT.brickShow;
   wardSetBanner('PHASE ' + next, next === 2 ? 'Ralph discovers cardio' : 'Ralph is not okay', 2.6);

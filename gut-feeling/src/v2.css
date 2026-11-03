@@ -548,22 +548,22 @@ body.returning .game-layout {
   background: var(--mint);
 }
 
-/* ---- Touch controls (v0.9) ----
-   A joystick for the left thumb and, for the right, one button per action in rings around the big SWING
-   button in the corner (hold it to keep swinging, drag it to aim): JUMP beside it, DASH and SHIELD (hold)
-   in the first ring, BRICK and TRAP in the second with a badge saying how many are left, EAT on top. The
-   right thumb pivots on the corner, so the busiest buttons sit closest to it. One geometry for every
-   screen: each button sits at a fixed offset from the bottom-right corner of .touch-controls, all sized
-   from --atk. The --edge-* tokens are the margins to the screen edges (safe areas included in landscape).
-   Tap-the-room (body.tap-controls) hides the joystick, DASH and SWING, and packs JUMP, SHIELD, BRICK, TRAP
-   and EAT into the corner instead. */
+/* ---- Touch controls (v0.10) ----
+   The left thumb has the joystick (double-tap it to dash; the » on the stick says so) and EAT right beside
+   it. The right thumb has the big SWING button in the corner (hold it to keep swinging, drag it to aim),
+   JUMP beside it, SHIELD (hold) above it and BRICK between the two with a badge saying how many are left.
+   The right thumb pivots on the corner, so the busiest buttons sit closest to it. One geometry for every
+   screen: the right-hand buttons sit at fixed offsets from the bottom-right corner of .touch-controls and
+   EAT at a fixed offset from the joystick, all sized from --atk. The --edge-* tokens are the margins to the
+   screen edges (safe areas included in landscape). Tap-the-room (body.tap-controls) hides the joystick and
+   SWING: JUMP takes the corner with SHIELD and BRICK beside it, and EAT keeps the left side. */
 :root {
   --atk: 104px;
   --jmp: calc(var(--atk) * 0.68);
   --sm: calc(var(--atk) * 0.56);
   --gap: 10px;
   --joy: 132px;
-  --cluster-h: calc(var(--atk) * 2.34);
+  --cluster-h: calc(var(--atk) * 1.72);
   --edge-t: 0px;
   --edge-r: 0px;
   --edge-b: 0px;
@@ -600,6 +600,8 @@ body.returning .game-layout {
   height: calc(var(--cluster-h) + var(--edge-t) + var(--edge-b));
   user-select: none;
   -webkit-user-select: none;
+  /* EAT reads the row's width (cqw) to know whether it fits beside the stick. */
+  container-type: inline-size;
 }
 #joystick {
   position: absolute;
@@ -628,6 +630,17 @@ body.returning .game-layout {
   width: 38%;
   height: 38%;
   margin: -19% 0 0 -19%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* The dash mark on the stick's face: double-tap the stick to dash. It dims while the dash rests (world.js). */
+.joy-dash {
+  margin-top: -2px;
+  color: #17313ad9;
+  font: 900 22px/1 var(--mono);
+  pointer-events: none;
+  transition: opacity 0.2s;
 }
 /* The buttons are placed against .touch-controls, so their row does not need a box of its own. */
 #touchActions {
@@ -641,8 +654,8 @@ body.returning .game-layout {
 #touchActions > * {
   position: absolute;
 }
-/* Offsets in --atk units, worked out from the ring around SWING (centres 0.875 --atk apart, the outer
-   ring 1.54 out) so neighbours keep at least --gap between them. */
+/* Offsets in --atk units, worked out from the ring around SWING so neighbours keep at least --gap between
+   them. */
 #touchActions .attack {
   right: var(--edge-r);
   bottom: var(--edge-b);
@@ -651,27 +664,32 @@ body.returning .game-layout {
   right: calc(var(--edge-r) + var(--atk) + var(--gap));
   bottom: var(--edge-b);
 }
-#touchActions #dashBtn {
-  right: calc(var(--edge-r) + var(--atk) * 0.89);
-  bottom: calc(var(--edge-b) + var(--atk) * 0.78);
-}
 #touchActions #shieldBtn {
   right: calc(var(--edge-r) + var(--atk) * 0.33);
   bottom: calc(var(--edge-b) + var(--atk) * 1.09);
 }
 #touchActions #brickBtn {
-  right: calc(var(--edge-r) + var(--atk) * 1.58);
-  bottom: calc(var(--edge-b) + var(--atk) * 0.94);
+  right: calc(var(--edge-r) + var(--atk) * 0.89);
+  bottom: calc(var(--edge-b) + var(--atk) * 0.78);
 }
-#touchActions #trapBtn {
-  right: calc(var(--edge-r) + var(--atk) * 0.99);
-  bottom: calc(var(--edge-b) + var(--atk) * 1.55);
-}
+/* EAT: just right of the joystick, level with its middle. Where the row is too narrow for the stick, EAT,
+   JUMP and SWING side by side (phones held upright), it stops short of JUMP and rides up onto the stick's
+   shoulder instead. --eat-need is the width the side-by-side row takes; the clamp turns "too narrow" into
+   all of the lift or none of it. */
 #touchActions .eat {
-  right: calc(var(--edge-r) + var(--atk) * 0.22);
-  bottom: calc(var(--edge-b) + var(--atk) * 1.76);
+  --eat-y: calc((var(--joy) - var(--sm)) / 2);
+  --eat-need: calc(var(--edge-l) + var(--joy) + var(--sm) + var(--jmp) + var(--atk) + var(--gap) * 4 + var(--edge-r));
+  --eat-lift: calc(var(--joy) * 0.8 - var(--eat-y));
+  right: auto;
+  left: calc(var(--edge-l) + var(--joy) + var(--gap) * 1.5);
+  left: min(
+    calc(var(--edge-l) + var(--joy) + var(--gap) * 1.5),
+    calc(100% - var(--edge-r) - var(--atk) - var(--jmp) - var(--sm) - var(--gap) * 2.5)
+  );
+  bottom: calc(var(--edge-b) + var(--eat-y));
+  bottom: calc(var(--edge-b) + var(--eat-y) + clamp(0px, (var(--eat-need) - 100cqw) * 1000, var(--eat-lift)));
 }
-/* JUMP, DASH, SHIELD, BRICK, TRAP and EAT: round, translucent, thumb-sized. */
+/* JUMP, SHIELD, BRICK and EAT: round, translucent, thumb-sized. */
 #touchActions .act {
   display: flex;
   flex-direction: column;
@@ -732,14 +750,10 @@ body.returning .game-layout {
   box-shadow: 0 2px 6px #0006;
   font: 800 12px/22px var(--mono);
 }
-/* The kit. BRICK and TRAP wear their count on the outer side (clear of their neighbours) and go dim at
-   zero; SHIELD drains a ring (--meter, set by combat.js) while it is held and dims while the bag dries. */
+/* The kit. BRICK wears its count on the outer side (clear of its neighbours) and goes dim at zero; SHIELD
+   drains a ring (--meter, set by combat.js) while it is held and dims while the bag dries. */
 #touchActions .kit.brick {
   background: #e6a58fd9;
-  color: var(--ink);
-}
-#touchActions .kit.trap {
-  background: #f1c27ad9;
   color: var(--ink);
 }
 #touchActions .kit.shield {
@@ -841,10 +855,9 @@ body.returning .game-layout {
   transform: scale(0.92);
   filter: brightness(1.15);
 }
-/* Tap the room: the floor walks, hits and dashes, so the joystick, DASH and SWING step aside. JUMP takes
-   the corner with SHIELD and EAT beside it and BRICK and TRAP above, all within one thumb. */
+/* Tap the room: the floor walks, hits and dashes (a flick), so the joystick and SWING step aside. JUMP
+   takes the corner with SHIELD beside it and BRICK above, all within one thumb; EAT keeps the left side. */
 body.tap-controls #joystick,
-body.tap-controls #touchActions #dashBtn,
 body.tap-controls #touchActions .attack {
   display: none;
 }
@@ -859,15 +872,11 @@ body.tap-controls #touchActions #shieldBtn {
   bottom: calc(var(--edge-b) + (var(--jmp) - var(--sm)) / 2);
 }
 body.tap-controls #touchActions .eat {
-  right: calc(var(--edge-r) + var(--jmp) + var(--sm) + var(--gap) * 2);
+  left: var(--edge-l);
   bottom: calc(var(--edge-b) + (var(--jmp) - var(--sm)) / 2);
 }
 body.tap-controls #touchActions #brickBtn {
   right: calc(var(--edge-r) + (var(--jmp) - var(--sm)) / 2);
-  bottom: calc(var(--edge-b) + var(--jmp) + var(--gap));
-}
-body.tap-controls #touchActions #trapBtn {
-  right: calc(var(--edge-r) + var(--jmp) + var(--gap));
   bottom: calc(var(--edge-b) + var(--jmp) + var(--gap));
 }
 /* Outside arcade mode the controls sit under the room in the page. */

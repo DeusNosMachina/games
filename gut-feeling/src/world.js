@@ -368,7 +368,6 @@ function loadRoom(id, at = null) {
   projectiles = [];
   particles = [];
   puddles = [];
-  traps = [];
   floats = [];
   wardDrops = [];
   snackFullShown = false;
@@ -425,7 +424,7 @@ function begin() {
   // First steps on a touch screen: the room is the controller, or the joystick and the big buttons.
   if (wardCoarsePointer && tapScheme())
     toast('Tap to walk. Tap a gremlin to bonk it. Flick to dash. Two fingers: jump.', 4.5);
-  else if (wardCoarsePointer) toast('Left thumb walks. Smash SWING. Hold SHIELD, lob a BRICK, set a TRAP.', 4.5);
+  else if (wardCoarsePointer) toast('Left thumb walks; double-tap it to dash. Smash SWING. Hold SHIELD, lob a BRICK.', 4.5);
   turnHintCheck();
   canvas.focus({ preventScroll: true });
   sfx('ui');
@@ -846,7 +845,7 @@ function roomBeaconNear() {
   return !!station && dist(player, { x: station[0], y: station[1] }) < 85;
 }
 
-// Space, E or Enter at a hotspot, or a tap on one. Enter by the arcade beacon stays the arcade's.
+// Space or Enter at a hotspot, or a tap on one. Enter by the arcade beacon stays the arcade's.
 function roomSpotAction(kind, point) {
   if (roomSpotsBlocked()) return false;
   let spot = null;
@@ -1700,7 +1699,7 @@ function titleEyes(g, x, y, ww, t) {
 // ---- Tap the room ----
 // On touch screens the floor is the controller: tap to walk there, tap a gremlin to go and hit it (hold
 // to keep swinging), flick to dash, tap with two fingers to jump, long-press the floor to hold the
-// barf-bag shield up until the finger lifts. TRAP, SHIELD, BRICK, JUMP and EAT stay on screen as buttons.
+// barf-bag shield up until the finger lifts. SHIELD, BRICK, JUMP and EAT stay on screen as buttons.
 // state.controls === 'stick' swaps this for the joystick and the full button column. Mice never use it.
 const TAP_ARRIVE = 12,
   TAP_SLOP = 12,
@@ -2041,7 +2040,8 @@ function updateWorld(dt) {
   tvTick(dt);
   roomOpinionsTick(dt);
   turnHintTick();
-  $('dashBtn').style.opacity = player.dashCd > 0 ? '.45' : '1';
+  // The » on the stick dims while the dash rests.
+  $('joyDash').style.opacity = player.dashCd > 0 ? '.35' : '1';
 }
 
 function updateEffects(dt) {
@@ -2059,8 +2059,6 @@ function updateEffects(dt) {
   floats = floats.filter(f => f.life > 0);
   for (let p of puddles) p.life -= dt;
   puddles = puddles.filter(p => p.life > 0);
-  for (let t of traps) t.life -= dt;
-  traps = traps.filter(t => t.life > 0);
 }
 
 // The arcade beacon on the floor: LOCKED until the ward is cleared, then a pulsing ring.
@@ -2116,10 +2114,6 @@ function drawWorld() {
     spark(c, s.x + 15, s.y - 35, '#fff0ad', 0.4);
   }
   drawWardDrops(c);
-  for (let tr of traps) {
-    brick(c, tr.x - 15, tr.y, '#e38878');
-    brick(c, tr.x + 2, tr.y + 5, '#6faeab');
-  }
   drawWardGoal(c);
   const renderables = (roomProps[state.room] || []).map(p => ({ y: p.y, draw: p.draw }));
   renderables.push(...roomCultRenderables());

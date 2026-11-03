@@ -507,3 +507,19 @@ run('loadRoom(1)');
 assert.equal(run('wardActLabel(1)'), 'SWING', 'a ward with gremlins swings');
 assert.equal(nodes.attackBtnchild.textContent, 'SWING');
 console.log('PASS: safe rooms relabel the big button TALK or USE; wards keep SWING.');
+
+// ---- The touch cluster: no DASH, no TRAP; EAT sits by the stick ----
+// The left thumb has the joystick (double-tap to dash, marked with a » on the stick) and EAT; the right
+// has SWING, JUMP, SHIELD and BRICK. Safe rooms still hide every round button but EAT.
+{
+  const html = require('node:fs').readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const cluster = html.match(/<div class="touch-actions" id="touchActions">([\s\S]*?)<\/div><\/div>/)[1];
+  const ids = [...cluster.matchAll(/<button[^>]*id="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(ids.sort(), ['attackBtn', 'brickBtn', 'jumpBtn', 'shieldBtn', 'touchEat'], 'five buttons: SWING, JUMP, SHIELD, BRICK, EAT');
+  assert.match(html, /<div class="stick" id="stick"><span class="joy-dash" id="joyDash" aria-hidden="true">»<\/span><\/div>/, 'the stick wears the dash mark');
+  assert.match(html, /aria-label="Movement joystick\. Double-tap it to dash\."/);
+  assert.doesNotMatch(html, /id="(dashBtn|trapBtn|trapCount)"|i-trap/, 'no DASH or TRAP button left behind');
+  assert.match(html, /body\.safe-room \.touch-controls \.act:not\(\.eat\)\{display:none!important\}/, 'safe rooms keep EAT');
+  assert.match(html, /double-tap it \(the » on the stick\) to dash/i, 'How to play says how to dash');
+}
+console.log('PASS: the touch cluster has no DASH or TRAP; the stick wears the dash mark; safe rooms keep EAT.');
