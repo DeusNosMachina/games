@@ -1,6 +1,10 @@
-// Ward combat rules: weapon dispatch, staggers and poise, breed behaviors, spawns, waves, Ralph's grudge,
-// Ralph himself, a tuning check that mashing loses while dodging wins, the gentler first clears, the
-// combo and its slam, and the nutrients the ward drops. tools/ward-human.cjs is the human-speed yardstick.
+// Ward combat rules: Macy's kit (one button per action), staggers and poise, breed behaviors, spawns,
+// waves, cleared rooms that stay cleared and fights that remember who is left, Ralph's grudge and the
+// two-press rematch, Ralph himself, a tuning check that mashing loses while dodging wins, the gentler
+// first clears, the combo and its slam, the nutrients the ward drops, the bricks hidden around each room,
+// and each department's twist. tools/ward-human.cjs is the human-speed yardstick.
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { run, events, nodes, close, assert } = require('./harness.cjs');
 
 const reseed = s => run(`rng=${s}`);
@@ -12,23 +16,89 @@ const freshRoom = room =>
       `for(const k in wardProgress)delete wardProgress[k];keys.clear();joy.x=joy.y=0;deadDelay=0;` +
       `loadRoom(${room});equip(0);player.inv=0;player.vomit=0;player.attackCd=0;player.z=0`
   );
+// A new page (a save and reload) with the given localStorage blob; body runs there with run/assert.
+function freshPage(blob, body) {
+  const code = `const { run, nodes, events, close, assert } = require(${JSON.stringify(path.join(__dirname, 'harness.cjs'))});\n${body}`,
+    env = { ...process.env, GF_PRELUDE: `localStorage.setItem('gut-feeling-v2', ${JSON.stringify(blob)})` },
+    r = spawnSync(process.execPath, ['-e', code], { env, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+}
 
 run('let rng=1873;Math.random=()=>{rng=(rng*1664525+1013904223)>>>0;return rng/4294967296};begin();drawWorld();state.hp=5');
 
-// ---- Weapons ----
+// ---- The kit: one button per action ----
 freshRoom(1);
 run('player.x=500;player.y=420;enemies=[makeEnemy(0,560,420)];attack()');
 assert.equal(run('enemies[0].hp'), 3);
 run('updateWorld(.17)');
 assert.equal(run('enemies[0].hp'), 2, 'the pillow lands on its hit frame, not on the press');
-run('player.attackCd=0;equip(1);attack()');
-assert.equal(run('projectiles.at(-1).kind'), 'bag');
-assert.equal(run('player.attackKind'), 1);
-run('player.attackCd=0;equip(2);attack()');
+assert.equal(run('player.attackKind'), 0, 'SWING is always the pillow');
+assert.equal(run('typeof state.item'), 'undefined', 'there is nothing to equip any more');
+// BRICK: three a fight, each a lob with its own button.
+assert.equal(run('wardKit.bricks'), 3, 'a fight starts with three bricks');
+run('enemies[0].cool=99;projectiles=[];player.brickCd=0;throwBrick()');
 assert.equal(run('projectiles.at(-1).kind'), 'brick');
-assert.equal(run('player.attackKind'), 2);
-run('equip(0);projectiles=[]');
-console.log('PASS: equipped weapon dispatch and delayed pillow hits.');
+assert.equal(run('wardKit.bricks'), 2, 'the badge counts down');
+assert.equal(nodes.brickCount.textContent, '2');
+assert.equal(run('throwBrick()'), false, 'one brick every WARD_KIT.brickCool');
+run('player.brickCd=0;throwBrick();player.brickCd=0;throwBrick();player.brickCd=0');
+assert.equal(run('wardKit.bricks'), 0);
+assert.equal(run('throwBrick()'), false, 'no fourth brick');
+assert.ok(run('floats.some(f=>f.text==="OUT OF BRICKS")'), 'it says so');
+assert.equal(run('projectiles.filter(p=>p.kind==="brick"&&p.friendly).length'), 3);
+// TRAP: one a wave; the next wave brings another.
+run('traps=[];projectiles=[]');
+assert.equal(run('layTrap()'), true);
+assert.equal(run('layTrap()'), false, 'one trap a wave');
+assert.equal(run('traps.length'), 1);
+assert.equal(nodes.trapCount.textContent, '0', 'the TRAP badge shows the charge');
+run('enemies=[];encounter.teach=false;encounter.wave=2;spawnWave(1);updateCombat(1/60)');
+assert.equal(run('wardKit.trap'), 1, 'the next wave recharges it');
+assert.equal(nodes.trapCount.textContent, '1');
+assert.equal(run('traps.length'), 1, 'and an unsprung trap stays where it is');
+// SHIELD: held, it blocks everything and nothing gets out; let go and it drops; held to empty, it pops.
+run('enemies=[];traps=[];player.shield=0;player.shieldMeter=wardShieldCap();player.shieldBroken=false;shieldHold(true);updateCombat(1/60)');
+assert.ok(run('player.shield') > 0, 'the bubble is up while SHIELD is held');
+run('player.inv=0;state.hp=5;damage("bite",{x:600,y:420})');
+assert.equal(run('state.hp'), 5, 'the bubble blocks a bite');
+run('player.attackCd=0;player.attack=0;attack()');
+assert.equal(run('player.attack'), 0, 'no swinging from inside the bubble');
+assert.equal(run('player.brickCd=0;wardKit.bricks=1;throwBrick()'), false, 'or throwing');
+run('shieldHold(false);for(let i=0;i<12;i++)updateWorld(1/60)');
+assert.equal(run('player.shield'), 0, 'letting go drops it');
+const capSteps = Math.ceil(run('wardShieldCap()') * 60) + 6;
+run(`player.shieldMeter=wardShieldCap();shieldHold(true);for(let i=0;i<${capSteps};i++)updateWorld(1/60)`);
+assert.equal(run('player.shieldBroken'), true, 'held to empty, the bag gives out');
+assert.equal(run('player.shield'), 0);
+assert.equal(run('shieldHold(true)'), false, 'and will not go up again until it has dried a bit');
+steps(Math.ceil((run('WARD_KIT.shieldMin') / run('WARD_KIT.shieldRefill')) * 60) + 6);
+assert.equal(run('player.shieldBroken'), false, 'then it is ready for a fresh press');
+run('state.upgrades=["bag"]');
+assert.equal(run('wardShieldCap()'), 3.5, 'the Deluxe dignity bubble holds a second longer');
+run('state.upgrades=[];shieldHold(false);player.shieldMeter=wardShieldCap()');
+// SPIN: the third swing of a held run, once WARD_KIT.spinCool has passed. A pressed third is the finisher.
+run('globalThis.sp1=makeEnemy(0,460,420);globalThis.sp2=makeEnemy(0,340,420);for(const e of [sp1,sp2]){e.hp=e.maxHp=99;e.cool=99}enemies=[sp1,sp2];player.x=400;player.y=420;player.spinCd=0;player.comboTime=0');
+const heldSwing = (pressed = false) =>
+  run(`player.attackCd=0;player.pressAt=${pressed ? 'time' : -9};attack();globalThis.spun=player.spinT>0;for(let i=0;i<20;i++)updateWorld(1/60);spun`);
+assert.equal(heldSwing(), false);
+assert.equal(heldSwing(), false);
+assert.equal(heldSwing(), true, 'the third held swing spins');
+assert.ok(run('sp1.hp<99&&sp2.hp<99'), 'all the way round');
+assert.ok(run('player.spinCd') > 3, 'then the spin rests');
+heldSwing();
+heldSwing();
+assert.equal(heldSwing(), false, 'a held run inside the rest ends on the finisher instead');
+run('player.spinCd=0;player.comboTime=0');
+heldSwing(true);
+heldSwing(true);
+assert.equal(heldSwing(true), false, 'pressed swings never spin: the third is the finisher');
+run('enemies=[];projectiles=[];player.spinCd=0');
+console.log('PASS: one button per action: the pillow swings (a held run spins), three bricks, one trap a wave, a held shield that pops.');
+
+// The rules below are unit checks on hand-placed gremlins: a settled room, so no wave rolls in and the
+// MRI's magnet (the room's twist, tested on its own further down) stays off.
+freshRoom(1);
+run('encounter.complete=true;enemies=[]');
 
 // ---- Hits stagger; only finishers, spins, bricks, stomps and traps stun ----
 run('player.x=200;player.y=420;enemies=[makeEnemy(0,260,420)];enemies[0].cool=0');
@@ -147,6 +217,8 @@ assert.ok(run('wardFighters().every(e=>e.popDist>=WARD.spawnMin)'), 'never withi
 const allSpots = run('(()=>{const r0=state.room,bad=[];for(let i=0;i<5;i++){state.room=i;for(const s of wardSpawns[i])if(collides(s.x,s.y))bad.push(i)}state.room=r0;return bad.length})()');
 assert.equal(allSpots, 0, 'every spawn spot is on open floor');
 assert.notDeepEqual(run('wardSpawns[1].map(s=>s.x)'), run('wardSpawns[3].map(s=>s.x)'), 'spawn points vary per room');
+const brickSpots = run('(()=>{const r0=state.room,bad=[];for(let i=0;i<5;i++){state.room=i;for(const [x,y] of WARD_BRICK_SPOTS[i])if(collides(x,y))bad.push(i+":"+x+","+y)}state.room=r0;return bad.join(" ")})()');
+assert.equal(brickSpots, '', 'every hidden-brick spot is on open floor');
 console.log('PASS: telegraphed spawns from furniture and vents, never within 220 px.');
 
 // ---- Teaching wave, banners, waves, clears, the arcade lock and persistence ----
@@ -185,10 +257,75 @@ assert.ok(run('wardPayout(1)>wardPayout(0)&&wardPayout(3)>wardPayout(1)'), 'and 
 assert.ok(run('encounter.pace>1'), 'and speed them up');
 run('state.upgrades=["repellent"]');
 assert.ok(run('(()=>{const a=wardPlan(1,1,1,false).length;state.upgrades=[];return a<wardPlan(1,1,1,false).length})()'), 'repellent trims the first wave');
-// Leaving mid-fight and coming back resumes the same wave instead of restarting.
+// Leaving mid-fight and coming back resumes the same wave instead of restarting...
 run('encounter.wave=2;spawnWave(1);loadRoom(2);loadRoom(1)');
 assert.equal(run('encounter.wave'), 2, 'fights persist across room changes');
-console.log('PASS: calm cleared rooms, escalating grudge rematches with bigger payouts, repellent, and fight persistence.');
+// ...with exactly who was left: an evicted gremlin stays evicted, a split pea comes back as its two halves.
+run('globalThis.left3=[makeEnemy(3,300,420),makeEnemy(0,600,420),makeEnemy(1,700,500)];for(const e of left3)e.cool=99;enemies=[...left3];player.x=280;player.y=420');
+run('hitEnemy(left3[0],1,0,{kind:"pillow",from:player});left3[1].iframes=0;hitEnemy(left3[1],99,0,{kind:"brick",from:player})');
+assert.equal(run('JSON.stringify(wardProgress[1].left)'), '[[1],[3,1],[3,1]]', 'every eviction and split is written down at once');
+assert.equal(run('JSON.parse(localStorage.getItem(STORE)).wardFights[1].wave'), 2, 'and saved');
+run('loadRoom(2);loadRoom(1)');
+assert.equal(run('enemies.filter(e=>e.hp>0).map(e=>e.type+(e.small?"s":"")).sort().join()'), '1,3s,3s', 'the next visit brings back only who was left');
+assert.equal(run('encounter.wave'), 2);
+assert.ok(run('(()=>{const h=enemies.filter(e=>e.small);return h.length===2&&h[0].pod&&h[0].pod===h[1].pod})()'), 'the halves can still re-merge');
+assert.match(run('wardBanner.sub'), /^3 left/, 'the banner says how many are left');
+// A reload too: the save carries the fight.
+const midFight = run('save();localStorage.getItem(STORE)');
+freshPage(
+  midFight,
+  `run('begin();goRoom(1)');
+assert.equal(run('encounter.complete'), false, 'after a reload the fight is still on');
+assert.equal(run('encounter.wave'), 2, 'at the same wave');
+assert.equal(run('enemies.filter(e=>e.hp>0).map(e=>e.type+(e.small?"s":"")).sort().join()'), '1,3s,3s', 'with the same three left');
+assert.equal(run('encounter.teach'), false, 'and no teaching wave');
+run('goRoom(3)');
+assert.equal(run('encounter.wave'), 1, 'a room never started starts at the top');`
+);
+console.log('PASS: calm cleared rooms, escalating grudge rematches, repellent, and fights that remember who is left, across visits and reloads.');
+
+// ---- Cleared means cleared: only REMATCH re-arms a room ----
+// It used to take one tap on the strip's pill (it floats over the floor on phones), and the re-armed fight
+// was then remembered: that is what brought the gremlins back. Now every way back in stays calm, the
+// strip's REMATCH needs two presses, and the pause menu's needs one.
+run('enemies=[];encounter.wave=3;updateCombat(.01)');
+assert.ok(run('encounter.complete'), 'the rematch is cleared');
+assert.equal(run('state.wardClears[1]'), 2);
+assert.equal(run('1 in wardProgress'), false, 'a cleared fight is forgotten');
+for (const way of [
+  'loadRoom(2);loadRoom(1)',
+  'hallwayEnter(1);goRoom(1)',
+  'state.difficulty=2;loadRoom(state.room);state.difficulty=1;loadRoom(1)',
+  'openMini(1);leaveMini()',
+  'setWardPause(true);setWardPause(false)',
+  'setControlScheme("stick");loadRoom(2);loadRoom(1);setControlScheme("tap");loadRoom(2);loadRoom(1)'
+]) {
+  run(way);
+  steps(30);
+  assert.ok(run('state.room===1&&encounter.complete&&enemies.length===0'), `still calm after ${way}`);
+}
+const clearedSave = run('save();localStorage.getItem(STORE)');
+freshPage(clearedSave, `run('begin();goRoom(1)');assert.ok(run('encounter.complete&&enemies.length===0'), 'and after a reload');`);
+assert.match(nodes.rematchBtn.textContent, /^Rematch ↻ · grudge LV 2 · \+\d+$/, 'REMATCH names the grudge level and the payout');
+assert.match(nodes.pauseRematch.textContent, /grudge LV 2/, 'so does the pause menu');
+const press = id => nodes[id].events.pointerdown({ pointerId: 91, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, preventDefault() {} });
+press('rematchBtn');
+assert.ok(run('encounter.complete&&enemies.length===0'), 'one press on the strip only arms it');
+assert.match(nodes.rematchBtn.textContent, /^Sure\? Tap again/);
+steps(60 * 3.2);
+assert.match(nodes.rematchBtn.textContent, /^Rematch/, 'and it disarms after a few seconds');
+press('rematchBtn');
+steps(30);
+press('rematchBtn');
+assert.equal(run('encounter.complete'), false, 'two presses start the grudge match');
+assert.equal(run('encounter.grudge'), 2);
+run('enemies=[];encounter.wave=3;updateCombat(.01);setWardPause(true)');
+nodes.pauseRematch.events.click();
+assert.equal(run('state.paused'), false, 'the pause menu resumes');
+assert.equal(run('encounter.complete'), false, 'and starts the rematch at once');
+assert.equal(run('encounter.grudge'), 3);
+run('enemies=[];encounter.wave=3;updateCombat(.01)');
+console.log('PASS: a cleared room stays calm through the map, the hallway, a new prescription, an arcade, a pause, both schemes and a reload; REMATCH takes two presses in the strip, one in the pause menu.');
 
 // ---- Evictions and chains ----
 run('state.evictions=0;state.bestChain=0;wardChain=0;enemies=[makeEnemy(0,300,420),makeEnemy(0,330,440)];player.x=280;player.y=420');
@@ -679,13 +816,151 @@ assert.equal(run('snackReady(1)'), true, 'a ward clear restocks the room’s sna
 run('wardDrops=[]');
 console.log('PASS: wave clears and every sixth eviction drop nutrients; a ward clear restocks the snack cart.');
 
-// ---- Keyboard dispatch still reaches the ward ----
-run('state.ralphReady=false;loadRoom(0);player.attackCd=0;player.vomit=0');
-events.keydown({ key: '2', target: {}, repeat: false, preventDefault: () => {} });
-assert.equal(run('state.item'), 1);
-events.keydown({ key: ' ', target: {}, repeat: false, preventDefault: () => {} });
+// ---- Keyboard: one key per action ----
+const keyDown = k => events.keydown({ key: k, target: {}, repeat: false, preventDefault: () => {} });
+const keyUp = k => events.keyup({ key: k, target: {}, preventDefault: () => {} });
+freshRoom(3);
+run('enemies=[];projectiles=[];traps=[];player.x=505;player.y=470;player.attackCd=0;player.vomit=0;player.brickCd=0;player.shieldMeter=wardShieldCap();player.shieldBroken=false');
+keyDown(' ');
 run('updateWorld(.01)');
-assert.equal(run('projectiles.at(-1).kind'), 'bag');
-run('keys.clear()');
+assert.ok(run('player.attack>0&&player.attackKind===0'), 'Space swings the pillow');
+keyUp(' ');
+keyDown('b');
+assert.equal(run('projectiles.at(-1).kind'), 'brick', 'B throws a brick');
+keyUp('b');
+keyDown('e');
+assert.equal(run('traps.length'), 1, 'E sets the trap');
+keyUp('e');
+keyDown('r');
+run('updateWorld(1/60)');
+assert.ok(run('player.shield') > 0, 'holding R holds the shield up');
+keyUp('r');
+run('for(let i=0;i<12;i++)updateWorld(1/60)');
+assert.equal(run('player.shield'), 0, 'letting go of R drops it');
+keyDown('2');
+keyDown('c');
+assert.equal(run('typeof state.item'), 'undefined', 'number keys and C no longer equip anything');
+run('keys.clear();enemies=[];projectiles=[];traps=[]');
 assert.ok(nodes.rematchBtn, 'the ward strip exists');
-console.log('PASS: number-key equipment and Space dispatch.');
+console.log('PASS: Space swings, B throws a brick, E sets a trap, hold R for the shield.');
+
+// ---- Bricks to find ----
+// One turns up a few seconds into each wave, somewhere from the room's list away from Macy; walking over it
+// pockets it (five at most); a fight never hands out more than three of them at once.
+freshRoom(2);
+run('player.x=505;player.y=470;wardBrickDrops=[];wardKit.bricks=1');
+assert.ok(run('wardBrickDue') > 0, 'a brick is due with the wave');
+steps(Math.ceil(run('wardBrickDue') * 60) + 2, 1 / 60);
+assert.equal(run('wardBrickDrops.length'), 1, 'it turns up');
+const drop = JSON.parse(run('JSON.stringify(wardBrickDrops[0])'));
+assert.ok(Math.hypot(drop.x - 505, drop.y - 470) >= run('WARD_KIT.brickAway'), 'away from Macy');
+assert.ok(run(`WARD_BRICK_SPOTS[2].some(([x,y])=>x===${drop.x}&&y===${drop.y})`), 'at one of the room’s hiding spots');
+run('drawWorld()');
+run(`player.x=${drop.x};player.y=${drop.y};player.z=0;updateCombat(1/60)`);
+assert.equal(run('wardKit.bricks'), 2, 'walking over it pockets it');
+assert.equal(run('wardBrickDrops.length'), 0);
+run('wardKit.bricks=WARD_KIT.brickMax;player.x=505;player.y=470;wardBrickPlace();player.x=wardBrickDrops[0].x;player.y=wardBrickDrops[0].y;updateCombat(1/60)');
+assert.equal(run('wardKit.bricks'), run('WARD_KIT.brickMax'), 'five is a full pocket');
+assert.equal(run('wardBrickDrops.length'), 1, 'so the brick waits');
+run('player.x=505;player.y=470;wardBrickPlace();wardBrickPlace();wardBrickPlace()');
+assert.equal(run('wardBrickDrops.length'), 3, 'three on the floor at most');
+run('loadRoom(1)');
+assert.equal(run('wardBrickDrops.length'), 0, 'they stay behind with the room');
+console.log('PASS: a hidden brick turns up each wave away from Macy, glints until she walks over it, and five is a full pocket.');
+
+// ---- Rooms with character ----
+// Builds a live fight in a room with hand-placed gremlins and the twist awake.
+const twistRoom = (room, list) =>
+  run(
+    `state.stats={};state.difficulty=1;state.hp=5;state.upgrades=[];state.wardClears=rooms.map(()=>0);` +
+      `for(const k in wardProgress)delete wardProgress[k];loadRoom(${room});enemies=[${list}];` +
+      `for(const e of enemies){e.cool=99;e.hp=e.maxHp=99}wardTwist.live=true;player.inv=0;player.z=0;state.hp=5`
+  );
+// The MRI: a telegraph, then the pull. The bruiser's helmet drags it face first into the scanner; a
+// nibbler slides; a bedpan Macy kicked out flies back and bowls over whatever it crosses.
+twistRoom(1, 'makeEnemy(2,481,420),makeEnemy(0,200,470),makeEnemy(0,300,560)');
+run('player.x=860;player.y=520;wardTwist.t=WARD_TWIST.mri.first-0.01');
+steps(2);
+assert.equal(run('wardTwist.phase'), 'warn', 'the magnet warns first');
+assert.equal(run('state.stats.twistTaught'), 2, 'and teaches itself once');
+assert.match(run('wardHint.text'), /MAGNET/);
+run('drawWorld()');
+// The third gremlin stands on the line from a bedpan to the bore.
+run('globalThis.pan0=wardTwist.pans[0];pan0.x=300;pan0.y=560;pan0.vx=pan0.vy=0;globalThis.boreAt=WARD_TWIST.mri.bore;globalThis.toBore=Math.hypot(boreAt.x-300,boreAt.y-560);enemies[2].x=300+(boreAt.x-300)/toBore*150;enemies[2].y=560+(boreAt.y-560)/toBore*150');
+const nib0 = run('[enemies[1].x,enemies[1].y]');
+steps(Math.ceil(run('WARD_TWIST.mri.warn') * 60) + 2);
+assert.equal(run('wardTwist.phase'), 'pull');
+run('drawWorld()');
+steps(Math.ceil(run('WARD_TWIST.mri.pull') * 60));
+assert.ok(run('enemies[0].hp') < 99, 'CLANG: the bruiser hits the scanner');
+assert.ok(run('enemies[0].dizzy') > 0, 'and sees stars');
+const nib1 = run('[enemies[1].x,enemies[1].y]');
+const bore = run('[WARD_TWIST.mri.bore.x,WARD_TWIST.mri.bore.y]');
+assert.ok(Math.hypot(bore[0] - nib1[0], bore[1] - nib1[1]) < Math.hypot(bore[0] - nib0[0], bore[1] - nib0[1]) - 60, 'a nibbler slides toward the MRI');
+assert.ok(run('enemies[2].hp') < 99 && run('enemies[2].stun') > 0, 'a flying bedpan bowls one over');
+assert.equal(run('wardTwist.phase'), 'idle');
+run('player.x=wardTwist.pans[1].x-20;player.y=wardTwist.pans[1].y;player.moving=true;player.lastDx=1;player.lastDy=0;player.x+=0');
+steps(1);
+assert.ok(run('Math.hypot(wardTwist.pans[1].vx,wardTwist.pans[1].vy)') > 200, 'walking into a bedpan kicks it');
+run('encounter.complete=true;wardTwist.t=99');
+steps(60 * 3);
+assert.equal(run('wardTwist.phase'), 'idle', 'a cleared room has no magnet');
+// The lounge: the remote on the couch zones out whatever stands in front of the TV, then recharges.
+twistRoom(2, 'makeEnemy(0,760,360),makeEnemy(1,700,440),makeEnemy(0,250,450)');
+steps(1);
+assert.equal(run('state.stats.twistTaught'), 4, 'the remote is taught when the fight starts');
+run('drawWorld();player.x=826;player.y=300;player.attackCd=0;player.pressAt=time;attack();for(let i=0;i<20;i++)updateWorld(1/60)');
+assert.ok(run('enemies[0].stun>1.5&&enemies[1].stun>1.5'), 'a swing at the couch zones out everything in front of the screen');
+assert.equal(run('enemies[2].stun'), 0, 'not the one across the room');
+assert.equal(run('tvChannel(2)'), 0, 'the TV jumps to the cat cam');
+assert.ok(run('wardTwist.cool') > 10, 'then the remote recharges');
+run('drawWorld();enemies[2].x=760;enemies[2].y=360;player.attackCd=0;attack();for(let i=0;i<20;i++)updateWorld(1/60)');
+assert.equal(run('enemies[2].stun'), 0, 'nothing while it recharges');
+run('wardTwist.cool=0;enemies[2].x=800;enemies[2].y=400;brickBurst({tx:830,ty:300,serial:0})');
+assert.ok(run('enemies[2].stun') > 1.5, 'a brick on the couch works too');
+// Tap the room: a tap on the remote is something to go and hit.
+run('wardTwist.cool=0;enemies[2].stun=0;enemies[2].x=760;enemies[2].y=360;setControlScheme("tap");player.x=600;player.y=450');
+run('wardTouchDown(77,0,0,{x:826,y:258});wardTouchUp(77,0,0)');
+assert.equal(run('wardPrey&&wardPrey.e.twist'), true, 'a tap on the remote picks it');
+run('for(let i=0;i<120;i++)advanceSimulation(1/60)');
+assert.ok(run('enemies[2].stun') > 0.5, 'Macy walks over and whacks it');
+// The CT: the lane nearest Macy lights up, then Donut II bowls over everything in it. Macy jumps it.
+twistRoom(3, 'makeEnemy(0,300,425),makeEnemy(2,600,430),makeEnemy(0,500,560)');
+run('player.x=820;player.y=432;wardTwist.t=WARD_TWIST.donut.first-0.01');
+steps(2);
+assert.equal(run('wardTwist.phase'), 'warn', 'the lane lights up first');
+assert.equal(run('wardTwist.lane'), 425, 'the lane nearest Macy');
+assert.equal(run('state.stats.twistTaught'), 8);
+run('drawWorld()');
+steps(Math.ceil(run('WARD_TWIST.donut.warn') * 60) + 1);
+assert.ok(run('!!wardTwist.donut'), 'then the donut rolls');
+run('drawWorld()');
+run('for(let i=0;i<240&&wardTwist.donut;i++){if(Math.abs(wardTwist.donut.x-player.x)<120&&player.z===0&&player.jumpCd===0)jump();updateWorld(1/60)}');
+assert.ok(run('enemies[0].hp<99&&enemies[1].hp<99'), 'both in the lane are bowled over');
+assert.equal(run('enemies[2].hp'), 99, 'the one out of the lane is not');
+assert.equal(run('state.hp'), 5, 'a jump clears the donut');
+run('wardTwist.t=wardTwist.next;player.x=500;player.y=545;player.inv=0;player.z=0;player.jumpCd=0;wardTwist.dir=1');
+run('for(let i=0;i<400&&state.hp===5;i++){player.inv=0;updateWorld(1/60)}');
+assert.equal(run('state.hp'), 4, 'standing in the lane gets her DONUTTED');
+// The ultrasound: gel. Macy slides past where she let go; a gremlin knocked across it skids into the wall.
+twistRoom(4, 'makeEnemy(0,640,470),makeEnemy(0,300,300)');
+steps(1);
+assert.equal(run('state.stats.twistTaught'), 16);
+run('drawWorld()');
+const [gx, gy] = run('WARD_TWIST.gel.puddles[1]');
+assert.ok(run(`wardGrip({x:${gx},y:${gy},z:0})`) > 0, 'the gel is slippery');
+assert.equal(run('wardGrip({x:900,y:560,z:0})'), 0, 'the floor is not');
+run(`player.x=${gx - 60};player.y=${gy};player.vx=player.vy=0;keys.clear();keys.add('d');for(let i=0;i<30;i++)updateWorld(1/60);keys.clear();globalThis.letGo=player.x`);
+run('for(let i=0;i<30;i++)updateWorld(1/60)');
+assert.ok(run('player.x-letGo') > 25, 'on gel Macy slides on after letting go');
+run('player.x=200;player.y=500;player.vx=player.vy=0;keys.add("d");for(let i=0;i<30;i++)updateWorld(1/60);keys.clear();letGo=player.x;for(let i=0;i<30;i++)updateWorld(1/60)');
+assert.ok(run('player.x-letGo') < 1, 'on the floor she stops');
+run(`enemies[0].x=${gx - 40};enemies[0].y=${gy};enemies[0].hp=enemies[0].maxHp=3;enemies[0].cool=99;player.x=900;player.y=560;player.vx=player.vy=0`);
+run(`enemies[0].iframes=0;hitEnemy(enemies[0],1,30,{kind:"pillow",from:{x:${gx - 80},y:${gy}}});globalThis.skid0=enemies[0].x`);
+steps(40);
+assert.ok(run('enemies[0].x-skid0') > 90, 'a poke on gel sends a gremlin skidding');
+run('enemies[1].x=300;enemies[1].y=300;enemies[1].iframes=0;enemies[1].stun=0;enemies[1].stagger=0;globalThis.dry0=enemies[1].x;hitEnemy(enemies[1],1,30,{kind:"pillow",from:{x:260,y:300}})');
+steps(40);
+assert.ok(run('enemies[1].x-dry0') < 60, 'the same poke on the floor barely moves it');
+run('state.stats={};enemies=[];loadRoom(1)');
+console.log('PASS: the MRI pulls bedpans and bruisers into the scanner, the lounge remote zones out the TV crowd, Donut II bowls a lane, and the gel makes everyone slide.');

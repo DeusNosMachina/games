@@ -11,7 +11,8 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v)),
   dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y),
   pick = a => a[Math.floor(Math.random() * a.length)];
 
-// Ward places. Each arcade's title and copy live with its game in games/*.js.
+// Ward places. Each arcade's title and copy live with its game in games/*.js. Rooms 0 and 5 are the same
+// room with the lights on and off: the light switch by her bed flips between them.
 const rooms = [
   { id: 0, name: 'Your room', sub: 'HOME BASE / THE IV LEAGUE', theme: '#73ac98', station: [255, 350] },
   { id: 1, name: 'MRI room', sub: 'RADIOLOGY / THE LOUD DONUT', theme: '#72aebc', station: [650, 335] },
@@ -20,7 +21,7 @@ const rooms = [
   { id: 4, name: 'Ultrasound', sub: 'SONOGRAPHY / HIDE & BLECH', theme: '#91ba99', station: [620, 385] },
   {
     id: 5,
-    name: 'Your room · after dark',
+    name: 'Your room · lights out',
     sub: 'HOME BASE / THE NIGHT SHIFT',
     theme: '#667b9d',
     station: [255, 350]
@@ -121,6 +122,25 @@ function savedCards(v) {
 
 const savedJersey = v => (Number.isInteger(v) && v >= 0 && v <= 99 ? v : 22);
 
+// Ward fights left half-way, by department (1 to 4): { wave, teach, left }. left lists who is still
+// standing, [breed] or [3, 1] for a split-pea half (combat.js writes it as gremlins fall).
+function savedFights(v) {
+  const out = {};
+  if (!v || typeof v !== 'object') return out;
+  for (const room of [1, 2, 3, 4]) {
+    const f = v[room];
+    if (!f || typeof f !== 'object' || !(f.wave >= 1 && f.wave <= 3)) continue;
+    const left = Array.isArray(f.left)
+      ? f.left
+          .filter(r => Array.isArray(r) && Number.isInteger(r[0]) && r[0] >= 0 && r[0] <= 4)
+          .slice(0, 12)
+          .map(r => (r[0] === 3 && r[1] ? [3, 1] : [r[0]]))
+      : null;
+    out[room] = { wave: Math.floor(f.wave), teach: !!f.teach, left };
+  }
+  return out;
+}
+
 // A scheme the player chose stays chosen. Otherwise a finger as the main pointer gets the joystick.
 function savedControls() {
   const chosen = saved.controlsChosen === true || saved.controls === 'stick';
@@ -146,7 +166,6 @@ let state = {
     'Macy',
   difficulty: clamp(Math.floor(Number(saved.difficulty) || 0), 0, 2),
   food: clamp(Math.floor(Number(saved.food) || 0), 0, savedFood),
-  item: 0,
   // Sound preference. audio.js reads it at init and writes it on toggle; save() persists it.
   sound: saved.sound === undefined ? true : !!saved.sound,
   medals: Array.from({ length: ARCADE_COUNT }, (_, i) =>
@@ -165,6 +184,9 @@ let state = {
   },
   won: !!saved.won,
   wardClears: Array.from({ length: ARCADE_COUNT }, (_, i) => savedCount(saved.wardClears?.[i])),
+  // Fights left half-way (savedFights). One object for the whole session: combat.js keeps it as
+  // wardProgress, so clear its keys rather than replacing it.
+  wardFights: savedFights(saved.wardFights),
   // Hall of Nonsense counters. Combat adds to evictions and bestChain; the arcade adds runs.
   evictions: savedCount(saved.evictions),
   bestChain: savedCount(saved.bestChain),
@@ -214,18 +236,27 @@ const cfg = () => difficulties[state.difficulty],
 const maxHearts = () => 5 + (state.upgrades.includes('scrunchie') ? 1 : 0),
   maxFood = () => (state.upgrades.includes('snacks') ? 5 : 3);
 
-// Macy in the ward. z/vz are jump height and velocity.
+// Macy in the ward. z/vz are jump height and velocity; vx/vy is her footing's velocity (it only lags the
+// stick on slippery floor, see wardGrip).
 let player = {
   x: 505,
   y: 420,
+  vx: 0,
+  vy: 0,
   dir: 1,
   walk: 0,
   moving: false,
   inv: 0,
+  // The barf-bag bubble: shield > 0 while it is up, shieldHeld while SHIELD is held, shieldMeter its
+  // seconds left, shieldBroken after it popped until it has refilled a little (combat.js).
   shield: 0,
+  shieldHeld: false,
+  shieldMeter: 2.5,
+  shieldBroken: false,
   attack: 0,
   attackCd: 0,
-  itemCd: 0,
+  spinCd: 0,
+  brickCd: 0,
   dash: 0,
   dashCd: 0,
   vomit: 0,
@@ -267,7 +298,9 @@ let time = 0,
   heldAttack = false,
   joyPointer = null,
   attackPointer = null,
-  attackOrigin = null;
+  attackOrigin = null,
+  // The finger holding SHIELD down (the bubble drops when that finger lifts).
+  shieldPointer = null;
 
 const keys = new Set(),
   joy = { x: 0, y: 0 },
@@ -313,6 +346,7 @@ function save() {
         cosmetics: state.cosmetics,
         won: state.won,
         wardClears: state.wardClears,
+        wardFights: state.wardFights,
         evictions: state.evictions,
         bestChain: state.bestChain,
         coinsEarned: state.coinsEarned,

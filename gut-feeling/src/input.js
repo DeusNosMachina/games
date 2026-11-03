@@ -13,13 +13,13 @@ const upgrades = [
     id: 'pillow',
     name: 'The orthopedic overreactor',
     price: 210,
-    desc: 'Longer pillow reach. Easier blob deflections. Still technically bedding.'
+    desc: 'Longer pillow reach: swings, spins and stomps. Easier blob deflections. Still technically bedding.'
   },
   {
     id: 'bag',
     name: 'Deluxe dignity bubble',
     price: 180,
-    desc: 'The barf-bag shield lasts 3.4 seconds instead of 2.5. Luxury, apparently.'
+    desc: 'Hold the barf-bag shield up for 3.5 seconds instead of 2.5 before it pops. Luxury, apparently.'
   },
   {
     id: 'thick',
@@ -551,24 +551,15 @@ joystick.addEventListener('pointermove', handleJoy);
   })
 );
 
-// The attack button hits on press and keeps hitting while held, like holding Space (the press is what the
-// combo counts; held repeats are free swings). Dragging it aims the follow-up hits; letting go stops.
-// A quick sideways swipe across it (SWIPE_PX within SWIPE_SECONDS) changes weapons instead: right for the
-// next one, left for the one before.
-const SWIPE_PX = 40,
-  SWIPE_SECONDS = 0.35;
-
-function wardCycleWeapon(dir) {
-  equip((state.item + (dir > 0 ? 1 : 2)) % 3);
-  wardWeaponSync();
-}
-
+// One button per action. SWING hits on press and keeps hitting while held, like holding Space (the press is
+// what the combo counts; held repeats are free swings, and the third of a held run spins when it can).
+// Dragging it aims the follow-up hits; letting go stops.
 $('attackBtn').addEventListener('pointerdown', e => {
   if (attackPointer !== null || !pressStart($('attackBtn'), e)) return;
   attackPointer = e.pointerId;
   $('attackBtn').classList.add('pressed');
   if (roomAction('attack')) return;
-  attackOrigin = { x: e.clientX, y: e.clientY, t: time, swiped: false };
+  attackOrigin = { x: e.clientX, y: e.clientY };
   wardAim = { dx: 0, dy: 0 };
   heldAttack = true;
   player.pressAt = time;
@@ -576,17 +567,8 @@ $('attackBtn').addEventListener('pointerdown', e => {
 });
 
 $('attackBtn').addEventListener('pointermove', e => {
-  if (e.pointerId !== attackPointer || !attackOrigin || attackOrigin.swiped) return;
-  const dx = e.clientX - attackOrigin.x,
-    dy = e.clientY - attackOrigin.y;
-  if (time - attackOrigin.t <= SWIPE_SECONDS && Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy) * 1.3) {
-    attackOrigin.swiped = true;
-    heldAttack = false;
-    wardAim = null;
-    wardCycleWeapon(dx);
-    return;
-  }
-  wardAim = { dx: dx * 2, dy: dy * 2 };
+  if (e.pointerId !== attackPointer || !attackOrigin) return;
+  wardAim = { dx: (e.clientX - attackOrigin.x) * 2, dy: (e.clientY - attackOrigin.y) * 2 };
 });
 
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
@@ -608,21 +590,41 @@ $('attackBtn').addEventListener('click', e => {
 
 onPress($('jumpBtn'), () => roomAction('jump') || jump());
 onPress($('dashBtn'), () => roomAction('dash') || dash());
-onPress($('useBtn'), () => roomAction('use') || useItem());
+// TRAP is also the "use" press: at her room's TV, the E-Type or the light switch it uses that instead.
+onPress($('trapBtn'), () => roomAction('use') || layTrap());
+onPress($('brickBtn'), () => throwBrick());
 onPress($('touchEat'), eat);
 
-// The weapon strip equips on press; the strip and the canvas both announce the change.
-[0, 1, 2].forEach(i =>
-  onPress($('wslot' + i), () => {
-    equip(i);
-    wardWeaponSync();
+// SHIELD is held: the bubble goes up on the press and drops when that finger lifts (or the meter runs
+// out). A click with no press before it (keyboard, assistive tech) raises it until the next click.
+$('shieldBtn').addEventListener('pointerdown', e => {
+  if (shieldPointer !== null || !pressStart($('shieldBtn'), e)) return;
+  shieldPointer = e.pointerId;
+  $('shieldBtn').classList.add('pressed');
+  shieldHold(true);
+});
+
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
+  $('shieldBtn').addEventListener(type, e => {
+    if (e.pointerId !== shieldPointer) return;
+    shieldPointer = null;
+    $('shieldBtn').classList.remove('pressed');
+    shieldHold(false);
   })
 );
 
-$('rematchBtn').addEventListener('click', () => {
-  if (isModal() || state.room === 0 || !encounter.complete) return;
-  if (typeof wardRematch === 'function') wardRematch();
-  else startEncounter();
+$('shieldBtn').addEventListener('click', e => {
+  if (pressClick($('shieldBtn'), e)) return;
+  shieldHold(!player.shieldHeld);
+});
+
+// REMATCH: two presses in the ward strip (the first arms it), one in the pause menu.
+onPress($('rematchBtn'), () => wardRematchPress());
+
+$('pauseRematch').addEventListener('click', () => {
+  if (!wardRematchReady()) return;
+  setWardPause(false);
+  wardRematch();
 });
 
 $('eatBtn').addEventListener('click', eat);
@@ -636,7 +638,7 @@ const ARCADE_KEYS = [
 ];
 const WARD_KEYS = [
   ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
-  'w', 'a', 's', 'd', 'e', 'q', 'f', 'enter', 'shift', 'j'
+  'w', 'a', 's', 'd', 'e', 'q', 'f', 'r', 'b', 'enter', 'shift', 'j'
 ];
 
 // Arcade keys: Escape pauses, E is the assist, everything else goes to the game's key hook.
@@ -671,6 +673,8 @@ window.addEventListener('keydown', e => {
   // Any key on the result screen skips the medal ceremony (Escape still leaves through the dialog).
   if (mini.open && mini.screen === 'result' && ceremonySkip()) return;
   if (isModal()) return;
+  // Browser shortcuts (Cmd+R, Ctrl+B and friends) are the browser's, never a ward key.
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (k === 'escape') {
     if (!e.repeat) setWardPause(!state.paused);
     return;
@@ -689,7 +693,10 @@ window.addEventListener('keydown', e => {
     keys.add(k);
   }
   if (e.repeat) return;
-  if (k === 'e' && !roomAction('use')) useItem();
+  // One key per action (CONTROL_NAMES.keys): E trap, B brick, hold R for the shield.
+  if (k === 'e' && !roomAction('use')) layTrap();
+  if (k === 'b') throwBrick();
+  if (k === 'r') shieldHold(true);
   if (k === 'q' && !roomAction('dash')) dash();
   if ((k === 'shift' || k === 'j') && !roomAction('jump')) jump();
   if (k === 'f') eat();
@@ -697,8 +704,6 @@ window.addEventListener('keydown', e => {
     e.preventDefault();
     openMap();
   }
-  if (['1', '2', '3'].includes(k)) equip(+k - 1);
-  if (k === 'c') equip((state.item + 1) % 3);
   if (k === 'enter' && !roomAction('enter')) {
     const station = isArcadeRoom(state.room) && rooms[state.room].station;
     if (station && dist(player, { x: station[0], y: station[1] }) < 85) tryOpenArcade();
@@ -708,6 +713,7 @@ window.addEventListener('keydown', e => {
 
 window.addEventListener('keyup', e => {
   keys.delete(e.key.toLowerCase());
+  if (e.key.toLowerCase() === 'r') shieldHold(false);
   if (e.key === ' ') {
     if (mini.open) e.preventDefault();
     releaseMiniHold();
@@ -733,7 +739,25 @@ document.addEventListener('visibilitychange', () => {
 
 // ---- Touch scheme: the joystick and buttons, or tap the room ----
 // Phones and tablets start on the joystick (state.js picks it for a coarse pointer); a choice made here sticks.
-const CONTROL_NAMES = { tap: 'Tap the room', stick: 'Joystick' };
+// CONTROL_NAMES names the two touch schemes, and `keys` is the keyboard: one key per action, in the order
+// the How to play sheet (also in the pause menu) and the key guide under the room list them.
+const CONTROL_NAMES = {
+  tap: 'Tap the room',
+  stick: 'Joystick',
+  keys: [
+    ['WASD / arrows', 'move'],
+    ['Space', 'swing (hold to keep swinging; a held run spins)'],
+    ['Shift / J', 'jump'],
+    ['Q', 'dash'],
+    ['hold R', 'barf-bag shield'],
+    ['B', 'brick (3 a fight, find more)'],
+    ['E', 'trap (1 a wave)'],
+    ['F', 'eat a nutrient'],
+    ['M', 'map'],
+    ['Enter', 'nearby arcade'],
+    ['Esc', 'pause']
+  ]
+};
 
 function renderControls() {
   const tap = tapScheme();
@@ -741,6 +765,12 @@ function renderControls() {
   document.body.classList.toggle('stick-controls', !tap);
   $('pauseControls').textContent = 'Controls: ' + CONTROL_NAMES[state.controls];
   $$('[data-controls]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.controls === state.controls)));
+  const short = { move: 'move', 'barf-bag shield': 'shield', 'eat a nutrient': 'eat' };
+  $('helpKeys').innerHTML = CONTROL_NAMES.keys.map(([k, what]) => `${k}: ${what}`).join('<br>');
+  $('keyGuide').innerHTML = CONTROL_NAMES.keys
+    .slice(0, 8)
+    .map(([k, what]) => `<span><b>${k.replace('WASD / arrows', 'W A S D').toUpperCase()}</b> ${short[what] || what.split(' (')[0]}</span>`)
+    .join('');
 }
 
 function setControlScheme(scheme) {
@@ -867,9 +897,6 @@ $('departmentGrid').addEventListener('click', e => {
   if (b) goRoom(+b.dataset.room);
 });
 
-// Sidebar weapon cards (the touch strip has its own press handlers above).
-$$('.item[data-item]').forEach(b => b.addEventListener('click', () => equip(+b.dataset.item)));
-
 $('saveName').addEventListener('click', () => {
   state.name = $('heroName').value.trim().slice(0, 18) || 'Macy';
   save();
@@ -898,6 +925,8 @@ $('resetBtn').addEventListener('click', () => {
   state.cosmetics = { owned: [], worn: [] };
   state.won = false;
   state.wardClears = Array.from({ length: ARCADE_COUNT }, () => 0);
+  // The same object combat.js keeps as wardProgress, so it is emptied rather than replaced.
+  for (const k in state.wardFights) delete state.wardFights[k];
   state.recoveries = 0;
   state.evictions = 0;
   state.bestChain = 0;
@@ -941,7 +970,7 @@ setupIllustrations();
 loadRoom(0);
 hud();
 stickerRenderCard();
-equip(0);
+wardKitSync();
 drawPortrait();
 uiRenderSound();
 renderControls();

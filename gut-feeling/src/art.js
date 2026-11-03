@@ -1196,7 +1196,26 @@ const ROOM_TVS = {
   ROOM_SIGN = { title: 'MACY · ROOM 5', floor: '7TH FLOOR', sub: 'GREMLINS NOT FOUND' },
   WALL_BOARD = { x: 86, y: 66, w: 162, h: 62 },
   ROOM_DOOR_GLASS = { x: 928, y: 50, w: 27, h: 37 },
-  ROOM_SHAFT = [[365, 155], [590, 155], [730, 462], [477, 462]];
+  ROOM_SHAFT = [[365, 155], [590, 155], [730, 462], [477, 462]],
+  // The light switch on the wall between the get-well board and the vitals monitor (its center), right
+  // over the gap between the bed and the nightstand.
+  LIGHT_SWITCH = { x: 257, y: 101 };
+
+// The switch plate: the toggle up with the lights on, down with them out, and a glow-in-the-dark dot so
+// she can find it at night. Drawn live (world.js) because rooms 0 and 5 share one wall.
+function lightSwitchArt(g, x, y, off, t = 0) {
+  rr(g, x - 7, y - 12, 16, 27, 4, '#2a4b5226');
+  rr(g, x - 8, y - 14, 16, 27, 4, off ? '#9aa6b8' : '#f6f3e6', off ? '#5e6a80' : '#a9b3a7', 1);
+  rr(g, x - 3.5, y - 8, 7, 15, 3, off ? '#7d899c' : '#e3ded0');
+  rr(g, x - 3, off ? y - 1 : y - 8, 6, 8, 2.5, off ? '#c3cbd8' : '#ffffff', off ? '#6d788c' : '#9aa59a', 1);
+  for (const dy of [-11, 10]) ellipse(g, x, y + dy, 0.9, 0.9, off ? '#6d788c' : '#b5bdb2');
+  if (!off) return;
+  const pulse = reduced ? 1 : 0.6 + 0.4 * Math.sin(t * 2.4);
+  g.globalAlpha = 0.35 * pulse;
+  ellipse(g, x, y + 19, 6, 6, '#9dffb0');
+  g.globalAlpha = 1;
+  ellipse(g, x, y + 19, 2, 2, '#c9ffd4');
+}
 
 // The time of day from the real clock: what Macy would see out of a 7th-floor window right now.
 function roomDaypart(h = new Date().getHours()) {
