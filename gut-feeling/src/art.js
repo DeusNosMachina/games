@@ -1847,6 +1847,64 @@ function nutrient(g, x, y, type, s = 1) {
   g.restore();
 }
 
+// A room's snack cart, feet at (x, y): a little steel cart with a tray of nutrients when stocked and a
+// BACK SOON tent when not. vending: the lounge's SNAX machine (drawn with the room) gets a FREE SNACK
+// sticker and a glowing treat in its slot instead. t animates the glow.
+function snackCartArt(g, x, y, stocked, t = 0, vending = false, wait = 0) {
+  const pulse = 0.55 + 0.45 * Math.sin(t * 3);
+  if (vending) {
+    // The machine's slot sits at (69..111, 422..432); the sticker goes on the glass.
+    g.save();
+    g.translate(x + 33, y - 128);
+    g.rotate(0.12);
+    rr(g, -24, -8, 48, 16, 4, stocked ? '#ffe066' : '#d9d2c4', '#5b4a37', 1);
+    label(g, stocked ? 'FREE SNACK' : 'SOLD OUT', 0, 3.5, 7.5, stocked ? '#5b3a12' : '#7a6a5a', 'center');
+    g.restore();
+    if (stocked) {
+      g.globalAlpha = 0.35 + 0.35 * pulse;
+      ellipse(g, x - 5, y - 47, 24, 9, '#fff3b0');
+      g.globalAlpha = 1;
+      nutrient(g, x - 5, y - 42, 'juice', 0.55);
+      spark(g, x + 14, y - 60, '#fff0ad', 0.35 + 0.15 * pulse);
+    }
+    return;
+  }
+  shadow(g, x, y + 1, 34, 7);
+  // Wheels, legs and shelves.
+  for (const dx of [-21, 21]) {
+    ellipse(g, x + dx, y - 3, 4.5, 4.5, '#3d5560');
+    ellipse(g, x + dx, y - 3, 1.8, 1.8, '#9fb1b9');
+  }
+  for (const dx of [-25, 24]) rect(g, x + dx, y - 50, 3, 46, '#8fa3ab');
+  rr(g, x - 28, y - 16, 56, 6, 2, '#c9d6dc', '#6d828c', 1);
+  rr(g, x - 30, y - 52, 60, 7, 2.5, gradient(g, x - 30, y - 52, 0, 7, '#eef4f5', '#b8c7cd'), '#6d828c', 1);
+  // The handle.
+  line(g, [[x + 26, y - 50], [x + 36, y - 62]], '#8fa3ab', 3);
+  rr(g, x + 32, y - 66, 10, 5, 2.5, '#e07a6a');
+  // Juice boxes on the bottom shelf.
+  for (const [dx, col] of [[-19, '#ffcf7a'], [-8, '#a7d9b4'], [3, '#f3a69c']]) {
+    rr(g, x + dx, y - 27, 9, 11, 2, col, '#6b5a4a55', 0.8);
+    line(g, [[x + dx + 6, y - 27], [x + dx + 8, y - 31]], '#ffffffcc', 1.2);
+  }
+  // The plate on the front.
+  rr(g, x - 17, y - 44, 34, 9, 2, '#244d53');
+  label(g, 'SNACKS', x, y - 37.5, 6.5, '#ffe29b', 'center');
+  if (stocked) {
+    g.globalAlpha = 0.3 + 0.3 * pulse;
+    ellipse(g, x, y - 56, 30, 10, '#fff3b0');
+    g.globalAlpha = 1;
+    nutrient(g, x - 9, y - 52, 'pudding', 0.75);
+    nutrient(g, x + 10, y - 52, 'shake', 0.7);
+    spark(g, x + 22, y - 82, '#fff0ad', 0.35 + 0.15 * pulse);
+  } else {
+    // A paper tent: back soon, in minutes.
+    poly(g, [[x - 14, y - 52], [x - 2, y - 72], [x + 10, y - 52]], '#fff6e0');
+    line(g, [[x - 2, y - 72], [x - 2, y - 52]], '#d8cdb5', 1);
+    label(g, 'BACK', x - 2, y - 60, 6, '#7a6a5a', 'center');
+    label(g, wait > 1 ? wait + ' MIN' : 'SOON', x - 2, y - 54, 5.5, '#7a6a5a', 'center');
+  }
+}
+
 function vomitArt(g, x, y, dir, t, s = 1) {
   if (t <= 0) return;
   g.save();

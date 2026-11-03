@@ -1,5 +1,6 @@
 // Ward combat rules: weapon dispatch, staggers and poise, breed behaviors, spawns, waves, Ralph's grudge,
-// Ralph himself, and a tuning check that mashing loses while dodging wins.
+// Ralph himself, a tuning check that mashing loses while dodging wins, the gentler first clears, the
+// combo and its slam, and the nutrients the ward drops. tools/ward-human.cjs is the human-speed yardstick.
 const { run, events, nodes, close, assert } = require('./harness.cjs');
 
 const reseed = s => run(`rng=${s}`);
@@ -115,7 +116,8 @@ assert.ok(run('projectiles[0].vx') > 0);
 assert.ok(run('!wardPlan(1,2,0,false).includes(4)&&!wardPlan(2,1,0,false).includes(4)'), 'no hurlers early');
 assert.ok(run('wardPlan(2,2,0,false).includes(4)&&wardPlan(3,2,0,false).includes(4)'), 'hurlers from wave 2 in later rooms');
 run('projectiles=[];enemies=[makeEnemy(4,700,420)];player.x=400;player.y=420;enemies[0].cool=0');
-steps(90);
+// A first clear winds up WARD.firstTell slower (and this is the teaching wave), so give it two seconds.
+steps(120);
 assert.ok(run('projectiles.some(p=>p.gunk&&!p.friendly)||puddles.some(p=>p.gunk)'), 'the hurler lobs gunk');
 run('projectiles=[];puddles=[];combatFx=[]');
 console.log('PASS: pillow deflection and the gunk-lobbing hurler.');
@@ -559,6 +561,123 @@ for (const seed of [1873, 4242, 90210]) {
 }
 run('state.stats=undefined');
 console.log('PASS: with the ward full of Ensure, mashing still loses and dodging still clears.');
+
+// ---- First clears: fewer gremlins up at once, longer tells; rematches stay mean ----
+run('state.stats={}');
+freshRoom(1);
+run('enemies=[];encounter.teach=false;encounter.wave=3;spawnWave(1);player.x=500;player.y=560;player.inv=999');
+const plan3 = run('wardPlan(1,3,0,false).length');
+assert.ok(plan3 > 3);
+assert.equal(run('enemies.length'), plan3, 'the whole wave is in the room');
+assert.equal(run('enemies.filter(e=>e.queued).length'), plan3 - 3, 'but only three come out on a first clear');
+steps(60 * 4);
+assert.equal(run('wardFighters().length'), 3, 'three up');
+assert.ok(run('enemies.filter(e=>e.queued).every(e=>e.emerge>WARD.telegraph)'), 'the rest wait in the dark, no telegraph yet');
+// Gone, not split: a split pea would put two halves up.
+run('const q0=wardFighters()[0];q0.hp=0;q0.gone=true');
+steps(2);
+assert.equal(run('enemies.filter(e=>e.queued&&e.hp>0).length'), plan3 - 4, 'one comes out when the room thins');
+assert.ok(run('enemies.some(e=>!e.queued&&e.emerge>0&&e.emerge<=WARD.telegraph+0.5)'), 'with a fresh telegraph');
+run('const q1=wardFighters()[0];q1.hp=0;q1.gone=true');
+steps(2);
+assert.equal(run('enemies.filter(e=>e.queued&&e.hp>0).length'), Math.max(0, plan3 - 4), 'the next one waits out WARD.queueGap');
+steps(Math.ceil(60 * run('WARD.queueGap')));
+assert.equal(run('enemies.filter(e=>e.queued&&e.hp>0).length'), Math.max(0, plan3 - 5));
+// Tells: spit, charge and lob wind-ups run WARD.firstTell longer on a first clear; crouches keep their pace.
+run('encounter.pace=1');
+assert.ok(Math.abs(run('wardWindScale()/wardCoolScale()') - run('WARD.firstTell')) < 1e-9, 'first clear: longer tells');
+run('globalThis.cr=makeEnemy(0,300,420);wardCrouch(cr)');
+assert.ok(Math.abs(run('cr.windMax') - 0.55 * run('wardCoolScale()')) < 1e-9, 'a crouch is not slowed');
+run('encounter.grudge=1');
+assert.equal(run('wardWindScale()'), run('wardCoolScale()'), 'a rematch reads at full speed');
+run('enemies=[];encounter.wave=3;spawnWave(1)');
+assert.equal(run('enemies.filter(e=>e.queued).length'), 0, 'and puts the whole wave out at once');
+run('player.inv=0');
+console.log(`PASS: wave 3 of a first clear keeps three of ${plan3} up and feeds the rest in; tells run longer; rematches stay mean.`);
+
+// ---- The combo: three pressed hits in a row charge a COMBO SLAM ----
+freshRoom(1);
+run('encounter.complete=true;enemies=[];projectiles=[];state.stats={};player.x=400;player.y=420;player.inv=999;equip(0);wardDrops=[]');
+run('globalThis.dummy=makeEnemy(0,460,420);dummy.hp=dummy.maxHp=99;dummy.cool=99;enemies=[dummy]');
+// One swing from a press, played out to its hit frame. far: the gremlin is out of reach (a whiff).
+const swing = (pressed = true, far = false) =>
+  run(
+    `dummy.poise=0;dummy.poiseT=0;dummy.hopT=0;dummy.z=0;dummy.stun=0;dummy.stagger=0;dummy.iframes=0;dummy.kx=dummy.ky=0;` +
+      `dummy.x=${far ? 900 : 460};dummy.y=420;player.x=400;player.y=420;player.attackCd=0;player.vomit=0;player.comboTime=0;player.combo=0;` +
+      `player.pressAt=${pressed ? 'time' : -9};attack();for(let i=0;i<30;i++)updateWorld(1/60);wardCombo.n`
+  );
+assert.equal(swing(), 1);
+assert.equal(swing(), 2);
+assert.equal(run('wardCombo.ready'), false);
+assert.equal(nodes.attackBtn.dataset.combo, '2', 'the attack button ring shows two thirds');
+assert.equal(nodes.attackBtn.style['--combo'], String(2 / 3));
+swing();
+assert.equal(run('wardCombo.ready'), true, 'the third charges the combo');
+assert.equal(nodes.attackBtn.dataset.combo, 'ready', 'and the button glows');
+assert.ok(run('floats.some(f=>f.text==="COMBO READY")'));
+run('wardCombo=wardComboFresh()');
+swing();
+swing(true, true);
+assert.equal(run('wardCombo.n'), 0, 'a whiff starts the run over');
+swing();
+assert.equal(swing(false), 1, 'a held swing that lands does not count');
+assert.equal(swing(false, true), 1, 'and a held whiff does not break the run');
+run('dummy.x=460;dummy.y=420;player.x=400;player.y=420;dummy.stun=1;dummy.iframes=0;player.attackCd=0;player.pressAt=time;attack();for(let i=0;i<30;i++)updateWorld(1/60)');
+assert.equal(run('wardCombo.n'), 1, 'hitting a stunned gremlin is free: it neither counts nor breaks');
+swing();
+run('player.inv=0;player.shield=0;player.z=0;damage("blob",{x:600,y:420});player.inv=999');
+assert.equal(run('wardCombo.n'), 0, 'a hit on Macy breaks the run');
+swing();
+swing();
+swing();
+run('player.inv=0;player.shield=0;player.z=0;damage("blob",{x:600,y:420});player.inv=999');
+assert.equal(run('wardCombo.ready'), true, 'a charged combo survives a hit');
+// The slam: everything inside WARD.slamRadius is hit, shoved and stunned; a coin burst; the first one drops a nutrient.
+run(
+  'globalThis.ring=[makeEnemy(0,470,420),makeEnemy(2,400,500),makeEnemy(1,330,380)];globalThis.far=makeEnemy(0,700,420);' +
+    'for(const e of [...ring,far]){e.cool=99}ring[1].fx=0;ring[1].fy=-1;ring[0].wind=ring[0].windMax=0.5;ring[0].act="bite";' +
+    'enemies=[...ring,far];player.x=400;player.y=420;player.attackCd=0;player.vomit=0;player.z=0;globalThis.slamCoins0=state.coins;state.hp=5'
+);
+run('player.pressAt=time;attack()');
+assert.equal(run('wardCombo.ready'), false, 'the next attack is the slam');
+assert.ok(run('ring.every(e=>e.hp===e.maxHp-WARD.slamHit&&e.stun>=WARD.slamStun-0.01)'), 'everything close is hit and stunned');
+assert.equal(run('ring[1].hp'), 6, 'bruiser armor or not');
+assert.equal(run('ring[0].wind'), 0, 'a wind-up in progress is cancelled');
+assert.ok(run('Math.hypot(ring[0].kx,ring[0].ky)') > 1000, 'and they fly back');
+assert.equal(run('far.hp'), run('far.maxHp'), 'nothing past the radius');
+assert.equal(run('state.coins-slamCoins0'), run('Math.max(1,Math.round(WARD.slamPay*cfg().coins))'), 'a coin burst');
+assert.equal(run('state.stats.combos'), 1, 'state.stats.combos counts landed slams');
+assert.equal(run('JSON.parse(localStorage.getItem(STORE)).stats.combos'), 1, 'and saves');
+assert.equal(run('wardDrops.length'), 1, 'the first slam drops a nutrient');
+run('for(let i=0;i<30;i++)updateWorld(1/60)');
+assert.equal(run('wardCombo.n'), 0, 'the slam does not count toward the next one');
+// No gremlin in reach: a normal attack, and the combo stays charged.
+run('wardCombo.ready=true;enemies=[far];far.x=900;player.attackCd=0;player.pressAt=time;attack()');
+assert.equal(run('wardCombo.ready'), true, 'the slam waits for a gremlin in reach');
+assert.equal(run('player.attackKind'), 0);
+// Later slams: coins every time, a nutrient on the first and every third after it.
+run('wardDrops=[];for(let k=0;k<3;k++){wardCombo.ready=true;enemies=[makeEnemy(0,460,420)];player.attackCd=0;player.pressAt=time;attack()}');
+assert.equal(run('state.stats.combos'), 4);
+assert.equal(run('wardDrops.length'), 1, 'slams 2 and 3 pay coins only; slam 4 drops one');
+run('drawWorld();wardCombo=wardComboFresh();wardDrops=[];enemies=[];player.inv=0');
+console.log('PASS: three pressed hits charge a COMBO (whiffs and hits on Macy break it, held and free hits do not count); the slam stuns, shoves, pays and feeds.');
+
+// ---- Health the ward hands out ----
+freshRoom(1);
+run('wardDrops=[];enemies=[];player.x=505;player.y=470;updateCombat(.01)');
+assert.equal(run('encounter.wave'), 2);
+assert.equal(run('wardDrops.length'), 1, 'a cleared wave leaves a nutrient');
+assert.equal(run('collides(wardDrops[0].x,wardDrops[0].y)'), false, 'on open floor');
+run('wardDrops=[];state.evictions=5;enemies=[makeEnemy(0,300,420)];hitEnemy(enemies[0],9,0,{kind:"brick",from:player})');
+assert.equal(run('state.evictions'), 6);
+assert.equal(run('wardDrops.length'), 1, 'every sixth eviction leaves one');
+run('enemies=[makeEnemy(0,300,420)];hitEnemy(enemies[0],9,0,{kind:"brick",from:player})');
+assert.equal(run('wardDrops.length'), 1, 'the seventh does not');
+run('snackStock[1]=time+999;enemies=[];encounter.wave=3;updateCombat(.01)');
+assert.ok(run('encounter.complete'));
+assert.equal(run('snackReady(1)'), true, 'a ward clear restocks the room’s snack cart');
+run('wardDrops=[]');
+console.log('PASS: wave clears and every sixth eviction drop nutrients; a ward clear restocks the snack cart.');
 
 // ---- Keyboard dispatch still reaches the ward ----
 run('state.ralphReady=false;loadRoom(0);player.attackCd=0;player.vomit=0');

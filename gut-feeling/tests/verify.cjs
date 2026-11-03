@@ -1,5 +1,6 @@
 // Cross-cutting rules: saves, nutrients, run lifecycle, frame-rate independence, idle failure, discharge,
-// briefings and countdown, Daily Dose, the gift shop, hearts, and ward gating.
+// briefings and countdown, Daily Dose, the gift shop, hearts, ward gating, both touch schemes (the joystick
+// default, the swipe, tap the room), and the health the ward hands out (snack carts, floor drops).
 // Game-specific mechanics live in game-<name>.cjs; ward combat in combat.cjs.
 const { run, nodes, events, close, assert } = require('./harness.cjs');
 const saved = () => JSON.parse(run('localStorage.getItem(STORE)'));
@@ -649,6 +650,134 @@ assert.equal(flat.side, 'col', 'a landscape phone puts the controls in a column'
 assert.equal(flat.fitH, 390);
 run('delete window.innerWidth;delete window.innerHeight;resize()');
 console.log('PASS: run screens size the canvas to the window, row or column, with no dead panels.');
+
+// ---- The joystick scheme: the default on phones, a swipe for weapons ----
+// A finger as the main pointer starts on the joystick and the big buttons; a scheme the player picked
+// stays picked. Older saves wrote 'tap' without anyone choosing it, so those move to the joystick too.
+const COARSE = 'matchMedia = q => ({ matches: /coarse/.test(q) });';
+const withSave = blob => `localStorage.setItem('gut-feeling-v2', ${JSON.stringify(JSON.stringify(blob))});`;
+freshPage(
+  { GF_PRELUDE: COARSE + 'window.innerWidth = 390; window.innerHeight = 844;' },
+  `assert.equal(run('state.controls'), 'stick', 'a phone starts on the joystick');
+assert.equal(run('state.controlsChosen'), false);
+run('begin()');
+assert.match(nodes.toast.textContent, /Swipe it sideways/, 'the first toast teaches the stick and the swipe');
+assert.equal(run('state.stats.turnHint'), 1, 'a phone held upright gets the turn-sideways hint');
+assert.ok(run('turnHintUntil') > 0);
+assert.match(nodes.turnHintchild.textContent, /sideways/);
+assert.equal(JSON.parse(run('localStorage.getItem(STORE)')).stats.turnHint, 1, 'once per save');
+run('turnHintHide()');
+assert.equal(run('turnHintCheck()'), false, 'and never again');
+run('state.stats.turnHint=0;turnHintCheck();window.innerWidth=844;window.innerHeight=390;turnHintTick()');
+assert.equal(run('turnHintUntil'), 0, 'turning the phone clears it');
+run('setControlScheme("tap")');
+assert.equal(JSON.parse(run('localStorage.getItem(STORE)')).controlsChosen, true, 'a pick is remembered as a pick');`
+);
+freshPage(
+  { GF_PRELUDE: COARSE + withSave({ controls: 'tap', hp: 4 }) },
+  `assert.equal(run('state.controls'), 'stick', 'an old save that never chose moves to the joystick');`
+);
+freshPage(
+  { GF_PRELUDE: COARSE + withSave({ controls: 'tap', controlsChosen: true }) },
+  `assert.equal(run('state.controls'), 'tap', 'a chosen tap-the-room stays');`
+);
+freshPage({ GF_PRELUDE: withSave({ controls: 'stick' }) }, `assert.equal(run('state.controls'), 'stick', 'an old joystick pick stays');`);
+freshPage({}, `assert.equal(run('state.controls'), 'tap', 'a mouse keeps tap the room as the touch scheme');`);
+// A quick sideways swipe across the attack button changes weapons: right for the next, left for the one
+// before. It swung on the press, as always; a slow drag aims instead.
+close();
+run('setControlScheme("stick");state.hp=5;keys.clear();loadRoom(0);enemies=[];equip(0);wardWeaponSync();wardWeaponFlash=0;player.attackCd=0;heldAttack=false;attackPointer=null');
+nodes.attackBtn.events.pointerdown(touch(40, 600, 300));
+assert.equal(run('player.pressAt'), run('time'), 'a press of the attack button is a press for the combo');
+assert.equal(run('heldAttack'), true);
+nodes.attackBtn.events.pointermove(touch(40, 650, 306));
+assert.equal(run('state.item'), 1, 'swipe right: the next weapon');
+assert.equal(nodes.weaponStrip.dataset.active, '1', 'the strip follows');
+assert.ok(run('wardWeaponFlash') > 0, 'and the canvas flashes it');
+assert.equal(run('heldAttack'), false, 'a swipe stops the held swings');
+nodes.attackBtn.events.pointermove(touch(40, 720, 306));
+assert.equal(run('state.item'), 1, 'one swipe, one weapon');
+nodes.attackBtn.events.pointerup(touch(40, 720, 306));
+nodes.attackBtn.events.pointerdown(touch(41, 600, 300));
+nodes.attackBtn.events.pointermove(touch(41, 550, 290));
+assert.equal(run('state.item'), 0, 'swipe left: back one');
+nodes.attackBtn.events.pointerup(touch(41, 550, 290));
+nodes.attackBtn.events.pointerdown(touch(42, 600, 300));
+nodes.attackBtn.events.pointermove(touch(42, 548, 300));
+assert.equal(run('state.item'), 2, 'left from the pillow wraps to the brick');
+nodes.attackBtn.events.pointerup(touch(42, 548, 300));
+run('equip(1);wardWeaponSync();player.attackCd=0');
+nodes.attackBtn.events.pointerdown(touch(43, 600, 300));
+run('time += 0.5');
+nodes.attackBtn.events.pointermove(touch(43, 660, 300));
+assert.equal(run('state.item'), 1, 'a slow drag does not swipe');
+assert.equal(run('wardAim.dx'), 120, 'it aims');
+nodes.attackBtn.events.pointerdown(touch(44, 600, 300));
+assert.equal(run('attackPointer'), 43, 'a second finger does not steal the button');
+nodes.attackBtn.events.pointerup(touch(43, 660, 300));
+nodes.attackBtn.events.pointerdown(touch(45, 600, 300));
+nodes.attackBtn.events.pointermove(touch(45, 610, 380));
+assert.equal(run('state.item'), 1, 'a vertical drag is an aim, not a swipe');
+nodes.attackBtn.events.pointerup(touch(45, 610, 380));
+assert.equal(run('wardAim'), null);
+run('equip(0);wardWeaponSync();projectiles=[]');
+// The pause menu names the scheme in use.
+run('renderControls()');
+assert.equal(nodes.pauseControls.textContent, 'Controls: Joystick');
+// Tap the room: the first swing of a tap on a gremlin is a press for the combo; a held finger's repeats are not.
+run('setControlScheme("tap");loadRoom(1);encounter.complete=true;enemies=[makeEnemy(0,560,450)];enemies[0].cool=99;enemies[0].hp=99;player.x=505;player.y=450;player.attackCd=0;player.pressAt=-9;cameraX=0;wardCameraY=0');
+finger.down(50, 560, 420);
+steps(2, 'enemies.length=1;');
+assert.ok(run('time-player.pressAt') < 0.1, 'the first swing of a tap is a press');
+steps(90, 'enemies.length=1;enemies[0].x=560;enemies[0].y=450;');
+assert.ok(run('wardPrey.swings') >= 2 && run('time-player.pressAt') > 1, 'the swings a held finger repeats are not');
+finger.up(50, 560, 420);
+run('wardTouchReset();enemies=[];setControlScheme("stick")');
+console.log('PASS: phones start on the joystick (a pick stays picked), a one-time turn-sideways hint, a swipe across SWING changes weapons, and presses (not held repeats) feed the combo.');
+
+// ---- Health you can find: snack carts and nutrients on the floor ----
+run('setControlScheme("tap");state.food=0;state.hp=3;loadRoom(1);enemies=[];encounter.complete=true;for(const k in snackStock)delete snackStock[k]');
+assert.equal(run('snackReady()'), true, 'a stocked cart in every combat room');
+run('player.x=SNACK_CARTS[1].x;player.y=SNACK_CARTS[1].y;updateWorld(1/60)');
+assert.equal(run('state.food'), 1, 'walking up to it pockets one nutrient');
+assert.match(nodes.toast.textContent, /Snack cart/);
+assert.equal(run('snackReady()'), false, 'then it is out');
+run('updateWorld(1/60)');
+assert.equal(run('state.food'), 1, 'one per stock');
+run('time += SNACK_RESTOCK + 1;updateWorld(1/60)');
+assert.equal(run('state.food'), 2, 'two minutes later it has restocked');
+run('state.food=maxFood();time += SNACK_RESTOCK + 1;updateWorld(1/60)');
+assert.equal(run('state.food'), run('maxFood()'), 'a full pocket leaves it on the cart');
+assert.equal(run('snackReady()'), true);
+run('snackStock[1]=time+999;snackRestock(1)');
+assert.equal(run('snackReady()'), true, 'snackRestock (a ward clear) restocks it');
+assert.equal(run('snackKey(5)'), 0, 'after dark, her room keeps the same cart');
+assert.equal(run('SNACK_CARTS[2].vending'), true, 'the lounge’s cart is its vending machine');
+const cartsOnFloor = run(
+  '(()=>{const r0=state.room,bad=[];for(const k of Object.keys(SNACK_CARTS)){state.room=+k;const c=SNACK_CARTS[k];if(!c.vending&&collides(c.x,c.y))bad.push(k)}state.room=r0;return bad.join()})()'
+);
+assert.equal(cartsOnFloor, '', 'every cart stands on open floor');
+run('for(const id of [0,1,2,3,4,5]){loadRoom(id);enemies=[];drawWorld();snackStock[snackKey(id)]=time+90;drawWorld()}');
+// Floor drops: walking over one pockets it; a full pocket leaves it; it blinks out after 30 s; three at most.
+run('loadRoom(1);enemies=[];encounter.complete=true;state.food=0;wardDrops=[];player.x=200;player.y=500;wardDropNutrient(600,450)');
+assert.equal(run('wardDrops.length'), 1);
+run('drawWorld();player.x=600;player.y=450;updateWorld(1/60)');
+assert.equal(run('state.food'), 1, 'walking over a drop pockets it');
+assert.equal(run('wardDrops.length'), 0);
+assert.equal(nodes.touchEatCount.textContent, '1', 'and EAT counts it');
+run('state.food=maxFood();floats=[];wardDropNutrient(600,450);updateWorld(1/60)');
+assert.equal(run('wardDrops.length'), 1, 'a full pocket leaves the drop on the floor');
+assert.ok(run('floats.some(f=>f.text==="POCKETS FULL")'));
+run('player.x=200;player.y=500;for(let i=0;i<31*20;i++)wardPickups(0.05)');
+assert.equal(run('wardDrops.length'), 0, 'it is gone after 30 seconds');
+run('for(let i=0;i<5;i++)wardDropNutrient(300+i*80,450)');
+assert.equal(run('wardDrops.length'), 3, 'three on the floor at most');
+run('loadRoom(2)');
+assert.equal(run('wardDrops.length'), 0, 'they stay behind when Macy leaves');
+run('wardDropNutrient(70,420)');
+assert.equal(run('collides(wardDrops[0].x,wardDrops[0].y)'), false, 'a drop in the furniture slides out onto the floor');
+run('wardDrops=[];state.food=0;loadRoom(0)');
+console.log('PASS: a snack cart in every room (one nutrient, back after a ward clear or two minutes), and floor drops that pocket, wait and leave.');
 
 // ---- Hallway hooks and rooms without an arcade ----
 // The real hallway module is in the build now: the hooks exist and run in order.
