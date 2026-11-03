@@ -62,7 +62,8 @@ const PITCH_BOXES = [
 // The bin as one box, for drawing.
 const PITCH_BIN = { x0: 146, x1: 190, y0: 0, y1: 58, z0: 474, z1: 510 };
 
-// Where gremlins stand (feet), walk, hide, hop from and charge from. high: level 2 and up.
+// Where gremlins stand (feet), walk, hide, hop from and charge from. high: level 2 and up. wall: too
+// close to a wall to bank a shot past, so no bedpan shields there.
 const PITCH_SITS = [
   { x: -40, y: 0, z: 268 },
   { x: -120, y: 0, z: 330 },
@@ -70,8 +71,8 @@ const PITCH_SITS = [
   { x: -10, y: 0, z: 470 },
   { x: 100, y: 0, z: 430 },
   { x: -20, y: 0, z: 410 },
-  { x: -186, y: 44, z: 360 },
-  { x: -186, y: 44, z: 440 },
+  { x: -186, y: 44, z: 360, wall: true },
+  { x: -186, y: 44, z: 440, wall: true },
   { x: 170, y: 96, z: 304 },
   { x: 30, y: 0, z: 380 },
   { x: -60, y: 90, z: 512, high: true },
@@ -322,8 +323,10 @@ const PITCH = registerGame({
     mini.pitchAim = aim;
     pitchThrow(pitchAimVelocity(aim));
   },
+  // THROW (and Space) throws the keyboard aim, or repeats the last throw: same spot, same arc.
   action(a) {
-    if (a === 'throw') pitchThrow(pitchAimVelocity(mini.pitchAim));
+    if (a !== 'throw') return;
+    pitchThrow(mini.pitchKeyAim || !mini.pitchLastV ? pitchAimVelocity(mini.pitchAim) : mini.pitchLastV);
   },
   assist() {
     mini.pitchFreeze = 3;
@@ -593,6 +596,7 @@ function pitchThrow(v) {
   mini.pitchThrows++;
   mini.pitchCd = PITCH_COOLDOWN;
   mini.pitchLive.push(b);
+  mini.pitchLastV = { x: v.x, y: v.y, z: v.z };
   mini.pitchArm = 1;
   mini.pitchThrewAt = mini.total;
   sfx('throw');
@@ -636,6 +640,7 @@ function pitchInit() {
     pitchThrewAt: -9,
     pitchAim: { yaw: -0.14, power: 0.55 },
     pitchKeyAim: false,
+    pitchLastV: null,
     pitchPress: null,
     pitchMark: null,
     pitchIncoming: null,
@@ -738,7 +743,7 @@ function pitchSpawn(kind, index = null) {
     high = mini.tier > 0;
   if (kind === 'sit' || kind === 'shield' || kind === 'timed') {
     const pool = PITCH_SITS.map((s, i) => ({ ...s, i })).filter(
-      s => (index === null ? (high || !s.high) && (kind !== 'shield' || !s.high) : s.i === index) && pitchSpotFree(s.x, s.z, 'sit:' + s.i)
+      s => (index === null ? (high || !s.high) && (kind !== 'shield' || !(s.high || s.wall)) : s.i === index) && pitchSpotFree(s.x, s.z, 'sit:' + s.i)
     );
     if (!pool.length) return null;
     const s = pick(pool);
@@ -1182,6 +1187,84 @@ function pitchFuture(e, dt) {
     sm = k * k * (3 - 2 * k),
     p = pitchLerp3(e.cover.hide, e.cover.up, sm);
   return sm < 0.5 ? null : at(p[0], p[1], p[2]);
+}
+
+// A bank shot that gets a bedpan shield: the spot on a wall to tap, the flight it starts, and where
+// it bounces. Searched with the real physics around the mirror-trick spot on each wall (the nearer
+// side wall first, then the back wall), and only spots a tap can actually pick (no snapping to the
+// gremlin). Shields stand on fixed spots, so plans are cached per spot, canvas shape and gremlin size
+// for the session; it never touches the random sequence.
+const pitchBankCache = new Map();
+
+function pitchBankPlan(e) {
+  const key = [Math.round(e.x), Math.round(e.y), Math.round(e.z), mini.portrait ? 'tall' : 'wide', pitchRadius(e)].join();
+  if (pitchBankCache.has(key)) return pitchBankCache.get(key);
+  const H = PITCH_HAND,
+    c = pitchCenter(e),
+    R = pitchRadius(e) * 0.8 + PITCH_BALL,
+    near = c.x < 0 ? -1 : 1,
+    walls = [];
+  // Points on the wall planes themselves: that is where a tap on a wall lands.
+  for (const side of [near, -near]) {
+    const wx = side * PITCH_WALL,
+      u = (wx - H.x) / (2 * wx - c.x - H.x);
+    walls.push(at => [wx, H.y + (c.y - H.y) * u + at[1], H.z + (c.z - H.z) * u + at[0]]);
+  }
+  const wz = PITCH_BACK,
+    uz = (wz - H.z) / (2 * wz - c.z - H.z);
+  walls.push(at => [H.x + (c.x - H.x) * uz + at[0], H.y + (c.y - H.y) * uz + at[1], wz]);
+  // Flies the fastball a tap at wall point q throws. A hit returns the plan; a miss returns how close
+  // it came after the wall; null when a tap there would pick something else.
+  const fly = q => {
+    if (q[1] < 8 || q[1] > PITCH_WALL_H || q[2] < 140 || q[2] > PITCH_BACK || Math.abs(q[0]) > PITCH_WALL) return null;
+    const sp = pitchProject(q[0], q[1], q[2]),
+      r = pitchRaycast(sp.x, sp.y);
+    if (Math.hypot(r.x - q[0], r.y - q[1], r.z - q[2]) > 4) return null;
+    const b = pitchNewBall(pitchFastball(r)),
+      path = [];
+    let bounce = null,
+      miss = Infinity;
+    for (let i = 0; i < 400 && !b.dead; i++) {
+      const hit = pitchMoveBall(b, PITCH_SUB);
+      if (i % 3 === 0) path.push([b.x, b.y, b.z]);
+      if ((hit === 'wall' || hit === 'back') && !bounce) bounce = { x: b.x, y: b.y, z: b.z };
+      if (b.walls) {
+        const d = Math.hypot(b.x - c.x, b.y - c.y, b.z - c.z);
+        if (d < R) return { q: r, bounce, path };
+        miss = Math.min(miss, d);
+      }
+      if ((hit && hit !== 'wall' && hit !== 'back' && hit !== 'floor') || (hit === 'floor' && !b.walls)) break;
+      // Past the gremlin and heading away: a miss.
+      if (b.walls && b.age > 0.25 && (b.x - c.x) * b.vx + (b.z - c.z) * b.vz > 0 && Math.hypot(b.x - c.x, b.z - c.z) > R * 2) break;
+    }
+    return { miss };
+  };
+  // Coarse to fine around the mirror spot on each wall: a 5 × 5 patch, then smaller patches around the
+  // closest miss.
+  let plan = null;
+  for (const wall of walls) {
+    let centre = [0, 0],
+      best = Infinity;
+    for (const step of [16, 6, 2]) {
+      let next = null;
+      for (let i = -2; i <= 2 && !plan; i++)
+        for (let j = -2; j <= 2 && !plan; j++) {
+          const at = [centre[0] + i * step, centre[1] + j * step],
+            t = fly(wall(at));
+          if (!t) continue;
+          if (t.q) plan = t;
+          else if (t.miss < best) {
+            best = t.miss;
+            next = at;
+          }
+        }
+      if (plan || !next) break;
+      centre = next;
+    }
+    if (plan) break;
+  }
+  pitchBankCache.set(key, plan);
+  return plan;
 }
 
 // ---- Bottles ----
@@ -2178,7 +2261,8 @@ function pitchHandScreen() {
     q = mini.pitchPress;
   let x = base.x,
     y = base.y;
-  if (q && q.armed && q.tall === !!mini.portrait) {
+  if (q && !q.armed) y += 6 * base.k;
+  else if (q && q.armed && q.tall === !!mini.portrait) {
     const dx = q.x - q.sx,
       dy = q.y - q.sy,
       n = Math.hypot(dx, dy) || 1,
@@ -2419,24 +2503,20 @@ function pitchDrawHints(g, w, h) {
   if (!mini.pitchBalls && mini.tier < 2) pitchTag(g, 'HITS REFILL THE BUCKET', 80, h - 112, true);
 }
 
-// The mirror trick, drawn: hand to the wall to the shield.
+// The bank shot for a shield, drawn: the real flight from her hand off the wall into the gremlin,
+// and the spot on the wall to tap.
 function pitchBankGuide(g, e) {
-  const c = pitchCenter(e),
-    H = PITCH_HAND,
-    side = c.x < 0 ? -1 : 1,
-    wx = side * (PITCH_WALL - PITCH_BALL),
-    mx = 2 * wx - c.x,
-    u = (wx - H.x) / (mx - H.x || 1),
-    bounce = [wx, H.y + (c.y - H.y) * u, H.z + (c.z - H.z) * u];
+  const plan = pitchBankPlan(e);
+  if (!plan) return;
   g.globalAlpha = 0.45 + 0.25 * Math.sin(mini.total * 4);
-  for (let i = 1; i <= 20; i++) {
-    const q = i <= 10 ? pitchLerp3([H.x, H.y, H.z], bounce, i / 10) : pitchLerp3(bounce, [c.x, c.y, c.z], (i - 10) / 10),
-      p = pitchProject(...q);
+  plan.path.forEach((q, i) => {
+    if (i % 2) return;
+    const p = pitchProject(...q);
     ellipse(g, p.x, p.y, 2.2, 2.2, '#c9f0ff');
-  }
+  });
   g.globalAlpha = 1;
-  const bp = pitchProject(...bounce);
-  pitchTag(g, 'BANK IT HERE', bp.x, bp.y - 16, true);
+  const bp = pitchProject(plan.q.x, plan.q.y, plan.q.z);
+  pitchTag(g, 'TAP HERE TO BANK IT', bp.x, bp.y - 16, true);
 }
 
 function pitchDrawPops(g) {

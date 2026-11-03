@@ -1,8 +1,7 @@
 // Fastpitch Fever controller, input only (canvas taps through arcadeDown / arcadeUp). It picks the most
 // urgent gremlin (chargers first, then the Ump, golden ones, peekers), leads it with the game's own
 // predictor, taps where the fastball meets it, and checks the flight first so it never throws into
-// the furniture. Bedpan shields get a bank shot: it taps the wall point the mirror trick suggests,
-// searched a little around it until the simulated ball comes off the wall into the gremlin.
+// the furniture. Bedpan shields get a bank shot: it taps the wall spot the level 2 guide shows.
 module.exports = {
   id: 0,
   policy: `
@@ -43,27 +42,12 @@ function direct(e) {
   }
   return null;
 }
+// The game's own bank planner: the wall spot whose fastball comes off the wall into the shield.
 function bank(e) {
-  const c = pitchFuture(e, 0.6);
-  if (!c) return null;
-  const tries = [];
-  for (const side of [-1, 1]) {
-    const wx = side * (PITCH_WALL - PITCH_BALL), mx = 2 * wx - c.x, u = (wx - H.x) / (mx - H.x);
-    tries.push({ axis: 'x', at: [wx, H.y + (c.y - H.y) * u, H.z + (c.z - H.z) * u] });
-  }
-  const wz = PITCH_BACK - PITCH_BALL, mz = 2 * wz - c.z, u = (wz - H.z) / (mz - H.z);
-  tries.push({ axis: 'z', at: [H.x + (c.x - H.x) * u, H.y + (c.y - H.y) * u, wz] });
-  for (const tr of tries) {
-    for (let a = 0; a < 81; a++) {
-      const da = ((a % 9) - 4) * 9, db = (Math.floor(a / 9) - 4) * 9;
-      const at = tr.axis === 'x' ? [tr.at[0], tr.at[1] + db, tr.at[2] + da] : [tr.at[0] + da, tr.at[1] + db, tr.at[2]];
-      if (at[1] < 8) continue;
-      const t = tapFor({ x: at[0], y: at[1], z: at[2] });
-      if (!t || Math.hypot(t.r.x - at[0], t.r.y - at[1], t.r.z - at[2]) > 4) continue;
-      if (lands(t.v, e, true)) return { ...t, T: 0.8 };
-    }
-  }
-  return null;
+  const plan = pitchBankPlan(e);
+  if (!plan) return null;
+  const p = pitchProject(plan.q.x, plan.q.y, plan.q.z);
+  return { sx: p.x, sy: p.y, T: 0.8 };
 }
 const rank = e => e.kind === 'charge' ? 200 - e.z / 5 : e.kind === 'ump' ? 120 : e.kind === 'timed' ? 110 : e.kind === 'peek' ? 90 : e.kind === 'shield' ? 40 : 60;
 const live = mini.pitchTargets.filter(e => e.state === 'live' && !(bot.claimed[e.id] > now)).sort((a, b) => rank(b) - rank(a));

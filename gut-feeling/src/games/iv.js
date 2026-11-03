@@ -363,7 +363,7 @@ function ivDripFx(n) {
   for (let i = 0; i < n; i++) mini.ivDripFx.push({ dy: -i * 7, vy: 30 + i * 8, life: 1 });
 }
 
-// Macy's reactions, the heart monitor and the IV drips run in every phase.
+// Macy's reactions, the heart monitor and the IV drips keep running under the bar.
 function ivUpdateFx(dt) {
   mini.ivMoodT = Math.max(0, mini.ivMoodT - dt);
   if (mini.miss !== mini.ivSeenMiss) {
@@ -884,7 +884,7 @@ function ivDrawStrikes(g) {
   }
 }
 
-// ---------- Portrait (450 × 800): a scene strip on top, the phase below ----------
+// ---------- Portrait (450 × 800): a scene strip on top, the bar below ----------
 
 // The same teal room as miniBackdrop, stood upright, with the title and level tag on one header row.
 function ivBackdropTall(g) {
@@ -899,7 +899,7 @@ function ivBackdropTall(g) {
   label(g, 'LEVEL ' + (mini.tier + 1), 432, 28, 13, '#b8d8cf', 'right');
 }
 
-// The top 30% of the portrait canvas, shared by every phase: the IV stand dripping, Macy in bed with
+// The top 30% of the portrait canvas: the IV stand dripping, Macy in bed with
 // her reactions, and the monitor on the cabinet.
 function ivDrawStrip(g) {
   rr(g, 10, 40, 430, 198, 16, gradient(g, 0, 40, 0, 198, '#2f6a70', '#1d4655'), '#6c969a66', 1.2);
@@ -1086,7 +1086,7 @@ function ivDrawBoom(g) {
   if (reduced) amp = 0;
   const sx = Math.sin(t * 73) * amp;
   const sy = Math.cos(t * 91) * amp * 0.6;
-  // A short crossfade from the phase that was playing.
+  // A short crossfade from the bar that was playing.
   if (t < 0.25) {
     if (mini.portrait) ivDrawPlay(g);
     else {

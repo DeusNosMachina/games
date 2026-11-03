@@ -1,7 +1,7 @@
 // Not part of the suite. A human-speed yardstick for Fastpitch Fever: a player who sees the room a
 // reaction time late, takes a moment to aim, leads movers by eye (a straight-line guess with a
-// misjudged speed), taps with a fingertip's scatter, and banks shields off the wall by the mirror
-// trick with a shakier hand. The bot wins everything by design; this says whether a person can.
+// misjudged speed), taps with a fingertip's scatter, and banks shields off the wall where the level 2
+// guide points, with a shakier hand once the guide is gone. The bot wins everything by design; this says whether a person can.
 // Usage from the repository root (reaction s, trials per level, prescription 0-2):
 //   node gut-feeling/tests/tools/pitch-human.cjs 0.25 30 1
 // A 0.25 s player should clear level 1 nearly always, level 2 most of the time and level 3 sometimes;
@@ -49,10 +49,12 @@ function huTick(R) {
   const cy = o.y + 24 * o.size;
   let q, sigma = 11;
   if (o.kind === 'shield') {
-    // The mirror trick off the nearer side wall, by eye.
-    const side = o.x < 0 ? -1 : 1, wx = side * (PITCH_WALL - PITCH_BALL), mx = 2 * wx - o.x, u = (wx - H.x) / (mx - H.x);
-    q = { x: wx, y: H.y + (cy - H.y) * u, z: H.z + (o.z - H.z) * u };
-    sigma = mini.tier === 1 && !mini.pitchBanks ? 10 : 14;
+    // A bank shot: the wall spot the level 2 guide shows, tapped with a steady hand while the guide is
+    // up, and from memory (a shakier hand) once it is gone.
+    const e = mini.pitchTargets.find(t => t.id === o.id), plan = e && pitchBankPlan(e);
+    if (!plan) return;
+    q = plan.q;
+    sigma = mini.tier === 1 && !mini.pitchBanks ? 10 : 16;
   } else {
     // A peeker that has popped out holds still; anything else is led by its seen speed.
     const still = o.kind === 'peek' || o.kind === 'ump', vx = still ? 0 : (o.x - p0.x) / 0.15, vz = still ? 0 : (o.z - p0.z) / 0.15, misjudge = 1 + huGauss() * 0.25;

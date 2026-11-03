@@ -157,6 +157,9 @@ assert.equal(n('mini.pitchThrows'), 2, 'so does the THROW button');
 const vk = j('pitchAimVelocity(mini.pitchAim)'),
   last = j('mini.pitchLive[mini.pitchLive.length-1]');
 assert.ok(near(last.vx, vk.x, 80) && last.vz > 0, 'with the keyboard aim');
+// Without keys, THROW repeats the last throw exactly: a tap's fastball, again.
+n('ptTick(0.3);mini.pitchKeyAim=false;T.f=ptScreen(-60,0,330);arcadeDown({x:T.f.x,y:T.f.y});arcadeUp(false);T.v1=mini.pitchLive[mini.pitchLive.length-1];ptTick(0.3);miniAction("throw");T.v2=mini.pitchLive[mini.pitchLive.length-1]');
+assert.ok(n('T.v1!==T.v2&&T.v1.vx===T.v2.vx&&T.v1.vz===T.v2.vz'), 'THROW repeats the last throw');
 close();
 console.log('PASS: controls: tap for a fastball, drag to sling, soft pulls, cancels, pauses and rotations never throw, keys and the button.');
 
@@ -316,7 +319,7 @@ assert.deepEqual(blocked, [], 'every spot is reachable: ' + blocked.join(', '));
 // Every spot a shield can stand on has a bank shot off a wall that reaches it.
 const banks = j(`(()=>{
   const out = [], H = PITCH_HAND;
-  for (const s of PITCH_SITS.filter(s => !s.high)) {
+  for (const s of PITCH_SITS.filter(s => !s.high && !s.wall)) {
     const c = { x: s.x, y: s.y + 24, z: s.z }, R = 24 * 0.8 + PITCH_BALL;
     let found = false;
     for (let wy = 10; wy <= 200 && !found; wy += 10)
@@ -335,6 +338,26 @@ const banks = j(`(()=>{
   return out;
 })()`);
 assert.deepEqual(banks, [], 'every shield spot has a bank shot: ' + banks.join(', '));
+// And the level 2 guide is honest: tapping the wall where it points banks the ball in, in both shapes.
+for (const tall of [false, true]) {
+  const misses = j(`(()=>{
+    mini.portrait = ${tall};
+    const out = [];
+    PITCH_SITS.forEach((s, i) => {
+      if (s.high || s.wall) return;
+      mini.pitchTargets = []; mini.pitchLive = []; mini.pitchCd = 0;
+      const e = ptGremlin('shield', s.x, s.y, s.z), plan = pitchBankPlan(e);
+      if (!plan) return out.push('sit ' + i + ' has no plan');
+      const p = pitchProject(plan.q.x, plan.q.y, plan.q.z);
+      arcadeDown({ x: p.x, y: p.y }); arcadeUp(false);
+      for (let k = 0; k < 120; k++) updateMini(1 / 60);
+      if (e.state === 'live') out.push('sit ' + i + ' missed');
+    });
+    mini.portrait = false;
+    return out;
+  })()`);
+  assert.deepEqual(misses, [], (tall ? 'portrait' : 'landscape') + ': the bank guide lands: ' + misses.join(', '));
+}
 // Every hiding place has a lob (drag up) that drops over the cover onto the peeker behind it.
 const lobs = j(`(()=>{
   const out = [], H = PITCH_HAND;
