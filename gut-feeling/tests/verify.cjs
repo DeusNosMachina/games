@@ -606,28 +606,55 @@ assert.equal(nodes.titleScreen.dataset.state, 'gone');`
 console.log('PASS: reduced motion skips the title iris.');
 
 // ---- Recovery bookkeeping ----
-// The recovery never climbs: every collapse is the same gentle level. A won recovery still counts, a
-// medal outside one resets the count, and a lost one can end from the result screen for coins.
+// The recovery opens on the level of the last real arcade run and plays one of its two phases, drawn at
+// random and kept for a retry. A won recovery still counts, a medal outside one resets the count, and a
+// lost one can end from the result screen for coins.
+const lastTierBefore = run('state.lastTier');
 run("state.recoveries=2;state.hp=5;openMini(1);mini.forced=false;startMini();launchMini();updateMini(2);finishMini(true);updateMini(2.3)");
 assert.equal(run('mini.win'), true);
 assert.equal(run('state.recoveries'), 0, 'a medal outside a recovery resets the count');
 assert.equal(saved().recoveries, 0, 'recoveries are saved');
+assert.equal(saved().lastTier, run('mini.tier'), "the last run's level is saved");
 close();
-run('ivRecovery=null;state.recoveries=2;openMini(0,true)');
-assert.equal(run('JSON.stringify(ivRecoveryPlan())'), JSON.stringify({ phase: 0, level: 0, count: 2 }), 'no escalation');
-assert.equal(run('mini.tier'), 0, 'the recovery lobby shows level 1');
-assert.match(nodes.tierGrid.innerHTML, /tier-card selected" data-tier="0" >/, 'level 1 is the one on offer');
+for (let last = 0; last < 4; last++) {
+  run(`ivRecovery=null;state.recoveries=2;state.lastTier=${last};openMini(0,true)`);
+  const plan = JSON.parse(run('JSON.stringify(ivRecoveryPlan())'));
+  assert.equal(plan.level, last, `the recovery follows the last run: level ${last + 1}`);
+  assert.ok([0, 1].includes(plan.phase), 'the pump or the pressure');
+  assert.equal(plan.count, 2);
+  // openMini still clamps a forced run's level at 2, so the Legendary lobby waits on the framework.
+  if (last < 3) {
+    assert.equal(run('mini.tier'), last, `the recovery lobby shows level ${last + 1}`);
+    assert.match(nodes.tierGrid.innerHTML, new RegExp(`tier-card selected" data-tier="${last}" >`), 'that level is the one on offer');
+  }
+  run('mini.forced=false');
+  close();
+}
+run('ivRecovery=null;state.recoveries=2;state.lastTier=1;openMini(0,true)');
+const plannedPhase = run('ivRecoveryPlan().phase');
 assert.equal(nodes.miniRewardInfo.textContent, run('MINI_RECOVERY_LINE'));
-run('state.medals[0]=[0,0,0];state.records[0]=[0,0,0];startMini();launchMini();updateMini(2);finishMini(true);updateMini(2.3)');
+run('state.medals[0]=[0,0,0,0];state.records[0]=[0,0,0,0];startMini()');
+assert.equal(run('mini.ivPhase'), plannedPhase, 'the run plays the phase the lobby drew');
+assert.equal(run('mini.tier'), 1);
+run('launchMini();updateMini(2);finishMini(true);updateMini(2.3)');
 assert.equal(run('mini.win'), true);
 assert.equal(run('state.recoveries'), 3, 'a won recovery keeps counting');
-assert.equal(run('JSON.stringify(state.medals[0])'), '[0,0,0]', "a won recovery stamps nothing on the room's arcade");
+assert.equal(run('state.lastTier'), 1, 'a recovery never moves the level');
+assert.equal(run('JSON.stringify(state.medals[0])'), '[0,0,0,0]', "a won recovery stamps nothing on the room's arcade");
 run('mini.forced=false');
 close();
-// A lost recovery keeps Retry, and the patch-up ends it for 15% of her coins.
-run('ivRecovery=null;state.recoveries=0;state.hp=0;state.coins=200;openMini(0,true);startMini();launchMini();updateMini(2);finishMini(false);updateMini(2.3)');
+// A lost recovery keeps Retry (the same phase, not another collapse), and the patch-up ends it for 15%
+// of her coins.
+run('ivRecovery=null;state.recoveries=0;state.hp=0;state.coins=200;state.lastTier=0;openMini(0,true);startMini();launchMini();updateMini(2);finishMini(false);updateMini(2.3)');
 assert.equal(run('mini.screen'), 'result');
 assert.equal(run('mini.win'), false);
+const lostPhase = run('mini.ivPhase');
+nodes.miniRetry.events.click();
+run('startMini();launchMini();updateMini(2)');
+assert.equal(run('mini.ivPhase'), lostPhase, 'Retry replays the same phase');
+assert.equal(run('state.recoveries'), 1, 'and is not another collapse');
+run('finishMini(false);updateMini(2.3)');
+assert.equal(run('mini.screen'), 'result');
 assert.equal(nodes.miniBack.textContent, 'Get patched up · 30 coins', 'the button names the price');
 assert.match(nodes.resultText.textContent, /30 coins/, 'and so does the result');
 const medalsBeforePatch = run('JSON.stringify(state.medals)');
@@ -637,8 +664,8 @@ assert.equal(run('state.coins'), 170, 'for 15% of her coins');
 assert.ok(run('state.hp') >= 1, 'with at least one heart');
 assert.equal(run('JSON.stringify(state.medals)'), medalsBeforePatch, 'never progress or medals');
 assert.equal(run('ivRecovery'), null, 'the next collapse is a new recovery');
-run('state.recoveries=0;state.hp=5;save()');
-console.log('PASS: the recovery never climbs, counts collapses, stamps nothing, and a lost one can be patched up for coins.');
+run(`state.recoveries=0;state.hp=5;state.lastTier=${lastTierBefore};save()`);
+console.log("PASS: the recovery follows the last run's level, plays one of two phases, counts collapses, stamps nothing, and a lost one can be patched up for coins.");
 
 // ---- The run screen: canvas plus the minimum, sized to the window ----
 run('window.innerWidth=1280;window.innerHeight=820;openMini(4);startMini()');
