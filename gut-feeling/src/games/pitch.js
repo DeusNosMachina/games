@@ -2097,14 +2097,14 @@ function pitchArtTarget(g, e) {
   if (e.kind === 'sit' && e.life && e.life < 1.5 && e.state === 'live') label(g, '...', p.x, p.y - 52 * s, 14, '#fff1b8', 'center');
 }
 
-// A bedpan held up like a riot shield.
+// A white enamel bedpan with the navy rim, held up like a riot shield, handle and all.
 function pitchShieldArt(g, s, flash) {
   g.save();
   g.scale(s, s);
-  path(g, p => p.ellipse(0, -14, 21, 17, 0, 0, Math.PI * 2), flash ? '#ffffff' : gradient(g, -21, -30, 42, 32, '#eef5f7', '#8ea6b1'), '#40535c', 1.4);
-  ellipse(g, 0, -14, 13, 9, flash ? '#ffffff' : '#c7d6dc');
-  rr(g, 18, -18, 14, 6, 3, '#9fb2bb');
-  ellipse(g, -8, -22, 5, 3, '#ffffffaa');
+  rr(g, 17, -19, 17, 7, 3.5, '#2c3e6b');
+  path(g, p => p.ellipse(0, -14, 21, 17, 0, 0, Math.PI * 2), flash ? '#ffffff' : gradient(g, -21, -30, 42, 32, '#fbfdfd', '#c9d6dc'), '#2c3e6b', 3);
+  path(g, p => p.ellipse(1, -12, 12, 8, 0, 0, Math.PI * 2), flash ? '#ffffff' : '#dfe7ea', '#9fb0b8', 1);
+  ellipse(g, -9, -23, 5, 2.6, '#ffffffcc');
   g.restore();
 }
 
