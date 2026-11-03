@@ -1,1098 +1,1872 @@
-// Polarity Panic (MRI room). Drag a magnet to push and pull drifting nutrients into matching
-// ports, flush pink gunk down the floor vent, and keep gremlin thieves off the merchandise.
-// Canvas 600 × 600. Level 1 teaches on a gentle grid with on-canvas hints. Levels 2 and 3 send
-// orbs in from the edges and add thieves, overheat, surge pickups, repulsor walls, a patrolling
-// barrier and splitting gunk. Level 3 also swaps the ports mid-shift.
-const MAGNET_PORT_X = [135, 465];
-const MAGNET_PORT_Y = 96;
-const MAGNET_VENT_X = 300;
-const MAGNET_VENT_HALF = 65;
-const MAGNET_RADIUS = 170;
-const MAGNET_CHAIN_WINDOW = 2;
-const MAGNET_BARRIER_Y = 345;
-const MAGNET_BARRIER_HALF = 62;
-// Repulsor walls guard the approach under each port during shifts 2 and 3 of levels 2 and 3.
-const MAGNET_WALLS = [
-  [[36, 254], [126, 216]],
-  [[564, 254], [474, 216]]
-];
-// mix per shift: [share of good orbs that are mint, chance that a new orb is gunk].
+// Polarity Panic (MRI room): pinball inside the Loud Donut. The gremlins turned the bore into a pinball
+// table: two flippers, a plunger, gremlin pop bumpers that take a few hits before they move out,
+// M-R-I rollover lanes, a scan ramp, drop targets from level 2, and a boss bumper with multiball on
+// level 3. Hold both flippers to fire the magnet and yank a doomed ball back up, until it overheats.
+// Swipe up to nudge; nudge too much and it tilts.
+// Physics run in table units (400 × 720) at fixed 1/600 s substeps: a circle against segments, arcs,
+// round posts, bumpers and flippers (rotating capsules that hand the ball their surface speed), with a
+// top speed. Drawing maps the table into the active canvas: 450 × 820 in portrait with a score strip
+// on top, 800 × 600 in landscape with side panels. Every finger arrives through touch(): the left half
+// of the canvas is the left flipper, the right half the right one, a swipe up nudges, and while the
+// ball waits in the lane any press pulls the plunger and letting go fires it.
+const MAGNET_W = 400,
+  MAGNET_H = 720,
+  MAGNET_CX = 182,
+  MAGNET_BALL = 10,
+  MAGNET_STEP = 1 / 600,
+  MAGNET_VMAX = 1500,
+  MAGNET_BORE = { x: 182, y: 286 },
+  MAGNET_PULL = 4200, // magnet acceleration toward the bore, table units / s²
+  MAGNET_BRAKE = 5, // eddy-current braking while the magnet is on, per second
+  MAGNET_ARM = 0.1, // both flippers held this long fires the magnet
+  MAGNET_FLIP = { len: 62, rp: 9, rt: 5, rest: 0.5, up: -0.44, wUp: 24, wDown: 13, e: 0.3 },
+  MAGNET_PIVOTS = [
+    { x: 110, y: 640 },
+    { x: 254, y: 640 }
+  ],
+  MAGNET_LANE = { x0: 350, x1: 386, x: 368, y: 691 },
+  MAGNET_ROLL_X = [131, 169, 207],
+  MAGNET_ROLL_Y = 92,
+  MAGNET_BUMPERS = [
+    { x: 136, y: 308, type: 0 },
+    { x: 228, y: 308, type: 1 },
+    { x: 182, y: 248, type: 3 }
+  ],
+  MAGNET_BUMPER_R = 21,
+  MAGNET_BOSS = { x: 182, y: 168, r: 28, swing: 62, period: 7 },
+  MAGNET_DROP_X = 338,
+  MAGNET_DROP_Y = [342, 372, 402],
+  MAGNET_KICK_Y = 650,
+  MAGNET_RAMP_MIN = 330, // inward speed the ramp mouth asks for
+  MAGNET_RAMP_SPEED = 760,
+  MAGNET_DRAIN_Y = 742,
+  MAGNET_TAP_POWER = 0.35, // plunger power of a quick tap (0 to 1)
+  MAGNET_RAMP = magnetPath([
+    [40, 320],
+    [30, 250],
+    [40, 170],
+    [75, 105],
+    [135, 62],
+    [200, 52],
+    [262, 72],
+    [305, 120],
+    [328, 190],
+    [324, 290],
+    [304, 390],
+    [298, 466]
+  ]);
+
+// Per level. hp: hits a gremlin takes; save: seconds of ball save after each launch; kick: which
+// outlanes carry a kickback (always relit, once per ball, never); divider: x of the post between
+// outlane and inlane (further in = a wider, meaner outlane); heat: seconds of magnet before it
+// overheats; cool: seconds to cool from full; par: the score a strong run reaches, for the medal.
 const MAGNET_LEVELS = [
   {
-    limit: 105,
-    goal: 12,
-    gate: 68,
-    start: 4,
-    cap: [7, 7, 8],
-    entry: false,
-    thieves: [0, 0, 0],
-    thiefSpeed: 0,
-    heat: 0,
-    surge: false,
-    walls: false,
-    swap: false,
-    split: false,
-    hints: true,
-    mix: [
-      [0.5, 0],
-      [0.5, 0.13],
-      [0.5, 0.15]
-    ]
+    limit: 150, goal: 8, gravity: 700, hp: 3, save: 12, kick: 'always', divider: 42,
+    drops: false, boss: false, multi: false, heat: 1.25, cool: 4, par: 30000
   },
   {
-    limit: 120,
-    goal: 15,
-    gate: 68,
-    start: 6,
-    cap: [8, 9, 10],
-    entry: true,
-    thieves: [1, 1, 2],
-    thiefSpeed: 58,
-    heat: 3.4,
-    surge: true,
-    walls: true,
-    swap: false,
-    split: true,
-    hints: false,
-    mix: [
-      [0.62, 0.1],
-      [0.32, 0.15],
-      [0.5, 0.2]
-    ]
+    limit: 180, goal: 15, gravity: 820, hp: 4, save: 7, kick: 'ball', divider: 48,
+    drops: true, boss: false, multi: false, heat: 1, cool: 7, par: 45000
   },
   {
-    limit: 135,
-    goal: 18,
-    gate: 58,
-    start: 7,
-    cap: [9, 10, 11],
-    entry: true,
-    thieves: [1, 2, 2],
-    thiefSpeed: 66,
-    heat: 3,
-    surge: true,
-    walls: true,
-    swap: true,
-    split: true,
-    hints: false,
-    mix: [
-      [0.38, 0.13],
-      [0.66, 0.17],
-      [0.5, 0.22]
-    ]
+    limit: 210, goal: 22, gravity: 940, hp: 4, save: 5, kick: 'none', divider: 48,
+    drops: true, boss: true, multi: true, heat: 0.9, cool: 9, par: 65000
   }
 ];
 
 const MAGNET = registerGame({
   id: 1,
-  canvas: { w: 600, h: 600 },
+  canvas: { w: 800, h: 600 },
+  portraitCanvas: { w: 450, h: 820 },
   layout: 'gesture',
   info: {
     game: 'Polarity Panic',
-    genre: 'MAGNETS · PUSH / PULL · PHYSICS',
-    headline: 'Opposites attract. Gremlins steal.',
-    desc: 'Steer drifting nutrients into matching ports with a movable magnet. Pull them toward your finger, flip polarity to push, then let go and let them coast. Gremlin thieves want your nutrients down the drain. Your magnet has opinions about that, until it overheats.',
-    goal: 'Sort the nutrient quota before the shift ends.',
+    genre: 'PINBALL · FLIPPERS · MAGNET SAVES',
+    headline: 'Flippers in the bore. Gremlins on the bumpers.',
+    desc:
+      'The gremlins moved into the MRI and turned it into a pinball table. Flip the steel softball into them until they move out. Hold both flippers to fire up the magnet and yank a doomed ball back up, until it overheats. Three balls. No metal allowed, except, apparently, this one.',
+    goal: 'Evict the gremlin quota before your last ball drains.',
     control:
-      'Drag anywhere to move the magnet. Hold to apply force; release to coast. Tap PULL / PUSH (Space) to flip polarity.',
+      'Left half of the screen is the left flipper, right half the right one: two thumbs. Hold both to fire the magnet. Swipe up to nudge. Tap to launch. Keys: Z or ← flips left, / or → flips right, Space launches, Shift or ↑ nudges. Mouse: click the left or right half.',
     avoid:
-      'Mint circles go left; gold diamonds go right. Wrong colors bounce back and break your chain. Push pink gunk into the bottom vent. Momentum matters.',
-    cue: 'Drag magnet · hold = force · release = coast · Space flips polarity'
+      'The gap between the flippers and the two outer lanes are drains. Nudge too often and it tilts. The magnet overheats after about a second, then needs a few to cool.',
+    cue: 'Left half · right half · hold both = magnet · swipe up = nudge'
   },
   tierNotes: [
-    '105s · two ports · gentle drift · hints on',
-    '120s · thieves · overheat · repulsor walls',
-    '135s · port swaps · splitting gunk · tight ports'
+    '150s · three gremlin bumpers · kickbacks · long ball save',
+    '180s · drop targets · faster ball · meaner outlanes',
+    '210s · boss bumper · multiball · no kickbacks'
   ],
+  shiftName: 'BALL',
   init() {
-    const lv = MAGNET_LEVELS[mini.tier];
-    initArcadeRun(lv.limit);
-    mini.goal = lv.goal;
-    mini.magnet = { x: 300, y: 360, on: false, mode: 1 };
-    mini.sortErrors = 0;
-    mini.orbs = [];
-    mini.orbSerial = 0;
-    mini.magnetThieves = [];
-    mini.magnetPickups = [];
-    mini.magnetPops = [];
-    mini.magnetHeat = 0;
-    mini.magnetHot = false;
-    mini.magnetSurge = 0;
-    mini.magnetChain = 0;
-    mini.magnetChainT = 0;
-    mini.magnetBestChain = 0;
-    mini.magnetSwap = false;
-    mini.magnetSwapAt = lv.swap ? 45 : Infinity;
-    mini.magnetSwapWarned = false;
-    mini.magnetBarrierPhase = 0;
-    mini.magnetThiefT = 7;
-    mini.magnetPickT = 13;
-    mini.magnetPulse = [0, 0];
-    mini.magnetVentPulse = 0;
-    mini.magnetStolen = 0;
-    mini.magnetFlushed = 0;
-    mini.magnetGunkVented = 0;
-    mini.magnetSplits = 0;
-    mini.magnetEverOn = false;
-    mini.magnetLastTouched = null;
-    mini.magnetWallCool = 0;
-    for (let i = 0; i < lv.start; i++) spawnOrb(false, i);
+    initArcadeRun(MAGNET_LEVELS[mini.tier].limit);
+    magnetInit();
   },
   controls() {
     setControls([
-      {
-        id: 'polarity',
-        text: mini.magnet.mode === 1 ? 'PULL → switch to PUSH' : 'PUSH → switch to PULL',
-        key: 'Space',
-        hot: true
-      }
+      { id: 'left', text: '◀ LEFT', key: 'Z' },
+      { id: 'right', text: 'RIGHT ▶', key: '/' }
     ]);
   },
   update(dt) {
-    updateArcade(dt, updateMagnet);
+    updateArcade(dt, magnetUpdate);
   },
   draw(g) {
-    arcadeBackdrop(g, '#214a63', '#7dbddb22', 'MRI / MAGNETIC SORTER');
     magnetDraw(g);
   },
-  down(p) {
-    Object.assign(mini.magnet, { x: p.x, y: p.y, on: true });
-    mini.magnetEverOn = true;
+  overlay(g) {
+    paintTransition(g);
   },
-  move(p) {
-    Object.assign(mini.magnet, { x: p.x, y: p.y });
-  },
-  up() {
-    if (mini.magnet) mini.magnet.on = false;
+  // Every finger on the canvas, two at once included.
+  touch(kind, p, id) {
+    if (kind === 'down') magnetTouchDown(p, id);
+    else if (kind === 'move') magnetTouchMove(p, id);
+    else magnetTouchUp(id, kind === 'cancel');
   },
   action(a) {
-    if (a === 'polarity') {
-      mini.magnet.mode *= -1;
-      MAGNET.controls();
-      sfx(mini.magnet.mode === 1 ? 'pump' : 'shield');
+    if (a !== 'left' && a !== 'right') return;
+    const side = a === 'left' ? 0 : 1,
+      last = mini.pinBtnLast;
+    mini.pinBtnLast = null;
+    const held = last && last.side === side && mini.pinButtons[last.id] === side ? last.id : null;
+    if (magnetWaiting()) {
+      // A held button pulls the plunger until it lifts; a click with no press to follow fires now.
+      if (held !== null) magnetPullStart('button', held);
+      else magnetLaunch(MAGNET_TAP_POWER);
+      return;
     }
+    mini.pinTapT[side] = 0.16;
   },
   assist() {
-    mini.slow = 5;
-    mini.orbs = mini.orbs.filter(o => !o.bad);
-    for (const th of mini.magnetThieves) magnetStun(th, 3);
-    mini.magnetHeat = 0;
-    mini.magnetHot = false;
+    mini.pinSave = Math.max(mini.pinSave, 12);
+    mini.pinHeat = 0;
+    mini.pinHot = false;
+    mini.pinTilt = 0;
+    mini.pinTilted = false;
+    sfx('shield');
+    magnetSay('BALL SAVE ARMED · 12 S · MAGNET COOLED', 2.2, '#a8f0ff');
     mini.flash = 1;
-    mini.flashText = 'FIELD STABILIZED · GUNK GONE · GREMLINS DAZED';
+    mini.flashText = 'BALL SAVE ARMED · MAGNET COOLED';
   },
   key(k, e) {
-    if (e.repeat) return true;
-    if (k === ' ') miniAction('polarity');
-    return true;
+    if (['arrowleft', 'z', 'arrowright', '/'].includes(k)) {
+      e.preventDefault();
+      keys.add(k);
+      return true;
+    }
+    if (k === ' ') {
+      e.preventDefault();
+      keys.add(' ');
+      if (!e.repeat && magnetWaiting()) magnetPullStart('key', ' ');
+      return true;
+    }
+    if (k === 'shift' || k === 'arrowup') {
+      e.preventDefault();
+      if (!e.repeat) magnetNudge();
+      return true;
+    }
+    return false;
   },
+  shiftLevel: () => Math.min(2, mini.pinBallNo || 0),
   shiftMessage(shift) {
-    const lv = MAGNET_LEVELS[mini.tier];
-    if (!lv.walls)
-      return shift === 1
-        ? 'SHIFT 2 · currents kick in and pink gunk arrives. Vent it.'
-        : 'SHIFT 3 · stronger currents. Keep sorting.';
-    const share = lv.mix[shift][0],
-      mix = share > 0.55 ? 'Mostly mint now.' : share < 0.45 ? 'Gold rush incoming.' : 'Even mix, extra gunk.';
-    return shift === 1
-      ? 'SHIFT 2 · repulsor walls on, barrier patrolling. ' + mix
-      : 'FINAL SHIFT · barrier sped up. ' + mix + (lv.swap ? ' Ports keep swapping.' : '');
+    return shift === 2
+      ? 'FINAL BALL · make it count. Hold both flippers to save a drain.'
+      : 'BALL 2 · tap to launch. Flip early, the ball is quicker than it looks.';
+  },
+  timeUp() {
+    const met = mini.got >= mini.goal;
+    if (met) magnetBankBonus();
+    finishMini(
+      met,
+      met
+        ? undefined
+        : 'Scan time is up and the gremlins still have the lease. Keep the ball in the bore, and hold both flippers to save a drain.'
+    );
   },
   lesson() {
     const i = MAGNET.info,
+      lv = MAGNET_LEVELS[mini.tier],
       extra = [
-        ' Level 1 shows hints on the board. Take your time.',
-        ' New: gremlin thieves drag nutrients to the vent. Hold the field on one until it drops the goods, then shove it down the vent for a bonus. Holding force over 3 seconds overheats the magnet, so let go to cool. Grab a surge bolt for double reach. Sort within 2 seconds of the last one to chain points.',
-        ' New: the ports swap sides with a 2 second warning. Shove gunk too hard and it splits in two. Thieves travel in pairs.'
+        ' Kickbacks guard both outer lanes and every ball starts with a long ball save. Gremlins take 3 hits.',
+        ' New: drop targets on the right. Knock all three down and every gremlin takes a hit. Gremlins take 4 hits, the ball is quicker, and the outer lanes are wider.',
+        ' New: Clank, a boss gremlin in a metal bucket, slides across the top and counts for three. Clear the drop targets or ride the scan ramp three times for multiball. No kickbacks.'
       ][mini.tier];
     return {
-      title: i.game + ' · ' + mini.limit + ' second shift',
-      goal: i.goal + ' Target: ' + mini.goal + '.',
+      title: i.game + ' · 3 balls · ' + lv.limit + ' s',
+      goal: 'Evict ' + mini.goal + ' gremlins before your last ball drains.' + extra,
       control: i.control,
-      avoid: i.avoid + extra,
+      avoid: i.avoid,
       demo: 'magnet',
       cue: i.cue
     };
   },
-  statLabel: () => 'SORTED / SHIFT',
-  stat: () => mini.got + '/' + mini.goal + ' · ' + (mini.shift + 1) + '/3',
+  statLabel: () => 'EVICTED / BALL',
+  stat: () => mini.got + '/' + mini.goal + ' · ' + Math.min(3, (mini.pinBallNo || 0) + 1) + '/3',
+  livesLabel: () => 'BALLS',
+  lives: () => {
+    const left = clamp((mini.pinSpare || 0) + (mini.pinOver ? 0 : 1), 0, 3);
+    return ('● '.repeat(left) + '○ '.repeat(3 - left)).trim();
+  },
   tactics: () =>
-    'SCORE ' +
-    mini.score +
-    ' · BEST CHAIN ×' +
-    mini.magnetBestChain +
-    (mini.tier ? ' · FLUSHED ' + mini.magnetFlushed : '') +
-    ' · ' +
-    mini.helps +
-    ' ASSISTS',
-  assistText: () => 'STABILIZE · ' + mini.helps + ' (E)',
-  // Wrong-port bounces cost a little style; long chains and flushed thieves earn some back.
-  quality: () =>
-    arcadeQuality(
-      (mini.sortErrors || 0) * 1.2 - Math.min(6, mini.magnetBestChain || 0) - Math.min(4, mini.magnetFlushed || 0)
-    ),
+    `SCORE ${mini.score} · ×${mini.pinMult} · ${mini.pinRamps} SCANS · MAGNET ${mini.pinHot ? 'HOT' : Math.round((1 - mini.pinHeat) * 100) + '%'}` +
+    (mini.pinTilted ? ' · TILT' : ''),
+  assistText: () => 'BALL SAVE · ' + mini.helps + ' (E)',
+  // Quota overshoot, score against par and balls left drive the medal; drains, tilts and assists cost it.
+  quality() {
+    const lv = mini.pinLv,
+      over = clamp((mini.got / mini.goal - 1) * 30, 0, 12),
+      score = clamp(mini.score / lv.par, 0, 1.5) * 16;
+    return Math.round(
+      clamp(
+        52 + over + score + mini.pinSpare * 6 + Math.min(6, mini.pinRamps * 2) - mini.miss * 5 - mini.pinTilts * 8 - mini.helpUsed * 4,
+        0,
+        100
+      )
+    );
+  },
   onWin() {
-    if (mini.magnetFlushed > 1) return mini.magnetFlushed + ' gremlins went down the vent. Facilities has questions.';
-    if (mini.magnetBestChain >= 4) return 'Chain of ' + mini.magnetBestChain + '. The MRI is legally a sorting machine now.';
-    return undefined;
+    const n = mini.pinEvicted,
+      tail = mini.pinBossDown
+        ? ' Clank and his bucket have been escorted out. Metal is not allowed in here.'
+        : mini.pinMagSaves
+          ? ' The magnet saved ' + mini.pinMagSaves + (mini.pinMagSaves === 1 ? ' ball.' : ' balls.') + ' Radiology wants it back.'
+          : ' The MRI is legally a pinball machine now. Radiology is drafting a sign.';
+    return `Lease terminated. ${n} gremlin${n === 1 ? '' : 's'} evicted, ${mini.pinRamps} scan${mini.pinRamps === 1 ? '' : 's'}.` + tail;
+  },
+  onLose(reason) {
+    const tilted = mini.pinTilts > 0 && mini.pinTiltLost;
+    for (let i = 0; i < 70; i++)
+      gore.push({
+        x: 400 + rand(-60, 60),
+        y: 120,
+        vx: rand(-300, 300),
+        vy: rand(-240, 20),
+        size: rand(3, 9),
+        col: ['#8fd14f', '#6cb33b', '#b6ee6a', '#4f8f2c'][i % 4]
+      });
+    return {
+      gory: false,
+      medal: '☹',
+      heading: tilted ? 'TILT. TILT. TILT.' : 'DRAINED.',
+      text: tilted
+        ? 'Nudged one time too many. Swipe up only when the ball is stuck or about to drain, and leave a couple of seconds between nudges.'
+        : 'The gremlins renewed their lease. Flip when the ball reaches the fat end of the flipper, and hold both flippers to fire the magnet when it heads down the middle.'
+    };
+  },
+  // A lost run: the gremlins throw a party on the scanner and the ball sits in the drain.
+  resultArt(g) {
+    if (mini.win) return false;
+    for (const p of gore) ellipse(g, p.x, p.y, p.size * 0.7, p.size * 0.8, p.col);
+    // The drain grate on the floor beside the bed, with the ball sitting in it.
+    rr(g, 520, 172, 150, 38, 16, '#1d4252', '#7fb3c2', 2);
+    for (let i = 0; i < 5; i++) line(g, [[542 + i * 26, 182], [542 + i * 26, 200]], '#0c2430', 5);
+    magnetSteel(g, 595, 184, 14, 0.4);
+    for (const [x, t] of [
+      [250, 0],
+      [480, 1],
+      [720, 3]
+    ])
+      gremlin(g, x, 198, 1.1, t, time + x);
+    rr(g, 36, 56, 156, 40, 10, '#fff2c4', '#2b2a1e', 2);
+    label(g, 'LEASE RENEWED', 114, 82, 14, '#2b2a1e', 'center');
+    label(g, 'GAME OVER', 400, 40, 22, '#ffb347', 'center');
+    return true;
   },
   scene(g, w, h) {
-    g.save();
-    g.scale(w / 420, h / 240);
-    rect(g, 0, 0, 420, 240, gradient(g, 0, 0, 420, 240, '#336a7c', '#193b4e'));
-    for (let i = 0; i < 6; i++) {
-      const y = 88 + i * 22;
-      line(g, [[20, y], [140, y + 6], [210, y + 18 - i * 4], [280, y + 6], [400, y]], '#a7e5dd22', 2);
-    }
-    for (let i = 0; i < 6; i++) {
-      const x = 60 + i * 61,
-        y = 92 + Math.sin(i) * 32;
-      ellipse(g, x, y, 15, 15, i % 2 ? '#eaca8b' : '#a8dec0');
-    }
-    gremlin(g, 340, 205, 0.7, 2, 0.4);
-    ellipse(g, 322, 182, 10, 10, '#eaca8b');
-    line(g, [[173, 150], [173, 181], [247, 181], [247, 150]], '#b9dfd4', 16);
-    line(g, [[173, 135], [173, 151]], '#eda7b1', 16);
-    line(g, [[247, 135], [247, 151]], '#eccb89', 16);
-    label(g, MAGNET.info.game.toUpperCase(), 210, 24, 12, '#e5efd3', 'center');
-    g.restore();
+    magnetScene(g, w, h);
   }
 });
 
-function magnetLevel() {
-  return MAGNET_LEVELS[mini.tier] || MAGNET_LEVELS[0];
-}
-
-// Which orb kind a port accepts right now: 0 mint, 1 gold. Level 3 swaps them mid-shift.
-function magnetPortKind(port) {
-  return mini.magnetSwap ? 1 - port : port;
-}
-
-function magnetPower() {
-  return !!(mini.magnet && mini.magnet.on && !mini.magnetHot);
-}
-
-function magnetRadius() {
-  return MAGNET_RADIUS * (mini.magnetSurge > 0 ? 2 : 1);
-}
-
-function magnetBarrierX() {
-  return MAGNET_VENT_X + Math.sin(mini.magnetBarrierPhase) * 165;
-}
-
-function magnetBarrierOn() {
-  return magnetLevel().walls && mini.shift > 0;
-}
-
-// Level 1 lays orbs out on a gentle grid; later levels throw them in from the sides and bottom.
-function spawnOrb(bad = false, offset = 0) {
-  const lv = magnetLevel(),
-    id = mini.orbSerial++,
-    share = lv.mix[mini.shift || 0][0],
-    o = {
-      id,
-      x: 90 + ((id * 83) % 420),
-      y: 330 + (offset % 3) * 75,
-      vx: rand(-20, 20),
-      vy: rand(-15, 15),
-      kind: lv.entry ? (rand(0, 1) < share ? 0 : 1) : id % 2,
-      bad,
-      touched: false,
-      r: bad ? 20 : 19,
-      cool: 0,
-      small: false,
-      entering: false,
-      held: null,
-      trail: [],
-      trailT: 0
-    };
-  if (lv.entry) {
-    const side = Math.floor(rand(0, 3)),
-      kick = mini.rules.mini;
-    o.entering = true;
-    if (side === 2) {
-      // From the floor, either side of the vent.
-      o.x = rand(0, 1) < 0.5 ? rand(70, 215) : rand(385, 530);
-      o.y = 624;
-      o.vx = rand(-35, 35);
-      o.vy = -rand(150, 205) * kick;
-    } else {
-      o.x = side ? 626 : -26;
-      o.y = rand(270, 520);
-      o.vx = (side ? -1 : 1) * rand(125, 175) * kick;
-      o.vy = rand(-45, 30);
-    }
+// ---- Geometry helpers ----
+function magnetPath(pts) {
+  const lens = [];
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    lens.push(d);
+    total += d;
   }
-  mini.orbs.push(o);
-  return o;
+  return { pts, lens, total };
 }
 
-function magnetSpawnThief() {
-  const left = rand(0, 1) < 0.5;
-  mini.magnetThieves.push({
-    id: mini.orbSerial++,
-    x: left ? -28 : 628,
-    y: rand(380, 520),
+function magnetAlong(path, s) {
+  let left = clamp(s, 0, path.total);
+  for (let i = 0; i < path.lens.length; i++) {
+    if (left <= path.lens[i] || i === path.lens.length - 1) {
+      const u = path.lens[i] ? clamp(left / path.lens[i], 0, 1) : 1,
+        a = path.pts[i],
+        b = path.pts[i + 1];
+      return { x: a[0] + (b[0] - a[0]) * u, y: a[1] + (b[1] - a[1]) * u, dx: (b[0] - a[0]) / path.lens[i], dy: (b[1] - a[1]) / path.lens[i] };
+    }
+    left -= path.lens[i];
+  }
+  const n = path.pts.length - 1;
+  return { x: path.pts[n][0], y: path.pts[n][1], dx: 0, dy: 1 };
+}
+
+function magnetSeg(ax, ay, bx, by, o = {}) {
+  return { ax, ay, bx, by, r: 3, e: 0.45, kick: 0, tag: '', oneWay: null, ...o };
+}
+
+// The table for this level. Static colliders: segments (rails, walls, slingshots, drop targets, the
+// one-way lane gate, the ramp mouth), the dome arc, and round posts. Bumpers and flippers move.
+function magnetBuildTable(lv) {
+  const segs = [],
+    posts = [],
+    arcs = [{ cx: 200, cy: 200, R: 186, a0: Math.PI, a1: Math.PI * 2, e: 0.3 }],
+    D = lv.divider,
+    wall = (pts, o) => {
+      for (let i = 1; i < pts.length; i++) segs.push(magnetSeg(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], o));
+    };
+  // The ramp block on the upper left: its top deflects the left orbit back into play, its mouth
+  // swallows a ball that arrives fast enough and bounces a slow one back out.
+  wall([[14, 200], [14, 226], [68, 242], [66, 298]], { e: 0.4 });
+  const mouth = magnetSeg(66, 298, 14, 342, { tag: 'ramp', e: 0.3 }),
+    ml = Math.hypot(mouth.bx - mouth.ax, mouth.by - mouth.ay);
+  // Outward normal (toward the playfield): down and to the right.
+  mouth.nx = (mouth.by - mouth.ay) / ml;
+  mouth.ny = -(mouth.bx - mouth.ax) / ml;
+  segs.push(mouth);
+  wall([[14, 342], [14, 762]]);
+  // The plunger lane: outer wall, inner wall (the playfield's right wall), the one-way gate at the
+  // top and the plunger tip at the bottom.
+  wall([[386, 200], [386, 762]]);
+  wall([[350, 300], [350, 762]]);
+  segs.push(magnetSeg(386, 262, 350, 300, { oneWay: { nx: -0.726, ny: -0.688 }, e: 0.3, tag: 'gate' }));
+  segs.push(magnetSeg(350, 702, 386, 702, { e: 0.05, tag: 'tip' }));
+  // Outlane dividers, inlane guides and slingshots, mirrored about the playfield centre.
+  for (const side of [0, 1]) {
+    const X = x => (side ? 2 * MAGNET_CX - x : x);
+    posts.push({ x: X(D), y: 470, R: 5, e: 0.55 });
+    wall([[X(D), 470], [X(D), 572], [X(106), 622]], { e: 0.35 });
+    const A = [X(84), 488],
+      B = [X(84), 566],
+      C = [X(118), 594];
+    wall([A, B, C], { e: 0.5 });
+    const face = magnetSeg(C[0], C[1], A[0], A[1], { tag: 'sling', side, kick: 290, e: 0.55 }),
+      fl = Math.hypot(A[0] - C[0], A[1] - C[1]);
+    // The kicking face points into the playfield (up and inward).
+    face.nx = side ? -(A[1] - C[1]) / fl : (A[1] - C[1]) / fl;
+    face.ny = side ? (A[0] - C[0]) / fl : -(A[0] - C[0]) / fl;
+    if (face.nx * (MAGNET_CX - C[0]) < 0) {
+      face.nx *= -1;
+      face.ny *= -1;
+    }
+    segs.push(face);
+    posts.push({ x: A[0], y: A[1], R: 4, e: 0.5 }, { x: C[0], y: C[1], R: 4, e: 0.5 });
+  }
+  // Top lane guides between M, R and I.
+  for (const x of [112, 150, 188, 226]) wall([[x, 70], [x, 106]], { e: 0.5, r: 2.5 });
+  // Drop targets (level 2 up): a bank of three on the right wall.
+  if (lv.drops)
+    MAGNET_DROP_Y.forEach((y, i) => segs.push(magnetSeg(MAGNET_DROP_X, y, MAGNET_DROP_X, y + 24, { r: 4, e: 0.4, tag: 'drop', drop: i })));
+  return { segs, posts, arcs };
+}
+
+// ---- Run setup ----
+function magnetInit() {
+  const base = MAGNET_LEVELS[mini.tier] || MAGNET_LEVELS[0],
+    pace = (mini.rules && mini.rules.mini) || 1,
+    lv = {
+      ...base,
+      gravity: base.gravity * Math.sqrt(pace),
+      save: base.save + (state.difficulty === 0 ? 4 : state.difficulty === 2 ? -1 : 0),
+      heat: base.heat / Math.sqrt(pace)
+    };
+  mini.goal = lv.goal;
+  Object.assign(mini, {
+    pinLv: lv,
+    pinT: magnetBuildTable(lv),
+    pinBalls: [],
+    pinBallSerial: 0,
+    pinFlips: MAGNET_PIVOTS.map((p, side) => {
+      const rest = side ? Math.PI - MAGNET_FLIP.rest : MAGNET_FLIP.rest,
+        up = side ? Math.PI - MAGNET_FLIP.up : MAGNET_FLIP.up;
+      return { side, x: p.x, y: p.y, a: rest, w: 0, rest, up, held: false, was: false, glow: 0 };
+    }),
+    pinAcc: 0,
+    pinGrem: MAGNET_BUMPERS.map(b => ({ x: b.x, y: b.y, R: MAGNET_BUMPER_R, type: b.type, hp: lv.hp, max: lv.hp, cool: 0, flash: 0, gone: false, respawn: 0, pop: 0, boss: false })),
+    pinBoss: lv.boss
+      ? { x: MAGNET_BOSS.x, y: MAGNET_BOSS.y, vx: 0, vy: 0, R: MAGNET_BOSS.r, type: 2, hp: 10, max: 10, cool: 0, flash: 0, gone: false, respawn: 0, pop: 0, boss: true, phase: 0 }
+      : null,
+    pinLit: [false, false, false],
+    pinLitFlash: 0,
+    pinMult: 1,
+    pinDrops: lv.drops ? [0, 1, 2].map(() => ({ up: true, flash: 0 })) : null,
+    pinDropReset: 0,
+    pinKick: [lv.kick !== 'none', lv.kick !== 'none'],
+    pinKickT: [0, 0],
+    pinKickFlash: [0, 0],
+    pinSlingFlash: [0, 0],
+    pinBallNo: 0,
+    pinSpare: 2,
+    pinOver: false,
+    pinSave: 0,
+    pinHeat: 0,
+    pinHot: false,
+    pinMagOn: false,
+    pinBothT: 0,
+    pinMagUses: 0,
+    pinMagSaves: 0,
+    pinTilt: 0,
+    pinTilted: false,
+    pinTilts: 0,
+    pinTiltLost: false,
+    pinNudgeCd: 0,
+    pinNudges: 0,
+    pinPull: null,
+    pinTouches: {},
+    pinButtons: {},
+    pinBtnLast: null,
+    pinTapT: [0, 0],
+    pinUsedFlip: [false, false],
+    pinRamps: 0,
+    pinRampCount: 0,
+    pinRampCombo: 0,
+    pinBanks: 0,
+    pinEvicted: 0,
+    pinBossDown: false,
+    pinMulti: false,
+    pinAuto: 0,
+    pinWait: 0,
+    pinSkill: null,
+    pinSkills: 0,
+    pinCleared: false,
+    pinLapT: 0,
+    pinDrains: 0,
+    pinShake: 0,
+    pinPops: [],
+    pinFx: [],
+    pinSplats: [],
+    pinMsg: null,
+    pinBanked: false
+  });
+  magnetServe(false);
+}
+
+// A new ball in the plunger lane. auto: launch it by itself (ball saves and multiball).
+function magnetServe(auto) {
+  const b = {
+    id: mini.pinBallSerial++,
+    x: MAGNET_LANE.x,
+    y: MAGNET_LANE.y,
     vx: 0,
     vy: 0,
-    dir: left ? 1 : -1,
-    state: 'seek',
-    t: 0,
-    target: null,
-    zap: 0,
-    entering: true,
-    bob: rand(0, 6)
-  });
-  sfx('trap');
+    state: 'plunger',
+    spin: 0,
+    rs: 0,
+    still: 0,
+    fresh: !auto,
+    low: false
+  };
+  mini.pinBalls.push(b);
+  mini.pinWait = 0;
+  if (auto) mini.pinAuto = Math.max(mini.pinAuto, 0.6);
+  else mini.pinSkill = { lane: Math.floor(rand(0, 3)), t: 0, armed: false };
+  return b;
 }
 
-// Any held field jolts a gremlin. A dragging thief drops what it was carrying.
-function magnetStun(th, seconds = 1.6) {
-  if (th.state === 'drag') {
-    const o = mini.orbs.find(o => o.held === th.id);
-    if (o) {
-      o.held = null;
-      o.vx = th.vx * 0.6;
-      o.vy = th.vy * 0.6 - 70;
-      o.cool = 0;
-    }
-    mini.flash = 0.7;
-    mini.flashText = 'GREMLIN DROPPED IT · NOW SHOVE IT IN THE VENT';
+// ---- Input ----
+// A ball in motion: on the playfield, riding the ramp, or hopping out of an outlane.
+function magnetLive(b) {
+  return b.state === 'play' || b.state === 'ramp' || b.state === 'hop';
+}
+
+function magnetWaiting() {
+  return mini.screen === 'play' && mini.pinAuto <= 0 && mini.pinBalls.some(b => b.state === 'plunger') && !mini.pinBalls.some(magnetLive);
+}
+
+function magnetSide(p) {
+  return p.x < activeCanvas().w / 2 ? 0 : 1;
+}
+
+function magnetTouchDown(p, id) {
+  const t = { side: magnetSide(p), hist: [{ x: p.x, y: p.y, t: mini.total }], plunger: false, nudged: false };
+  if (magnetWaiting()) {
+    t.plunger = true;
+    magnetPullStart('touch', id);
   }
-  if (th.state !== 'stun') sfx('stun');
-  th.state = 'stun';
-  th.t = Math.max(th.t, seconds);
-  th.zap = 0;
-  th.target = null;
+  mini.pinTouches[id] = t;
 }
 
-function magnetPop(x, y, text, col) {
-  mini.magnetPops.push({ x, y, text, col, life: 1 });
-}
-
-// Pushes a circle out of a capsule-shaped segment and reflects it. Returns true on contact.
-function magnetSegmentHit(o, a, b, bounce, kick, wallVx = 0) {
-  const ex = b[0] - a[0],
-    ey = b[1] - a[1],
-    t = clamp(((o.x - a[0]) * ex + (o.y - a[1]) * ey) / (ex * ex + ey * ey), 0, 1),
-    px = a[0] + ex * t,
-    py = a[1] + ey * t,
-    dx = o.x - px,
-    dy = o.y - py,
-    d = Math.hypot(dx, dy) || 0.001,
-    reach = o.r + 7;
-  if (d >= reach) return false;
-  const nx = dx / d,
-    ny = dy / d;
-  o.x = px + nx * reach;
-  o.y = py + ny * reach;
-  const vn = (o.vx - wallVx) * nx + o.vy * ny;
-  if (vn < 0) {
-    o.vx -= (1 + bounce) * vn * nx;
-    o.vy -= (1 + bounce) * vn * ny;
+// A quick upward swipe nudges, once per touch.
+function magnetTouchMove(p, id) {
+  const t = mini.pinTouches[id];
+  if (!t) return;
+  t.hist.push({ x: p.x, y: p.y, t: mini.total });
+  while (t.hist.length > 2 && mini.total - t.hist[0].t > 0.22) t.hist.shift();
+  const o = t.hist[0],
+    dy = o.y - p.y,
+    dx = Math.abs(p.x - o.x);
+  if (!t.nudged && dy >= 40 && dy > dx * 1.2) {
+    t.nudged = true;
+    magnetNudge();
   }
-  o.vx += nx * kick;
-  o.vy += ny * kick;
+}
+
+function magnetTouchUp(id, cancel) {
+  const t = mini.pinTouches[id];
+  delete mini.pinTouches[id];
+  if (!t || !t.plunger) return;
+  const pull = mini.pinPull;
+  if (!pull || pull.src !== 'touch' || pull.id !== id) return;
+  if (cancel) mini.pinPull = null;
+  else magnetPullRelease();
+}
+
+function magnetPullStart(src, id) {
+  if (!magnetWaiting()) return;
+  mini.pinPull = { src, id, t: 0 };
+  sfx('pump');
+}
+
+// Power rises from a quick tap's to full over about two thirds of a second.
+function magnetPullPower() {
+  const p = mini.pinPull;
+  return p ? clamp(MAGNET_TAP_POWER + (p.t / 0.65) * (1 - MAGNET_TAP_POWER), MAGNET_TAP_POWER, 1) : 0;
+}
+
+function magnetPullRelease() {
+  const power = magnetPullPower();
+  mini.pinPull = null;
+  magnetLaunch(power);
+}
+
+function magnetLaunch(power) {
+  const b = mini.pinBalls.find(b => b.state === 'plunger');
+  if (!b) return false;
+  b.state = 'play';
+  b.x = MAGNET_LANE.x;
+  b.y = MAGNET_LANE.y;
+  b.vx = 0;
+  b.vy = -(990 + 170 * clamp(power, 0, 1));
+  b.still = 0;
+  mini.pinWait = 0;
+  if (b.fresh) {
+    mini.pinSave = Math.max(mini.pinSave, mini.pinLv.save);
+    b.fresh = false;
+    if (mini.pinSkill) mini.pinSkill.armed = true;
+  }
+  sfx('shot', { pan: 0.7 });
   return true;
 }
 
-// Soft outward field near a repulsor, so orbs feel the wall before they hit it.
-function magnetRepel(o, a, b, dt) {
-  const ex = b[0] - a[0],
-    ey = b[1] - a[1],
-    t = clamp(((o.x - a[0]) * ex + (o.y - a[1]) * ey) / (ex * ex + ey * ey), 0, 1),
-    dx = o.x - (a[0] + ex * t),
-    dy = o.y - (a[1] + ey * t),
-    d = Math.hypot(dx, dy) || 0.001,
-    edge = o.r + 7;
-  if (d > edge + 30 || d < edge) return;
-  const f = (1 - (d - edge) / 30) * 420;
-  o.vx += (dx / d) * f * dt;
-  o.vy += (dy / d) * f * dt;
-}
-
-function magnetSorted(o, port) {
-  o.dead = true;
-  mini.got++;
-  mini.magnetChain = mini.magnetChainT > 0 ? mini.magnetChain + 1 : 1;
-  mini.magnetChainT = MAGNET_CHAIN_WINDOW;
-  mini.magnetBestChain = Math.max(mini.magnetBestChain, mini.magnetChain);
-  const mult = Math.min(5, mini.magnetChain);
-  praise(140 * mult, 1);
-  mini.magnetPulse[port] = 0.6;
-  arcadeBurst(o.x, o.y, magnetPortKind(port) ? '#ffe09b' : '#b5e8c5');
-  if (mult > 1) {
-    magnetPop(o.x, 130, 'CHAIN ×' + mult, '#ffe5a8');
-    sfx('combo', { count: mult });
-  } else sfx('catch');
-}
-
-function magnetWrongPort(o) {
-  mini.sortErrors++;
-  mini.combo = 0;
-  mini.magnetChain = 0;
-  mini.magnetChainT = 0;
-  mini.flash = 0.8;
-  mini.flashText = 'WRONG COLOR · BOUNCED BACK · CHAIN BROKEN';
-  o.y = 112;
-  o.vy = 150;
-  o.vx = (300 - o.x) * 0.7;
-  o.cool = 1.2;
-  sfx('bounce');
-}
-
-function magnetSplit(o, born) {
-  o.dead = true;
-  mini.magnetSplits++;
-  const a = Math.atan2(o.vy, o.vx),
-    s = Math.hypot(o.vx, o.vy) * 0.75;
-  for (const side of [-1, 1]) {
-    const b = a + side * 0.6;
-    born.push({
-      id: mini.orbSerial++,
-      x: o.x - Math.sin(a) * side * 11,
-      y: o.y + Math.cos(a) * side * 11,
-      vx: Math.cos(b) * s,
-      vy: Math.sin(b) * s,
-      kind: 0,
-      bad: true,
-      touched: true,
-      r: 13,
-      cool: 0,
-      small: true,
-      entering: false,
-      held: null,
-      trail: [],
-      trailT: 0
-    });
+// Button presses: the framework reports the press (action) but not the release, so this capture
+// listener follows LEFT and RIGHT pointers until they lift. Two held buttons work at once.
+function magnetButtonEvent(e) {
+  if (!mini.open || mini.screen !== 'play' || miniGame() !== MAGNET || !mini.pinButtons) return;
+  if (e.type === 'pointerdown') {
+    const b = e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-action]') : null;
+    if (!b || !b.closest('#miniControls') || mini.paused) return;
+    const a = b.dataset.action;
+    if (a !== 'left' && a !== 'right') return;
+    const side = a === 'left' ? 0 : 1;
+    mini.pinButtons[e.pointerId] = side;
+    mini.pinBtnLast = { side, id: e.pointerId };
+    return;
   }
-  arcadeBurst(o.x, o.y, '#ed8daf', 6);
-  mini.flash = 0.7;
-  mini.flashText = 'GUNK SPLIT. CONGRATULATIONS, THERE ARE TWO.';
-  sfx('split');
+  if (!(e.pointerId in mini.pinButtons)) return;
+  delete mini.pinButtons[e.pointerId];
+  const pull = mini.pinPull;
+  if (pull && pull.src === 'button' && pull.id === e.pointerId) {
+    if (e.type === 'pointerup') magnetPullRelease();
+    else mini.pinPull = null;
+  }
 }
 
-function updateMagnet(dt) {
-  const m = mini.magnet,
-    lv = magnetLevel(),
-    rate = mini.slow > 0 ? 0.55 : 1,
-    gate = lv.gate;
-  // Timers.
-  mini.magnetChainT = Math.max(0, mini.magnetChainT - dt);
-  if (mini.magnetChainT <= 0) mini.magnetChain = 0;
-  mini.magnetSurge = Math.max(0, mini.magnetSurge - dt);
-  mini.magnetVentPulse = Math.max(0, mini.magnetVentPulse - dt);
-  mini.magnetWallCool = Math.max(0, mini.magnetWallCool - dt);
-  for (let i = 0; i < 2; i++) mini.magnetPulse[i] = Math.max(0, mini.magnetPulse[i] - dt);
-  for (const p of mini.magnetPops) {
-    p.life -= dt;
-    p.y -= 30 * dt;
+for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'lostpointercapture'])
+  window.addEventListener(type, magnetButtonEvent, true);
+
+// Held presses never survive a pause; resuming would otherwise flip for a finger that has lifted.
+function magnetDropHeld() {
+  mini.pinTouches = {};
+  mini.pinButtons = {};
+  mini.pinBtnLast = null;
+  mini.pinPull = null;
+  mini.pinTapT = [0, 0];
+}
+
+function magnetHeld(side) {
+  if (mini.pinTilted) return false;
+  const keyed = side ? keys.has('arrowright') || keys.has('/') : keys.has('arrowleft') || keys.has('z');
+  if (keyed || mini.pinTapT[side] > 0) return true;
+  for (const id in mini.pinTouches) if (mini.pinTouches[id].side === side && !mini.pinTouches[id].plunger) return true;
+  for (const id in mini.pinButtons) if (mini.pinButtons[id] === side && !(mini.pinPull && mini.pinPull.id === +id)) return true;
+  return false;
+}
+
+function magnetNudge() {
+  if (mini.screen !== 'play' || mini.pinNudgeCd > 0) return;
+  mini.pinNudgeCd = 0.3;
+  const live = mini.pinBalls.filter(b => b.state === 'play');
+  if (!live.length || mini.pinTilted) return;
+  mini.pinNudges++;
+  mini.pinTilt += 0.4;
+  for (const b of live) {
+    b.vy -= 210;
+    b.vx += rand(-50, 50);
   }
-  mini.magnetPops = mini.magnetPops.filter(p => p.life > 0);
-  // Overheat: about three seconds of continuous force. Only letting go cools the coil.
-  if (lv.heat) {
-    if (m.on && !mini.magnetHot) mini.magnetHeat += dt / lv.heat;
-    else if (!m.on) mini.magnetHeat = Math.max(0, mini.magnetHeat - dt / 1.5);
-    if (!mini.magnetHot && mini.magnetHeat >= 1) {
-      mini.magnetHeat = 1;
-      mini.magnetHot = true;
-      mini.flash = 0.9;
-      mini.flashText = 'MAGNET OVERHEATED · LET GO TO COOL IT';
+  mini.pinShake = Math.max(mini.pinShake, 0.7);
+  sfx('jump', { vol: 0.8 });
+  if (mini.pinTilt >= 1) {
+    mini.pinTilted = true;
+    mini.pinTilts++;
+    mini.pinMagOn = false;
+    sfx('hurt');
+    magnetSay('TILT · FLIPPERS OFF UNTIL IT DRAINS', 3, '#ff8a7a');
+  } else if (mini.pinTilt >= 0.66) magnetSay('DANGER · EASE OFF THE NUDGES', 1.4, '#ffb0a0');
+}
+
+// ---- Simulation ----
+function magnetUpdate(dt) {
+  const lv = mini.pinLv;
+  for (const side of [0, 1]) mini.pinTapT[side] = Math.max(0, mini.pinTapT[side] - dt);
+  // The plunger: a held key pulls until Space lifts.
+  const pull = mini.pinPull;
+  if (pull) {
+    if (!magnetWaiting()) mini.pinPull = null;
+    else {
+      pull.t += dt;
+      if (pull.src === 'key' && !keys.has(' ')) magnetPullRelease();
+    }
+  }
+  // Flippers follow their inputs; a fresh press rotates the lit M-R-I lanes like a real table.
+  for (const f of mini.pinFlips) {
+    f.held = magnetHeld(f.side);
+    if (f.held && !f.was) {
+      mini.pinUsedFlip[f.side] = true;
+      sfx('swing', { vol: 0.45, pan: f.side ? 0.4 : -0.4 });
+      if (!magnetWaiting()) magnetRotateLanes(f.side ? 1 : -1);
+    }
+    f.was = f.held;
+    f.glow = f.held ? 1 : Math.max(0, f.glow - dt * 6);
+  }
+  magnetUpdateMagnet(dt);
+  mini.pinAcc = Math.min(mini.pinAcc + dt, 0.25);
+  while (mini.pinAcc >= MAGNET_STEP - 1e-9) {
+    mini.pinAcc -= MAGNET_STEP;
+    magnetStep(MAGNET_STEP);
+    if (mini.screen !== 'play') return;
+  }
+  magnetTimers(dt, lv);
+}
+
+function magnetUpdateMagnet(dt) {
+  const lv = mini.pinLv,
+    both = mini.pinFlips[0].held && mini.pinFlips[1].held,
+    live = mini.pinBalls.some(b => b.state === 'play');
+  mini.pinBothT = both ? mini.pinBothT + dt : 0;
+  const want = mini.pinBothT >= MAGNET_ARM && live && !mini.pinTilted;
+  if (want && !mini.pinHot) {
+    if (!mini.pinMagOn) {
+      mini.pinMagUses++;
+      sfx('powerup', { vol: 0.8 });
+      for (const b of mini.pinBalls) if (b.state === 'play') b.low = b.y > 560 && b.vy > 0;
+    }
+    mini.pinMagOn = true;
+    mini.pinHeat += dt / lv.heat;
+    if (mini.pinHeat >= 1) {
+      mini.pinHeat = 1;
+      mini.pinHot = true;
+      mini.pinMagOn = false;
       sfx('stun');
+      magnetSay('MAGNET OVERHEATED · LET GO TO COOL', 1.8, '#ffb0a0');
     }
-    if (mini.magnetHot && mini.magnetHeat <= 0.3) {
-      mini.magnetHot = false;
-      sfx('reload');
-    }
-  }
-  // Level 3 port swap, telegraphed two seconds ahead.
-  if (lv.swap) {
-    if (!mini.magnetSwapWarned && mini.phaseTime >= mini.magnetSwapAt - 2) {
-      mini.magnetSwapWarned = true;
-      mini.flash = 1.2;
-      mini.flashText = 'PORTS SWAP IN 2 SECONDS';
-      sfx('wave');
-    }
-    if (mini.phaseTime >= mini.magnetSwapAt) {
-      mini.magnetSwap = !mini.magnetSwap;
-      mini.magnetSwapAt += 30;
-      mini.magnetSwapWarned = false;
-      mini.magnetPulse = [0.6, 0.6];
-      mini.flash = 1;
-      mini.flashText = mini.magnetSwap ? 'SWAPPED · MINT RIGHT, GOLD LEFT' : 'SWAPPED BACK · MINT LEFT, GOLD RIGHT';
-      sfx('lock');
-    }
-  }
-  const barrier = magnetBarrierOn(),
-    omega = barrier ? (mini.shift === 2 ? 0.85 : 0.55) * mini.rules.speed : 0;
-  mini.magnetBarrierPhase += omega * dt * rate;
-  const bx = magnetBarrierX(),
-    bvx = Math.cos(mini.magnetBarrierPhase) * 165 * omega,
-    power = magnetPower(),
-    radius = magnetRadius();
-  // Surge pickups.
-  if (lv.surge) {
-    mini.magnetPickT -= dt;
-    if (mini.magnetPickT <= 0 && !mini.magnetPickups.length) {
-      mini.magnetPickups.push({ x: rand(150, 450), y: rand(240, 450), life: 9 });
-      mini.magnetPickT = rand(15, 21);
-    }
-    for (const p of mini.magnetPickups) {
-      p.life -= dt;
-      if (m.on && dist(m, p) < 38) {
-        p.life = 0;
-        mini.magnetSurge = 5;
-        mini.flash = 0.9;
-        mini.flashText = 'SURGE · DOUBLE REACH FOR 5 SECONDS';
-        sfx('powerup');
+  } else {
+    mini.pinMagOn = false;
+    if (!want) {
+      mini.pinHeat = Math.max(0, mini.pinHeat - dt / lv.cool);
+      if (mini.pinHot && mini.pinHeat <= 0.2) {
+        mini.pinHot = false;
+        magnetSay('MAGNET READY', 1, '#a8f0ff');
       }
     }
-    mini.magnetPickups = mini.magnetPickups.filter(p => p.life > 0);
   }
-  // Thief arrivals.
-  const thiefCap = lv.thieves[mini.shift];
-  if (thiefCap) {
-    mini.magnetThiefT -= dt;
-    if (mini.magnetThiefT <= 0) {
-      if (mini.magnetThieves.length < thiefCap) magnetSpawnThief();
-      mini.magnetThiefT = rand(9, 13) / mini.rules.speed;
+}
+
+function magnetStep(h) {
+  for (const f of mini.pinFlips) magnetFlipStep(f, h);
+  const boss = mini.pinBoss;
+  if (boss) {
+    boss.phase += h;
+    const w = (Math.PI * 2) / MAGNET_BOSS.period,
+      nx = MAGNET_BOSS.x + Math.sin(boss.phase * w) * MAGNET_BOSS.swing;
+    boss.vx = (nx - boss.x) / h;
+    boss.x = nx;
+  }
+  for (const b of mini.pinBalls.slice()) {
+    if (b.state === 'play') magnetBallStep(b, h);
+    else if (b.state === 'ramp') magnetRampStep(b, h);
+    else if (b.state === 'hop') magnetHopStep(b, h);
+    if (mini.screen !== 'play') return;
+  }
+  magnetBallPairs();
+}
+
+function magnetFlipStep(f, h) {
+  const target = f.held ? f.up : f.rest,
+    gap = target - f.a;
+  if (!gap) {
+    f.w = 0;
+    return;
+  }
+  const speed = f.held ? MAGNET_FLIP.wUp : MAGNET_FLIP.wDown,
+    step = speed * h;
+  if (Math.abs(gap) <= step) {
+    f.w = gap / h;
+    f.a = target;
+  } else {
+    f.w = Math.sign(gap) * speed;
+    f.a += Math.sign(gap) * step;
+  }
+}
+
+function magnetTip(f) {
+  return { x: f.x + Math.cos(f.a) * MAGNET_FLIP.len, y: f.y + Math.sin(f.a) * MAGNET_FLIP.len };
+}
+
+function magnetBallStep(b, h) {
+  const lv = mini.pinLv;
+  let ax = 0,
+    ay = lv.gravity;
+  if (mini.pinMagOn) {
+    // Toward the bore, mostly straight up: a ball deep in an outlane rises up the lane instead of
+    // pinning itself under the inlane rail.
+    const dx = (MAGNET_BORE.x - b.x) * 0.35,
+      dy = MAGNET_BORE.y - b.y,
+      d = Math.hypot(dx, dy) || 1;
+    if (Math.abs(dy) > 24) {
+      ax += (dx / d) * MAGNET_PULL;
+      ay += (dy / d) * MAGNET_PULL;
+    }
+    const damp = Math.exp(-MAGNET_BRAKE * h);
+    b.vx *= damp;
+    b.vy *= damp;
+  }
+  b.vx += ax * h;
+  b.vy += ay * h;
+  const drag = 1 - 0.05 * h;
+  b.vx *= drag;
+  b.vy *= drag;
+  const px = b.x,
+    py = b.y;
+  b.x += b.vx * h;
+  b.y += b.vy * h;
+  const T = mini.pinT;
+  for (const s of T.segs) {
+    if (s.drop !== undefined && !mini.pinDrops[s.drop].up) continue;
+    if (magnetHitSeg(b, s) && b.state !== 'play') return;
+  }
+  for (const a of T.arcs) magnetHitArc(b, a);
+  for (const p of T.posts) magnetHitPost(b, p);
+  for (const gr of mini.pinGrem) if (!gr.gone) magnetHitBumper(b, gr);
+  if (mini.pinBoss && !mini.pinBoss.gone) magnetHitBumper(b, mini.pinBoss);
+  for (const f of mini.pinFlips) magnetHitFlipper(b, f);
+  let sp = Math.hypot(b.vx, b.vy);
+  if (sp > MAGNET_VMAX) {
+    b.vx *= MAGNET_VMAX / sp;
+    b.vy *= MAGNET_VMAX / sp;
+    sp = MAGNET_VMAX;
+  }
+  b.spin += (sp * h) / MAGNET_BALL;
+  magnetSensors(b, px, py, h, sp);
+}
+
+// Moves the ball out of a contact and reflects its velocity relative to the surface (vcx, vcy is
+// the surface's own velocity). Slow contacts neither bounce nor scrub speed, so a ball rolls along
+// a rail or a flipper instead of sticking to it. Returns the impact speed.
+function magnetResolve(b, nx, ny, pen, e, vcx = 0, vcy = 0, fr = 0.015) {
+  b.x += nx * pen;
+  b.y += ny * pen;
+  const rvx = b.vx - vcx,
+    rvy = b.vy - vcy,
+    vn = rvx * nx + rvy * ny;
+  if (vn >= 0) return 0;
+  const hard = -vn >= 35,
+    ee = hard ? e : 0,
+    keep = hard ? 1 - fr : 1,
+    tx = rvx - vn * nx,
+    ty = rvy - vn * ny;
+  b.vx = vcx + tx * keep - ee * vn * nx;
+  b.vy = vcy + ty * keep - ee * vn * ny;
+  return -vn;
+}
+
+function magnetHitSeg(b, s) {
+  const dx = s.bx - s.ax,
+    dy = s.by - s.ay,
+    L2 = dx * dx + dy * dy,
+    u = clamp(((b.x - s.ax) * dx + (b.y - s.ay) * dy) / L2, 0, 1),
+    cx = s.ax + dx * u,
+    cy = s.ay + dy * u,
+    rad = MAGNET_BALL + s.r;
+  let nx = b.x - cx,
+    ny = b.y - cy;
+  const d2 = nx * nx + ny * ny;
+  if (d2 >= rad * rad) return false;
+  const d = Math.sqrt(d2);
+  if (d < 1e-6) {
+    const L = Math.sqrt(L2);
+    nx = -dy / L;
+    ny = dx / L;
+  } else {
+    nx /= d;
+    ny /= d;
+  }
+  if (s.oneWay) {
+    const o = s.oneWay;
+    if ((b.x - s.ax) * o.nx + (b.y - s.ay) * o.ny < 0 || b.vx * o.nx + b.vy * o.ny >= 0) return false;
+  }
+  if (s.tag === 'ramp' && nx * s.nx + ny * s.ny > 0) {
+    const inward = -(b.vx * s.nx + b.vy * s.ny);
+    if (inward >= MAGNET_RAMP_MIN && !mini.pinTilted) {
+      magnetRampEnter(b);
+      return true;
     }
   }
-  const born = [];
-  for (const o of mini.orbs) {
-    o.cool = Math.max(0, o.cool - dt);
-    o.trail ??= [];
-    o.trailT = (o.trailT || 0) - dt;
-    if (o.trailT <= 0) {
-      o.trail.push({ x: o.x, y: o.y });
-      if (o.trail.length > 6) o.trail.shift();
-      o.trailT = 0.035;
+  const impact = magnetResolve(b, nx, ny, rad - d, s.e);
+  if (s.tag === 'sling' && impact > 70 && nx * s.nx + ny * s.ny > 0.6) magnetSling(b, s);
+  else if (s.tag === 'drop' && impact > 40) magnetDropHit(s.drop);
+  return true;
+}
+
+// The dome: a concave arc the ball rides around the inside of.
+function magnetHitArc(b, a) {
+  if (b.y > a.cy) return false;
+  const dx = b.x - a.cx,
+    dy = b.y - a.cy,
+    d = Math.hypot(dx, dy),
+    lim = a.R - MAGNET_BALL;
+  if (d <= lim) return false;
+  magnetResolve(b, -dx / d, -dy / d, d - lim, a.e, 0, 0, 0.004);
+  return true;
+}
+
+function magnetHitPost(b, p) {
+  const dx = b.x - p.x,
+    dy = b.y - p.y,
+    rad = MAGNET_BALL + p.R,
+    d2 = dx * dx + dy * dy;
+  if (d2 >= rad * rad) return false;
+  const d = Math.sqrt(d2) || 1e-6;
+  magnetResolve(b, dx / d, dy / d, rad - d, p.e);
+  return true;
+}
+
+// Pop bumpers kick the ball away. Each gremlin takes a few hits, then moves out.
+function magnetHitBumper(b, gr) {
+  const dx = b.x - gr.x,
+    dy = b.y - gr.y,
+    rad = MAGNET_BALL + gr.R,
+    d2 = dx * dx + dy * dy;
+  if (d2 >= rad * rad) return false;
+  const d = Math.sqrt(d2) || 1e-6,
+    nx = dx / d,
+    ny = dy / d;
+  magnetResolve(b, nx, ny, rad - d, 0.75, gr.vx || 0, 0);
+  const out = b.vx * nx + b.vy * ny,
+    kick = gr.boss ? 360 : 300;
+  if (out < kick) {
+    b.vx += nx * (kick - out);
+    b.vy += ny * (kick - out);
+  }
+  if (gr.cool <= 0) {
+    // A live bumper never kicks quite the same way twice.
+    const j = rand(-40, 40);
+    b.vx -= ny * j;
+    b.vy += nx * j;
+    magnetBumperHit(gr, 1, b);
+  }
+  return true;
+}
+
+// Flippers are tapered capsules from the pivot to the tip. A moving flipper hands the ball the
+// surface speed at the contact point, which is what makes a flip a flip.
+function magnetHitFlipper(b, f) {
+  const t = magnetTip(f),
+    dx = t.x - f.x,
+    dy = t.y - f.y,
+    L2 = dx * dx + dy * dy,
+    u = clamp(((b.x - f.x) * dx + (b.y - f.y) * dy) / L2, 0, 1),
+    cx = f.x + dx * u,
+    cy = f.y + dy * u,
+    rad = MAGNET_BALL + MAGNET_FLIP.rp + (MAGNET_FLIP.rt - MAGNET_FLIP.rp) * u;
+  let nx = b.x - cx,
+    ny = b.y - cy;
+  const d2 = nx * nx + ny * ny;
+  if (d2 >= rad * rad) return false;
+  const d = Math.sqrt(d2) || 1e-6;
+  nx /= d;
+  ny /= d;
+  const rx = cx - f.x,
+    ry = cy - f.y;
+  magnetResolve(b, nx, ny, rad - d, MAGNET_FLIP.e, -f.w * ry, f.w * rx, 0.02);
+  return true;
+}
+
+function magnetBallPairs() {
+  const live = mini.pinBalls.filter(b => b.state === 'play');
+  for (let i = 0; i < live.length; i++)
+    for (let j = i + 1; j < live.length; j++) {
+      const a = live[i],
+        c = live[j],
+        dx = c.x - a.x,
+        dy = c.y - a.y,
+        d = Math.hypot(dx, dy),
+        min = MAGNET_BALL * 2;
+      if (d >= min || d < 1e-6) continue;
+      const nx = dx / d,
+        ny = dy / d,
+        pen = (min - d) / 2;
+      a.x -= nx * pen;
+      a.y -= ny * pen;
+      c.x += nx * pen;
+      c.y += ny * pen;
+      const rel = (c.vx - a.vx) * nx + (c.vy - a.vy) * ny;
+      if (rel >= 0) continue;
+      const imp = (-(1 + 0.9) * rel) / 2;
+      a.vx -= nx * imp;
+      a.vy -= ny * imp;
+      c.vx += nx * imp;
+      c.vy += ny * imp;
+      sfx('hit', { vol: 0.5 });
     }
-    if (o.held != null) continue;
-    const dx = m.x - o.x,
-      dy = m.y - o.y,
-      d = Math.hypot(dx, dy);
-    if (power && d < radius && d > 8) {
-      const f = (1 - d / (radius + 10)) * 1150 * m.mode;
-      o.vx += (dx / d) * f * dt;
-      o.vy += (dy / d) * f * dt;
-      o.touched = true;
-      mini.magnetLastTouched = o.id;
+}
+
+function magnetSensors(b, px, py, h, sp) {
+  // Rollover lanes at the top.
+  if ((py - MAGNET_ROLL_Y) * (b.y - MAGNET_ROLL_Y) <= 0 && py !== b.y) {
+    const i = MAGNET_ROLL_X.findIndex(x => Math.abs(b.x - x) < 18);
+    if (i >= 0) magnetRollover(i);
+  }
+  // Kickbacks at the foot of each outlane. Below the inlane rails everything outside the flippers is
+  // outlane, including a ball that drifted in under the rail.
+  if (py < MAGNET_KICK_Y && b.y >= MAGNET_KICK_Y && b.vy > 0) {
+    const side = b.x < 98 ? 0 : b.x > 2 * MAGNET_CX - 98 && b.x < MAGNET_LANE.x0 ? 1 : -1;
+    if (side >= 0 && mini.pinKick[side] && !mini.pinTilted) magnetKickback(b, side);
+  }
+  // Magnet saves: a ball that was heading for the drain when the magnet fired and made it back up.
+  if (b.low && b.y < 480) {
+    b.low = false;
+    mini.pinMagSaves++;
+    mini.score += 500;
+    magnetPop(b.x, b.y - 20, 'MAGNET SAVE', '#a8f0ff');
+    magnetSay('SAVED BY SCIENCE', 1.2, '#a8f0ff');
+  }
+  // A ball that fell back down the lane waits for another launch.
+  if (b.x > MAGNET_LANE.x0 && b.y > 640 && sp < 25) {
+    b.state = 'plunger';
+    b.x = MAGNET_LANE.x;
+    b.y = MAGNET_LANE.y;
+    b.vx = b.vy = 0;
+    return;
+  }
+  // Anything stuck for five seconds gets a polite shove (a ball cradled on a raised flipper is fine).
+  const cradled = mini.pinFlips.some(f => f.held && Math.abs(b.y - f.y) < 40 && Math.abs(b.x - f.x) < 80);
+  b.still = sp < 12 && !cradled ? b.still + h : 0;
+  if (b.still > 5) {
+    b.still = 0;
+    b.vx = rand(-160, 160);
+    b.vy = -420;
+  }
+  if (b.y > MAGNET_DRAIN_Y || b.x < -20 || b.x > MAGNET_W + 20 || b.y < -40) magnetDrain(b);
+}
+
+function magnetRampEnter(b) {
+  b.state = 'ramp';
+  b.rs = 0;
+  b.low = false;
+  sfx('dash');
+  magnetPop(40, 290, 'SCAN', '#a8f0ff');
+}
+
+function magnetRampStep(b, h) {
+  b.rs += MAGNET_RAMP_SPEED * h;
+  const p = magnetAlong(MAGNET_RAMP, b.rs);
+  b.x = p.x;
+  b.y = p.y;
+  b.spin += (MAGNET_RAMP_SPEED * h) / MAGNET_BALL;
+  if (b.rs < MAGNET_RAMP.total) return;
+  b.state = 'play';
+  b.vx = p.dx * 380;
+  b.vy = p.dy * 380;
+  b.still = 0;
+  magnetRampDone(b);
+}
+
+// A kickback hop: a short arc from the outlane to the top of the inlane.
+function magnetHopStep(b, h) {
+  const k = b.hop;
+  k.t += h;
+  const u = clamp(k.t / k.dur, 0, 1);
+  b.x = k.x0 + (k.x1 - k.x0) * u;
+  b.y = k.y0 + (k.y1 - k.y0) * u - Math.sin(u * Math.PI) * 90;
+  b.spin += h * 20;
+  if (u < 1) return;
+  b.state = 'play';
+  b.hop = null;
+  b.vx = 0;
+  b.vy = 120;
+  b.still = 0;
+}
+
+// ---- Scoring ----
+function magnetPoints(n) {
+  const v = Math.round(n * mini.pinMult * (mini.pinCleared ? 2 : 1));
+  mini.score += v;
+  return v;
+}
+
+function magnetBumperHit(gr, dmg, b) {
+  if (mini.pinTilted) return;
+  gr.cool = 0.1;
+  gr.flash = 0.2;
+  gr.hp -= dmg;
+  const pan = clamp((gr.x - MAGNET_CX) / 180, -1, 1);
+  if (gr.hp > 0) {
+    // Multiball doubles bumper hits.
+    const v = magnetPoints((gr.boss ? 250 : 100) * (mini.pinMulti ? 2 : 1));
+    magnetPop(gr.x, gr.y - gr.R - 8, '+' + v, gr.boss ? '#ffcf8f' : '#fff2c4');
+    sfx(gr.boss ? 'bossHit' : 'bounce', { pan });
+    mini.pinShake = Math.max(mini.pinShake, gr.boss ? 0.5 : 0.25);
+    return;
+  }
+  magnetEvict(gr, pan);
+}
+
+function magnetEvict(gr, pan = 0) {
+  gr.gone = true;
+  gr.hp = 0;
+  gr.respawn = gr.boss ? 25 : 2.4;
+  const count = gr.boss ? 3 : 1;
+  mini.got += count;
+  mini.pinEvicted += count;
+  if (gr.boss) mini.pinBossDown = true;
+  const before = mini.score;
+  praise((gr.boss ? 5000 : 1000) * mini.pinMult * (mini.pinCleared ? 2 : 1), 1);
+  magnetPop(gr.x, gr.y - 10, gr.boss ? 'CLANK EVICTED +' + (mini.score - before) : 'EVICTED +' + (mini.score - before), '#c9ffb0');
+  mini.pinSplats.push({ x: gr.x, y: gr.y, t: 3, s: gr.boss ? 1.5 : 1 });
+  magnetBurst(gr.x, gr.y, '#9be15d', gr.boss ? 40 : 22);
+  mini.pinShake = Math.max(mini.pinShake, gr.boss ? 1.4 : 0.8);
+  sfx(gr.boss ? 'bossDie' : 'squelch', { pan });
+  const left = Math.max(0, mini.goal - mini.got);
+  if (gr.boss) magnetSay('CLANK IS OUT · TELL RADIOLOGY', 2.2, '#c9ffb0');
+  else magnetSay(left ? 'GREMLIN EVICTED · ' + left + ' TO GO' : 'GREMLIN EVICTED', 1.4, '#c9ffb0');
+  mini.flash = 0.6;
+  mini.flashText = gr.boss ? 'CLANK EVICTED' : 'GREMLIN EVICTED';
+  magnetCheckQuota();
+}
+
+function magnetCheckQuota() {
+  if (mini.pinCleared || mini.got < mini.goal) return;
+  mini.pinCleared = true;
+  mini.pinLapT = 30;
+  sfx('clear');
+  magnetSay('QUOTA MET · VICTORY LAP · SCORES DOUBLE', 3, '#ffe08a');
+  setInstructions('Quota met. Victory lap: every point doubles until this ball drains or 30 seconds pass.');
+}
+
+function magnetSling(b, s) {
+  b.vx += s.nx * s.kick;
+  b.vy += s.ny * s.kick;
+  mini.pinSlingFlash[s.side] = 0.14;
+  mini.pinShake = Math.max(mini.pinShake, 0.2);
+  if (!mini.pinTilted) magnetPoints(10);
+  sfx('ricochet', { vol: 0.7, pan: s.side ? 0.5 : -0.5 });
+}
+
+function magnetRollover(i) {
+  if (mini.pinTilted) return;
+  const sk = mini.pinSkill;
+  if (sk && sk.armed && sk.t < 3.5) {
+    mini.pinSkill = null;
+    if (sk.lane === i) {
+      mini.pinSkills++;
+      const v = magnetPoints(2500);
+      magnetPop(MAGNET_ROLL_X[i], 70, 'SKILL SHOT +' + v, '#ffe08a');
+      magnetSay('SKILL SHOT', 1.4, '#ffe08a');
+      sfx('combo', { combo: 4 });
     }
-    // Moving scan currents arrive during later shifts; the force is visible on the board.
-    if (mini.shift > 0 && mini.slow <= 0) {
-      o.vx += Math.sin(mini.total * 0.7 + o.y * 0.012) * mini.shift * (20 + mini.tier * 8) * dt;
+  }
+  if (mini.pinLit[i]) {
+    magnetPoints(50);
+    return;
+  }
+  mini.pinLit[i] = true;
+  magnetPoints(200);
+  sfx('coin', { count: mini.pinLit.filter(Boolean).length });
+  if (mini.pinLit.every(Boolean)) {
+    mini.pinMult = Math.min(5, mini.pinMult + 1);
+    const v = magnetPoints(1000);
+    magnetPop(169, 70, 'M · R · I  ×' + mini.pinMult, '#ffe08a');
+    magnetSay('SCAN COMPLETE · BONUS ×' + mini.pinMult + ' · +' + v, 1.8, '#ffe08a');
+    mini.pinLitFlash = 0.7;
+    sfx('combo', { combo: mini.pinMult });
+  }
+}
+
+function magnetRotateLanes(dir) {
+  if (mini.pinLitFlash > 0) return;
+  const L = mini.pinLit;
+  mini.pinLit = dir > 0 ? [L[2], L[0], L[1]] : [L[1], L[2], L[0]];
+}
+
+function magnetRampDone(b) {
+  if (mini.pinTilted) return;
+  mini.pinRamps++;
+  mini.pinRampCount++;
+  const combo = mini.pinRampCombo > 0;
+  mini.pinRampCombo = 5;
+  const v = magnetPoints(combo ? 3000 : 1500);
+  magnetPop(b.x, b.y - 26, (combo ? 'COMBO SCAN +' : 'SCAN +') + v, '#a8f0ff');
+  sfx('combo', { combo: combo ? 3 : 1 });
+  // The scan pulses through the bore: every gremlin takes a hit.
+  magnetPulse('SCAN PULSE · EVERY GREMLIN TAKES A HIT');
+  if (mini.pinLv.multi && mini.pinRampCount >= 3) {
+    mini.pinRampCount = 0;
+    magnetMultiball();
+  }
+}
+
+function magnetPulse(text) {
+  magnetSay(text, 1.6, '#a8f0ff');
+  for (const gr of [...mini.pinGrem, mini.pinBoss]) {
+    if (!gr || gr.gone || mini.screen !== 'play') continue;
+    magnetBurst(gr.x, gr.y, '#a8f0ff', 6);
+    magnetBumperHit(gr, 1, null);
+  }
+}
+
+function magnetDropHit(i) {
+  const d = mini.pinDrops && mini.pinDrops[i];
+  if (!d || !d.up || mini.pinTilted) return;
+  d.up = false;
+  d.flash = 0.3;
+  magnetPoints(300);
+  magnetPop(MAGNET_DROP_X - 16, MAGNET_DROP_Y[i] + 12, '+' + 300 * mini.pinMult, '#ffd27a');
+  sfx('lock');
+  if (mini.pinDrops.some(t => t.up)) return;
+  mini.pinBanks++;
+  const v = magnetPoints(2000);
+  magnetPop(MAGNET_DROP_X - 30, MAGNET_DROP_Y[1] - 20, 'BANK +' + v, '#ffd27a');
+  sfx('unlock');
+  mini.pinDropReset = 1.6;
+  if (mini.pinLv.multi && !mini.pinMulti) magnetMultiball();
+  else magnetPulse('CONTRAST DYE · EVERY GREMLIN TAKES A HIT');
+}
+
+function magnetMultiball() {
+  if (mini.pinMulti) return;
+  mini.pinMulti = true;
+  mini.pinSave = Math.max(mini.pinSave, 8);
+  magnetServe(true);
+  sfx('fever');
+  magnetSay('MULTIBALL · TWO BALLS · BUMPERS SCORE DOUBLE', 2.4, '#ffe08a');
+  mini.flash = 1;
+  mini.flashText = 'MULTIBALL';
+}
+
+// The kickback hops the ball out of the outlane, over the divider post, and drops it at the top of the
+// inlane on the same side, where it rolls down onto the flipper.
+function magnetKickback(b, side) {
+  const D = mini.pinLv.divider,
+    inlane = side ? 2 * MAGNET_CX - (D + 84) / 2 : (D + 84) / 2;
+  b.state = 'hop';
+  b.hop = { x0: b.x, y0: b.y, x1: inlane, y1: 492, t: 0, dur: 0.42 };
+  b.vx = b.vy = 0;
+  mini.pinKick[side] = false;
+  mini.pinKickFlash[side] = 0.5;
+  if (mini.pinLv.kick === 'always') mini.pinKickT[side] = 6;
+  magnetPoints(200);
+  sfx('leap', { pan: side ? 0.7 : -0.7 });
+  magnetSay('KICKBACK', 1, '#ffd27a');
+}
+
+function magnetDrain(b) {
+  b.state = 'gone';
+  mini.pinBalls = mini.pinBalls.filter(x => x !== b);
+  const others = mini.pinBalls.some(x => magnetLive(x) || x.state === 'plunger');
+  if (mini.pinSave > 0 && !mini.pinTilted) {
+    sfx('shield');
+    magnetSay('BALL SAVED · THE TECH THREW IT BACK', 1.6, '#a8f0ff');
+    magnetServe(true);
+    return;
+  }
+  if (others) {
+    sfx('miss', { vol: 0.6 });
+    if (mini.pinBalls.filter(x => x.state !== 'gone').length < 2) mini.pinMulti = false;
+    return;
+  }
+  // The last ball in play is gone.
+  mini.pinMulti = false;
+  mini.pinDrains++;
+  mini.combo = 0;
+  if (mini.pinCleared) {
+    magnetBankBonus();
+    finishMini(true);
+    return;
+  }
+  mini.miss++;
+  mini.quality = Math.max(0, mini.quality - 12);
+  if (mini.pinTilted) mini.pinTiltLost = true;
+  sfx('miss');
+  mini.pinShake = Math.max(mini.pinShake, 0.6);
+  if (mini.pinSpare <= 0) {
+    mini.pinOver = true;
+    finishMini(
+      false,
+      mini.pinTilted
+        ? 'Tilted out on the last ball. Nudge only when the ball is stuck or diving, a couple of seconds apart.'
+        : 'Last ball down the drain with ' + Math.max(0, mini.goal - mini.got) + ' gremlins still on the lease. Flip early, aim for the bumpers, and hold both flippers to fire the magnet when it heads down the middle.'
+    );
+    return;
+  }
+  mini.pinSpare--;
+  mini.pinBallNo++;
+  mini.pinTilted = false;
+  mini.pinTilt = 0;
+  mini.pinSave = 0;
+  mini.pinMult = 1;
+  if (mini.pinLv.kick !== 'none') mini.pinKick = [true, true];
+  magnetSay(mini.pinSpare ? 'BALL ' + (mini.pinBallNo + 1) + ' · TAP TO LAUNCH' : 'FINAL BALL · TAP TO LAUNCH', 2.2, '#ffb347');
+  magnetServe(false);
+}
+
+// Unused balls pay out when the quota is met.
+function magnetBankBonus() {
+  if (mini.pinBanked) return;
+  mini.pinBanked = true;
+  if (mini.pinSpare > 0) mini.score += mini.pinSpare * 2500;
+}
+
+function magnetTimers(dt, lv) {
+  for (const gr of [...mini.pinGrem, mini.pinBoss]) {
+    if (!gr) continue;
+    gr.cool = Math.max(0, gr.cool - dt);
+    gr.flash = Math.max(0, gr.flash - dt);
+    gr.pop = Math.max(0, gr.pop - dt);
+    if (!gr.gone) continue;
+    gr.respawn -= dt;
+    const blocked = mini.pinBalls.some(b => b.state === 'play' && Math.hypot(b.x - gr.x, b.y - gr.y) < gr.R + MAGNET_BALL + 6);
+    if (gr.respawn <= 0 && !blocked) {
+      gr.gone = false;
+      if (gr.boss) gr.max += 2;
+      gr.hp = gr.max;
+      gr.pop = 0.35;
+      gr.type = gr.boss ? 2 : (gr.type + 1) % 4 === 2 ? (gr.type + 2) % 4 : (gr.type + 1) % 4;
+      sfx(gr.boss ? 'boss' : 'blob', { vol: 0.6 });
+      if (gr.boss) magnetSay('CLANK IS BACK · AND ANGRIER', 1.6, '#ffcf8f');
     }
-    // Entering orbs are pulled on board so a collision can never strand them off screen.
-    if (o.entering) {
-      if (o.x < 40) o.vx += 160 * dt;
-      if (o.x > 560) o.vx -= 160 * dt;
-      if (o.y > 550) o.vy -= 160 * dt;
+  }
+  const inPlay = mini.pinBalls.some(magnetLive);
+  if (inPlay) mini.pinSave = Math.max(0, mini.pinSave - dt);
+  mini.pinNudgeCd = Math.max(0, mini.pinNudgeCd - dt);
+  mini.pinTilt = Math.max(0, mini.pinTilt - dt * 0.22);
+  mini.pinShake = Math.max(0, mini.pinShake - dt * 3);
+  mini.pinRampCombo = Math.max(0, mini.pinRampCombo - dt);
+  mini.pinLitFlash = Math.max(0, mini.pinLitFlash - dt);
+  if (mini.pinLitFlash <= 0 && mini.pinLit.every(Boolean)) mini.pinLit = [false, false, false];
+  for (const side of [0, 1]) {
+    mini.pinSlingFlash[side] = Math.max(0, mini.pinSlingFlash[side] - dt);
+    mini.pinKickFlash[side] = Math.max(0, mini.pinKickFlash[side] - dt);
+    if (mini.pinKickT[side] > 0) {
+      mini.pinKickT[side] -= dt;
+      if (mini.pinKickT[side] <= 0) mini.pinKick[side] = true;
     }
-    const speed = Math.hypot(o.vx, o.vy),
-      cap = 390;
-    if (speed > cap) {
-      o.vx *= cap / speed;
-      o.vy *= cap / speed;
+  }
+  if (mini.pinDrops) {
+    for (const d of mini.pinDrops) d.flash = Math.max(0, d.flash - dt);
+    if (mini.pinDropReset > 0) {
+      mini.pinDropReset -= dt;
+      if (mini.pinDropReset <= 0) {
+        for (const d of mini.pinDrops) d.up = true;
+        sfx('reload', { vol: 0.6 });
+      }
     }
-    // Shoving big gunk too hard at close range splits it.
-    if (lv.split && o.bad && !o.small && power && m.mode === -1 && d < 100 && speed > 320) {
-      magnetSplit(o, born);
+  }
+  if (mini.pinSkill && mini.pinSkill.armed) mini.pinSkill.t += dt;
+  if (mini.pinAuto > 0) {
+    mini.pinAuto -= dt;
+    if (mini.pinAuto <= 0) magnetLaunch(0.55);
+  }
+  if (mini.pinBalls.some(b => b.state === 'plunger') && !inPlay) mini.pinWait += dt;
+  for (const p of mini.pinPops) p.t -= dt;
+  mini.pinPops = mini.pinPops.filter(p => p.t > 0);
+  for (const p of mini.pinFx) {
+    p.life -= dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 420 * dt;
+  }
+  mini.pinFx = mini.pinFx.filter(p => p.life > 0);
+  for (const s of mini.pinSplats) s.t -= dt;
+  mini.pinSplats = mini.pinSplats.filter(s => s.t > 0);
+  if (mini.pinMsg) {
+    mini.pinMsg.t -= dt;
+    if (mini.pinMsg.t <= 0) mini.pinMsg = null;
+  }
+  // Ball trails for the art.
+  for (const b of mini.pinBalls) {
+    if (!magnetLive(b)) {
+      b.trail = [];
       continue;
     }
-    o.vx *= Math.exp(-1.15 * dt);
-    o.vy *= Math.exp(-1.15 * dt);
-    o.x += o.vx * dt * rate;
-    o.y += o.vy * dt * rate;
-    if (o.entering) {
-      if (o.x > 30 && o.x < 570 && o.y < 560) o.entering = false;
-      continue;
-    }
-    if (barrier) {
-      for (const w of MAGNET_WALLS) {
-        magnetRepel(o, w[0], w[1], dt);
-        if (magnetSegmentHit(o, w[0], w[1], 0.55, 45) && mini.magnetWallCool <= 0) {
-          sfx('ricochet');
-          mini.magnetWallCool = 0.25;
-        }
-      }
-      magnetSegmentHit(
-        o,
-        [bx - MAGNET_BARRIER_HALF, MAGNET_BARRIER_Y],
-        [bx + MAGNET_BARRIER_HALF, MAGNET_BARRIER_Y],
-        0.5,
-        20,
-        bvx
-      );
-    }
-    if (o.x < 30 || o.x > 570) {
-      o.x = clamp(o.x, 30, 570);
-      o.vx *= -0.7;
-    }
-    if (o.y > 564) {
-      if (o.bad && o.touched && Math.abs(o.x - MAGNET_VENT_X) < MAGNET_VENT_HALF) {
-        o.dead = true;
-        mini.magnetGunkVented++;
-        mini.magnetVentPulse = 0.5;
-        praise(o.small ? 50 : 80, 1);
-        arcadeBurst(o.x, o.y, '#d0e8ca', 8);
-        magnetPop(o.x, 540, 'FLUSHED', '#d0e8ca');
-        sfx('blob');
-      } else {
-        o.y = 564;
-        o.vy *= -0.65;
-        // The vent burps anything that is not gunk off to the side, so it can never clog.
-        if (!o.bad && Math.abs(o.x - MAGNET_VENT_X) < MAGNET_VENT_HALF + 10) {
-          o.vx += (o.x < MAGNET_VENT_X ? -1 : 1) * 170;
-          o.vy -= 60;
-        }
-      }
-    }
-    if (o.y < MAGNET_PORT_Y && o.cool <= 0) {
-      const port =
-        Math.abs(o.x - MAGNET_PORT_X[0]) < gate ? 0 : Math.abs(o.x - MAGNET_PORT_X[1]) < gate ? 1 : -1;
-      if (port >= 0 && o.touched) {
-        if (o.bad) {
-          o.dead = true;
-          miniOops('GUNK IN THE COLLECTION PORT');
-        } else if (o.kind === magnetPortKind(port)) magnetSorted(o, port);
-        else magnetWrongPort(o);
-      } else {
-        o.y = MAGNET_PORT_Y;
-        o.vy = Math.abs(o.vy) * 0.65;
-        o.cool = 0.3;
-      }
-    }
+    (b.trail ||= []).push({ x: b.x, y: b.y });
+    if (b.trail.length > 6) b.trail.shift();
   }
-  mini.orbs.push(...born);
-  magnetUpdateThieves(dt, power, radius, rate);
-  // Soft collisions transfer momentum, so a push can move a whole cluster.
-  for (let i = 0; i < mini.orbs.length; i++)
-    for (let j = i + 1; j < mini.orbs.length; j++) {
-      const a = mini.orbs[i],
-        b = mini.orbs[j];
-      if (a.dead || b.dead || a.held != null || b.held != null) continue;
-      const d = dist(a, b),
-        r = a.r + b.r;
-      if (d > 0 && d < r) {
-        const nx = (b.x - a.x) / d,
-          ny = (b.y - a.y) / d,
-          q = (r - d) / 2;
-        a.x -= nx * q;
-        a.y -= ny * q;
-        b.x += nx * q;
-        b.y += ny * q;
-        const dot = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
-        if (dot > 0) {
-          a.vx -= dot * nx * 0.75;
-          a.vy -= dot * ny * 0.75;
-          b.vx += dot * nx * 0.75;
-          b.vy += dot * ny * 0.75;
-        }
-      }
+  if (mini.pinCleared) {
+    mini.pinLapT -= dt;
+    if (mini.pinLapT <= 0 && mini.screen === 'play') {
+      magnetBankBonus();
+      finishMini(true);
     }
-  mini.orbs = mini.orbs.filter(o => !o.dead);
-  // Level 1 eases in; later levels keep a fuller board. The mix shifts with each shift.
-  const cap = lv.hints
-    ? Math.min(lv.cap[mini.shift], lv.start + Math.floor(mini.phaseTime / 5))
-    : lv.cap[mini.shift];
-  while (mini.orbs.length < cap) {
-    const gunk = mini.orbs.filter(o => o.bad).length,
-      bad = gunk < (mini.tier === 2 ? 3 : 2) && rand(0, 1) < lv.mix[mini.shift][1];
-    spawnOrb(bad);
   }
 }
 
-function magnetUpdateThieves(dt, power, radius, rate) {
-  const m = mini.magnet,
-    lv = magnetLevel(),
-    pace = lv.thiefSpeed * mini.rules.speed * (mini.slow > 0 ? 0.5 : 1);
-  for (const th of mini.magnetThieves) {
-    th.t = Math.max(0, th.t - dt);
-    th.bob += dt;
-    const dx = m.x - th.x,
-      dy = m.y - th.y,
-      d = Math.hypot(dx, dy);
-    if (power && d < radius && d > 6) {
-      const f = ((1 - d / (radius + 10)) * 1150 * m.mode) / 1.5;
-      th.vx += (dx / d) * f * dt;
-      th.vy += (dy / d) * f * dt;
-      th.zap += dt;
-      if (th.zap >= 0.35) magnetStun(th);
-    } else th.zap = Math.max(0, th.zap - dt * 0.5);
-    let goal = null;
-    if (th.state === 'seek') {
-      let o = mini.orbs.find(o => o.id === th.target && !o.dead && o.held == null);
-      if (!o) {
-        const free = mini.orbs.filter(o => !o.bad && !o.dead && o.held == null && !o.entering && o.y > 150);
-        o = free.sort((a, b) => dist(a, th) - dist(b, th))[0];
-        th.target = o ? o.id : null;
-      }
-      goal = o || { x: 300, y: 430 };
-      if (o && dist(th, o) < o.r + 20) {
-        th.state = 'grab';
-        th.t = 0.45;
-        sfx('trap');
-      }
-    } else if (th.state === 'grab') {
-      const o = mini.orbs.find(o => o.id === th.target && !o.dead && o.held == null);
-      if (!o || dist(th, o) > o.r + 46) th.state = 'seek';
-      else if (th.t <= 0) {
-        th.state = 'drag';
-        o.held = th.id;
-        o.vx = 0;
-        o.vy = 0;
-      }
-    } else if (th.state === 'drag') goal = { x: MAGNET_VENT_X, y: 600 };
-    else if (th.state === 'stun' && th.t <= 0) th.state = 'seek';
-    if (goal) {
-      const gx = goal.x - th.x,
-        gy = goal.y - th.y,
-        gd = Math.hypot(gx, gy) || 1,
-        s = th.state === 'drag' ? pace * 0.8 : pace,
-        k = Math.min(1, 3 * dt);
-      th.vx += ((gx / gd) * s - th.vx) * k;
-      th.vy += ((gy / gd) * s - th.vy) * k;
-    } else {
-      const drag = Math.exp(-(th.state === 'stun' ? 1.3 : 6) * dt);
-      th.vx *= drag;
-      th.vy *= drag;
-    }
-    const speed = Math.hypot(th.vx, th.vy);
-    if (speed > 420) {
-      th.vx *= 420 / speed;
-      th.vy *= 420 / speed;
-    }
-    th.x += th.vx * dt * rate;
-    th.y += th.vy * dt * rate;
-    if (Math.abs(th.vx) > 4) th.dir = th.vx > 0 ? 1 : -1;
-    if (th.entering) {
-      if (th.x > 26 && th.x < 574) th.entering = false;
-    } else {
-      th.x = clamp(th.x, 26, 574);
-      th.y = clamp(th.y, 130, 574);
-    }
-    const carried = th.state === 'drag' ? mini.orbs.find(o => o.held === th.id) : null;
-    if (carried) {
-      carried.x = th.x + th.dir * 15;
-      carried.y = th.y - 20;
-    }
-    if (th.y > 548 && Math.abs(th.x - MAGNET_VENT_X) < MAGNET_VENT_HALF + 4) {
-      if (th.state === 'stun') {
-        th.dead = true;
-        mini.magnetFlushed++;
-        mini.magnetVentPulse = 0.6;
-        praise(300, 1);
-        arcadeBurst(th.x, th.y, '#efbe77', 14);
-        magnetPop(th.x, 530, 'GREMLIN FLUSHED +300', '#ffe5a8');
-        sfx('enemyDie');
-      } else if (carried) {
-        th.dead = true;
-        carried.dead = true;
-        mini.magnetStolen++;
-        mini.magnetVentPulse = 0.6;
-        mini.magnetChain = 0;
-        mini.magnetChainT = 0;
-        miniOops('A GREMLIN YOINKED A NUTRIENT DOWN THE VENT');
-      }
-    }
-  }
-  mini.magnetThieves = mini.magnetThieves.filter(th => !th.dead);
-  mini.orbs = mini.orbs.filter(o => !o.dead);
+function magnetPop(x, y, text, col) {
+  if (mini.pinPops.some(p => p.text === text && p.t > 0.6)) return;
+  mini.pinPops.push({ x, y, text, col, t: 0.9 });
 }
 
-// ---- Art ----
-
-function magnetHint() {
-  const m = mini.magnet;
-  if (mini.magnetHot) return 'OVERHEATED · LET GO TO COOL';
-  if (magnetLevel().hints) {
-    if (!mini.magnetEverOn) return 'PRESS AND HOLD NEAR AN ORB';
-    if (!mini.got) return 'DRAG IT UP · MINT LEFT, GOLD RIGHT';
-    if (mini.orbs.some(o => o.bad) && !mini.magnetGunkVented) return 'PINK GUNK GOES DOWN THE VENT';
-    if (mini.got < 4) return 'LET GO TO COAST · SPACE FLIPS PUSH / PULL';
-  }
-  if (mini.magnetThieves.some(t => t.state === 'drag')) return 'THIEF! HOLD THE FIELD ON IT';
-  if (!m.on) return 'DRAG & HOLD TO APPLY FORCE';
-  return (m.mode === 1 ? 'PULLING' : 'PUSHING') + (mini.magnetSurge > 0 ? ' · SURGE' : ' · RELEASE TO COAST');
+function magnetSay(text, t = 1.5, col = '#ffb347') {
+  mini.pinMsg = { text, t, col };
 }
 
-function magnetDrawField(g) {
-  const m = mini.magnet,
-    power = magnetPower(),
-    reach = magnetRadius() * 0.6;
-  for (let i = 0; i < 8; i++) {
-    const y0 = 140 + i * 56,
-      pts = [];
-    for (let x = 20; x <= 580; x += 28) {
-      let px = x,
-        py = y0 + (mini.shift ? Math.sin(mini.total * 0.7 + y0 * 0.012 + x * 0.01) * 5 : 0);
-      if (power) {
-        const dx = m.x - px,
-          dy = m.y - py,
-          w = Math.exp(-(dx * dx + dy * dy) / (2 * reach * reach)) * 0.45 * m.mode;
-        px += dx * w;
-        py += dy * w;
-      }
-      pts.push([px, py]);
-    }
-    line(g, pts, power ? (m.mode === 1 ? '#a7e5dd2a' : '#f4b1c02a') : '#b8d9c90f', 1.5);
-  }
+function magnetBurst(x, y, col, n) {
+  for (let i = 0; i < n; i++)
+    mini.pinFx.push({ x, y, vx: rand(-160, 160), vy: rand(-220, 80), life: rand(0.3, 0.7), col, r: rand(2, 4.5) });
 }
 
-function magnetDrawPorts(g) {
-  const gate = magnetLevel().gate,
-    warn = mini.magnetSwapWarned && mini.phaseTime < mini.magnetSwapAt;
-  for (let i = 0; i < 2; i++) {
-    const x = MAGNET_PORT_X[i],
-      kind = magnetPortKind(i),
-      col = kind ? '#f1cf85' : '#b2e5c2',
-      pulse = mini.magnetPulse[i],
-      blink = warn && Math.sin(mini.total * 18) > 0;
-    rr(g, x - gate, 48, gate * 2, 62, 17, gradient(g, x, 48, 0, 62, '#163846', '#102934'), blink ? '#ff9db5' : col, 2);
-    glow(g, x, 76, 65 + pulse * 60, col + (pulse > 0 ? '55' : '25'));
-    // Intake chevrons crawl upward into the port.
-    for (let k = 0; k < 3; k++) {
-      const yy = 134 - ((mini.total * 26 + k * 9) % 27);
-      line(g, [[x - 9, yy + 5], [x, yy], [x + 9, yy + 5]], col + '66', 2);
-    }
-    if (pulse > 0) {
-      g.strokeStyle = col;
-      g.lineWidth = 3;
-      g.globalAlpha = pulse / 0.6;
-      g.beginPath();
-      g.arc(x, 76, 30 + (0.6 - pulse) * 90, 0, Math.PI * 2);
-      g.stroke();
-      g.globalAlpha = 1;
-    }
-    if (kind) poly(g, [[x, 56], [x + 12, 72], [x, 88], [x - 12, 72]], col);
-    else ellipse(g, x, 72, 12, 12, col);
-    label(g, kind ? 'GOLD DIAMONDS' : 'MINT CIRCLES', x, 101, 10, col, 'center');
+// ---- Drawing ----
+// Where the table sits in the active canvas: under a score strip in portrait, between two panels
+// in landscape. The top 50 px stay decorative for the HUD pills.
+function magnetView() {
+  const { w, h } = activeCanvas();
+  if (h > w) {
+    const top = 98,
+      s = Math.min((w - 20) / MAGNET_W, (h - top - 4) / MAGNET_H);
+    return { s, ox: (w - MAGNET_W * s) / 2, oy: h - 4 - MAGNET_H * s, w, h, tall: true };
   }
-  if (warn) {
-    const left = Math.max(0, mini.magnetSwapAt - mini.phaseTime);
-    rr(g, 236, 58, 128, 38, 12, '#3b1d38dd', '#ff9db5', 2);
-    label(g, 'SWAP IN ' + left.toFixed(1), 300, 82, 13, '#ffd2dc', 'center');
-    line(g, [[215, 70], [385, 70]], '#ff9db566', 2);
-    poly(g, [[385, 64], [395, 70], [385, 76]], '#ff9db5aa');
-    poly(g, [[215, 64], [205, 70], [215, 76]], '#ff9db5aa');
-  }
-}
-
-function magnetDrawVent(g) {
-  const p = mini.magnetVentPulse;
-  rr(g, 235, 555, 130, 43, 12, '#153c40', p > 0 ? '#ffe5a8' : '#c6d4b0', 2);
-  for (let i = 0; i < 5; i++) line(g, [[250 + i * 25, 562], [250 + i * 25, 576]], '#0c2328', 4);
-  // Suction ripples.
-  for (let k = 0; k < 2; k++) {
-    const a = (mini.total * 0.8 + k * 0.5) % 1;
-    g.strokeStyle = '#c6d4b0' + (a < 0.5 ? '33' : '18');
-    g.lineWidth = 2;
-    g.beginPath();
-    g.ellipse(300, 560, 70 * (1 - a), 18 * (1 - a), 0, Math.PI, Math.PI * 2);
-    g.stroke();
-  }
-  if (p > 0) glow(g, 300, 570, 90, '#ffe5a844');
-  label(g, 'GUNK DISPOSAL ↓', 300, 590, 10, '#d7e4ba', 'center');
-}
-
-function magnetDrawWalls(g) {
-  if (!magnetBarrierOn()) return;
-  const pulse = 0.5 + Math.sin(mini.total * 5) * 0.5;
-  for (const w of MAGNET_WALLS) {
-    line(g, w, '#f4b1c033', 26);
-    line(g, w, '#f4b1c0', 10);
-    line(g, w, '#fff0f4', 3);
-    const mx = (w[0][0] + w[1][0]) / 2,
-      my = (w[0][1] + w[1][1]) / 2;
-    glow(g, mx, my, 50 + pulse * 10, '#f4b1c022');
-  }
-  const bx = magnetBarrierX(),
-    y = MAGNET_BARRIER_Y;
-  line(g, [[bx - MAGNET_BARRIER_HALF, y], [bx + MAGNET_BARRIER_HALF, y]], '#9fc8e844', 24);
-  rr(g, bx - MAGNET_BARRIER_HALF - 6, y - 7, MAGNET_BARRIER_HALF * 2 + 12, 14, 7, '#26506b', '#bfe3f2', 2);
-  for (let i = -2; i <= 2; i++) rect(g, bx + i * 22 - 5, y - 3, 10, 6, (i + Math.floor(mini.total * 4)) % 2 ? '#f1cf85' : '#1c3446');
-}
-
-function magnetDrawPickups(g) {
-  for (const p of mini.magnetPickups) {
-    const fade = Math.min(1, p.life / 1.5),
-      bob = Math.sin(mini.total * 4 + p.x) * 4;
-    g.globalAlpha = fade;
-    glow(g, p.x, p.y + bob, 40, '#fff2a855');
-    rr(g, p.x - 16, p.y - 20 + bob, 32, 40, 10, '#2f4f6a', '#fff2a8', 2);
-    poly(g, [[p.x + 3, p.y - 15 + bob], [p.x - 8, p.y + 2 + bob], [p.x - 1, p.y + 2 + bob], [p.x - 4, p.y + 15 + bob], [p.x + 8, p.y - 3 + bob], [p.x + 1, p.y - 3 + bob]], '#fff2a8');
-    label(g, 'SURGE', p.x, p.y + 34 + bob, 9, '#fff2a8', 'center');
-    g.globalAlpha = 1;
-  }
-}
-
-function magnetDrawOrb(g, o) {
-  const color = o.bad ? '#ed8daf' : o.kind ? '#f2cc7d' : '#a8dfc1';
-  for (let i = 0; i < o.trail.length; i++) {
-    const p = o.trail[i];
-    g.globalAlpha = ((i + 1) / o.trail.length) * 0.22;
-    ellipse(g, p.x, p.y, o.r * (0.45 + i * 0.08), o.r * (0.45 + i * 0.08), color);
-  }
-  g.globalAlpha = 1;
-  shadow(g, o.x, o.y + 8, o.r, 6);
-  glow(g, o.x, o.y, o.r * 1.8, color + '18');
-  ellipse(
-    g,
-    o.x,
-    o.y,
-    o.r,
-    o.r,
-    gradient(g, o.x - o.r, o.y - o.r, o.r * 2, o.r * 2, color, o.bad ? '#b75182' : o.kind ? '#bd8e55' : '#519e96')
-  );
-  ellipse(g, o.x - o.r * 0.3, o.y - o.r * 0.37, o.r * 0.26, o.r * 0.16, '#fff7dc99');
-  if (o.bad) label(g, '×', o.x, o.y + o.r * 0.4, o.r * 1.35, '#5d294c', 'center');
-  else if (o.kind) poly(g, [[o.x, o.y - 9], [o.x + 7, o.y], [o.x, o.y + 9], [o.x - 7, o.y]], '#fff0bd');
-  else ellipse(g, o.x, o.y, 6, 6, '#eaffd9');
-}
-
-function magnetDrawThief(g, th) {
-  const stun = th.state === 'stun',
-    grab = th.state === 'grab',
-    target = grab ? mini.orbs.find(o => o.id === th.target) : null;
-  g.save();
-  if (stun) {
-    g.translate(th.x, th.y);
-    g.rotate(Math.sin(th.bob * 9) * 0.25);
-    g.translate(-th.x, -th.y);
-  }
-  gremlin(g, th.x, th.y + 16, 0.66, 2, th.bob);
-  g.restore();
-  if (target) {
-    // Grabby arms stretch toward the orb as the grab winds up.
-    const k = 1 - th.t / 0.45;
-    for (const side of [-1, 1]) {
-      const sx = th.x + side * 8,
-        sy = th.y - 6,
-        ex = sx + (target.x - sx) * k,
-        ey = sy + (target.y + side * 6 - sy) * k;
-      line(g, [[sx, sy], [ex, ey]], '#ba7b70', 4);
-      ellipse(g, ex, ey, 4, 4, '#efbe77');
-    }
-  }
-  if (th.state === 'drag') {
-    line(g, [[th.x - 8, th.y - 8], [th.x + th.dir * 10, th.y - 18]], '#ba7b70', 4);
-    line(g, [[th.x + 8, th.y - 8], [th.x + th.dir * 20, th.y - 18]], '#ba7b70', 4);
-    label(g, 'MINE', th.x, th.y - 44, 10, '#ffd2dc', 'center');
-  }
-  if (stun)
-    for (let i = 0; i < 3; i++) {
-      const a = th.bob * 5 + i * 2.1;
-      spark(g, th.x + Math.cos(a) * 15, th.y - 34 + Math.sin(a) * 5, '#fff0ab', 0.45);
-    }
-  if (th.zap > 0 && !stun) {
-    g.strokeStyle = '#a7e5ddaa';
-    g.lineWidth = 2;
-    g.beginPath();
-    g.arc(th.x, th.y - 10, 26, -Math.PI / 2, -Math.PI / 2 + (th.zap / 0.35) * Math.PI * 2);
-    g.stroke();
-  }
-}
-
-function magnetDrawMagnet(g) {
-  const m = mini.magnet,
-    power = magnetPower(),
-    heat = mini.magnetHeat,
-    hot = mini.magnetHot,
-    radius = magnetRadius();
-  if (power) {
-    for (let r = 1; r <= 3; r++) {
-      let a = (r / 3 + (m.mode === 1 ? -1 : 1) * mini.total * 0.35) % 1;
-      if (a < 0) a++;
-      g.strokeStyle = m.mode === 1 ? '#a7e5dd38' : '#f4b1c038';
-      g.lineWidth = 2;
-      g.beginPath();
-      g.arc(m.x, m.y, a * radius, 0, Math.PI * 2);
-      g.stroke();
-    }
-    if (mini.magnetSurge > 0) {
-      g.setLineDash([6, 8]);
-      g.strokeStyle = '#fff2a866';
-      g.lineWidth = 2;
-      g.beginPath();
-      g.arc(m.x, m.y, radius, 0, Math.PI * 2);
-      g.stroke();
-      g.setLineDash([]);
-    }
-  }
-  if (heat > 0.35) glow(g, m.x, m.y, 30 + heat * 32, hot ? '#ff6b4a66' : '#ff9a5c' + (heat > 0.7 ? '44' : '22'));
-  if (hot)
-    for (let i = 0; i < 3; i++) {
-      const a = (mini.total * 0.9 + i / 3) % 1;
-      g.globalAlpha = 1 - a;
-      ellipse(g, m.x - 10 + i * 10, m.y - 26 - a * 34, 6 + a * 8, 6 + a * 8, '#c9c3c4');
-    }
-  g.globalAlpha = 1;
-  const body = hot ? '#ff8a6a' : heat > 0.7 ? '#f6c7a4' : m.mode === 1 ? '#c6f5df' : '#f6bccb';
-  g.save();
-  g.translate(m.x, m.y);
-  g.strokeStyle = body;
-  g.lineWidth = 10;
-  g.lineCap = 'round';
-  g.beginPath();
-  g.arc(0, 0, 21, 0, Math.PI);
-  g.lineTo(-21, -12);
-  g.stroke();
-  line(g, [[21, 0], [21, -12]], m.mode === 1 ? '#f3a4a0' : '#b8e6d6', 10);
-  line(g, [[-21, 0], [-21, -12]], hot ? '#ff8a6a' : m.mode === 1 ? '#b8e6d6' : '#f3a4a0', 10);
-  g.restore();
-  // Heat gauge wraps the magnet once overheat is in play.
-  if (magnetLevel().heat) {
-    g.strokeStyle = '#0f283766';
-    g.lineWidth = 5;
-    g.beginPath();
-    g.arc(m.x, m.y, 33, Math.PI * 0.75, Math.PI * 2.25);
-    g.stroke();
-    g.strokeStyle = hot ? '#ff6b4a' : heat > 0.7 ? '#ffb36b' : '#a7e5dd';
-    g.beginPath();
-    g.arc(m.x, m.y, 33, Math.PI * 0.75, Math.PI * 0.75 + heat * Math.PI * 1.5);
-    g.stroke();
-    if (hot) label(g, 'HOT', m.x, m.y + 48, 11, '#ffb39c', 'center');
-  }
-}
-
-function magnetDrawGuide(g) {
-  if (!magnetLevel().hints || !mini.magnet.on) return;
-  const o = mini.orbs.find(o => o.id === mini.magnetLastTouched);
-  if (!o) return;
-  const tx = o.bad ? MAGNET_VENT_X : MAGNET_PORT_X[o.kind],
-    ty = o.bad ? 566 : 104;
-  g.setLineDash([5, 9]);
-  line(g, [[o.x, o.y], [tx, ty]], o.bad ? '#ed8daf88' : o.kind ? '#f2cc7d88' : '#a8dfc188', 2);
-  g.setLineDash([]);
+  const s = (h - 54) / MAGNET_H;
+  return { s, ox: (w - MAGNET_W * s) / 2, oy: 50, w, h, tall: false };
 }
 
 function magnetDraw(g) {
-  magnetDrawField(g);
-  for (let i = 0; i < 7 && mini.shift; i++) {
-    const y = 145 + i * 57,
-      x = 300 + Math.sin(mini.total * 0.7 + y * 0.012) * 80;
-    line(g, [[x - 28, y], [x + 28, y]], '#b8d9c92d', 2);
-    poly(g, [[x + 22, y - 5], [x + 30, y], [x + 22, y + 5]], '#b8d9c944');
+  if (mini.paused) magnetDropHeld();
+  if (!mini.pinT) return;
+  const V = magnetView(),
+    shake = reduced ? 0 : mini.pinShake;
+  magnetRoom(g, V);
+  g.save();
+  g.translate(V.ox + Math.sin(mini.total * 83) * shake * 5, V.oy + Math.cos(mini.total * 71) * shake * 4);
+  g.scale(V.s, V.s);
+  magnetTable(g);
+  g.restore();
+  if (V.tall) magnetStrip(g, V);
+  else magnetPanels(g, V);
+  magnetHints(g, V);
+}
+
+// The radiology room and the scanner's housing around the table.
+function magnetRoom(g, V) {
+  rect(g, 0, 0, V.w, V.h, gradient(g, 0, 0, 0, V.h, '#10283a', '#07141f'));
+  if (!V.tall) {
+    for (let y = 70; y < V.h; y += 34) line(g, [[0, y], [V.w, y]], '#d1ecdc08', 1);
+    glow(g, V.w / 2, V.h * 0.45, V.h * 0.75, mini.pinMagOn ? '#7fe3ff2a' : '#7dbddb14');
   }
-  magnetDrawPorts(g);
-  magnetDrawVent(g);
-  magnetDrawWalls(g);
-  magnetDrawPickups(g);
-  magnetDrawGuide(g);
-  for (const o of mini.orbs) magnetDrawOrb(g, o);
-  for (const th of mini.magnetThieves) magnetDrawThief(g, th);
-  magnetDrawMagnet(g);
-  for (const p of mini.magnetPops) {
-    g.globalAlpha = Math.min(1, p.life * 2);
-    label(g, p.text, p.x, p.y, 16, p.col, 'center');
+  const x = V.ox - 12 * V.s,
+    w = MAGNET_W * V.s + 24 * V.s,
+    y = V.tall ? 6 : V.oy - 16 * V.s,
+    h = V.h - y - 2;
+  rr(g, x, y, w, h, 26, gradient(g, x, y, w, h, '#e9efe0', '#8fb1b7'), '#5f8c9d', 2);
+  rr(g, x + 5, y + 5, w - 10, h - 10, 22, null, '#ffffff55', 1.5);
+  if (V.tall) label(g, 'BRRR 3000', V.w / 2, 40, 10, '#597f8e', 'center');
+}
+
+function magnetTable(g) {
+  const lv = mini.pinLv,
+    magOn = mini.pinMagOn,
+    D = lv.divider;
+  // Playfield.
+  path(
+    g,
+    p => {
+      p.moveTo(14, 722);
+      p.lineTo(14, 200);
+      p.arc(200, 200, 186, Math.PI, Math.PI * 2);
+      p.lineTo(386, 722);
+      p.closePath();
+    },
+    gradient(g, 0, 0, 0, 720, '#1d5068', '#0d2533')
+  );
+  // The donut: coils around the bore, lit when the magnet fires.
+  const B = MAGNET_BORE;
+  g.beginPath();
+  g.arc(B.x, B.y, 140, 0, Math.PI * 2);
+  g.arc(B.x, B.y, 92, 0, Math.PI * 2, true);
+  g.fillStyle = magOn ? '#2f7f99' : '#245a6e';
+  g.fill();
+  for (let k = 0; k < 28; k++) {
+    const a = (k / 28) * Math.PI * 2 + (magOn ? mini.total * 3 : 0),
+      c = Math.cos(a),
+      s = Math.sin(a);
+    line(g, [[B.x + c * 98, B.y + s * 98], [B.x + c * 134, B.y + s * 134]], magOn ? (k % 2 ? '#a8f0ff' : '#5fc3dd') : k % 2 ? '#3a7b90' : '#2c6679', 5);
+  }
+  ellipse(g, B.x, B.y, 92, 92, gradient(g, B.x - 92, B.y - 92, 184, 184, '#0f3346', '#06161f'));
+  for (let r = 30; r < 92; r += 20) {
+    g.strokeStyle = '#7fd0e012';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.arc(B.x, B.y, r, 0, Math.PI * 2);
+    g.stroke();
+  }
+  if (magOn) glow(g, B.x, B.y, 170, '#7fe3ff40');
+  label(g, 'NO METAL · NO CHILL', B.x, B.y + 125, 9, '#a9d6dc88', 'center');
+  // Lower inserts: up arrows toward the bore and the SAVE light between the flippers.
+  for (let k = 0; k < 3; k++) {
+    const y = 470 + k * 26,
+      lit = (mini.total * 2 - k * 0.3 + 3) % 1.5 < 0.5;
+    poly(g, [[MAGNET_CX, y - 10], [MAGNET_CX + 12, y + 4], [MAGNET_CX - 12, y + 4]], lit ? '#ffd27a88' : '#ffd27a22');
+  }
+  const save = mini.pinSave > 0 && (mini.pinSave > 2 || Math.sin(mini.total * 16) > 0);
+  ellipse(g, MAGNET_CX, 604, 15, 11, save ? '#7fe08a' : '#16343f');
+  if (save) glow(g, MAGNET_CX, 604, 34, '#7fe08a55');
+  label(g, 'SAVE', MAGNET_CX, 607, 8, save ? '#123222' : '#4c6f78', 'center');
+  // Rollover lane letters.
+  MAGNET_ROLL_X.forEach((x, i) => {
+    const lit = mini.pinLit[i] && (mini.pinLitFlash <= 0 || Math.sin(mini.total * 30) > 0),
+      skill = mini.pinSkill && !mini.pinSkill.armed && mini.pinSkill.lane === i && Math.sin(mini.total * 10) > 0;
+    if (lit) glow(g, x, 124, 26, '#ffe08a66');
+    ellipse(g, x, 124, 10, 10, lit ? '#ffe08a' : '#163a4b');
+    if (skill) {
+      g.strokeStyle = '#ffffff';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(x, 124, 13, 0, Math.PI * 2);
+      g.stroke();
+    }
+    label(g, 'MRI'[i], x, 128, 11, lit ? '#3a2a10' : '#8fb8c4', 'center');
+  });
+  if (mini.pinMult > 1) label(g, '×' + mini.pinMult, 248, 128, 12, '#ffe08a', 'center');
+  // Ramp block and mouth.
+  poly(g, [[14, 200], [14, 226], [68, 242], [66, 298], [14, 342]], '#123a4c');
+  const hot = mini.pinRampCombo > 0 && Math.sin(mini.total * 12) > 0;
+  for (let k = 0; k < 3; k++) {
+    const x = 46 - k * 9,
+      y = 306 - k * 15;
+    poly(g, [[x - 12, y + 4], [x, y - 10], [x + 6, y + 8]], hot ? '#a8f0ff' : '#a8f0ff44');
+  }
+  label(g, 'SCAN', 40, 262, 10, '#a8f0ffaa', 'center');
+  // Splats from evictions.
+  for (const s of mini.pinSplats) magnetSplatArt(g, s);
+  // Rails, walls, slingshots.
+  magnetRails(g);
+  for (const side of [0, 1]) {
+    const X = x => (side ? 2 * MAGNET_CX - x : x),
+      fl = mini.pinSlingFlash[side] > 0;
+    poly(g, [[X(84), 488], [X(84), 566], [X(118), 594]], '#2c5d6e');
+    line(g, [[X(118), 594], [X(84), 488]], fl ? '#fff3cd' : '#ef929d', 7);
+    rr(g, X(94) - 3, 538, 6, 18, 2, '#d9e6d0aa');
+    rr(g, X(94) - 9, 544, 18, 6, 2, '#d9e6d0aa');
+    // Kickback lights in the outlanes.
+    if (lv.kick !== 'none') {
+      const x = side ? (2 * MAGNET_CX - D + MAGNET_LANE.x0) / 2 : (14 + D) / 2,
+        lit = mini.pinKick[side],
+        f = mini.pinKickFlash[side] > 0;
+      if (lit || f) glow(g, x, 600, 22, '#ffd27a55');
+      poly(g, [[x, 588], [x + 8, 602], [x - 8, 602]], f ? '#fff3cd' : lit ? '#ffd27a' : '#2b4a55');
+      rr(g, x - 3, 602, 6, 9, 2, f ? '#fff3cd' : lit ? '#ffd27a' : '#2b4a55');
+    }
+  }
+  for (const p of mini.pinT.posts) {
+    ellipse(g, p.x, p.y, p.R + 1.5, p.R + 1.5, '#ef929d');
+    ellipse(g, p.x, p.y, p.R * 0.5, p.R * 0.5, '#fff3cd');
+  }
+  // Drop targets.
+  if (mini.pinDrops)
+    mini.pinDrops.forEach((d, i) => {
+      const y = MAGNET_DROP_Y[i];
+      if (d.up) {
+        rr(g, MAGNET_DROP_X - 5, y, 10, 24, 3, d.flash > 0 ? '#ffffff' : '#f1cf85', '#6b4a1e', 1.2);
+        rr(g, MAGNET_DROP_X - 5, y - 2, 10, 5, 2, '#e8eef0');
+      } else rr(g, MAGNET_DROP_X - 5, y + 18, 10, 6, 2, d.flash > 0 ? '#ffffff' : '#0d2533', '#3c5d68', 1);
+    });
+  // Bumpers.
+  for (const gr of mini.pinGrem) magnetBumperArt(g, gr);
+  if (mini.pinBoss) magnetBumperArt(g, mini.pinBoss);
+  // Plunger lane.
+  rect(g, MAGNET_LANE.x0 + 2, 300, MAGNET_LANE.x1 - MAGNET_LANE.x0 - 4, 420, '#0b202c');
+  const waiting = magnetWaiting();
+  for (let k = 0; k < 4; k++) {
+    const y = 640 - k * 34,
+      lit = waiting && (mini.total * 3 - k * 0.25 + 2) % 1 < 0.4;
+    poly(g, [[MAGNET_LANE.x, y - 9], [MAGNET_LANE.x + 9, y + 3], [MAGNET_LANE.x - 9, y + 3]], lit ? '#ffb347' : '#ffb3472a');
+  }
+  const py = 703 + (mini.pinPull ? magnetPullPower() * 13 : 0);
+  for (let k = 0; k < 4; k++) line(g, [[MAGNET_LANE.x - 7, py + 3 + k * 4], [MAGNET_LANE.x + 7, py + 5 + k * 4]], '#9fb7bd', 1.5);
+  rr(g, MAGNET_LANE.x - 8, py - 2, 16, 6, 2, '#e3ecd6');
+  // Ramp track (elevated, translucent) and the gate.
+  const riding = mini.pinBalls.some(b => b.state === 'ramp');
+  line(g, MAGNET_RAMP.pts, '#06141c55', 30);
+  line(g, MAGNET_RAMP.pts, riding ? '#7fd0e055' : '#7fd0e026', 24);
+  line(g, MAGNET_RAMP.pts, '#d9f3ff40', 2);
+  line(g, [[386, 262], [350, 300]], '#9fc8e8', 3);
+  // Flippers.
+  for (const f of mini.pinFlips) magnetFlipperArt(g, f);
+  // Balls on the playfield, the magnet's pull, then balls on the ramp above everything.
+  for (const b of mini.pinBalls) {
+    if (b.state === 'ramp' || b.state === 'hop') continue;
+    if (b.trail)
+      b.trail.forEach((p, i) => {
+        g.globalAlpha = ((i + 1) / b.trail.length) * 0.16;
+        ellipse(g, p.x, p.y, MAGNET_BALL * 0.8, MAGNET_BALL * 0.8, magOn ? '#a8f0ff' : '#e9f2ef');
+      });
+    g.globalAlpha = 1;
+    if (magOn && b.state === 'play') magnetFieldArt(g, b);
+    magnetSteel(g, b.x, b.y, MAGNET_BALL, b.spin);
+  }
+  for (const b of mini.pinBalls) {
+    if (b.state !== 'ramp' && b.state !== 'hop') continue;
+    ellipse(g, b.x + 7, b.y + 9, MAGNET_BALL, MAGNET_BALL * 0.8, '#04121b66');
+    magnetSteel(g, b.x, b.y, MAGNET_BALL * 1.15, b.spin);
+  }
+  // Particles and score pops.
+  for (const p of mini.pinFx) {
+    g.globalAlpha = Math.min(1, p.life * 3);
+    ellipse(g, p.x, p.y, p.r, p.r, p.col);
   }
   g.globalAlpha = 1;
-  if (mini.magnetChain > 1 && mini.magnetChainT > 0) {
-    rr(g, 486, 128, 92, 30, 10, '#102b40cc', '#ffe5a866', 1);
-    label(g, 'CHAIN ×' + Math.min(5, mini.magnetChain), 532, 148, 13, '#ffe5a8', 'center');
-    rect(g, 494, 152, 76 * (mini.magnetChainT / MAGNET_CHAIN_WINDOW), 3, '#ffe5a8');
+  for (const p of mini.pinPops) {
+    g.globalAlpha = Math.min(1, p.t * 3);
+    const y = p.y - (0.9 - p.t) * 34;
+    label(g, p.text, p.x + 1, y + 1, 12, '#06141c', 'center');
+    label(g, p.text, p.x, y, 12, p.col, 'center');
   }
-  rr(g, 158, 512, 284, 28, 14, '#102b40bb');
-  label(g, magnetHint(), 300, 531, 12, mini.magnetHot ? '#ffb39c' : '#d5e7d4', 'center');
+  g.globalAlpha = 1;
+  magnetApron(g);
+}
+
+function magnetRails(g) {
+  const T = mini.pinT,
+    skip = s => s.tag === 'drop' || s.tag === 'ramp' || s.tag === 'gate' || s.tag === 'tip' || s.tag === 'sling';
+  for (const s of T.segs) if (!skip(s)) line(g, [[s.ax, s.ay], [s.bx, s.by]], '#08202b', s.r * 2 + 4);
+  for (const s of T.segs) if (!skip(s)) line(g, [[s.ax, s.ay], [s.bx, s.by]], '#d9e6d0', s.r * 2 + 0.5);
+  for (const a of T.arcs) {
+    path(g, p => p.arc(a.cx, a.cy, a.R + 2, a.a0, a.a1), null, '#08202b', 8);
+    path(g, p => p.arc(a.cx, a.cy, a.R + 2, a.a0, a.a1), null, '#d9e6d0', 4);
+  }
+  line(g, [[14, 342], [66, 298]], '#a8f0ff', 3);
+}
+
+function magnetBumperArt(g, gr) {
+  const { x, y, R } = gr;
+  if (gr.gone) {
+    ellipse(g, x, y, R - 2, R - 2, '#0a1d27');
+    g.strokeStyle = '#3c5d68';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(x, y, R - 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - clamp(gr.respawn / (gr.boss ? 25 : 2.4), 0, 1)));
+    g.stroke();
+    label(g, 'VACANT', x, y + 3, 7, '#6f8f98', 'center');
+    return;
+  }
+  const grow = gr.pop > 0 ? 1 - gr.pop / 0.35 : 1,
+    hit = gr.flash > 0;
+  ellipse(g, x + 2, y + 5, R + 1, R * 0.75, '#04121b66');
+  if (hit) glow(g, x, y, R * 2.2, gr.boss ? '#ffcf8f77' : '#fff2c477');
+  ellipse(g, x, y, R, R, hit ? '#fff6d8' : gr.boss ? '#f3a35c' : '#ef929d');
+  ellipse(g, x, y, R - 4, R - 4, hit ? '#ffe9b8' : '#24485a');
+  const s = (R / 42) * grow;
+  g.save();
+  g.translate(x, y + R * 0.52 * grow);
+  if (hit) g.scale(1.12, 0.86);
+  gremlin(g, 0, 0, s, gr.type, time * (gr.boss ? 0.7 : 1) + x * 0.01);
+  if (gr.boss) {
+    // Clank's bucket: metal, in an MRI. Bold.
+    poly(g, [[-17 * s, -40 * s], [17 * s, -40 * s], [13 * s, -60 * s], [-13 * s, -60 * s]], '#b9c6cc');
+    rr(g, -19 * s, -43 * s, 38 * s, 5 * s, 2, '#8a9aa1');
+    line(g, [[-8 * s, -56 * s], [8 * s, -56 * s]], '#e8eef0', 1.5);
+  }
+  g.restore();
+  if (gr.boss) {
+    // A health pill under Clank, clear of the lane letters above him.
+    const w = 56,
+      top = y + R + 3;
+    rr(g, x - w / 2, top, w, 12, 6, '#0b202c', '#ffcf8f', 1);
+    rr(g, x - w / 2 + 1.5, top + 1.5, (w - 3) * clamp(gr.hp / gr.max, 0, 1), 9, 4.5, '#f3a35c');
+    label(g, 'CLANK', x, top + 9.5, 8, '#fff2c4', 'center');
+    return;
+  }
+  // Hits left.
+  const w = gr.max * 7;
+  for (let k = 0; k < gr.max; k++) ellipse(g, x - w / 2 + 3.5 + k * 7, y + R + 6, 2.6, 2.6, k < gr.hp ? '#fff2c4' : '#2b4a55');
+}
+
+function magnetSplatArt(g, s) {
+  g.globalAlpha = Math.min(1, s.t / 1.2) * 0.85;
+  for (let i = 0; i < 7; i++) {
+    const ang = i * 2.4,
+      d = i ? 12 + (i % 3) * 8 : 0,
+      r = (i ? 6 + (i % 2) * 4 : 14) * s.s;
+    ellipse(g, s.x + Math.cos(ang) * d * s.s, s.y + Math.sin(ang) * d * s.s * 0.8, r, r * 0.8, i % 2 ? '#7cc244' : '#8fd14f');
+  }
+  g.globalAlpha = 1;
+}
+
+function magnetFlipperArt(g, f) {
+  const t = magnetTip(f),
+    nx = -Math.sin(f.a),
+    ny = Math.cos(f.a),
+    { rp, rt } = MAGNET_FLIP,
+    shape = (grow, col) => {
+      poly(
+        g,
+        [
+          [f.x + nx * (rp + grow), f.y + ny * (rp + grow)],
+          [t.x + nx * (rt + grow), t.y + ny * (rt + grow)],
+          [t.x - nx * (rt + grow), t.y - ny * (rt + grow)],
+          [f.x - nx * (rp + grow), f.y - ny * (rp + grow)]
+        ],
+        col
+      );
+      ellipse(g, f.x, f.y, rp + grow, rp + grow, col);
+      ellipse(g, t.x, t.y, rt + grow, rt + grow, col);
+    };
+  if (f.glow > 0) glow(g, (f.x + t.x) / 2, (f.y + t.y) / 2, 52, `rgba(165, 226, 201, ${0.35 * f.glow})`);
+  shape(2, '#123c3a');
+  shape(0, mini.pinTilted ? '#6f8790' : f.held ? '#c6f3df' : '#a5e2c9');
+  line(g, [[f.x - nx * 3, f.y - ny * 3], [t.x - nx * 1.5, t.y - ny * 1.5]], '#ffffff88', 2);
+  ellipse(g, f.x, f.y, 3, 3, '#2b6a64');
+}
+
+function magnetFieldArt(g, b) {
+  const B = MAGNET_BORE,
+    k = (mini.total * 2.5) % 1;
+  line(g, [[b.x, b.y], [(b.x + B.x) / 2 + Math.sin(mini.total * 20) * 6, (b.y + B.y) / 2], [B.x, B.y]], '#a8f0ff55', 2);
+  for (const r of [k, (k + 0.5) % 1]) {
+    g.strokeStyle = `rgba(168, 240, 255, ${0.7 * (1 - r)})`;
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(b.x, b.y, MAGNET_BALL + 4 + r * 22, 0, Math.PI * 2);
+    g.stroke();
+  }
+  glow(g, b.x, b.y, 30, '#a8f0ff55');
+}
+
+// The steel softball: chrome with red stitches. Metal in an MRI, which nobody is mentioning.
+function magnetSteel(g, x, y, r, spin) {
+  ellipse(g, x + 2, y + 3, r, r * 0.9, '#04121b55');
+  ellipse(g, x, y, r, r, gradient(g, x - r, y - r, r * 2, r * 2, '#f7fbf8', '#6f8790'));
+  g.save();
+  g.translate(x, y);
+  g.rotate(spin);
+  path(
+    g,
+    p => {
+      p.moveTo(-r * 0.55, -r * 0.75);
+      p.quadraticCurveTo(r * 0.05, 0, -r * 0.55, r * 0.75);
+      p.moveTo(r * 0.55, -r * 0.75);
+      p.quadraticCurveTo(-r * 0.05, 0, r * 0.55, r * 0.75);
+    },
+    null,
+    '#d9534f',
+    Math.max(1, r * 0.15)
+  );
+  g.restore();
+  ellipse(g, x - r * 0.35, y - r * 0.4, r * 0.32, r * 0.22, '#ffffffcc');
+}
+
+// Apron plates under the flippers: the magnet's heat on the right, the ball or the tilt on the left.
+function magnetApron(g) {
+  poly(g, [[14, 664], [148, 700], [148, 722], [14, 722]], '#d6e2d4');
+  poly(g, [[350, 664], [216, 700], [216, 722], [350, 722]], '#d6e2d4');
+  line(g, [[14, 664], [148, 700]], '#7fa3ac', 2);
+  line(g, [[350, 664], [216, 700]], '#7fa3ac', 2);
+  const heat = mini.pinHeat,
+    col = mini.pinHot ? '#ff8a7a' : mini.pinMagOn ? '#7fe3ff' : '#3fa8c4';
+  label(g, mini.pinHot ? 'MAGNET HOT' : mini.pinMagOn ? 'MAGNET ON' : 'MAGNET', 336, 694, 10, mini.pinHot ? '#b8404a' : '#2c5b6b', 'right');
+  rr(g, 228, 700, 110, 12, 5, '#0b202c');
+  rr(g, 229, 701, 108 * (1 - heat), 10, 4, col);
+  if (mini.pinTilt > 0.05 || mini.pinTilted) {
+    label(g, mini.pinTilted ? 'TILT' : 'NUDGE', 28, 694, 10, mini.pinTilted ? '#b8404a' : '#7a5a20');
+    rr(g, 28, 700, 100, 12, 5, '#0b202c');
+    rr(g, 29, 701, 98 * clamp(mini.pinTilt, 0, 1), 10, 4, mini.pinTilted ? '#ff8a7a' : '#ffb347');
+  } else {
+    label(g, 'LOUD DONUT', 28, 694, 10, '#2c5b6b');
+    label(g, 'BALL ' + Math.min(3, mini.pinBallNo + 1) + ' OF 3', 28, 710, 10, '#2c5b6b');
+  }
+}
+
+function magnetComma(n) {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// Portrait: a dot-matrix strip on the scanner, under the HUD pills.
+function magnetStrip(g, V) {
+  const x = 14,
+    y = 52,
+    w = V.w - 28,
+    h = 42;
+  rr(g, x, y, w, h, 10, '#170f08', '#6b4a1e', 1.5);
+  for (let k = x + 8; k < x + w - 4; k += 6) line(g, [[k, y + 4], [k, y + h - 4]], '#ffffff05', 1);
+  const m = mini.pinMsg;
+  if (m) {
+    label(g, m.text, V.w / 2, y + 27, m.text.length > 30 ? 13 : 16, m.col, 'center');
+    return;
+  }
+  label(g, magnetComma(mini.score), x + 12, y + 29, 22, '#ffb347');
+  label(g, 'BALL ' + Math.min(3, mini.pinBallNo + 1) + (mini.pinMult > 1 ? ' · ×' + mini.pinMult : ''), x + w - 12, y + 18, 11, '#ffcf8f', 'right');
+  label(g, 'EVICTED ' + mini.got + '/' + mini.goal, x + w - 12, y + 34, 11, '#c9ffb0', 'right');
+}
+
+// Landscape: score on the left, the magnet and the controls on the right.
+function magnetPanels(g, V) {
+  const lw = V.ox - 36,
+    lx = 18,
+    rx = V.ox + MAGNET_W * V.s + 18,
+    rw = V.w - rx - 18;
+  if (lw < 120) return;
+  panel(g, lx, 60, lw, V.h - 78);
+  label(g, 'POLARITY PANIC', lx + 16, 92, 17, '#f1e2b9');
+  label(g, 'THE LOUD DONUT · LEVEL ' + (mini.tier + 1), lx + 16, 112, 11, '#a9c9c3');
+  label(g, 'SCORE', lx + 16, 150, 10, '#a9c9c3');
+  label(g, magnetComma(mini.score), lx + 16, 184, 30, '#ffb347');
+  label(g, 'EVICTED', lx + 16, 220, 10, '#a9c9c3');
+  label(g, mini.got + ' / ' + mini.goal, lx + 16, 248, 22, mini.got >= mini.goal ? '#c9ffb0' : '#e8f1dc');
+  rr(g, lx + 16, 258, lw - 32, 8, 4, '#0b202c');
+  rr(g, lx + 16, 258, (lw - 32) * clamp(mini.got / mini.goal, 0, 1), 8, 4, '#8fd14f');
+  label(g, 'BALLS', lx + 16, 294, 10, '#a9c9c3');
+  const left = (mini.pinSpare || 0) + (mini.pinOver ? 0 : 1);
+  for (let k = 0; k < 3; k++) {
+    magnetSteel(g, lx + 28 + k * 28, 316, 9, k);
+    if (k >= left) ellipse(g, lx + 28 + k * 28, 316, 10, 10, '#0b202ccc');
+  }
+  label(g, 'BONUS ×' + mini.pinMult + ' · ' + mini.pinRamps + ' SCANS', lx + 16, 354, 11, '#ffe08a');
+  // Message window.
+  const my = V.h - 140,
+    m = mini.pinMsg,
+    text = m ? m.text : mini.pinCleared ? 'VICTORY LAP · ' + Math.ceil(mini.pinLapT) + ' S LEFT' : magnetWaiting() ? 'CLICK OR SPACE · TO LAUNCH' : 'KEEP IT · IN THE BORE';
+  rr(g, lx + 10, my, lw - 20, 104, 10, '#170f08', '#6b4a1e', 1.5);
+  text
+    .split(' · ')
+    .slice(0, 3)
+    .forEach((wd, i) => label(g, wd, lx + lw / 2, my + 32 + i * 26, wd.length > 16 ? 12 : 15, m ? m.col : '#ffb347', 'center'));
+  if (rw < 120) return;
+  panel(g, rx, 60, rw, V.h - 78);
+  label(g, 'MAGNET', rx + 16, 92, 15, '#f1e2b9');
+  const heat = mini.pinHeat,
+    bx = rx + 16,
+    by = 108,
+    bh = 170,
+    col = mini.pinHot ? '#ff8a7a' : mini.pinMagOn ? '#7fe3ff' : '#3fa8c4',
+    cw = rw - 78;
+  rr(g, bx, by, 34, bh, 10, '#0b202c', '#5f8a9a', 1);
+  rr(g, bx + 3, by + 3 + (bh - 6) * heat, 28, (bh - 6) * (1 - heat), 8, col);
+  label(g, mini.pinHot ? 'HOT' : mini.pinMagOn ? 'ON' : 'READY', bx + 46, by + 22, 14, col);
+  label(g, 'HOLD BOTH', bx + 46, by + 48, 10, '#a9c9c3');
+  label(g, 'FLIPPERS', bx + 46, by + 62, 10, '#a9c9c3');
+  const sv = mini.pinSave > 0;
+  rr(g, bx + 46, by + 84, cw, 26, 9, sv ? '#7fe08a' : '#16343f');
+  label(g, sv ? 'SAVE ' + Math.ceil(mini.pinSave) + 's' : 'NO SAVE', bx + 46 + cw / 2, by + 102, 11, sv ? '#123222' : '#6f8f98', 'center');
+  rr(g, bx + 46, by + 122, cw, 26, 9, mini.pinTilted ? '#ff8a7a' : '#16343f');
+  rr(g, bx + 46, by + 122, cw * clamp(mini.pinTilt, 0, 1), 26, 9, mini.pinTilted ? '#ff8a7a' : '#ffb34788');
+  label(g, mini.pinTilted ? 'TILT' : 'NUDGE', bx + 46 + cw / 2, by + 140, 11, '#f6eed6', 'center');
+  [
+    ['LEFT HALF', 'left flipper'],
+    ['RIGHT HALF', 'right flipper'],
+    ['BOTH', 'magnet'],
+    ['SWIPE UP · SHIFT', 'nudge'],
+    ['Z · /  or  ← · →', 'flippers'],
+    ['SPACE', 'launch']
+  ].forEach(([a, b], i) => {
+    const y = 316 + i * 30;
+    if (y > V.h - 40) return;
+    label(g, a, rx + 16, y, 11, '#ffe9b8');
+    label(g, b, rx + 16, y + 13, 10, '#a9c9c3');
+  });
+}
+
+function magnetTag(g, text, x, y, arrow) {
+  const tw = text.length * 7.4 + 22;
+  x = clamp(x, tw / 2 + 6, activeCanvas().w - tw / 2 - 6);
+  rr(g, x - tw / 2, y - 15, tw, 26, 9, '#fff2c4ee');
+  label(g, text, x, y + 3, 11, '#2b2a1e', 'center');
+  if (arrow) poly(g, [[x - 7, y + 11], [x + 7, y + 11], [x, y + 20]], '#fff2c4ee');
+}
+
+// Teaching on the canvas: how to launch, which half is which flipper, and the magnet.
+function magnetHints(g, V) {
+  if (mini.screen !== 'play') return;
+  const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
+    T = (x, y) => ({ x: V.ox + x * V.s, y: V.oy + y * V.s }),
+    pulse = 0.75 + 0.25 * Math.sin(mini.total * 6);
+  if (magnetWaiting()) {
+    const p = T(MAGNET_LANE.x, 560);
+    g.globalAlpha = mini.pinWait > 3 ? pulse : 1;
+    if (mini.pinPull) magnetTag(g, 'LET GO TO LAUNCH · HOLD = HARDER', p.x - 70, p.y, false);
+    else magnetTag(g, coarse ? 'TAP ANYWHERE TO LAUNCH' : 'CLICK OR SPACE TO LAUNCH', p.x - 70, p.y, false);
+    g.globalAlpha = 1;
+    return;
+  }
+  const live = mini.pinBalls.filter(b => b.state === 'play');
+  if (!live.length) return;
+  if (mini.pinBallNo === 0 && mini.tier === 0 && mini.total < 40)
+    for (const side of [0, 1]) {
+      if (mini.pinUsedFlip[side]) continue;
+      const p = T(side ? 300 : 64, 600);
+      magnetTag(g, coarse ? (side ? 'RIGHT HALF ▶' : '◀ LEFT HALF') : side ? 'CLICK RIGHT · / ▶' : '◀ Z · CLICK LEFT', p.x, p.y, false);
+    }
+  const diving = live.some(b => b.y > 540 && b.vy > 0 && Math.abs(b.x - MAGNET_CX) < 70);
+  if (mini.pinHot) {
+    const p = T(282, 660);
+    magnetTag(g, 'LET GO TO COOL', p.x, p.y, false);
+  } else if (diving && !mini.pinMagUses && mini.tier < 2) {
+    const p = T(MAGNET_CX, 560);
+    magnetTag(g, coarse ? 'HOLD BOTH SIDES = MAGNET' : 'HOLD BOTH FLIPPERS = MAGNET', p.x, p.y, false);
+  }
+}
+
+// Department card and lobby preview: the donut, three gremlin bumpers, flippers and the ball.
+function magnetScene(g, w, h) {
+  g.save();
+  g.scale(w / 420, h / 240);
+  rect(g, 0, 0, 420, 240, gradient(g, 0, 0, 0, 240, '#1b4a5e', '#0b2230'));
+  rr(g, 60, 10, 300, 236, 30, gradient(g, 60, 10, 300, 236, '#e9efe0', '#8fb1b7'), '#5f8c9d', 2);
+  rr(g, 80, 26, 260, 220, 22, gradient(g, 0, 26, 0, 220, '#1d5068', '#0d2533'));
+  g.beginPath();
+  g.arc(210, 112, 82, 0, Math.PI * 2);
+  g.arc(210, 112, 54, 0, Math.PI * 2, true);
+  g.fillStyle = '#2f7f99';
+  g.fill();
+  for (let k = 0; k < 20; k++) {
+    const a = (k / 20) * Math.PI * 2 + time * 0.6;
+    line(g, [[210 + Math.cos(a) * 58, 112 + Math.sin(a) * 58], [210 + Math.cos(a) * 78, 112 + Math.sin(a) * 78]], k % 2 ? '#a8f0ff' : '#5fc3dd', 4);
+  }
+  ellipse(g, 210, 112, 54, 54, '#081b26');
+  glow(g, 210, 112, 110, '#7fe3ff30');
+  for (const [x, y, t] of [
+    [186, 104, 0],
+    [234, 104, 1],
+    [210, 136, 3]
+  ]) {
+    ellipse(g, x, y, 14, 14, '#ef929d');
+    ellipse(g, x, y, 11, 11, '#24485a');
+    gremlin(g, x, y + 8, 0.34, t, time + x);
+  }
+  const flap = Math.sin(time * 5) > 0.6 ? -0.4 : 0.45;
+  for (const side of [0, 1]) {
+    g.save();
+    g.translate(side ? 268 : 152, 214);
+    g.rotate(side ? Math.PI - flap : flap);
+    rr(g, -7, -7, 52, 14, 7, '#a5e2c9', '#123c3a', 2);
+    g.restore();
+  }
+  const bx = 290 + Math.sin(time * 1.3) * 30,
+    by = 60 + Math.cos(time * 1.3) * 18;
+  for (let i = 1; i < 6; i++) ellipse(g, bx - i * 7, by + i * 3, 7 - i, 7 - i, '#e9f2ef22');
+  magnetSteel(g, bx, by, 8, time * 4);
+  rr(g, 120, 14, 180, 22, 8, '#170f08', '#6b4a1e', 1);
+  label(g, 'POLARITY PANIC', 210, 30, 12, '#ffb347', 'center');
+  g.restore();
 }
