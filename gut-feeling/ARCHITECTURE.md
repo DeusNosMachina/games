@@ -15,8 +15,8 @@ At load time a file may only use names from earlier files (each game calls `regi
 | `state.js` | Helpers (`$`, `clamp`, `rand`, `dist`, `pick`), `rooms` (name, sub, theme, station, optional `width` and `noArcade`), `ARCADE_COUNT`, `roomWidth()`, `isArcadeRoom()`, difficulties, tiers, save/load, `state`, `player`, ward globals, `mini`, `gore`, the game registry |
 | `art.js` | Drawing primitives, Macy and gremlins, furniture, `roomProps`, cached `roomBg`, shared arcade art (`panel`, `glow`, `drawTimingBar`, `miniBed`, `miniBackdrop`, `arcadeBackdrop`, `softball`, `nutrient`, `vomitArt`) |
 | `audio.js` | `tone()`, `sfx()`, `music()`, `audio` |
-| `world.js` | Title screen, ward HUD, rooms, room-extra hooks, movement, tap-the-room touch control, weapon-change flash, pickups, effects, `drawWorld`, map hookup (`renderMap` mounts `src/map.js`), department cards, frame loop and canvas sizing |
-| `combat.js` | Weapons, gremlin breeds, waves, attacks, jumping, damage, `drawEnemy` |
+| `world.js` | Title screen, ward HUD, rooms, room-extra hooks, movement, tap-the-room touch control, weapon-change flash, pickups, snack carts and floor nutrient drops, the turn-your-phone hint, effects, `drawWorld`, map hookup (`renderMap` mounts `src/map.js`), department cards, frame loop and canvas sizing |
+| `combat.js` | Weapons, gremlin breeds, waves, first-clear pacing (`WARD.firstCap`, `firstTell`, `queueGap`), the combo and its slam, attacks, jumping, damage, `drawEnemy` |
 | `minigames.js` | Arcade framework: lobby, run lifecycle, canvas shape (`activeCanvas`, portrait flips), HUD, instruction toast, assists, scoring, rewards, results, `drawMini`, pointer plumbing, shared gesture-game helpers |
 | `transitions.js` | Briefing, countdown, finish, `lesson()` dispatch, countdown card for games with their own overlay (`paintTransition`, sized to the active canvas) |
 | `games/*.js` | One arcade each: rules, state, art, copy, controls |
@@ -93,16 +93,16 @@ Game-owned: `limit` (set it in `init`; the HUD clock and default `timeUp` use it
 
 ## Saved state
 
-`save()` persists: `hp coins name difficulty food medals records taken defeated upgrades cosmetics won wardClears evictions bestChain coinsEarned runs ralphReady ralph sound played briefed arcade controls recoveries daily`. Notes:
+`save()` persists: `hp coins name difficulty food medals records taken defeated upgrades cosmetics won wardClears evictions bestChain coinsEarned runs ralphReady ralph sound played briefed arcade controls controlsChosen recoveries daily stats stickers cards jersey`. Notes:
 
 - `wardClears[room]` is the grudge level; `wardLocked(id)` (combat.js) is true until the first clear. Rooms 0 and 5 have no combat.
 - `ralphReady` is set by `checkDischarge()` when the passport is complete; combat spawns Ralph in room 0 and sets `ralph` on defeat, then calls `checkDischarge()` again for the win dialog.
 - `briefed` holds `"<id>:<phase>"` keys; a game's full briefing shows once, then a 1.2 s GO card. Countdown is 1.5 s (3.2 s under reduced motion).
 - `daily` holds the Daily Dose record (date, best, streak, paid). During a daily run `mini.daily` is true and a date-seeded RNG replaces `Math.random` around the game hooks (`dailyScoped`).
 - `arcade` remembers fullscreen ("arcade mode", `body.arcade`), which phones and tablets enter on first start.
-- `controls` is the touch scheme: `'tap'` (the room is the controller, default) or `'stick'` (joystick and the full button column). `body.tap-controls` / `body.stick-controls` follow it.
+- `controls` is the touch scheme: `'stick'` (joystick bottom left, the attack cluster bottom right; the default on coarse pointers) or `'tap'` (the room is the controller; the default with a mouse). `controlsChosen` marks a scheme the player picked, which is then kept. `body.tap-controls` / `body.stick-controls` follow it.
 - `cosmetics.worn` feeds `macyLook()` for `girl()`.
-- `recoveries` counts forced IV recoveries; games/iv.js increments it and escalates with it. `grantReward()` resets it on any medal outside a recovery, and `openMini(0, true)` opens the lobby on `ivRecoveryPlan().level`.
+- `recoveries` counts forced IV recoveries (the Frequent Flyer sticker reads it); games/iv.js increments it. The recovery no longer escalates: `ivRecoveryPlan()` always answers level 0, and a lost recovery can end through `patchUp()` at a price in coins. `grantReward()` still resets the count on any medal outside a recovery.
 - `medals`, `records` and `wardClears` stay `ARCADE_COUNT` (six) long even when extra rooms join `rooms`.
 
 ## Title screen
@@ -148,9 +148,10 @@ node gut-feeling/tests/smoke.cjs        # one file (build first)
 | File | Covers | Owner |
 | --- | --- | --- |
 | `verify.cjs` | Saves, nutrients, run lifecycle, idle failure for all 54 combinations, frame-rate independence, discharge, press-to-act buttons (JUMP with the joystick held), weapon strip, EAT, portrait canvases, the instruction toast, tap the room, the title screen, recoveries, run-screen sizing, the room-extra hooks | framework |
-| `combat.cjs` | Ward rules, breeds, spawns, grudge, Ralph, and the masher-vs-kiter tuning check | combat |
+| `combat.cjs` | Ward rules, breeds, spawns, grudge, Ralph, first-clear pacing, the combo, health drops, and the masher-vs-kiter tuning check | combat |
 | `game-<name>.cjs` | That game's mechanics rules | that game |
-| `bots/<name>.cjs` | `{id, policy}`: input-only controller code run every play tick by `playthrough.cjs`, with a persistent `bot` object for its memory. It must win every tier and difficulty. | that game |
+| `bots/<name>.cjs` | `{id, policy}` (or `{id: 'recovery', room, forced, policy}`): input-only controller code run every play tick by `playthrough.cjs`, with a persistent `bot` object for its memory. It must win every tier and difficulty. | that game |
+| `tools/<name>-human.cjs` | Not run by the suite. A human-speed yardstick: an input-only policy that sees the game a quarter second late and plays like a person. Run one before changing a game's pace or quotas; bots prove solvable, these say whether a person can. | that game |
 | `playthrough.cjs` | Runs every bot through all 54 combinations | framework |
 | `smoke.cjs` | Registry shape; every game and room draws; tall and wide ward views; games with a portrait canvas run on it | framework |
 

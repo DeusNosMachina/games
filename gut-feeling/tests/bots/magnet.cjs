@@ -1,4 +1,4 @@
-// Polarity Panic (pinball) controller: input only, through the same touch() hook a phone uses. It reads the
+// Loud Donut Pinball controller: input only, through the same touch() hook a phone uses. It reads the
 // balls' positions and velocities, taps to launch, follows each ball's flight under gravity and flips
 // a side just as a ball reaches that flipper, and holds the flip briefly. It fires the magnet (both
 // flippers) for a ball in an outlane with no kickback lit, or one headed between the flippers where

@@ -1,4 +1,4 @@
-// Not part of the suite. A human-speed yardstick for Polarity Panic, the MRI pinball table: a player who sees the table
+// Not part of the suite. A human-speed yardstick for Loud Donut Pinball, the MRI table: a player who sees the table
 // REACT seconds late, follows the ball's fall the way a person tracks it (straight-line flight under
 // gravity, blind to the bounces it has not seen yet), and flips when that guess says the ball has
 // reached the flipper. Every approach carries a timing error (sigma 0.14 × REACT) and one in eight is
