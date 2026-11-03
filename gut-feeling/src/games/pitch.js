@@ -1,12 +1,14 @@
 // Fastpitch Fever (your room, daytime). Macy sits up in bed with a bucket of softballs and a gremlin
-// problem. Drag back anywhere and let go to throw (the dotted arc shows the flight), or tap a spot for a
-// fastball straight at it. Balls fly through the room in real 3D: gravity, an arc, bounces off the walls
-// and the furniture. Walkers need a lead, peekers duck behind the furniture, bedpan shields only fall to
-// a bank shot off a wall, chargers head for the bed, and the Ensure bottles on the tray table ring like
-// carnival cans. Every hit puts a ball back in the bucket; misses empty it, and a slow refill means an
-// empty bucket never stalls the run. Level 3 brings the Ump, golden two-for-one gremlins and a smaller
-// bucket. Canvas 800 × 450, or 450 × 800 upright: the rules live in room centimeters and only the
-// camera changes with the shape.
+// problem. Flick to throw: swipe up through what you want to hit and let go. The flick's line is where
+// the ball comes down, its speed is how far, and the swipe's length is the arc (a quick short flick is
+// a fast low ball, a long slow swipe is a lob). A faint arc shows the throw only while the finger moves.
+// Balls fly through the room in real 3D: gravity, an arc, bounces off the walls and the furniture, and
+// every landing leaves a scuff. Walkers need a lead, peekers duck behind the furniture, bedpan shields
+// only fall to a bank shot off a wall, chargers head for the bed, and the Ensure bottles on the tray
+// table ring like carnival cans. Every hit puts a ball back in the bucket; misses empty it, and a slow
+// refill means an empty bucket never stalls the run. Level 3 brings the Ump, golden two-for-one
+// gremlins and a smaller bucket; Legendary brings all of it faster, with less arc to read. Canvas
+// 800 × 450, or 450 × 800 upright: the rules live in room centimeters and only the camera changes.
 
 // ---- The room, in centimeters ----
 // x runs left to right (walls at ±PITCH_WALL), y is height off the floor, z runs from the head of
@@ -18,18 +20,24 @@ const PITCH_G = 760, // gravity, cm/s²; a little floatier than Earth so the arc
   PITCH_WALL_H = 260,
   PITCH_REACH = 205, // a charger this close to the bed climbs onto the footboard: an oops
   PITCH_SUB = 1 / 240, // physics substep
-  PITCH_SLOP = 12, // canvas px a press may wander and still count as a tap
-  PITCH_PULL = 165, // canvas px of pull for a full-power throw
-  PITCH_MIN_POWER = 0.12,
-  PITCH_VMIN = 180, // throw speed at the softest pull, cm/s
-  PITCH_VMAX = 640, // and at a full pull: a little past the far floor, up the window wall
-  PITCH_LIFT = 0.56, // launch angle of a pulled throw, radians (about 32 degrees)
-  PITCH_LOB = 1.08, // and of a lob, dragged upward (about 62 degrees): high enough to drop behind cover
-  PITCH_FAST = 980, // a tap's fastball speed
-  PITCH_SNAP = 70, // a tap within this many cm of a gremlin aims at its depth
   PITCH_GREM = 50, // gremlin height
   PITCH_COOLDOWN = 0.15,
   PITCH_HAND = { x: 88, y: 168, z: 28 }; // her release point, overhand, above her head
+
+// ---- The flick ----
+// The finger's last PITCH_FLICK_WIN seconds make the throw. Its line, laid on the floor at gremlin
+// height, is the line the ball comes down on; its speed is how far from her hand (PITCH_DIST, at
+// PITCH_YREF); the swipe's length is the launch angle (PITCH_ARC). Nothing in it looks at a gremlin.
+const PITCH_YREF = 30, // a throw's distance is where it comes down through this height: a gremlin's middle
+  PITCH_FLICK_WIN = 0.12, // seconds of finger motion that make the flick
+  PITCH_FLICK_MIN = 150, // canvas px/s: slower than this the finger was placing, not throwing
+  PITCH_FLICK_SOFT = 260, // the flick speed of the shortest throw
+  PITCH_FLICK_HARD = 2400, // and of the farthest; harder still changes nothing
+  PITCH_DIST = [130, 620], // cm from her hand: the shortest and the farthest throw
+  PITCH_SWIPE = [60, 280], // swipe length (canvas px) of a line drive and of a full lob
+  PITCH_ARC = [-0.07, 1.12], // their launch angles, radians (about -4 and 64 degrees)
+  PITCH_STEER = 0.15, // a flick must head this much up the screen (into the room) to throw
+  PITCH_TAP = 14; // a press that never moved farther than this (px) was a tap
 
 // One camera per canvas shape. tilt looks down at the room; f is canvas px per cm at one cm of depth.
 const PITCH_CAMS = {
@@ -142,40 +150,41 @@ const PITCH_SHELF = [
 ];
 
 // Per level. Arrays of three are per inning. balls: [start, bucket size]; refill: seconds per ball back
-// in the bucket, or empty: seconds when it is empty. walk: speed range (cm/s); peek: [seconds up, seconds down];
-// hop: [seconds resting, seconds in the air]; charge: approach speed (cm/s); sitLife: seconds before a
-// sitting gremlin wanders off (0 = never); timed: a golden gremlin's window; preview: how many contacts
-// the dotted arc shows; hit: gremlin hit radius (cm). Speeds and windows scale with the prescription.
+// in the bucket, or empty: seconds when it is empty. walk: speed range (cm/s); peek: [seconds up, seconds
+// down]; hop: [seconds resting, seconds in the air]; charge: approach speed (cm/s); sitLife: seconds before
+// a sitting gremlin wanders off (0 = never); timed: a golden gremlin's window; umpAt: the inning the Ump
+// arrives (-1 = never); arc: how much of a flick's flight the faint preview shows (contacts, seconds);
+// hit: gremlin hit radius (cm). Speeds and windows scale with the prescription.
 const PITCH_TIERS = [
   {
     limit: 80,
-    goal: 32,
+    goal: 30,
     balls: [10, 12],
     refill: 2.4,
     empty: 1.2,
-    hit: 27,
-    preview: 2,
+    hit: 30,
+    arc: [2, 2.4],
     cap: [2, 3, 3],
-    interval: [1.1, 1.4, 1.4],
+    interval: [1.0, 1.3, 1.3],
     mix: [{ sit: 1 }, { sit: 2, walk: 3 }, { walk: 3, sit: 1, peek: 1, charge: 1 }],
-    walk: [28, 38],
-    peek: [2.4, 1.8],
+    walk: [24, 32],
+    peek: [2.6, 1.6],
     hop: [1.6, 0.7],
-    charge: 18,
+    charge: 16,
     sitLife: 0,
     timed: 0,
     shelf: false,
-    ump: false,
-    script: ['sit:0', 'sit:9', 'sit:6', 'sit:2']
+    umpAt: -1,
+    script: ['sit:0', 'sit:2', 'sit:9', 'sit:5']
   },
   {
     limit: 95,
-    goal: 42,
+    goal: 38,
     balls: [9, 10],
     refill: 2.8,
     empty: 1.3,
-    hit: 24,
-    preview: 2,
+    hit: 25,
+    arc: [1, 2.4],
     cap: [3, 3, 4],
     interval: [1.2, 1.1, 1.0],
     mix: [
@@ -183,24 +192,24 @@ const PITCH_TIERS = [
       { walk: 2, peek: 2, shield: 2, charge: 1, hop: 1 },
       { walk: 2, peek: 2, shield: 2, charge: 2, hop: 2 }
     ],
-    walk: [50, 68],
-    peek: [1.4, 1.6],
-    hop: [1.1, 0.65],
-    charge: 30,
+    walk: [44, 60],
+    peek: [1.6, 1.6],
+    hop: [1.2, 0.65],
+    charge: 28,
     sitLife: 8,
     timed: 0,
     shelf: true,
-    ump: false,
+    umpAt: -1,
     script: []
   },
   {
     limit: 110,
-    goal: 58,
+    goal: 50,
     balls: [6, 8],
     refill: 3.2,
     empty: 1.5,
     hit: 23,
-    preview: 1,
+    arc: [1, 0.45],
     cap: [4, 4, 3],
     interval: [1.1, 1.0, 1.1],
     mix: [
@@ -208,15 +217,41 @@ const PITCH_TIERS = [
       { walk: 2, peek: 2, shield: 2, charge: 2, hop: 2, timed: 2 },
       { walk: 2, peek: 1, shield: 1, charge: 2, timed: 1 }
     ],
-    walk: [62, 86],
-    peek: [1.1, 1.4],
-    hop: [0.85, 0.6],
-    charge: 38,
+    walk: [58, 80],
+    peek: [1.2, 1.4],
+    hop: [0.9, 0.6],
+    charge: 36,
     sitLife: 7,
     timed: 2.6,
-    umpUp: 1.8,
+    umpUp: 2.4,
     shelf: true,
-    ump: true,
+    umpAt: 2,
+    script: []
+  },
+  {
+    limit: 90,
+    goal: 43,
+    balls: [6, 7],
+    refill: 3.2,
+    empty: 1.6,
+    hit: 21,
+    arc: [1, 0.22],
+    cap: [4, 4, 4],
+    interval: [0.95, 0.9, 0.9],
+    mix: [
+      { walk: 3, shield: 2, peek: 2, hop: 2, charge: 1, timed: 1 },
+      { walk: 3, shield: 3, peek: 1, charge: 2, hop: 1, timed: 1 },
+      { walk: 3, shield: 2, peek: 1, charge: 3, timed: 1 }
+    ],
+    walk: [76, 98],
+    peek: [0.95, 1.3],
+    hop: [0.75, 0.55],
+    charge: 46,
+    sitLife: 6,
+    timed: 2.2,
+    umpUp: 2.4,
+    shelf: true,
+    umpAt: 1,
     script: []
   }
 ];
@@ -234,8 +269,8 @@ const PITCH_KINDS = {
 };
 
 const PITCH_INTROS = {
-  walk: 'WALKER · THROW WHERE IT IS GOING, NOT WHERE IT IS',
-  peek: 'PEEKER · WAIT FOR THE HEAD, OR DRAG UP TO LOB ONE OVER THE TOP',
+  walk: 'WALKER · FLICK WHERE IT IS GOING, NOT WHERE IT IS',
+  peek: 'PEEKER · WAIT FOR THE HEAD, OR SWIPE LONG AND LOB ONE OVER THE TOP',
   hop: 'HOPPER · NAIL THE LANDING, OR MID-AIR FOR A BONUS',
   shield: 'BEDPAN SHIELD · BANK IT OFF A WALL',
   charge: 'BED RUSH · STOP IT BEFORE THE FOOTBOARD',
@@ -252,23 +287,25 @@ const PITCH = registerGame({
   portraitCanvas: { w: 450, h: 800 },
   layout: 'gesture',
   music: 'game:pitch',
+  legendary: true,
   info: {
     game: 'Fastpitch Fever',
-    genre: 'AIM · ARC · BANK · LEAD',
+    genre: 'FLICK · ARC · BANK · LEAD',
     headline: 'Bed rest. Rocket arm.',
     desc:
-      'Broad daylight in Room 5, a bucket of softballs and a gremlin problem. Drag back and let fly, or tap a spot for a fastball. The ball arcs, banks off the walls, rattles the furniture and splats whatever it finds. Lead the walkers, time the peekers, ring the Ensure bottles. Every hit puts a ball back in the bucket.',
+      'Broad daylight in Room 5, a bucket of softballs and a gremlin problem. Flick to throw: harder goes farther, a longer swipe throws higher. The ball arcs, banks off the walls, rattles the furniture and splats whatever it finds. Lead the walkers, time the peekers, ring the Ensure bottles. Every hit puts a ball back in the bucket.',
     goal: 'Hit the eviction quota before the last inning ends, and keep the gremlins off the bed.',
     control:
-      'Drag back anywhere and let go to throw: pull farther to throw farther, and the dotted arc shows the flight. Drag up instead for a high lob that drops behind the furniture. Tap a spot for a fastball straight at it. Mouse: drag, or click. Keys: arrows aim, Space throws.',
+      'Swipe up through a gremlin and let go. Flick harder to throw farther. A short flick is a fast low ball, a long slow swipe is a lob that drops behind the furniture. The faint arc shows the throw while your finger moves. Mouse: drag and let go the same way. Keys: left and right aim, up and down set the power, W and S the arc, Space throws.',
     avoid:
       'Walkers keep moving, so throw where they are going. Peekers duck behind the furniture. A bedpan shield means bank it off a wall. A gremlin that reaches the footboard is an oops. Misses empty the bucket; hits fill it.',
-    cue: 'Drag back to throw · drag up to lob · tap for a fastball · lead the walkers'
+    cue: 'Swipe up through it · harder goes farther · longer swipe, higher arc · lead the walkers'
   },
   tierNotes: [
-    '80s · sitting ducks, then slow walkers · the arc shows the bounce',
+    '80s · big sitting ducks, then slow walkers · the arc shows every bounce',
     '95s · walkers, peekers, bedpan shields · bank shots',
-    '110s · the Ump · golden gremlins · a smaller bucket'
+    '110s · the Ump · golden gremlins · a smaller bucket · half an arc',
+    '90s · fast walkers, shield walls, the Ump by inning 2 · six balls · feel it'
   ],
   shiftName: 'INNING',
   init() {
@@ -292,41 +329,32 @@ const PITCH = registerGame({
     if (mini.screen === 'outro' && mini.pendingFinish && !mini.pendingFinish.win) return;
     drawArcadeOverlays(g);
   },
-  // Canvas presses. Release without moving: a fastball at that spot. Drag past the slop: a slingshot
-  // throw on release, with the arc previewed while the finger is down.
+  // Canvas presses are flicks. Every sample keeps its time; the release reads the last moments of it.
   down(p) {
-    mini.pitchPress = { sx: p.x, sy: p.y, x: p.x, y: p.y, armed: false, tall: !!mini.portrait };
+    mini.pitchPress = { pts: [{ x: p.x, y: p.y, t: mini.total }], t0: mini.total, ax: p.x, ay: p.y, far: 0, movedT: mini.total, tall: !!mini.portrait };
     mini.pitchRipples.push({ x: p.x, y: p.y, t: 0, tall: !!mini.portrait });
     mini.pitchKeyAim = false;
+    mini.pitchKeyShow = 0;
   },
   move(p) {
     const q = mini.pitchPress;
-    if (!q) return;
-    q.x = p.x;
-    q.y = p.y;
-    if (!q.armed && Math.hypot(p.x - q.sx, p.y - q.sy) > PITCH_SLOP) q.armed = true;
-    if (q.armed) mini.pitchAim = pitchPullAim(q);
+    if (q) pitchPressMove(q, p.x, p.y, mini.total);
   },
   up(cancel) {
     const q = mini.pitchPress;
     mini.pitchPress = null;
     if (!q || cancel || mini.screen !== 'play' || mini.paused || q.tall !== !!mini.portrait) return;
-    if (!q.armed) {
-      pitchTapThrow(q.sx, q.sy);
+    const f = pitchFlickAim(q, mini.total);
+    if (!f.ok) {
+      pitchFlickRefused(q, f);
       return;
     }
-    const aim = pitchPullAim(q);
-    if (aim.power < PITCH_MIN_POWER) {
-      pitchPopAt(PITCH_HAND.x, PITCH_HAND.y + 40, PITCH_HAND.z + 60, 'PULL BACK FARTHER', '#d8ecf2');
-      return;
-    }
-    mini.pitchAim = aim;
-    pitchThrow(pitchAimVelocity(aim));
+    if (pitchThrow(pitchLaunch(f))) mini.pitchLastFlick = f;
   },
-  // THROW (and Space) throws the keyboard aim, or repeats the last throw: same spot, same arc.
+  // THROW (and Space) throws the keyboard aim, or repeats the last throw exactly.
   action(a) {
     if (a !== 'throw') return;
-    pitchThrow(mini.pitchKeyAim || !mini.pitchLastV ? pitchAimVelocity(mini.pitchAim) : mini.pitchLastV);
+    pitchThrow(mini.pitchKeyAim || !mini.pitchLastV ? pitchLaunch(mini.pitchKeys) : mini.pitchLastV);
   },
   assist() {
     mini.pitchFreeze = 3;
@@ -351,8 +379,12 @@ const PITCH = registerGame({
   },
   shiftMessage(shift) {
     const T = PITCH_TIERS[mini.tier];
-    if (shift === 1) return mini.tier === 0 ? 'INNING 2 · walkers. Throw where they are going.' : 'INNING 2 · shields out. Bank it off a wall.';
-    return T.ump ? 'FINAL INNING · the Ump is in the building.' : 'FINAL INNING · they are heading for the bed.';
+    if (shift === 1) {
+      if (T.umpAt === 1) return 'INNING 2 · the Ump is early. Hit him while he peeks.';
+      return mini.tier === 0 ? 'INNING 2 · walkers. Flick where they are going.' : 'INNING 2 · shields out. Bank it off a wall.';
+    }
+    if (T.umpAt === 2) return 'FINAL INNING · the Ump is in the building.';
+    return mini.tier === 3 ? 'FINAL INNING · everybody is heading for the bed.' : 'FINAL INNING · they are heading for the bed.';
   },
   timeUp() {
     const met = mini.got >= mini.goal;
@@ -367,7 +399,7 @@ const PITCH = registerGame({
         ' Evict ' +
         mini.goal +
         '.' +
-        (mini.tier === 0 ? ' The arc shows the whole flight.' : mini.tier === 2 ? ' The Ump takes the final inning.' : ''),
+        [' The arc shows every bounce while you swipe.', ' Shields come out in inning 2.', ' The Ump takes the final inning.', ' The Ump comes early and the arc barely shows. Feel it.'][mini.tier],
       control: i.control,
       avoid: i.avoid,
       demo: 'aim',
@@ -460,98 +492,199 @@ function pitchRay(sx, sy, C = pitchCam()) {
   return { o: { x: C.x, y: C.y, z: C.z }, d: { x: dx / n, y: dy / n, z: dz / n } };
 }
 
-// Distance along the ray to a box, or Infinity (slab test).
-function pitchRayBox(o, d, b) {
-  let t0 = 0,
-    t1 = Infinity;
-  for (const [oa, da, lo, hi] of [
-    [o.x, d.x, b.x0, b.x1],
-    [o.y, d.y, b.y0, b.y1],
-    [o.z, d.z, b.z0, b.z1]
-  ]) {
-    if (Math.abs(da) < 1e-9) {
-      if (oa < lo || oa > hi) return Infinity;
-      continue;
+// Where canvas point (sx, sy) lies on the gremlin-height plane, in room cm. Both cameras look down on
+// the whole room, so every canvas point has one.
+function pitchPlanePoint(sx, sy, C = pitchCam()) {
+  const { o, d } = pitchRay(sx, sy, C),
+    t = (PITCH_YREF - o.y) / Math.min(d.y, -1e-6);
+  return { x: o.x + d.x * t, z: o.z + d.z * t };
+}
+
+// ---- Flicks ----
+// A press keeps every finger sample with its time (mini.total). The swipe's start (ax, ay) follows the
+// finger while it winds down the screen or rests, so the swipe is the stroke that threw.
+function pitchPressMove(q, x, y, t) {
+  const last = q.pts[q.pts.length - 1],
+    dy = y - last.y;
+  if (Math.hypot(x - last.x, dy) > 1.5) {
+    if (dy > 3) {
+      q.ax = x;
+      q.ay = y;
+    } else if (t - q.movedT > 0.1) {
+      q.ax = last.x;
+      q.ay = last.y;
     }
-    let a = (lo - oa) / da,
-      c = (hi - oa) / da;
-    if (a > c) [a, c] = [c, a];
-    t0 = Math.max(t0, a);
-    t1 = Math.min(t1, c);
-    if (t0 > t1) return Infinity;
+    q.movedT = t;
   }
-  return t0;
+  q.far = Math.max(q.far, Math.hypot(x - q.pts[0].x, y - q.pts[0].y));
+  q.pts.push({ x, y, t });
+  // Half a second of history is plenty; keep at least two samples.
+  while (q.pts.length > 2 && q.pts[1].t < t - 0.5) q.pts.shift();
 }
 
-// What a tap points at: the depth of a gremlin near the ray, or the first surface the ray meets.
-function pitchRaycast(sx, sy) {
-  const { o, d } = pitchRay(sx, sy);
-  let best = Infinity;
-  if (d.y < -1e-6) best = Math.min(best, -o.y / d.y);
-  if (d.x > 1e-6) best = Math.min(best, (PITCH_WALL - o.x) / d.x);
-  if (d.x < -1e-6) best = Math.min(best, (-PITCH_WALL - o.x) / d.x);
-  if (d.z > 1e-6) best = Math.min(best, (PITCH_BACK - o.z) / d.z);
-  for (const b of PITCH_BOXES) {
-    if (b.id === 'bed') continue;
-    const t = pitchRayBox(o, d, b);
-    if (t > 0 && t < best) best = t;
-  }
-  let snap = null,
-    near = PITCH_SNAP;
-  for (const e of mini.pitchTargets) {
-    if (!pitchHittable(e)) continue;
-    const c = pitchCenter(e),
-      t = (c.x - o.x) * d.x + (c.y - o.y) * d.y + (c.z - o.z) * d.z;
-    if (t <= 0 || t > best + 60) continue;
-    const off = Math.hypot(o.x + d.x * t - c.x, o.y + d.y * t - c.y, o.z + d.z * t - c.z);
-    if (off < near) {
-      near = off;
-      snap = t;
-    }
-  }
-  let t = snap !== null ? snap : best;
-  if (!Number.isFinite(t)) t = 600;
-  // Never aim behind the footboard.
-  if (o.z + d.z * t < 140 && d.z > 1e-6) t = Math.max(t, (140 - o.z) / d.z);
-  return { x: o.x + d.x * t, y: Math.max(0, o.y + d.y * t), z: o.z + d.z * t, snapped: snap !== null };
+// The finger at time t: the last sample at or before t, eased toward the next one.
+function pitchPressAt(q, t) {
+  const s = q.pts;
+  let i = s.length - 1;
+  while (i > 0 && s[i].t > t) i--;
+  const a = s[i],
+    b = s[i + 1];
+  if (!b || b.t <= a.t || t <= a.t) return a;
+  const u = (t - a.t) / (b.t - a.t);
+  return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u, t };
 }
 
-// ---- Throws ----
-// A pull from the press point. Dragging down is a slingshot: the throw goes the other way, at a
-// pitcher's angle. Dragging up is a lob: high, the way the finger went, to drop behind the furniture.
-// Either way, the farther the pull, the farther the throw.
-function pitchPullAim(q) {
-  const fwd = q.y - q.sy,
-    lat = fwd >= 0 ? q.sx - q.x : q.x - q.sx,
-    len = Math.hypot(fwd, lat);
-  return {
-    yaw: clamp(Math.atan2(lat, Math.max(1e-3, Math.abs(fwd))), -1.2, 1.2),
-    power: clamp(len / PITCH_PULL, 0, 1),
-    lob: fwd < 0
-  };
+function pitchFlickDist(speed) {
+  const u = clamp((speed - PITCH_FLICK_SOFT) / (PITCH_FLICK_HARD - PITCH_FLICK_SOFT), 0, 1);
+  return PITCH_DIST[0] + (PITCH_DIST[1] - PITCH_DIST[0]) * u;
 }
 
-function pitchAimVelocity(aim) {
-  const sp = Math.sqrt(PITCH_VMIN * PITCH_VMIN + (PITCH_VMAX * PITCH_VMAX - PITCH_VMIN * PITCH_VMIN) * aim.power),
-    lift = aim.lob ? PITCH_LOB : PITCH_LIFT,
-    flat = sp * Math.cos(lift);
-  return { x: Math.sin(aim.yaw) * flat, y: sp * Math.sin(lift), z: Math.cos(aim.yaw) * flat };
+function pitchFlickSpeedFor(dist) {
+  return PITCH_FLICK_SOFT + ((PITCH_FLICK_HARD - PITCH_FLICK_SOFT) * (dist - PITCH_DIST[0])) / (PITCH_DIST[1] - PITCH_DIST[0]);
 }
 
-// A fastball: a flat, quick throw that arrives at q, gravity included.
-function pitchFastball(q) {
+function pitchSwipeLoft(swipe) {
+  return clamp((swipe - PITCH_SWIPE[0]) / (PITCH_SWIPE[1] - PITCH_SWIPE[0]), 0, 1);
+}
+
+function pitchLoftAngle(loft) {
+  return PITCH_ARC[0] + (PITCH_ARC[1] - PITCH_ARC[0]) * loft;
+}
+
+// The point on a floor line (through P, heading wx, wz) that is dist from her hand: where the line
+// leaves that circle, or, when it never reaches it, the circle's point nearest the line.
+function pitchLineLanding(P, wx, wz, dist) {
   const H = PITCH_HAND,
-    dx = q.x - H.x,
-    dy = q.y - H.y,
-    dz = q.z - H.z,
-    T = clamp(Math.hypot(dx, dy, dz) / PITCH_FAST, 0.14, 0.8);
-  return { x: dx / T, y: dy / T + 0.5 * PITCH_G * T, z: dz / T };
+    rx = P.x - H.x,
+    rz = P.z - H.z,
+    b = rx * wx + rz * wz,
+    disc = b * b - (rx * rx + rz * rz - dist * dist);
+  if (disc >= 0) {
+    const k = -b + Math.sqrt(disc);
+    return { x: P.x + wx * k, z: P.z + wz * k };
+  }
+  const cx = rx - b * wx,
+    cz = rz - b * wz,
+    n = Math.hypot(cx, cz) || 1;
+  return { x: H.x + (cx / n) * dist, z: H.z + (cz / n) * dist };
 }
 
-function pitchTapThrow(sx, sy) {
-  const q = pitchRaycast(sx, sy);
-  mini.pitchMark = { x: q.x, y: q.y, z: q.z, t: 0.5 };
-  pitchThrow(pitchFastball(q));
+// What a press throws if the finger lets go at time now. The flick is the motion over the last
+// PITCH_FLICK_WIN seconds (the whole press, if it is younger). Its line, laid on the gremlin-height
+// plane, is where the ball comes down; its speed picks how far along, measured from her hand; the swipe's
+// length picks the arc. Returns { ok, speed, swipe, vx, vy, x, y } plus { yaw, dist, loft, land } when
+// it throws, or why when it does not: 'tap', 'slow' or 'down'.
+function pitchFlickAim(q, now = mini.total, C = pitchCam()) {
+  const s = q.pts,
+    end = s[s.length - 1],
+    young = now - q.t0 < PITCH_FLICK_WIN,
+    from = young ? q.t0 : now - PITCH_FLICK_WIN,
+    a = young && end.t <= q.t0 ? s[0] : pitchPressAt(q, from),
+    span = Math.max(now - from, 1 / 60),
+    vx = (end.x - a.x) / span,
+    vy = (end.y - a.y) / span,
+    speed = Math.hypot(vx, vy),
+    swipe = Math.hypot(end.x - q.ax, end.y - q.ay),
+    out = { ok: false, speed, swipe, vx, vy, x: end.x, y: end.y };
+  if (speed < PITCH_FLICK_MIN) return { ...out, why: q.far < PITCH_TAP ? 'tap' : 'slow' };
+  if (vy > -PITCH_STEER * speed) return { ...out, why: 'down' };
+  const P0 = pitchPlanePoint(a.x, a.y, C),
+    P1 = pitchPlanePoint(end.x, end.y, C),
+    wn = Math.hypot(P1.x - P0.x, P1.z - P0.z) || 1,
+    dist = pitchFlickDist(speed),
+    land = pitchLineLanding(P1, (P1.x - P0.x) / wn, (P1.z - P0.z) / wn, dist),
+    yaw = clamp(Math.atan2(land.x - PITCH_HAND.x, land.z - PITCH_HAND.z), -1.5, 1.5);
+  return { ...out, ok: true, yaw, dist, loft: pitchSwipeLoft(swipe), land };
+}
+
+// The launch for an aim: the speed that brings a ball at that arc down through PITCH_YREF exactly dist
+// from her hand, gravity included.
+function pitchLaunch(aim) {
+  const a = pitchLoftAngle(aim.loft),
+    c = Math.cos(a),
+    v = Math.sqrt((PITCH_G * aim.dist * aim.dist) / (2 * c * c * Math.max(1, aim.dist * Math.tan(a) + PITCH_HAND.y - PITCH_YREF)));
+  return { x: Math.sin(aim.yaw) * v * c, y: v * Math.sin(a), z: Math.cos(aim.yaw) * v * c };
+}
+
+// The aim (at a given arc) whose flight passes through room point Q, or null when no flick reaches it.
+// Bots, the bank planner, guides and tests use it; the game never aims for the player.
+function pitchAimAt(Q, loft) {
+  const H = PITCH_HAND,
+    a = pitchLoftAngle(loft),
+    c = Math.cos(a),
+    t = Math.tan(a),
+    dx = Q.x - H.x,
+    dz = Q.z - H.z,
+    d = Math.hypot(dx, dz),
+    den = 2 * c * c * (d * t + H.y - Q.y);
+  if (den <= 0 || d < 1) return null;
+  // The flight is y = H.y + x·t - k·x²; find where it comes down through PITCH_YREF.
+  const k = den / (2 * c * c * d * d),
+    dist = (t + Math.sqrt(t * t + 4 * k * (H.y - PITCH_YREF))) / (2 * k);
+  if (!(dist >= PITCH_DIST[0] && dist <= PITCH_DIST[1])) return null;
+  return { yaw: Math.atan2(dx, dz), dist, loft };
+}
+
+// A swipe on this canvas that throws an aim: a straight stroke along a line through the aim's landing
+// point, heading away from her hand there, slid along that line until it fits on the canvas (clear of
+// the HUD row). Tries the line from her hand's shadow first, then steeper ones. Returns the stroke's
+// start and end (x0, y0, x1, y1), its direction and the speed and length to swipe it, or null.
+function pitchSwipeFor(aim, C = pitchCam(), size = activeCanvas()) {
+  const H = PITCH_HAND,
+    P = { x: H.x + Math.sin(aim.yaw) * aim.dist, z: H.z + Math.cos(aim.yaw) * aim.dist },
+    ps = pitchProject(P.x, PITCH_YREF, P.z, C),
+    hs = pitchProject(H.x, PITCH_YREF, H.z, C),
+    speed = pitchFlickSpeedFor(aim.dist),
+    swipe = aim.loft > 0 ? PITCH_SWIPE[0] + (PITCH_SWIPE[1] - PITCH_SWIPE[0]) * aim.loft : PITCH_SWIPE[0] * 0.75,
+    rn = Math.hypot(ps.x - hs.x, ps.y - hs.y) || 1;
+  for (const mix of [1, 0.7, 0.4, 0]) {
+    let ux = ((ps.x - hs.x) / rn) * mix,
+      uy = ((ps.y - hs.y) / rn) * mix - (1 - mix);
+    const un = Math.hypot(ux, uy) || 1;
+    ux /= un;
+    uy /= un;
+    if (uy > -PITCH_STEER - 0.05) continue;
+    const q0 = pitchPlanePoint(ps.x, ps.y, C),
+      q1 = pitchPlanePoint(ps.x + ux * 20, ps.y + uy * 20, C);
+    if ((q1.x - q0.x) * (P.x - H.x) + (q1.z - q0.z) * (P.z - H.z) <= 0) continue;
+    const k = pitchFitSwipe(ps.x, ps.y, ux, uy, swipe, size);
+    if (k === null) continue;
+    const x1 = ps.x + ux * k,
+      y1 = ps.y + uy * k;
+    return { x0: x1 - ux * swipe, y0: y1 - uy * swipe, x1, y1, ux, uy, speed, swipe };
+  }
+  return null;
+}
+
+// How far to slide a stroke of length L (ending at p + u·k) along its line so both ends sit on the
+// canvas: the k nearest 0, or null when no k fits.
+function pitchFitSwipe(px, py, ux, uy, L, size) {
+  let lo = -Infinity,
+    hi = Infinity;
+  for (const [p, u, min, max] of [
+    [px, ux, 14, size.w - 14],
+    [py, uy, 66, size.h - 14]
+  ])
+    for (const off of [0, -L]) {
+      const at = p + u * off;
+      if (Math.abs(u) < 1e-9) {
+        if (at < min || at > max) return null;
+        continue;
+      }
+      let a = (min - at) / u,
+        b = (max - at) / u;
+      if (a > b) [a, b] = [b, a];
+      lo = Math.max(lo, a);
+      hi = Math.min(hi, b);
+    }
+  return lo > hi ? null : clamp(0, lo, hi);
+}
+
+// A press that threw nothing says why, where the finger was.
+function pitchFlickRefused(q, f) {
+  const text = f.why === 'tap' ? 'FLICK IT · SWIPE UP AND LET GO' : f.why === 'down' ? 'UP INTO THE ROOM' : 'QUICKER · FLICK IT';
+  mini.pitchNote = { text, x: f.x, y: f.y - 30, t: 1.4, tall: !!mini.portrait };
+  sfx('miss', { vol: 0.3 });
 }
 
 function pitchNewBall(v) {
@@ -570,6 +703,7 @@ function pitchNewBall(v) {
     hitIds: [],
     got: 0,
     bottles: 0,
+    first: null,
     trail: []
   };
 }
@@ -587,6 +721,7 @@ function pitchThrow(v) {
   }
   const b = pitchNewBall(v);
   b.id = mini.pitchSerial++;
+  b.yaw = Math.atan2(v.x, v.z);
   b.heat = mini.combo >= 5;
   mini.pitchBalls--;
   mini.pitchThrows++;
@@ -623,6 +758,7 @@ function pitchInit() {
     pitchBanks: 0,
     pitchAirs: 0,
     pitchLobs: 0,
+    pitchKinds: {},
     pitchUmpHits: 0,
     pitchDoubles: 0,
     pitchRings: 0,
@@ -634,11 +770,16 @@ function pitchInit() {
     pitchHitFlash: 0,
     pitchArm: 0,
     pitchThrewAt: -9,
-    pitchAim: { yaw: -0.14, power: 0.55 },
+    // The keyboard's aim: which way, how far (cm from her hand) and how high (0 to 1).
+    pitchKeys: { yaw: -0.2, dist: 300, loft: 0.3 },
     pitchKeyAim: false,
+    pitchKeyShow: 0,
     pitchLastV: null,
+    pitchLastFlick: null,
     pitchPress: null,
-    pitchMark: null,
+    pitchNote: null,
+    pitchSplats: [],
+    pitchMisses: 0,
     pitchIncoming: null,
     pitchUmpSpawned: false,
     pitchUmpDown: false,
@@ -853,7 +994,7 @@ function pitchSpawnUmp() {
 
 function pitchUpdateSpawns(dt) {
   const T = pitchTune();
-  if (T.ump && mini.shift === 2 && !mini.pitchUmpSpawned) pitchSpawnUmp();
+  if (T.umpAt >= 0 && mini.shift >= T.umpAt && !mini.pitchUmpSpawned) pitchSpawnUmp();
   mini.pitchSpawnT -= dt;
   if (mini.pitchSpawnT > 0) return;
   const alive = mini.pitchTargets.filter(e => e.kind !== 'ump' && e.state === 'live').length;
@@ -1185,82 +1326,135 @@ function pitchFuture(e, dt) {
   return sm < 0.5 ? null : at(p[0], p[1], p[2]);
 }
 
-// A bank shot that gets a bedpan shield: the spot on a wall to tap, the flight it starts, and where
-// it bounces. Searched with the real physics around the mirror-trick spot on each wall (the nearer
-// side wall first, then the back wall), and only spots a tap can actually pick (no snapping to the
-// gremlin). Shields stand on fixed spots, so plans are cached per spot, canvas shape and gremlin size
-// for the session; it never touches the random sequence.
-const pitchBankCache = new Map();
+// A bank shot that gets a bedpan shield: an aim, the swipe that throws it on this canvas, its flight
+// and where it meets the wall. Searched with the real physics, seeded at the gremlin's mirror image in
+// each wall (the nearer side wall, the far one, the back wall) at a few arcs, coarse to fine around the
+// closest miss, then centred in the window of aims that work so a slightly-off flick still banks in.
+// Only aims a swipe on this canvas can make count. Shields stand on fixed spots, so plans are cached per
+// spot, canvas shape and gremlin size for the session; it never touches the random sequence.
+const pitchBankCache = new Map(),
+  pitchBankJobs = new Map();
 
-function pitchBankPlan(e) {
-  const key = [Math.round(e.x), Math.round(e.y), Math.round(e.z), mini.portrait ? 'tall' : 'wide', pitchRadius(e)].join();
-  if (pitchBankCache.has(key)) return pitchBankCache.get(key);
+// Bottles sit on the tray and the shelf; a planned bank never threads them.
+const PITCH_BOTTLE_ZONES = [
+  { x0: -132, x1: -90, y0: 78, y1: 145, z0: 225, z1: 237 },
+  { x0: 180, x1: 216, y0: 94, y1: 119, z0: 294, z1: 306 }
+];
+
+// Flies an aim with no gremlins in the room: { miss: 0, bounce, path } when it comes off a wall into
+// point c (radius R), else how close it came after a wall (a million when it never got that far, or
+// went straight into the bedpan first).
+function pitchBankFly(aim, c, R, Rclang) {
+  const b = pitchNewBall(pitchLaunch(aim)),
+    path = [];
+  let bounce = null,
+    miss = 1e6;
+  for (let i = 0; i < 720 && !b.dead; i++) {
+    const hit = pitchMoveBall(b, PITCH_SUB);
+    if (i % 3 === 0) path.push([b.x, b.y, b.z]);
+    if ((hit === 'wall' || hit === 'back') && !bounce) bounce = { x: b.x, y: b.y, z: b.z };
+    const d = Math.hypot(b.x - c.x, b.y - c.y, b.z - c.z);
+    if (!b.walls) {
+      if (d < Rclang) return { miss: 1e6 };
+    } else {
+      if (d < R) return { miss: 0, bounce, path };
+      miss = Math.min(miss, d);
+      if (b.age > 0.2 && (b.x - c.x) * b.vx + (b.z - c.z) * b.vz > 0 && Math.hypot(b.x - c.x, b.z - c.z) > R * 2) break;
+    }
+    if (hit && hit !== 'wall' && hit !== 'back' && hit !== 'floor') break;
+    for (const z of PITCH_BOTTLE_ZONES)
+      if (b.x > z.x0 && b.x < z.x1 && b.y > z.y0 && b.y < z.y1 && b.z > z.z0 && b.z < z.z1) return { miss };
+  }
+  return { miss };
+}
+
+// The search, one flight per step, so the game can spread it over frames.
+function* pitchBankSearch(e, C, size) {
   const H = PITCH_HAND,
     c = pitchCenter(e),
     R = pitchRadius(e) * 0.8 + PITCH_BALL,
+    Rc = pitchRadius(e) + PITCH_BALL,
     near = c.x < 0 ? -1 : 1,
-    walls = [];
-  // Points on the wall planes themselves: that is where a tap on a wall lands.
-  for (const side of [near, -near]) {
-    const wx = side * PITCH_WALL,
-      u = (wx - H.x) / (2 * wx - c.x - H.x);
-    walls.push(at => [wx, H.y + (c.y - H.y) * u + at[1], H.z + (c.z - H.z) * u + at[0]]);
-  }
-  const wz = PITCH_BACK,
-    uz = (wz - H.z) / (2 * wz - c.z - H.z);
-  walls.push(at => [H.x + (c.x - H.x) * uz + at[0], H.y + (c.y - H.y) * uz + at[1], wz]);
-  // Flies the fastball a tap at wall point q throws. A hit returns the plan; a miss returns how close
-  // it came after the wall; null when a tap there would pick something else.
-  const fly = q => {
-    if (q[1] < 8 || q[1] > PITCH_WALL_H || q[2] < 140 || q[2] > PITCH_BACK || Math.abs(q[0]) > PITCH_WALL) return null;
-    const sp = pitchProject(q[0], q[1], q[2]),
-      r = pitchRaycast(sp.x, sp.y);
-    if (Math.hypot(r.x - q[0], r.y - q[1], r.z - q[2]) > 4) return null;
-    const b = pitchNewBall(pitchFastball(r)),
-      path = [];
-    let bounce = null,
-      miss = Infinity;
-    for (let i = 0; i < 400 && !b.dead; i++) {
-      const hit = pitchMoveBall(b, PITCH_SUB);
-      if (i % 3 === 0) path.push([b.x, b.y, b.z]);
-      if ((hit === 'wall' || hit === 'back') && !bounce) bounce = { x: b.x, y: b.y, z: b.z };
-      if (b.walls) {
-        const d = Math.hypot(b.x - c.x, b.y - c.y, b.z - c.z);
-        if (d < R) return { q: r, bounce, path };
-        miss = Math.min(miss, d);
-      }
-      if ((hit && hit !== 'wall' && hit !== 'back' && hit !== 'floor') || (hit === 'floor' && !b.walls)) break;
-      // Past the gremlin and heading away: a miss.
-      if (b.walls && b.age > 0.25 && (b.x - c.x) * b.vx + (b.z - c.z) * b.vz > 0 && Math.hypot(b.x - c.x, b.z - c.z) > R * 2) break;
-    }
-    return { miss };
-  };
-  // Coarse to fine around the mirror spot on each wall: a 5 × 5 patch, then smaller patches around the
-  // closest miss.
+    mirrors = [
+      { x: 2 * near * PITCH_WALL - c.x, y: c.y, z: c.z },
+      { x: -2 * near * PITCH_WALL - c.x, y: c.y, z: c.z },
+      { x: c.x, y: c.y, z: 2 * PITCH_BACK - c.z }
+    ],
+    span = d => clamp(d, PITCH_DIST[0], PITCH_DIST[1]);
   let plan = null;
-  for (const wall of walls) {
-    let centre = [0, 0],
-      best = Infinity;
-    for (const step of [16, 6, 2]) {
-      let next = null;
-      for (let i = -2; i <= 2 && !plan; i++)
-        for (let j = -2; j <= 2 && !plan; j++) {
-          const at = [centre[0] + i * step, centre[1] + j * step],
-            t = fly(wall(at));
-          if (!t) continue;
-          if (t.q) plan = t;
-          else if (t.miss < best) {
-            best = t.miss;
-            next = at;
+  for (const m of mirrors)
+    for (const loft of [0.1, 0.3]) {
+      const seed = pitchAimAt(m, loft) || { yaw: Math.atan2(m.x - H.x, m.z - H.z), dist: PITCH_DIST[1] };
+      let centre = { yaw: seed.yaw, dist: seed.dist },
+        best = Infinity,
+        found = null;
+      for (const [sy, sd] of [
+        [0.06, 48],
+        [0.02, 16],
+        [0.007, 6]
+      ]) {
+        let next = null;
+        for (let i = -2; i <= 2 && !found; i++)
+          for (let j = -2; j <= 2 && !found; j++) {
+            const aim = { yaw: centre.yaw + i * sy, dist: span(centre.dist + j * sd), loft },
+              f = pitchBankFly(aim, c, R, Rc);
+            yield;
+            if (!f.miss) found = aim;
+            else if (f.miss < best) {
+              best = f.miss;
+              next = aim;
+            }
           }
+        if (found || !next) break;
+        centre = next;
+      }
+      if (!found) continue;
+      // Centre it in the aims around it that also bank in (yaw ±0.02, distance ±24 cm); the wider that
+      // window, the more forgiving the shot. Keep the most forgiving plan a swipe can throw.
+      let n = 0,
+        sumY = 0,
+        sumD = 0;
+      for (let a = -2; a <= 2; a++)
+        for (let b = -2; b <= 2; b++) {
+          const t = { yaw: found.yaw + a * 0.01, dist: span(found.dist + b * 12), loft };
+          if (!pitchBankFly(t, c, R, Rc).miss) {
+            n++;
+            sumY += t.yaw;
+            sumD += t.dist;
+          }
+          yield;
         }
-      if (plan || !next) break;
-      centre = next;
+      const mid = { yaw: sumY / n, dist: sumD / n, loft },
+        pick = pitchBankFly(mid, c, R, Rc).miss ? found : mid,
+        swipe = pitchSwipeFor(pick, C, size);
+      if (swipe && (!plan || n > plan.width)) {
+        const fly = pitchBankFly(pick, c, R, Rc);
+        plan = { aim: pick, swipe, bounce: fly.bounce, path: fly.path, width: n };
+        if (n >= 15) return plan;
+      }
     }
-    if (plan) break;
-  }
-  pitchBankCache.set(key, plan);
   return plan;
+}
+
+// The plan for a shield (null when there is none). With a budget (flights), it works at most that
+// much and answers undefined while it is still thinking; the game uses that to spread the search over
+// frames. Bots and tests call it without one.
+function pitchBankPlan(e, budget = Infinity) {
+  const C = pitchCam(),
+    size = activeCanvas(),
+    key = [Math.round(e.x), Math.round(e.y), Math.round(e.z), mini.portrait ? 'tall' : 'wide', pitchRadius(e)].join();
+  if (pitchBankCache.has(key)) return pitchBankCache.get(key);
+  let job = pitchBankJobs.get(key);
+  if (!job) pitchBankJobs.set(key, (job = pitchBankSearch(e, C, size)));
+  for (let n = 0; n < budget; n++) {
+    const r = job.next();
+    if (r.done) {
+      pitchBankCache.set(key, r.value);
+      pitchBankJobs.delete(key);
+      return r.value;
+    }
+  }
+  return undefined;
 }
 
 // ---- Bottles ----
@@ -1496,11 +1690,18 @@ function pitchUpdateBalls(dt) {
     }
     b.trail.push([b.x, b.y, b.z]);
     if (b.trail.length > 9) b.trail.shift();
+    // Half a second after a miss lands (and has not rolled into anything), say what went wrong.
+    if (b.note && b.first && !b.got && !b.bottles && b.age - b.first.age > 0.5) {
+      pitchShowNote(b);
+      b.note = null;
+    }
     if (b.dead) pitchBallDone(b);
   }
   mini.pitchLive = mini.pitchLive.filter(b => !b.dead);
 }
 
+// Every landing leaves a scuff where it hit, so a miss shows where it went: a ring on the floor or a
+// tabletop, a puff on a wall or the furniture. The first is bigger, and it judges a miss.
 function pitchContactFx(b, c) {
   const sp = Math.hypot(b.vx, b.vy, b.vz);
   if (c === 'etype') {
@@ -1513,6 +1714,49 @@ function pitchContactFx(b, c) {
     return;
   }
   if (sp > 120) sfx('bounce', { vol: clamp(sp / 900, 0.2, 0.8), pan: clamp(b.x / PITCH_WALL, -1, 1) * 0.6 });
+  const first = !b.first,
+    gy = pitchGroundAt(b.x, b.z, b.y + 1),
+    flat = c !== 'wall' && c !== 'back' && b.y - PITCH_BALL - gy < 4;
+  if (first) {
+    b.first = { x: b.x, y: b.y, z: b.z, what: c, age: b.age };
+    if (!b.got && !b.bottles) b.note = pitchMissNote(b, c);
+  }
+  if (mini.pitchSplats.length >= 10) mini.pitchSplats.shift();
+  mini.pitchSplats.push({ x: b.x, y: flat ? gy : b.y, z: b.z, flat, t: first ? 1.8 : 1, big: first });
+}
+
+// What a ball that has hit nothing did wrong, judged at its first landing against the gremlin it was
+// most likely thrown at (the one nearest its line): wide, short, long, or stopped by the furniture.
+function pitchMissNote(b, c) {
+  const H = PITCH_HAND;
+  let best = null,
+    bestA = 0.4;
+  for (const e of mini.pitchTargets) {
+    if (e.state !== 'live' || !pitchHittable(e)) continue;
+    const a = Math.atan2(e.x - H.x, e.z - H.z) - b.yaw;
+    if (Math.abs(a) < bestA) {
+      bestA = Math.abs(a);
+      best = { e, a };
+    }
+  }
+  if (!best) return null;
+  const e = best.e,
+    far = Math.hypot(e.x - H.x, e.z - H.z),
+    landed = Math.hypot(b.x - H.x, b.z - H.z),
+    side = Math.sin(best.a) * far,
+    R = pitchRadius(e);
+  if (c === 'wall') return b.x < 0 ? 'WIDE LEFT' : 'WIDE RIGHT';
+  if (e.kind === 'peek' && e.mode === 'hidden' && c !== 'floor' && c !== 'back') return 'BLOCKED · SWIPE LONGER TO LOB IT';
+  if (Math.abs(side) > R + 6) return side > 0 ? 'WIDE LEFT' : 'WIDE RIGHT';
+  // A short one usually rolls in; one that came down on it or past it and missed went over the top.
+  return landed < far - R && c !== 'back' ? 'SHORT · FLICK HARDER' : 'LONG · FLICK SOFTER';
+}
+
+// The coaching note for a miss: level 1 always, level 2 for its first few misses.
+function pitchShowNote(b) {
+  if (!(mini.tier === 0 || (mini.tier === 1 && mini.pitchMisses < 6))) return;
+  const p = pitchProject(b.first.x, b.first.y, b.first.z);
+  mini.pitchNote = { text: b.note, x: p.x, y: p.y - 28, t: 1.8, tall: !!mini.portrait, ball: b.id };
 }
 
 // Gremlins, the Ump and the bottles, checked every substep for a live ball.
@@ -1581,6 +1825,8 @@ function pitchStrike(b, e, c, dist, R) {
     return;
   }
   b.hitIds.push(e.id);
+  b.note = null;
+  if (mini.pitchNote && mini.pitchNote.ball === b.id) mini.pitchNote = null;
   if (e.kind === 'ump') {
     e.hp--;
     e.hit = 0.25;
@@ -1620,6 +1866,7 @@ function pitchStrike(b, e, c, dist, R) {
     close = e.kind === 'charge' && e.z < 260,
     two = b.got >= 2;
   mini.got += worth;
+  mini.pitchKinds[e.kind] = (mini.pitchKinds[e.kind] || 0) + 1;
   mini.pitchBalls = Math.min(mini.pitchCap, mini.pitchBalls + 1);
   if (banked) mini.pitchBanks++;
   if (air) mini.pitchAirs++;
@@ -1668,8 +1915,14 @@ function pitchStrike(b, e, c, dist, R) {
 
 // A ball is done (it stopped, or flew back past the bed). One that touched nothing breaks the streak.
 function pitchBallDone(b) {
-  if (b.got || b.bottles) mini.pitchHits++;
-  else mini.combo = 0;
+  if (b.got || b.bottles) {
+    mini.pitchHits++;
+    return;
+  }
+  mini.combo = 0;
+  // A miss that stopped dead before its note came up still gets one.
+  if (b.note && b.first) pitchShowNote(b);
+  mini.pitchMisses++;
 }
 
 // The surface height under a point: the floor or the top of whatever furniture is there.
@@ -1693,9 +1946,11 @@ function pitchUpdateFx(dt) {
   mini.pitchRipples = mini.pitchRipples.filter(r => r.t < 0.4);
   for (const d of mini.pitchDecals) d.t -= dt;
   mini.pitchDecals = mini.pitchDecals.filter(d => d.t > 0);
-  if (mini.pitchMark) {
-    mini.pitchMark.t -= dt;
-    if (mini.pitchMark.t <= 0) mini.pitchMark = null;
+  for (const s of mini.pitchSplats) s.t -= dt;
+  mini.pitchSplats = mini.pitchSplats.filter(s => s.t > 0);
+  if (mini.pitchNote) {
+    mini.pitchNote.t -= dt;
+    if (mini.pitchNote.t <= 0) mini.pitchNote = null;
   }
   if (mini.pitchBedFx) {
     mini.pitchBedFx.t += dt;
@@ -1706,22 +1961,26 @@ function pitchUpdateFx(dt) {
 // ---- The run, per frame ----
 function pitchUpdate(dt) {
   const T = pitchTune();
-  // Turning the phone mid-drag drops the drag: its points belong to the other canvas.
+  // Turning the phone mid-flick drops the flick: its points belong to the other canvas.
   if (mini.pitchWasTall !== !!mini.portrait) {
     mini.pitchWasTall = !!mini.portrait;
     mini.pitchPress = null;
   }
-  // Keyboard aim: left and right swing it, up and down set the distance.
+  // Keyboard aim: left and right swing it, up and down set how far, W and S how high.
   const kx = (keys.has('arrowright') || keys.has('d') ? 1 : 0) - (keys.has('arrowleft') || keys.has('a') ? 1 : 0),
-    ky = (keys.has('arrowup') || keys.has('w') ? 1 : 0) - (keys.has('arrowdown') || keys.has('s') ? 1 : 0);
-  if (kx || ky) {
+    ky = (keys.has('arrowup') ? 1 : 0) - (keys.has('arrowdown') ? 1 : 0),
+    kl = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
+  if (kx || ky || kl) {
+    const K = mini.pitchKeys;
     mini.pitchKeyAim = true;
-    mini.pitchAim = {
-      yaw: clamp(mini.pitchAim.yaw + kx * 0.8 * dt, -1.2, 1.2),
-      power: clamp(mini.pitchAim.power + ky * 0.6 * dt, 0, 1)
+    mini.pitchKeyShow = 0.9;
+    mini.pitchKeys = {
+      yaw: clamp(K.yaw + kx * 0.8 * dt, -1.3, 1.3),
+      dist: clamp(K.dist + ky * 240 * dt, PITCH_DIST[0], PITCH_DIST[1]),
+      loft: clamp(K.loft + kl * 0.9 * dt, 0, 1)
     };
   }
-  for (const k of ['pitchCd', 'pitchEmptyT', 'pitchFreeze', 'pitchShake', 'pitchHitFlash', 'pitchEtype'])
+  for (const k of ['pitchCd', 'pitchEmptyT', 'pitchFreeze', 'pitchShake', 'pitchHitFlash', 'pitchEtype', 'pitchKeyShow'])
     mini[k] = Math.max(0, mini[k] - dt);
   mini.pitchArm = Math.max(0, mini.pitchArm - dt * 4);
   if (mini.pitchBalls < mini.pitchCap) {
@@ -1734,6 +1993,7 @@ function pitchUpdate(dt) {
       sfx('pickup', { vol: 0.25 });
     }
   } else mini.pitchRefillT = T.refill;
+  pitchWarmBanks();
   // The world moves in short steps so a long frame never tunnels a ball through a gremlin.
   for (let left = dt; left > 1e-9 && mini.screen === 'play'; ) {
     const h = Math.min(left, 1 / 60);
@@ -1748,11 +2008,25 @@ function pitchUpdate(dt) {
   }
 }
 
-// The aim the dotted arc previews: a drag in progress, or the keyboard's.
+// Level 2 coaches its first bank shot, so it plans one for every shield spot in the background from
+// the first pitch, a couple of flights a frame, long before the shields come out.
+function pitchWarmBanks() {
+  if (mini.tier !== 1 || mini.pitchBanks) return;
+  for (const s of PITCH_SITS) {
+    if (s.high || s.wall) continue;
+    if (pitchBankPlan({ x: s.x, y: s.y, z: s.z, size: 1, kind: 'shield' }, 2) === undefined) return;
+  }
+}
+
+// The throw the faint arc previews: a flick while the finger is moving (what letting go now would
+// throw), or the keyboard's aim while it is being set. Nothing while the finger rests.
 function pitchPreviewAim() {
   const q = mini.pitchPress;
-  if (q && q.armed && q.tall === !!mini.portrait) return pitchPullAim(q);
-  if (mini.pitchKeyAim) return mini.pitchAim;
+  if (q && q.tall === !!mini.portrait) {
+    const f = pitchFlickAim(q, mini.total);
+    return f.ok ? f : null;
+  }
+  if (mini.pitchKeyAim && (mini.pitchKeyShow > 0 || mini.screen !== 'play')) return mini.pitchKeys;
   return null;
 }
 
@@ -2257,17 +2531,13 @@ function pitchHandScreen() {
     q = mini.pitchPress;
   let x = base.x,
     y = base.y;
-  if (q && !q.armed) y += 6 * base.k;
-  else if (q && q.armed && q.tall === !!mini.portrait) {
-    const dx = q.x - q.sx,
-      dy = q.y - q.sy,
-      n = Math.hypot(dx, dy) || 1,
-      pull = Math.min(n, PITCH_PULL) * 0.32;
-    x += (dx / n) * pull;
-    y += (dy / n) * pull;
-  } else if (mini.pitchKeyAim && mini.pitchAim) {
-    x -= Math.sin(mini.pitchAim.yaw) * 30 * mini.pitchAim.power;
-    y += Math.cos(mini.pitchAim.yaw) * 30 * mini.pitchAim.power;
+  // A finger on the glass cocks her arm back; the keyboard swings it toward the aim.
+  if (q && q.tall === !!mini.portrait) {
+    x += 6 * base.k;
+    y += 12 * base.k;
+  } else if (mini.pitchKeyAim) {
+    x -= Math.sin(mini.pitchKeys.yaw) * 16 * base.k;
+    y += 8 * base.k;
   }
   if (mini.pitchArm > 0) y -= Math.sin(mini.pitchArm * Math.PI) * 26 * base.k;
   return { x, y, k: base.k };
@@ -2321,57 +2591,58 @@ function pitchArtMacy(g) {
   if (mini.pitchBalls > 0 && mini.total - mini.pitchThrewAt > 0.12) softball(g, hand.x, hand.y - 2 * k, PITCH_BALL * 1.4 * k);
 }
 
-// ---- Aim preview: the dotted arc, and rings where it lands ----
+// ---- The faint arc: what letting go right now would throw ----
+// Only while the finger moves, or while the keys set an aim. Level 1 shows the flight to its second
+// bounce; later levels show less of it, down to a stub on Legendary.
 function pitchDrawPreview(g) {
   const aim = pitchPreviewAim();
   if (!aim) return;
-  const sim = pitchSimulate(pitchAimVelocity(aim), pitchTune().preview),
-    weak = aim.power < PITCH_MIN_POWER;
+  const [contacts, maxT] = pitchTune().arc,
+    sim = pitchSimulate(pitchLaunch(aim), contacts, maxT);
   sim.pts.forEach((q, i) => {
     if (i === 0) return;
     const p = pitchProject(...q),
-      fade = 1 - (i / sim.pts.length) * 0.55,
-      r = Math.max(1.6, 2.6 * p.k);
-    g.globalAlpha = (weak ? 0.25 : 0.9) * fade;
-    ellipse(g, p.x, p.y, r, r, i % 2 ? '#ffffff' : '#fff1b8');
+      r = Math.max(1.4, 2.3 * p.k);
+    g.globalAlpha = 0.5 * (1 - (i / sim.pts.length) * 0.6);
+    ellipse(g, p.x, p.y, r, r, '#ffffff');
   });
-  g.globalAlpha = 1;
+  g.strokeStyle = '#fff1b8';
+  g.lineWidth = 1.6;
   for (const hit of sim.hits) {
     const p = pitchProject(hit.x, hit.what === 'floor' ? 0.5 : hit.y, hit.z),
       flat = hit.what !== 'wall' && hit.what !== 'back';
-    g.strokeStyle = weak ? '#ffffff55' : '#fff1b8';
-    g.lineWidth = 2;
+    g.globalAlpha = 0.5;
     g.beginPath();
-    g.ellipse(p.x, p.y, 14 * p.k, (flat ? 5 : 14) * p.k, 0, 0, Math.PI * 2);
+    g.ellipse(p.x, p.y, 13 * p.k, (flat ? 4.5 : 13) * p.k, 0, 0, Math.PI * 2);
     g.stroke();
   }
-  // The pull meter: a band from the press to the finger, warmer as it gets stronger.
-  const q = mini.pitchPress;
-  if (q && q.armed) {
-    const col = aim.power > 0.85 ? '#ff9a6a' : aim.power > 0.5 ? '#ffd27a' : '#bdf0c8';
-    g.globalAlpha = 0.8;
-    line(g, [[q.sx, q.sy], [q.x, q.y]], col, 3);
-    ellipse(g, q.sx, q.sy, 6, 6, '#ffffff');
-    ellipse(g, q.x, q.y, 9, 9, col);
-    g.globalAlpha = 1;
-    label(g, Math.round(aim.power * 100) + '%', q.x, q.y - 16, 12, col, 'center');
-  }
+  g.globalAlpha = 1;
 }
 
-// Where a tap is sending the fastball.
-function pitchDrawMark(g) {
-  const m = mini.pitchMark;
-  if (!m) return;
-  const p = pitchProject(m.x, m.y, m.z),
-    u = 1 - m.t / 0.5;
-  g.globalAlpha = 1 - u;
-  g.strokeStyle = '#fff1b8';
-  g.lineWidth = 2;
-  g.beginPath();
-  g.arc(p.x, p.y, 8 + u * 16, 0, Math.PI * 2);
-  g.stroke();
-  line(g, [[p.x - 6, p.y], [p.x + 6, p.y]], '#fff1b8', 2);
-  line(g, [[p.x, p.y - 6], [p.x, p.y + 6]], '#fff1b8', 2);
+// Where a ball came down: a scuffed ring of chalk dust on the floor or a tabletop, a puff on a wall or
+// the side of the furniture. The first landing of each throw is the big one.
+function pitchArtSplat(g, s) {
+  const p = pitchProject(s.x, s.y + 0.6, s.z),
+    r = (s.big ? 12 : 7) * p.k;
+  g.globalAlpha = Math.min(1, s.t * 1.2) * (s.big ? 0.8 : 0.5);
+  if (s.flat) {
+    ellipse(g, p.x, p.y, r * 1.5, r * 0.5, '#eef3e6');
+    g.strokeStyle = '#6f8a7d';
+    g.lineWidth = 1.4;
+    g.beginPath();
+    g.ellipse(p.x, p.y, r * 1.1, r * 0.36, 0, 0, Math.PI * 2);
+    g.stroke();
+    for (let i = 0; i < 4; i++) {
+      const ang = s.x * 0.37 + i * 1.7;
+      ellipse(g, p.x + Math.cos(ang) * r * 1.9, p.y + Math.sin(ang) * r * 0.6, 1.6 * p.k, 1 * p.k, '#f6f8ef');
+    }
+  } else {
+    g.strokeStyle = '#f6f8ef';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(p.x, p.y, r * (1.4 - Math.min(1, s.t) * 0.4), 0, Math.PI * 2);
+    g.stroke();
+  }
   g.globalAlpha = 1;
 }
 
@@ -2468,7 +2739,7 @@ function pitchDrawHud(g, w, h) {
   if (mini.pitchFreeze > 0) pitchShout(g, 'TIMEOUT ' + Math.ceil(mini.pitchFreeze), w / 2, tall ? 170 : 74, 20, '#d8f4ff', '#1d3f60');
 }
 
-// First-game coaching, drawn on the canvas where it applies.
+// Coaching, drawn on the canvas where it applies.
 function pitchTag(g, text, x, y, arrow) {
   const { w, h } = activeCanvas(),
     tw = text.length * 7.4 + 22;
@@ -2479,40 +2750,84 @@ function pitchTag(g, text, x, y, arrow) {
   if (arrow) poly(g, [[x - 7, y + 11], [x + 7, y + 11], [x, y + 20]], '#fff2c4ee');
 }
 
-function pitchDrawHints(g, w, h) {
+// One coaching line at a time. A note about the last press or the last miss comes first, then the
+// level's own coaching.
+function pitchDrawHints(g) {
   pitchDrawEyes(g);
   if (mini.screen !== 'play') return;
-  const live = mini.pitchTargets.filter(e => e.state === 'live' && pitchHittable(e)),
-    over = e => pitchProject(e.x, e.y + PITCH_GREM * (e.size || 1) + 8, e.z);
-  if (mini.tier === 0 && !mini.pitchThrows) {
-    const hand = pitchHandScreen(),
-      bob = Math.sin(mini.total * 5) * 6;
-    pitchTag(g, 'DRAG BACK AND LET GO', hand.x - 40, hand.y - 70 + bob, true);
-    if (live[0]) pitchTag(g, 'OR TAP IT', over(live[0]).x, over(live[0]).y - 18, true);
-  } else if (mini.tier === 0 && !mini.pitchHits && mini.pitchThrows >= 3 && live[0])
-    pitchTag(g, 'TAP RIGHT ON IT FOR A FASTBALL', over(live[0]).x, over(live[0]).y - 18, true);
-  const walker = live.find(e => e.kind === 'walk');
-  if (walker && mini.tier === 0 && mini.pitchHits < 8) pitchTag(g, 'LEAD IT: AIM AHEAD', over(walker).x, over(walker).y - 18, true);
-  // Level 2: a bedpan shield shows the bank path off the nearest side wall until one goes in.
-  const shield = live.find(e => e.kind === 'shield');
-  if (shield && mini.tier === 1 && !mini.pitchBanks) pitchBankGuide(g, shield);
-  if (!mini.pitchBalls && mini.tier < 2) pitchTag(g, 'HITS REFILL THE BUCKET', 80, h - 112, true);
+  const note = mini.pitchNote;
+  if (note && note.tall === !!mini.portrait) {
+    pitchTag(g, note.text, note.x, note.y, false);
+    return;
+  }
+  const c = pitchCoach();
+  if (!c) return;
+  if (c.path) {
+    g.globalAlpha = 0.4 + 0.2 * Math.sin(mini.total * 4);
+    c.path.forEach((q, i) => {
+      if (i % 2) return;
+      const p = pitchProject(...q);
+      ellipse(g, p.x, p.y, 2.2, 2.2, '#c9f0ff');
+    });
+    g.globalAlpha = 1;
+  }
+  if (c.ghost) pitchDrawGhost(g, c.ghost);
+  pitchTag(g, c.text, c.x, c.y, c.arrow);
 }
 
-// The bank shot for a shield, drawn: the real flight from her hand off the wall into the gremlin,
-// and the spot on the wall to tap.
-function pitchBankGuide(g, e) {
-  const plan = pitchBankPlan(e);
-  if (!plan) return;
-  g.globalAlpha = 0.45 + 0.25 * Math.sin(mini.total * 4);
-  plan.path.forEach((q, i) => {
-    if (i % 2) return;
-    const p = pitchProject(...q);
-    ellipse(g, p.x, p.y, 2.2, 2.2, '#c9f0ff');
-  });
+// How hard a stroke is, in words.
+function pitchPowerWord(speed) {
+  return speed < 800 ? 'EASY' : speed < 1500 ? 'FIRM' : 'HARD';
+}
+
+// The stroke that would throw a medium arc into a gremlin standing still, for the first-flick coaching.
+function pitchGhostFor(e) {
+  const aim = pitchAimAt(pitchCenter(e), 0.3);
+  return aim && pitchSwipeFor(aim);
+}
+
+// The coaching line for right now, or null: { text, x, y, arrow, ghost, path }. Level 1 walks through
+// the flick, the lead and the lob; level 2 shows its first bank shot, stroke and flight.
+function pitchCoach() {
+  const live = mini.pitchTargets.filter(e => e.state === 'live' && pitchHittable(e)),
+    seen = live.filter(e => !(e.kind === 'peek' && e.mode === 'hidden')),
+    over = e => pitchProject(e.x, e.y + PITCH_GREM * (e.size || 1) + 8, e.z),
+    tag = (text, e, extra) => ({ text, x: over(e).x, y: over(e).y - 18, arrow: true, ...extra }),
+    done = k => mini.pitchKinds[k] || 0;
+  if (mini.tier === 0) {
+    const sit = seen.find(e => e.kind === 'sit');
+    if (sit && !mini.pitchThrows) return tag('SWIPE UP THROUGH IT AND LET GO', sit, { ghost: pitchGhostFor(sit) });
+    if (sit && !mini.pitchHits && mini.pitchThrows >= 2) return tag('FLICK HARDER TO THROW FARTHER', sit, { ghost: pitchGhostFor(sit) });
+    const walker = seen.find(e => e.kind === 'walk');
+    if (walker && done('walk') < 4) return tag('LEAD IT: FLICK WHERE IT IS GOING', walker);
+    const peek = live.find(e => e.kind === 'peek');
+    if (peek && !done('peek')) return tag(peek.mode === 'hidden' ? 'WAIT FOR IT, OR SWIPE LONG TO LOB IT' : 'NOW', peek);
+    const charge = seen.find(e => e.kind === 'charge');
+    if (charge && !done('charge')) return tag('STOP IT BEFORE THE BED', charge);
+  }
+  if (mini.tier === 1 && !mini.pitchBanks) {
+    const shield = seen.find(e => e.kind === 'shield'),
+      plan = shield && pitchBankPlan(shield, 2);
+    if (plan) {
+      const s = plan.swipe;
+      return { text: 'FLICK ALONG THE ARROW · ' + pitchPowerWord(s.speed), x: s.x1, y: s.y1 - 26, arrow: false, ghost: s, path: plan.path };
+    }
+  }
+  if (!mini.pitchBalls && mini.tier < 2) return { text: 'HITS REFILL THE BUCKET', x: 80, y: activeCanvas().h - 112, arrow: true };
+  return null;
+}
+
+// A ghost flick: the stroke to make, a faint arrow with a fingertip that runs along it.
+function pitchDrawGhost(g, s) {
+  const cyc = (mini.total % 1.6) / 1.6,
+    u = clamp(cyc / 0.35, 0, 1),
+    ease = u * u * (3 - 2 * u);
+  g.globalAlpha = 0.4;
+  line(g, [[s.x0, s.y0], [s.x1, s.y1]], '#fff2c4', 5);
+  poly(g, [[s.x1 + s.ux * 12, s.y1 + s.uy * 12], [s.x1 - s.uy * 8, s.y1 + s.ux * 8], [s.x1 + s.uy * 8, s.y1 - s.ux * 8]], '#fff2c4');
+  g.globalAlpha = cyc < 0.5 ? 0.85 * (1 - clamp((cyc - 0.35) / 0.15, 0, 1)) : 0;
+  ellipse(g, s.x0 + (s.x1 - s.x0) * ease, s.y0 + (s.y1 - s.y0) * ease, 11, 11, '#ffffff');
   g.globalAlpha = 1;
-  const bp = pitchProject(plan.q.x, plan.q.y, plan.q.z);
-  pitchTag(g, 'TAP HERE TO BANK IT', bp.x, bp.y - 16, true);
 }
 
 function pitchDrawPops(g) {
@@ -2530,6 +2845,15 @@ function pitchDrawRipples(g) {
     const u = r.t / 0.4;
     g.globalAlpha = Math.max(0, 1 - u);
     path(g, p => p.arc(r.x, r.y, 10 + u * 26, 0, Math.PI * 2), null, '#fff1b8', 2.5);
+  }
+  // The finger's last flick-window of motion, as a fading streak: the part of the swipe that throws.
+  const q = mini.pitchPress;
+  if (q && q.tall === !!mini.portrait && q.pts.length > 1) {
+    const pts = q.pts.filter(s => s.t >= mini.total - PITCH_FLICK_WIN - 1e-9);
+    for (let i = 1; i < pts.length; i++) {
+      g.globalAlpha = 0.15 + (0.35 * i) / pts.length;
+      line(g, [[pts[i - 1].x, pts[i - 1].y], [pts[i].x, pts[i].y]], '#ffffff', 2 + (4 * i) / pts.length);
+    }
   }
   g.globalAlpha = 1;
 }
@@ -2563,6 +2887,7 @@ function pitchDraw(g) {
   for (const e of mini.pitchTargets || []) items.push({ z: e.key !== undefined ? e.key : e.z, d: () => pitchArtTarget(g, e) });
   for (const o of mini.pitchBottles || []) if (o.up) items.push({ z: o.z - 0.1, d: () => pitchArtBottle(g, o) });
   for (const f of mini.pitchFlyers || []) items.push({ z: f.z, d: () => pitchArtFlyer(g, f) });
+  for (const s of mini.pitchSplats || []) items.push({ z: s.z + 0.3, d: () => pitchArtSplat(g, s) });
   for (const b of mini.pitchLive || []) {
     // A ball that dropped into the bin stays inside it.
     const inBin = b.x > PITCH_BIN.x0 && b.x < PITCH_BIN.x1 && b.z > PITCH_BIN.z0 && b.z < PITCH_BIN.z1 && b.y < PITCH_BIN.y1,
@@ -2573,11 +2898,10 @@ function pitchDraw(g) {
   items.sort((a, b) => b.z - a.z);
   for (const it of items) it.d();
   pitchDrawPreview(g);
-  pitchDrawMark(g);
   pitchDrawIncoming(g);
   pitchDrawBedFx(g);
   pitchDrawHud(g, w, h);
-  pitchDrawHints(g, w, h);
+  pitchDrawHints(g);
   pitchDrawPops(g);
   pitchDrawRipples(g);
   if (mini.pitchHitFlash > 0) {
