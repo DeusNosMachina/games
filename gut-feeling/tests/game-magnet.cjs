@@ -1,4 +1,4 @@
-// Polarity Panic (MRI pinball): physics stability and no tunneling, flipper impulse, two fingers at once through
+// Loud Donut Pinball (MRI): physics stability and no tunneling, flipper impulse, two fingers at once through
 // touch(), held buttons, keys, the plunger, nudge and tilt, the magnet and its heat, gremlin bumpers,
 // the ramp, drop targets, kickbacks, multiball, drains and ball count, the quota win and victory lap,
 // idle loss, determinism, and drawing at every screen in both canvas shapes.
@@ -38,7 +38,7 @@ const n = s => run(s),
 assert.deepEqual(j('[games[1].canvas.w,games[1].canvas.h]'), [800, 600]);
 assert.ok(n('games[1].portraitCanvas.h>games[1].portraitCanvas.w'), 'portrait canvas is taller than wide');
 assert.equal(n('typeof games[1].touch'), 'function', 'flippers need every finger: touch() is defined');
-assert.equal(n('games[1].info.game'), 'Polarity Panic');
+assert.equal(n('games[1].info.game'), 'Loud Donut Pinball');
 for (const key of ['info', 'tierNotes', 'lesson', 'scene', 'assist', 'onLose', 'resultArt', 'statLabel', 'stat', 'tactics', 'assistText'])
   assert.ok(n(`!!games[1].${key}`), key);
 for (const text of j('[games[1].info.desc,games[1].info.control,games[1].info.avoid,...games[1].tierNotes]'))
@@ -399,4 +399,4 @@ for (const tall of [false, true]) {
   if (tall) n('delete window.innerWidth;delete window.innerHeight;resize()');
 }
 n('MAGNET.scene($("miniPreview").getContext("2d"),420,240);MAGNET.scene($("miniPreview").getContext("2d"),260,135)');
-console.log('PASS: Polarity Panic draws every screen in landscape and portrait, busy states included.');
+console.log('PASS: Loud Donut Pinball draws every screen in landscape and portrait, busy states included.');

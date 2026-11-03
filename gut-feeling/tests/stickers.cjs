@@ -305,7 +305,7 @@ assert.equal(run('shareProbe.depth'), 0, 'every save() has its restore()');
 assert.deepEqual(json('shareProbe.bad'), [], 'no NaN or Infinity coordinates');
 const card = json('(() => { const cv = shareRender(shareStickerSpec("chain-10")); return [cv.width, cv.height]; })()');
 assert.deepEqual(card, [1080, 1350], 'shareRender makes a 1080 × 1350 canvas');
-assert.equal(run('shareFileName(shareResultSpec())'), 'gut-feeling-polarity-panic-gold.png');
+assert.equal(run('shareFileName(shareResultSpec())'), 'gut-feeling-loud-donut-pinball-gold.png');
 assert.equal(run('shareFileName(shareStickerSpec("chain-10"))'), 'gut-feeling-sticker-chain-10.png');
 assert.match(run('shareText(shareStickerSpec("chain-10"))'), /^I earned the Spike of the Week sticker/);
 assert.ok(!/—/.test(run('shareText(shareResultSpec()) + shareText(shareStickerSpec("mogul"))')), 'share copy keeps the house voice');

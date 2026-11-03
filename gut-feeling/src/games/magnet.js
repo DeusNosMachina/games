@@ -81,7 +81,7 @@ const MAGNET = registerGame({
   portraitCanvas: { w: 450, h: 820 },
   layout: 'gesture',
   info: {
-    game: 'Polarity Panic',
+    game: 'Loud Donut Pinball',
     genre: 'PINBALL · FLIPPERS · MAGNET SAVES',
     headline: 'Flippers in the bore. Gremlins on the bumpers.',
     desc:

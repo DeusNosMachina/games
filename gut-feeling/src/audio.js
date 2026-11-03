@@ -1201,7 +1201,7 @@ const AUDIO_SONGS = {
       }
     }
   },
-  // Polarity Panic: floaty E-flat lydian, slow vibrato, bell sparkles with echo.
+  // Loud Donut Pinball (the MRI): floaty E-flat lydian, slow vibrato, bell sparkles with echo.
   magnet: {
     bpm: 84,
     level: 0.77,

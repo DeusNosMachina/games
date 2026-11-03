@@ -30,7 +30,7 @@ Each game file calls `const NAME = registerGame({...})`. Hooks are called as `de
 | Field | Meaning |
 | --- | --- |
 | `id` | Room and arcade index, 0–5. Room data lives in `rooms[id]`. |
-| `canvas: {w, h}` | Arcade canvas size: 600 × 600 for most gesture games, 800 × 500 for the race, 800 × 450 for the IV recovery. |
+| `canvas: {w, h}` | Arcade canvas size: 600 × 600 for most gesture games, 800 × 500 for the race, 800 × 600 for pinball, 800 × 450 for the IV recovery. |
 | `portraitCanvas: {w, h}` | Optional, taller than wide. Used instead of `canvas` while `mini.portrait` is true: the dialog is open on a screen taller than wide. It can flip mid-run when the phone turns (`resize()` re-checks and re-sizes `#miniCanvas`), so read `activeCanvas()` or `mini.portrait` whenever you lay out or draw; never cache the size from `init`. |
 | `layout` | `'iv'` or `'gesture'`; becomes `miniDialog.dataset.arcade` for CSS layout. |
 | `info` | `{game, genre, headline, desc}` for map, cards and lobby, plus `{goal, control, avoid, cue}` for gesture-game briefings. |
