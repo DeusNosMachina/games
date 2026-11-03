@@ -24996,6 +24996,11 @@ function miniGame(id = mini.id) {
   return mini.forced && games.recovery ? games.recovery : games[id];
 }
 
+// The prescription a run plays on: the chosen one, except Legendary, which is always Questionable Decisions.
+function legendaryCfg(tier) {
+  return tier === 3 ? difficulties[1] : cfg();
+}
+
 // Levels the current run's game offers: three, or four when it registers `legendary: true`.
 function miniTierCount(def = miniGame()) {
   return def && def.legendary ? TIER_COUNT : 3;
@@ -25077,7 +25082,7 @@ function showLobby() {
         locked = mini.daily || mini.forced ? i !== mini.tier : i > 0 && !state.medals[mini.id][i - 1];
       return (
         `<button class="${['tier-card', mini.tier === i ? 'selected' : '', i === 3 ? 'legendary' : ''].filter(Boolean).join(' ')}" data-tier="${i}" ${locked ? 'disabled' : ''}>` +
-        `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : i === 3 ? 'Wins one in four' : 'The real deal'}</span>` +
+        `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : i === 3 ? 'One win in four, any prescription' : 'The real deal'}</span>` +
         `<strong>${t}</strong><small>${def.tierNotes[i] || ''}</small>` +
         `<div class="medals">${'★'.repeat(medal)}${'☆'.repeat(3 - medal)}</div></button>`
       );
@@ -25130,7 +25135,8 @@ function startMini() {
     daily,
     dailyDate,
     dailySeed,
-    rules: { ...cfg(), misses: cfg().misses + 2, coins: cfg().coins * approaches[approach].multiplier },
+    // Legendary is one fixed test, one win in four: it always runs on Questionable Decisions rules.
+    rules: { ...legendaryCfg(tier), misses: legendaryCfg(tier).misses + 2, coins: legendaryCfg(tier).coins * approaches[approach].multiplier },
     paused: false,
     held: false,
     t: 0,
@@ -34041,6 +34047,8 @@ function magnetScene(g, w, h) {
 // the air and break three racks of rebel bricks. Falling pills change the tray and the ball, pink bricks
 // chain-react, and the pillow cannon snipes stragglers. Level 2 adds steel, hopping gremlins and nurse
 // calls that drop the rack; level 3 is faster, adds goo pills and ends at Ralph's fortress.
+// Level 4, Legendary, is all of that at once: the fastest ball, the smallest tray, goo everywhere, steel and
+// gremlins from the first rack, and Ralph's duplex, two fortresses side by side.
 // Canvas 600 × 600, or 480 × 760 on an upright phone. Every rule runs in field coordinates (480 × 600);
 // bricksFrame() places the field on whichever canvas is active, and the physics substeps at 240 Hz.
 const BRICKS_FW = 480,
@@ -34090,7 +34098,8 @@ const BRICKS_KEY = {
 // chance a plain one-hit brick turns pink or gold. limit: the clock, a ceiling the racks should beat.
 // balls: softballs per prescription (Pillow Fort, Questionable Decisions, Absolute Gutastrophe). top:
 // where a new rack’s first row sits; lower racks leave less time to read a ricochet. par: seconds for a
-// strong clear, which the medal measures against.
+// strong clear, which the medal measures against. fortress: [base hits, hits added per prescription] for
+// each of Ralph's fortresses (default [10, 3]).
 const BRICKS_LEVELS = [
   {
     limit: 240,
@@ -34163,6 +34172,31 @@ const BRICKS_LEVELS = [
       { name: 'CHECKUP', rows: ['a2a22a2a', '2b2ss2b2', 'g..n....', '1a1??1a1', '.21bb12.'] },
       { name: 'RALPH’S FORTRESS', rows: ['1.Ffff.1', '.wffffw.', '1b1ss1b1', 'a21bb12a'] }
     ]
+  },
+  {
+    limit: 300,
+    balls: [5, 4, 4],
+    par: 125,
+    top: 146,
+    speed: 650,
+    cap: 850,
+    ramp: 6,
+    tray: 76,
+    serve: 1.5,
+    creep: 8,
+    pillChance: 0.12,
+    pills: { wide: 3, multi: 3, catch: 2, pillow: 2, nap: 1, goo: 4 },
+    pillows: 3,
+    nurse: 9,
+    hop: 1.9,
+    spice: 0.04,
+    fortress: [7, 2],
+    mix: { 1: 1, 2: 3, 3: 1, b: 1, a: 3, g: 2 },
+    racks: [
+      { name: 'SKELETON CREW', rows: ['a2gbbg2a', '2bs22sb2', '12a11a21', '.g.??.g.'] },
+      { name: 'CODE BROWNER', rows: ['2a2n22a2', 'gb2ss2bg', 'a1a??a1a', '.21bb12.'] },
+      { name: 'RALPH’S DUPLEX', rows: ['FfffFfff', 'ffffffff', 'w..ww..w', '1b1ss1b1', 'a2gbbg2a'] }
+    ]
   }
 ];
 
@@ -34170,7 +34204,8 @@ const BRICKS_LEVELS = [
 const BRICKS_TIPS = [
   ['', 'RACK 2 · land the ball on a tray edge to reach the corners.', 'FINAL RACK · flatline the heart monitor.'],
   ['', 'RACK 2 · gremlin bricks hop. Aim where they are going.', 'FINAL RACK · nurse calls. Break the bells before they ring.'],
-  ['', 'RACK 2 · steel everywhere. Pillows crack it from below.', 'FINAL RACK · Ralph’s fortress. Pink weak points first.']
+  ['', 'RACK 2 · steel everywhere. Pillows crack it from below.', 'FINAL RACK · Ralph’s fortress. Pink weak points first.'],
+  ['', 'RACK 2 · a nurse call up top. Get to it before it rings.', 'FINAL RACK · Ralph’s duplex. Two fortresses, two goo throwers. Pink first.']
 ];
 
 const BRICKS_PILLS = {
@@ -34203,8 +34238,11 @@ const BRICKS = registerGame({
   tierNotes: [
     '3 racks · big tray · slow ball · pills and pink chain reactions',
     '3 racks · steel, hopping gremlins, nurse calls · faster ball',
-    '3 racks · fastest ball · goo pills · Ralph’s fortress'
+    '3 racks · fastest ball · goo pills · Ralph’s fortress',
+    '3 racks · fastest ball · tiniest tray · goo everywhere · two fortresses'
   ],
+  // Level 4 is Legendary: level 3 turned up, with Ralph's duplex at the end.
+  legendary: true,
   shiftName: 'RACK',
   init() {
     bricksInit();
@@ -34282,7 +34320,8 @@ const BRICKS = registerGame({
       extra = [
         ' Level 1: a big tray, a slow ball, no surprises. Pink bricks explode. Gold stars always drop a pill.',
         ' New: steel bricks take three hits. Green gremlin bricks hop sideways. Nurse call bricks ring when their timer runs out and drop the whole rack a row, so break them first. A rack that crosses the red line costs a softball.',
-        ' New: a faster ball, a smaller tray, and green GOO pills that shrink it. The last rack is Ralph’s fortress: break both pink weak points to drop its shield, dodge his goo, then knock it down.'
+        ' New: a faster ball, a smaller tray, and green GOO pills that shrink it. The last rack is Ralph’s fortress: break both pink weak points to drop its shield, dodge his goo, then knock it down.',
+        ' Legendary: the fastest ball, the tiniest tray, goo pills everywhere, and steel and gremlins from the first rack. The last rack is Ralph’s duplex: two fortresses, each with its own pink weak points, both throwing goo. The rack gives up when the second one falls.'
       ][mini.tier];
     return {
       title: i.game + ' · Level ' + (mini.tier + 1),
@@ -34332,6 +34371,7 @@ const BRICKS = registerGame({
   },
   onWin() {
     const B = mini.br;
+    if (B.fortressDown && B.fortsDown > 1) return 'Ralph’s duplex is rubble, both halves. He wants his security deposit back.';
     if (B.fortressDown) return 'Ralph’s fortress is rubble. He is drafting a strongly worded memo to the lounge.';
     if (!B.drops) return 'Three racks, zero dropped softballs. The bricks are requesting a transfer.';
     return B.broken + ' bricks broken, best chain ' + mini.maxCombo + '. The bricks have filed a grievance.';
@@ -34455,7 +34495,9 @@ function bricksInit() {
     dry: 0,
     fortress: null,
     fortressDown: false,
+    fortsDown: 0,
     ralphT: 3,
+    ralphTurn: 0,
     creepT: lv.creep / bricksPace(),
     creeps: 0,
     trailT: 0,
@@ -34495,8 +34537,12 @@ function bricksBuildRack(i, slide = true) {
       bricksAddBrick(kind, c, r, hp);
     }
   });
+  // A weak point guards the fortress nearest to it.
+  const forts = B.bricks.filter(b => b.kind === 'boss'),
+    mid = b => b.x + b.w / 2;
   for (const b of B.bricks) {
-    if (b.kind === 'weak') b.boss = B.fortress;
+    if (b.kind === 'weak')
+      b.boss = forts.length ? forts.reduce((a, f) => (Math.abs(mid(f) - mid(b)) < Math.abs(mid(a) - mid(b)) ? f : a)).id : null;
     if (slide) b.oy = -330 - b.row * 22;
   }
 }
@@ -34537,21 +34583,28 @@ function bricksAddBrick(kind, col, row, hp) {
   return b;
 }
 
-// Ralph's fortress: a 4 × 2 block, shielded until both weak points beside it fall.
+// Ralph's fortress: a 4 × 2 block, shielded until the weak points guarding it fall. Legendary's last
+// rack has two (nth 0 is Ralph's, nth 1 is Ralph Jr.'s).
 function bricksAddFortress(col, row) {
   const B = mini.br,
-    b = bricksAddBrick('boss', col, row, 10 + 3 * state.difficulty);
+    [base, per] = bricksLevel().fortress || [10, 3],
+    b = bricksAddBrick('boss', col, row, base + per * state.difficulty);
   b.span = 4;
   b.w = BRICKS_PITCH * 3 + BRICKS_BW;
   b.h = BRICKS_ROWH + BRICKS_BH;
+  b.nth = B.bricks.filter(n => n.kind === 'boss' && n !== b).length;
   B.fortress = b.id;
   B.ralphT = 3;
   return b;
 }
 
+// Every standing fortress, and the first of them (or null).
+function bricksFortresses() {
+  return mini.br.bricks.filter(b => b.kind === 'boss' && b.hp > 0);
+}
+
 function bricksFortress() {
-  const B = mini.br;
-  return B.fortress === null ? null : B.bricks.find(b => b.id === B.fortress && b.hp > 0) || null;
+  return bricksFortresses()[0] || null;
 }
 
 function bricksGuarded(boss) {
@@ -34821,12 +34874,13 @@ function bricksTimers(h) {
       if (mini.screen !== 'play') return;
     }
   }
-  const boss = bricksFortress();
-  if (boss) {
+  // One goo clock; two fortresses take turns on a quicker beat.
+  const forts = bricksFortresses();
+  if (forts.length) {
     B.ralphT -= h;
     if (B.ralphT <= 0) {
-      B.ralphT = (3.3 * rand(0.85, 1.2)) / pace;
-      bricksRalphThrow(boss);
+      B.ralphT = (3.3 * rand(0.85, 1.2)) / pace / (forts.length > 1 ? 1.7 : 1);
+      bricksRalphThrow(forts[B.ralphTurn++ % forts.length]);
     }
   }
   // Stragglers: a few bricks left and nothing broken for a while drops a pillow pill from the lowest one.
@@ -35023,7 +35077,7 @@ function bricksBreak(b) {
     sfx('explode', { vol: 0.6 });
   } else if (b.kind === 'nurse') bricksPop(cx, cy - 18, 'CALL CANCELLED', '#ffd2dc');
   else if (b.kind === 'weak') {
-    const boss = bricksFortress();
+    const boss = bricksFortresses().find(f => f.id === b.boss);
     if (boss && !bricksGuarded(boss)) {
       mini.flash = 1.2;
       mini.flashText = 'SHIELD DOWN · KNOCK OVER THE FORTRESS';
@@ -35066,6 +35120,16 @@ function bricksReactionDone() {
 
 function bricksFortressFalls(b) {
   const B = mini.br;
+  B.fortsDown++;
+  // The first half of a duplex falls alone; the rack only gives up with the last fortress.
+  if (bricksFortresses().length) {
+    mini.flash = 1.4;
+    mini.flashText = 'ONE FORTRESS DOWN · ONE TO GO';
+    bricksKick(0.4);
+    bricksBurst(b.x + b.w / 2, b.y + b.h / 2, '#f6dfaf', 24);
+    sfx('bossDie');
+    return;
+  }
   B.fortressDown = true;
   B.goo = [];
   mini.flash = 1.6;
@@ -35408,7 +35472,7 @@ function bricksDrawBoss(g, b, x, y) {
     g.globalAlpha = 1;
     label(g, 'SHIELD', x + 34, y + 30, 10, '#e8f6ff', 'center');
     label(g, 'SHIELD', x + b.w - 34, y + 30, 10, '#e8f6ff', 'center');
-  } else label(g, 'RALPH · ' + Math.ceil(b.hp), x + b.w - 40, y + 30, 11, '#ffe3ef', 'center');
+  } else label(g, (b.nth ? 'JR · ' : 'RALPH · ') + Math.ceil(b.hp), x + b.w - 40, y + 30, 11, '#ffe3ef', 'center');
 }
 
 function bricksDrawBrick(g, b) {
@@ -39893,8 +39957,12 @@ const BLASTER = registerGame({
   tierNotes: [
     '105s · one at a time · hints on · slow crawlers',
     '120s · helmets, bruisers, pouncers · short fuses',
-    '135s · the whole litter · Ralph Jr. on watch 3'
+    '135s · the whole litter · Ralph Jr. on watch 3',
+    '150s · every breed, short fuses · 6 charges · Ralph Jr. twice'
   ],
+  // Level 4 is Legendary: level 3's whole litter from the first watch, shorter fuses, six charges a
+  // magazine, a longer night and Ralph Jr. twice.
+  legendary: true,
   shiftName: 'WATCH',
   init() {
     initArcadeRun(105 + mini.tier * 15);
@@ -39969,6 +40037,10 @@ const BLASTER = registerGame({
     return false;
   },
   shiftMessage(shift) {
+    if (mini.tier === 3)
+      return shift === 1
+        ? 'WATCH 2 · Ralph Jr. is up past his bedtime.'
+        : 'WATCH 3 · Ralph Jr. is back, and he brought the whole litter.';
     if (shift === 1) return 'WATCH 2 · both sides now. Pouncers have short fuses.';
     return mini.tier === 2
       ? 'WATCH 3 · everything, everywhere. Ralph Jr. wants a word.'
@@ -39988,7 +40060,12 @@ const BLASTER = registerGame({
         ' Evict ' +
         mini.goal +
         '.' +
-        (mini.tier === 0 ? ' Hints are on. Ralph is not.' : mini.tier === 2 ? ' Ralph Jr. crashes watch 3.' : ''),
+        [
+          ' Hints are on. Ralph is not.',
+          '',
+          ' Ralph Jr. crashes watch 3.',
+          ' Legendary: every breed from the first second, shorter fuses, six charges a magazine, and Ralph Jr. on watches 2 and 3.'
+        ][mini.tier],
       control: i.control,
       avoid: i.avoid,
       demo: 'aim',
@@ -40023,9 +40100,12 @@ const BLASTER = registerGame({
     );
   },
   onWin() {
-    const tail = mini.bossDown
-      ? ' Ralph Jr. has been sent to his room. This is his room.'
-      : ' The gremlins are leaving a one-star review.';
+    const tail =
+      mini.bossDowns >= 2
+        ? ' Ralph Jr. got evicted twice. He is telling everyone it was a tie.'
+        : mini.bossDown
+          ? ' Ralph Jr. has been sent to his room. This is his room.'
+          : ' The gremlins are leaving a one-star review.';
     return `Room secured. ${mini.headshots} headshots, ${mini.cleanReloads} hot reloads.` + tail;
   },
   onLose() {
@@ -40123,6 +40203,9 @@ const BLASTER = registerGame({
 
 // ---- Rules ----
 const BLASTER_MAGAZINE = 7,
+  BLASTER_MAGAZINES = [7, 7, 7, 6], // charges per magazine by level
+  BLASTER_GOALS = [16, 26, 34, 40],
+  BLASTER_RALPH = [[], [], [2], [1, 2]], // the watches Ralph Jr. visits, by level
   BLASTER_CHARGE = 0.6, // seconds held for a piercing shot
   BLASTER_SWEEP = 0.08, // the sight's travel time before a tap resolves
   BLASTER_SLOP = 12, // pixels a touch may wander and still count as a tap
@@ -40163,6 +40246,11 @@ const BLASTER_MIX = [
   ],
   [
     { crawler: 5, helmet: 3, bruiser: 2 },
+    { crawler: 3, helmet: 3, bruiser: 2, pouncer: 3 },
+    { crawler: 3, helmet: 3, bruiser: 3, pouncer: 3 }
+  ],
+  [
+    { crawler: 4, helmet: 3, bruiser: 1, pouncer: 2 },
     { crawler: 3, helmet: 3, bruiser: 2, pouncer: 3 },
     { crawler: 3, helmet: 3, bruiser: 3, pouncer: 3 }
   ]
@@ -40217,25 +40305,27 @@ const BLASTER_PERCHES = [
   { layer: 'near', side: 2, x: 1330, top: 466 }
 ];
 
-// Level and watch pacing. Level 1 is slow and solitary; levels 2 and 3 crowd and hurry.
+// Level and watch pacing. Level 1 is slow and solitary; levels 2 and 3 crowd and hurry. Legendary
+// (level 4) keeps level 3's crowd with shorter fuses; the litter, the smaller magazine and the second
+// Ralph Jr. do the rest, so its spawns run a touch slower than level 3's.
 function blasterTuning(tier = mini.tier, shift = mini.shift || 0) {
   const pace = (mini.rules && mini.rules.mini) || 1;
   return {
-    interval: [[3.6, 3.1, 2.7], [2.8, 2.45, 2.15], [2.45, 2.15, 1.85]][tier][shift] / pace,
-    windup: [1.8, 1.25, 1][tier] / pace,
-    leap: [1.15, 0.92, 0.8][tier] / Math.sqrt(pace),
-    creep: [[6.2, 5.8, 5.4], [5, 4.6, 4.2], [4.4, 4, 3.6]][tier][shift] / pace,
-    peek: [1.6, 1.05, 0.8][tier] / pace,
-    cap: [[1, 2, 3], [2, 3, 3], [3, 3, 4]][tier][shift],
-    reload: [1.5, 1.4, 1.3][tier],
-    window: [[0.36, 0.7], [0.48, 0.67], [0.53, 0.66]][tier],
+    interval: [[3.6, 3.1, 2.7], [2.8, 2.45, 2.15], [2.45, 2.15, 1.85], [2.6, 2.3, 2]][tier][shift] / pace,
+    windup: [1.8, 1.25, 1, 0.92][tier] / pace,
+    leap: [1.15, 0.92, 0.8, 0.76][tier] / Math.sqrt(pace),
+    creep: [[6.2, 5.8, 5.4], [5, 4.6, 4.2], [4.4, 4, 3.6], [4.4, 4, 3.6]][tier][shift] / pace,
+    peek: [1.6, 1.05, 0.8, 0.8][tier] / pace,
+    cap: [[1, 2, 3], [2, 3, 3], [3, 3, 4], [3, 3, 4]][tier][shift],
+    reload: [1.5, 1.4, 1.3, 1.3][tier],
+    window: [[0.36, 0.7], [0.48, 0.67], [0.53, 0.66], [0.53, 0.66]][tier],
     shotCd: 0.13
   };
 }
 
 function initShooter() {
   Object.assign(mini, {
-    goal: [16, 26, 34][mini.tier],
+    goal: BLASTER_GOALS[mini.tier],
     look: { yaw: 700, pitch: 250 },
     lookTarget: { yaw: 700, pitch: 250 },
     sight: { x: 300, y: 285 },
@@ -40251,8 +40341,8 @@ function initShooter() {
     targetSerial: 0,
     lastSide: -1,
     rush: false,
-    ammo: BLASTER_MAGAZINE,
-    magazine: BLASTER_MAGAZINE,
+    ammo: BLASTER_MAGAZINES[mini.tier],
+    magazine: BLASTER_MAGAZINES[mini.tier],
     reload: 0,
     reloadT: 0,
     reloadDur: 0,
@@ -40279,6 +40369,9 @@ function initShooter() {
     bottlesShot: 0,
     bossSpawned: false,
     bossDown: false,
+    bossVisits: 0,
+    bossDowns: 0,
+    bossWatches: {},
     splat: null,
     tracers: [],
     pops: [],
@@ -40526,9 +40619,11 @@ function blasterSpawnBottle(perch = null) {
   return e;
 }
 
-// Ralph Jr. drops in for level 3's last watch. His mouth only opens when he roars.
+// Ralph Jr. drops in for level 3's last watch, and for Legendary's last two. His mouth only opens when he
+// roars.
 function blasterSpawnBoss() {
   mini.bossSpawned = true;
+  mini.bossVisits = (mini.bossVisits || 0) + 1;
   const k = BLASTER_KINDS.boss,
     e = {
       id: mini.targetSerial++,
@@ -40554,7 +40649,10 @@ function blasterSpawnBoss() {
     };
   mini.targets.push(e);
   mini.flash = 2.2;
-  mini.flashText = 'RALPH JR. HAS ENTERED THE CHAT · SHOOT THE MOUTH WHEN THE PACIFIER DROPS';
+  mini.flashText =
+    mini.bossVisits > 1
+      ? 'RALPH JR. IS BACK · SAME MOUTH, SAME PLAN'
+      : 'RALPH JR. HAS ENTERED THE CHAT · SHOOT THE MOUTH WHEN THE PACIFIER DROPS';
   sfx('explode');
   return e;
 }
@@ -40732,7 +40830,10 @@ function blasterApplyHit(h, charged, hot) {
   e.mode = 'dying';
   e.dying = e.kind === 'boss' ? 1 : 0.45;
   mini.got += e.kind === 'boss' ? 3 : 1;
-  if (e.kind === 'boss') mini.bossDown = true;
+  if (e.kind === 'boss') {
+    mini.bossDown = true;
+    mini.bossDowns = (mini.bossDowns || 0) + 1;
+  }
   praise(k.points + (head ? 60 : 0) + (midAir ? 80 : 0) + (hot ? 40 : 0), head ? 1 : charged ? 0.85 : 0.72);
   sfx(e.kind === 'boss' ? 'clear' : 'squelch');
   arcadeBurst(p.x, p.y + 8 * p.s, '#9be15d', e.kind === 'boss' ? 30 : 16);
@@ -41045,7 +41146,7 @@ function blasterUpdateSpawns(dt) {
     sfx('wave');
   }
   mini.rush = rush;
-  if (mini.tier === 2 && mini.shift === 2 && !mini.bossSpawned) blasterSpawnBoss();
+  blasterBossSchedule();
   mini.spawn -= dt;
   if (mini.spawn <= 0) {
     const alive = mini.targets.filter(e => BLASTER_KINDS[e.kind] && e.kind !== 'boss' && e.mode !== 'dying').length;
@@ -41059,6 +41160,16 @@ function blasterUpdateSpawns(dt) {
     mini.bottleT = mini.targets.some(e => e.kind === 'bottle') ? 3 : rand(12, 18);
     if (mini.bottleT > 3) blasterSpawnBottle();
   }
+}
+
+// Ralph Jr. visits on the watches his level lists, once each. A visit that comes due while he is still
+// in the room waits until he is gone, so there is never more than one of him.
+function blasterBossSchedule() {
+  const visits = BLASTER_RALPH[mini.tier] || [];
+  if (!visits.includes(mini.shift) || mini.bossWatches[mini.shift]) return;
+  if (mini.targets.some(e => e.kind === 'boss' && e.mode !== 'dying')) return;
+  mini.bossWatches[mini.shift] = true;
+  blasterSpawnBoss();
 }
 
 // Peek, duck, peek again, then go.

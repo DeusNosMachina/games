@@ -282,6 +282,11 @@ function miniGame(id = mini.id) {
   return mini.forced && games.recovery ? games.recovery : games[id];
 }
 
+// The prescription a run plays on: the chosen one, except Legendary, which is always Questionable Decisions.
+function legendaryCfg(tier) {
+  return tier === 3 ? difficulties[1] : cfg();
+}
+
 // Levels the current run's game offers: three, or four when it registers `legendary: true`.
 function miniTierCount(def = miniGame()) {
   return def && def.legendary ? TIER_COUNT : 3;
@@ -363,7 +368,7 @@ function showLobby() {
         locked = mini.daily || mini.forced ? i !== mini.tier : i > 0 && !state.medals[mini.id][i - 1];
       return (
         `<button class="${['tier-card', mini.tier === i ? 'selected' : '', i === 3 ? 'legendary' : ''].filter(Boolean).join(' ')}" data-tier="${i}" ${locked ? 'disabled' : ''}>` +
-        `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : i === 3 ? 'Wins one in four' : 'The real deal'}</span>` +
+        `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : i === 3 ? 'One win in four, any prescription' : 'The real deal'}</span>` +
         `<strong>${t}</strong><small>${def.tierNotes[i] || ''}</small>` +
         `<div class="medals">${'★'.repeat(medal)}${'☆'.repeat(3 - medal)}</div></button>`
       );
@@ -416,7 +421,8 @@ function startMini() {
     daily,
     dailyDate,
     dailySeed,
-    rules: { ...cfg(), misses: cfg().misses + 2, coins: cfg().coins * approaches[approach].multiplier },
+    // Legendary is one fixed test, one win in four: it always runs on Questionable Decisions rules.
+    rules: { ...legendaryCfg(tier), misses: legendaryCfg(tier).misses + 2, coins: legendaryCfg(tier).coins * approaches[approach].multiplier },
     paused: false,
     held: false,
     t: 0,

@@ -89,7 +89,7 @@ Arcade controls:
 
 ## Progression and difficulty
 
-**Steady hands** gives two assists per run. **Show-off shift** removes them and pays 25% more. The prescriptions are **Pillow Fort**, **Questionable Decisions** and **Absolute Gutastrophe**; they change speed, counts, windows and payouts.
+**Steady hands** gives two assists per run. **Show-off shift** removes them and pays 25% more. The prescriptions are **Pillow Fort**, **Questionable Decisions** and **Absolute Gutastrophe**; they change speed, counts, windows and payouts. Every arcade has a fourth level, **Legendary**, unlocked by any medal on level 3: a single fixed test tuned so a quarter-second player wins about one time in four, which always runs on Questionable Decisions rules whatever prescription is set.
 
 Medals are bronze, silver and gold, worth 1, 2 and 3 discharge stars, on every level including Legendary. Discharge needs 21 stars, a medal in all six games, any level 2 medal, and Ralph beaten; the exit and the map list exactly what is still missing.
 

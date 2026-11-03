@@ -35,7 +35,7 @@ Each game file calls `const NAME = registerGame({...})`. Hooks are called as `de
 | `layout` | `'iv'` or `'gesture'`; becomes `miniDialog.dataset.arcade` for CSS layout. |
 | `info` | `{game, genre, headline, desc}` for map, cards and lobby, plus `{goal, control, avoid, cue}` for gesture-game briefings. |
 | `tierNotes` | One lobby string per level: three, or four with `legendary`. |
-| `legendary` | `true` when the game has a fourth level, Legendary (tier 3): the lobby offers it once level 3 has a medal, the idle and playthrough tests cover it, and its ruleset should be one a quarter-second player wins about one time in four. `tiers`, `TIER_COUNT` (4) and `miniTierCount(def)` live in state.js and minigames.js. |
+| `legendary` | `true` when the game has a fourth level, Legendary (tier 3): the lobby offers it once level 3 has a medal, the idle and playthrough tests cover it, and its ruleset should be one a quarter-second player wins about one time in four. `tiers`, `TIER_COUNT` (4) and `miniTierCount(def)` live in state.js and minigames.js. A Legendary run always uses Questionable Decisions rules (`legendaryCfg(tier)` in `startMini`), so its one-in-four holds on every prescription. |
 | `shiftName` | Optional banner noun for `updateArcade` shifts (default `SHIFT`). |
 | `music` | Optional track key for the run (default `'game:' + id`). |
 
