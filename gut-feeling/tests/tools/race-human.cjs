@@ -8,9 +8,11 @@
 // The bot wins everything by design; this says whether a person can. Usage from the repository root
 // (reaction s, trials, prescription 0-2; ONLY=0 runs level 1 alone):
 //   node gut-feeling/tests/tools/race-human.cjs 0.25 30 1
-// Level 1 should clear nearly always at 0.25 s, level 2 most of the time, level 3 sometimes, and a
-// 0.35 s player should still clear level 1. Read the per-level line: wins, average place, finish time
-// and time to spare, spins per race, and why the losses happened.
+// At the default prescription a 0.25 s player should clear level 1 nearly always, level 2 most of the
+// time and level 3 about a third of the time; a 0.35 s player should clear level 1 nearly always and
+// level 2 about a third of the time. Read the per-level line: wins, average place, pace (share of top
+// speed), finish time and time to spare, spins per race and what caused them, and why losses happened.
+// NOCLOCK=1 removes the clock to read a player's natural pace.
 const { run } = require('../harness.cjs');
 const REACT = +process.argv[2] || 0.25,
   TRIALS = +process.argv[3] || 30,
