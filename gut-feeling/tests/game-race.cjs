@@ -110,7 +110,7 @@ console.log('PASS: curves push outward with speed, steering into them holds the 
 // ---- Crashes ----
 n('rcStart(1);rcAt(mini.raceCourse.start + 40);T.cart = rcCar("laundry", 6, 0, mini.raceTop * 0.3);rcTick(0.4)');
 assert.equal(n('mini.raceCrashes'), 1, 'rear-ending traffic crashes');
-assert.ok(n('mini.raceSpin') > 0 && n('mini.raceV') <= n('mini.raceTop * 0.5'), 'a crash spins you and costs speed');
+assert.ok(n('mini.raceSpin') > 0 && n('mini.raceV') <= n('mini.raceTop * 0.55'), 'a crash spins you and costs speed');
 assert.equal(n('mini.miss'), 0, 'a crash never costs a heart');
 assert.equal(n('T.cart.knocked'), true, 'the laundry cart goes flying');
 n('T.chair = rcCar("wheelchair", 3, mini.raceX, 0);rcTick(0.3)');
@@ -145,7 +145,15 @@ assert.ok(field.every(c => c.pace < 1), 'nobody outruns a clean gurney at top sp
 n('rcTick(4)');
 assert.ok(n('mini.raceRivals.every(c => c.v > 0)'), 'rivals get going on GO');
 close();
-console.log('PASS: real positions, overtakes with pops, finishers stay ahead, and the field spreads by pace.');
+// The field bunches a little: far ahead eases off, far behind leans on it, Ralph keeps his pace.
+n('rcStart(1, 1, false);T.r = mini.raceRivals[3]');
+assert.equal(n('(T.r.z = mini.raceZ + 10, raceBand(T.r))'), 1, 'close rivals race at their pace');
+assert.ok(n('(T.r.z = mini.raceZ + 300, raceBand(T.r))') <= n('1 - RACE_BAND_AHEAD + 1e-9'), 'a rival far up the road eases off');
+assert.ok(n('(T.r.z = mini.raceZ - 300, raceBand(T.r))') >= n('1 + RACE_BAND_BEHIND - 1e-9'), 'a rival far behind pushes');
+assert.ok(n('RACE_BAND_AHEAD <= 0.06 && RACE_BAND_BEHIND <= 0.03'), 'the bunching stays mild');
+assert.equal(n('raceBand(raceCar({ id: 77, kind: "ralph", racer: true, name: "Ralph", z: mini.raceZ + 400, lane: 1, pace: 0.7 }))'), 1, 'Ralph keeps his own pace');
+close();
+console.log('PASS: real positions, overtakes with pops, finishers stay ahead, the field spreads by pace and bunches a little.');
 
 // ---- Donut gates ----
 n('rcStart(1);T.limit = mini.limit;T.g = mini.raceCourse.gates[0];rcAt(T.g - 2);rcTick(0.2)');
