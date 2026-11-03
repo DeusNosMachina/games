@@ -1679,6 +1679,15 @@ AUDIO_SONGS.title = {
 
 AUDIO_MUSIC['room:6'] = { base: 'hallway' };
 AUDIO_MUSIC.title = { base: 'title' };
+// The send-off (src/discharge.js): the main theme a step up and a touch slower on a warm triangle lead,
+// with the whole floor clapping on two and four.
+AUDIO_MUSIC.discharge = {
+  base: 'title',
+  transpose: 2,
+  lead: 'tri',
+  tempo: 0.94,
+  perc: { kind: 'clap', pattern: '....x.......x...' }
+};
 
 // ---- The dream (src/dream.js) ----
 // music('dream'): the title hook at half speed, tuned 30 cents flat, under a slow, deep vibrato and a
