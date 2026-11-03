@@ -119,7 +119,7 @@ const DISCHARGE_LINEUP = [
 ];
 const DISCHARGE_FRIENDS = ['presley', 'norah', 'taylor'];
 
-// The chair's ride, [time, x, y] keyframes per corridor beat: out of Room 5, down the hall, out the EXIT.
+// The chair's ride, [time, x, y] keyframes per corridor beat: out of Room 10, down the hall, out the EXIT.
 const DISCHARGE_RIDE = {
   hall1: [
     [0, 600, 232],
@@ -881,7 +881,7 @@ function dischargePapers(g, L, T) {
   line(g, [[44, 142], [376, 142]], '#c9bfa9', 2);
   const fields = [
     ['PATIENT', `${dischargeName()} · #${dischargeNum()}`],
-    ['WHERE', '7th floor · Room 5'],
+    ['WHERE', '7th floor · Room 10'],
     ['DIAGNOSIS', 'One very dramatic gut'],
     ['GOING HOME?', 'Yes.']
   ];
@@ -982,7 +982,7 @@ function dischargeNumbersBeat(g, L, T, D) {
     if (it.kind === 'head') {
       dischargeText(g, 'VALLEY HOSPITAL · SEVENTH FLOOR', cx, y + f(13) * 1.2, f(13), '#3e8a7e', 'center', 800);
       dischargeText(g, 'DISCHARGE SUMMARY', cx, y + f(13) * 1.7 + f(26), dischargeFitSize(g, 'DISCHARGE SUMMARY', sw * 0.9, f(26), f(14), 900), DISCHARGE_COL.ink, 'center', 900);
-      dischargeText(g, `${dischargeName().toUpperCase()} · #${dischargeNum()} · ROOM 5`, cx, y + f(13) * 1.7 + f(26) * 1.3 + f(14) * 1.3, f(14), '#6d7b80', 'center', 800);
+      dischargeText(g, `${dischargeName().toUpperCase()} · #${dischargeNum()} · ROOM 10`, cx, y + f(13) * 1.7 + f(26) * 1.3 + f(14) * 1.3, f(14), '#6d7b80', 'center', 800);
       line(g, [[x0 + f(26), y + head - f(6)], [x0 + sw - f(26), y + head - f(6)]], '#d8cbb0', 1.5);
     } else if (it.kind === 'row') {
       const r = it.r,
@@ -1889,7 +1889,7 @@ function dischargeCard(g, L, T) {
   y += 18 * u * 1.6;
   dischargeText(g, `· ${discharge.date || dischargeDate()} ·`, cx, y, 18 * u, DISCHARGE_COL.mint, 'center', 800);
   y += 12 * u * 1.9;
-  const place = `${dischargeName().toUpperCase()} · #${dischargeNum()} · ROOM 5 · VALLEY HOSPITAL, PARAMUS`;
+  const place = `${dischargeName().toUpperCase()} · #${dischargeNum()} · ROOM 10 · VALLEY HOSPITAL, PARAMUS`;
   dischargeText(g, place, cx, y, dischargeFitSize(g, place, pw - 40 * u, 12 * u, 7 * u, 800), DISCHARGE_COL.muted, 'center', 800);
   y += 16 * u;
   const tiles = [
@@ -1969,7 +1969,7 @@ function dischargeShareDraw(g, spec = {}) {
   dischargeStamp(g, W * 0.62, sy + 120, 380, 110, -0.16, 'DISCHARGED', DISCHARGE_COL.red, 1);
   const ty = sy + sh + 92;
   dischargeText(g, 'DISCHARGED', W / 2, ty, dischargeFitSize(g, 'DISCHARGED', W - 140, 84, 40, 900), '#f8efd9', 'center', 900);
-  dischargeText(g, `VALLEY HOSPITAL · 7TH FLOOR · ROOM 5 · ${date}`, W / 2, ty + 54, dischargeFitSize(g, `VALLEY HOSPITAL · 7TH FLOOR · ROOM 5 · ${date}`, W - 140, 26, 16, 800), '#b5e8c5', 'center', 800);
+  dischargeText(g, `VALLEY HOSPITAL · 7TH FLOOR · ROOM 10 · ${date}`, W / 2, ty + 54, dischargeFitSize(g, `VALLEY HOSPITAL · 7TH FLOOR · ROOM 10 · ${date}`, W - 140, 26, 16, 800), '#b5e8c5', 'center', 800);
   const tw = (W - 120 - 40) / 3,
     tiles = [
       [String(st.stars), 'STARS', '#ffda79'],
@@ -2169,7 +2169,7 @@ const DISCHARGE_BEATS = [
     id: 'tv',
     title: 'Meanwhile, at home',
     dur: 11,
-    copy: "Room 5's 75-inch TV switched to the cat cam on its own. Pepper has questions.",
+    copy: "Room 10's 75-inch TV switched to the cat cam on its own. Pepper has questions.",
     draw: dischargeTv,
     cues: [
       [0.15, 'select'],

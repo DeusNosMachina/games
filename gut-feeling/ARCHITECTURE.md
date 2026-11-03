@@ -19,6 +19,7 @@ At load time a file may only use names from earlier files (each game calls `regi
 | `combat.js` | Weapons, gremlin breeds, waves, first-clear pacing (`WARD.firstCap`, `firstTell`, `queueGap`), the combo and its slam, attacks, jumping, damage, `drawEnemy` |
 | `minigames.js` | Arcade framework: lobby, run lifecycle, canvas shape (`activeCanvas`, portrait flips), HUD, instruction toast, assists, scoring, rewards, results, `drawMini`, pointer plumbing, shared gesture-game helpers |
 | `transitions.js` | Briefing, countdown, finish, `lesson()` dispatch, countdown card for games with their own overlay (`paintTransition`, sized to the active canvas) |
+| `discharge.js` | The send-off cinematic: `dischargeStart()`, `updateDischarge(dt)`, `dischargeActive()`, `drawDischarge(g, vw, vh)`, `dischargeAction(kind, point)`; it also claims keys and pointer presses through its own capture listeners on `document` while it plays, as dream.js does; writes `state.stats.sendoffs` |
 | `games/*.js` | One arcade each: rules, state, art, copy, controls |
 | `map.js` | The map dialog's floor plan (its own owner and tests) |
 | `input.js` | DOM events, title-screen input, press-to-act buttons, tap-the-room canvas wiring, control scheme setting, shop, difficulty, keyboard, startup |
@@ -159,5 +160,6 @@ node gut-feeling/tests/smoke.cjs        # one file (build first)
 | `tools/<name>-human.cjs` | Not run by the suite. A human-speed yardstick: an input-only policy that sees the game a quarter second late and plays like a person. Run one before changing a game's pace or quotas; bots prove solvable, these say whether a person can. | that game |
 | `playthrough.cjs` | Runs every bot through all 54 combinations | framework |
 | `smoke.cjs` | Registry shape; every game and room draws; tall and wide ward views; games with a portrait canvas run on it | framework |
+| `discharge.cjs` | The send-off: hooks, exit gating, beat timing, advancing and skipping, every beat drawn at five sizes, the share card, reduced motion | discharge |
 
 When you change a game's rules, update its bot and its `game-<name>.cjs` in the same commit. Do not edit another owner's test file.
