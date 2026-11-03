@@ -6,10 +6,11 @@
 // aim with its edges, and use no assists unless ASSIST=1. The bot wins everything by design; this says
 // whether a person can. Usage from the repository root (reaction s, trials, prescription 0-2):
 //   node gut-feeling/tests/tools/bricks-human.cjs 0.25 30 1
-// Targets: at 0.25 s, level 1 nearly always, level 2 most of the time, level 3 sometimes; a 0.35 s
-// player still clears level 1. Read each level's line: wins, seconds per win, softballs dropped, how
-// the losses happened (and with how many bricks left in which rack), and the medal spread of the wins.
-// ONLY=2 runs one level (0-2). PATCH='BRICKS_LEVELS[0].speed=320' runs code in the page first, for
+// Targets: at 0.25 s, level 1 nearly always, level 2 most of the time, level 3 sometimes, Legendary
+// about one time in four; a 0.35 s player still clears level 1. Read each level's line: wins, seconds
+// per win, softballs dropped, how the losses happened (and with how many bricks left in which rack),
+// and the medal spread of the wins.
+// ONLY=2 runs one level (0-3). PATCH='BRICKS_LEVELS[0].speed=320' runs code in the page first, for
 // trying a tuning without a rebuild.
 const { run, close } = require('../harness.cjs');
 const REACT = +process.argv[2] || 0.25,
@@ -86,7 +87,8 @@ function humanRun(tier, diff, react, seed, assist) {
   const q = win ? BRICKS.quality() : 0;
   return { win, t: mini.phaseTime, drops: B.drops, line: B.lineHits, rack: B.rack, left: bricksLeft(), cause: win ? 'win' : reason && reason.includes('lounge') ? 'time' : 'softballs', q, combo: mini.maxCombo };
 }`);
-for (const tier of ONLY ? [+ONLY] : [0, 1, 2]) {
+for (const tier of ONLY ? [+ONLY] : [0, 1, 2, 3]) {
+  if (tier >= run('miniTierCount(games[2])')) continue;
   const runs = [];
   for (let i = 0; i < TRIALS; i++) {
     close();

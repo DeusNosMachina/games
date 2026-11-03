@@ -2,6 +2,8 @@
 // the air and break three racks of rebel bricks. Falling pills change the tray and the ball, pink bricks
 // chain-react, and the pillow cannon snipes stragglers. Level 2 adds steel, hopping gremlins and nurse
 // calls that drop the rack; level 3 is faster, adds goo pills and ends at Ralph's fortress.
+// Level 4, Legendary, is all of that at once: the fastest ball, the smallest tray, goo everywhere, steel and
+// gremlins from the first rack, and Ralph's duplex, two fortresses side by side.
 // Canvas 600 × 600, or 480 × 760 on an upright phone. Every rule runs in field coordinates (480 × 600);
 // bricksFrame() places the field on whichever canvas is active, and the physics substeps at 240 Hz.
 const BRICKS_FW = 480,
@@ -51,7 +53,8 @@ const BRICKS_KEY = {
 // chance a plain one-hit brick turns pink or gold. limit: the clock, a ceiling the racks should beat.
 // balls: softballs per prescription (Pillow Fort, Questionable Decisions, Absolute Gutastrophe). top:
 // where a new rack’s first row sits; lower racks leave less time to read a ricochet. par: seconds for a
-// strong clear, which the medal measures against.
+// strong clear, which the medal measures against. fortress: [base hits, hits added per prescription] for
+// each of Ralph's fortresses (default [10, 3]).
 const BRICKS_LEVELS = [
   {
     limit: 240,
@@ -124,6 +127,31 @@ const BRICKS_LEVELS = [
       { name: 'CHECKUP', rows: ['a2a22a2a', '2b2ss2b2', 'g..n....', '1a1??1a1', '.21bb12.'] },
       { name: 'RALPH’S FORTRESS', rows: ['1.Ffff.1', '.wffffw.', '1b1ss1b1', 'a21bb12a'] }
     ]
+  },
+  {
+    limit: 300,
+    balls: [5, 4, 4],
+    par: 125,
+    top: 146,
+    speed: 650,
+    cap: 850,
+    ramp: 6,
+    tray: 76,
+    serve: 1.5,
+    creep: 8,
+    pillChance: 0.12,
+    pills: { wide: 3, multi: 3, catch: 2, pillow: 2, nap: 1, goo: 4 },
+    pillows: 3,
+    nurse: 9,
+    hop: 1.9,
+    spice: 0.04,
+    fortress: [7, 2],
+    mix: { 1: 1, 2: 3, 3: 1, b: 1, a: 3, g: 2 },
+    racks: [
+      { name: 'SKELETON CREW', rows: ['a2gbbg2a', '2bs22sb2', '12a11a21', '.g.??.g.'] },
+      { name: 'CODE BROWNER', rows: ['2a2n22a2', 'gb2ss2bg', 'a1a??a1a', '.21bb12.'] },
+      { name: 'RALPH’S DUPLEX', rows: ['FfffFfff', 'ffffffff', 'w..ww..w', '1b1ss1b1', 'a2gbbg2a'] }
+    ]
   }
 ];
 
@@ -131,7 +159,8 @@ const BRICKS_LEVELS = [
 const BRICKS_TIPS = [
   ['', 'RACK 2 · land the ball on a tray edge to reach the corners.', 'FINAL RACK · flatline the heart monitor.'],
   ['', 'RACK 2 · gremlin bricks hop. Aim where they are going.', 'FINAL RACK · nurse calls. Break the bells before they ring.'],
-  ['', 'RACK 2 · steel everywhere. Pillows crack it from below.', 'FINAL RACK · Ralph’s fortress. Pink weak points first.']
+  ['', 'RACK 2 · steel everywhere. Pillows crack it from below.', 'FINAL RACK · Ralph’s fortress. Pink weak points first.'],
+  ['', 'RACK 2 · a nurse call up top. Get to it before it rings.', 'FINAL RACK · Ralph’s duplex. Two fortresses, two goo throwers. Pink first.']
 ];
 
 const BRICKS_PILLS = {
@@ -164,8 +193,11 @@ const BRICKS = registerGame({
   tierNotes: [
     '3 racks · big tray · slow ball · pills and pink chain reactions',
     '3 racks · steel, hopping gremlins, nurse calls · faster ball',
-    '3 racks · fastest ball · goo pills · Ralph’s fortress'
+    '3 racks · fastest ball · goo pills · Ralph’s fortress',
+    '3 racks · fastest ball · tiniest tray · goo everywhere · two fortresses'
   ],
+  // Level 4 is Legendary: level 3 turned up, with Ralph's duplex at the end.
+  legendary: true,
   shiftName: 'RACK',
   init() {
     bricksInit();
@@ -243,7 +275,8 @@ const BRICKS = registerGame({
       extra = [
         ' Level 1: a big tray, a slow ball, no surprises. Pink bricks explode. Gold stars always drop a pill.',
         ' New: steel bricks take three hits. Green gremlin bricks hop sideways. Nurse call bricks ring when their timer runs out and drop the whole rack a row, so break them first. A rack that crosses the red line costs a softball.',
-        ' New: a faster ball, a smaller tray, and green GOO pills that shrink it. The last rack is Ralph’s fortress: break both pink weak points to drop its shield, dodge his goo, then knock it down.'
+        ' New: a faster ball, a smaller tray, and green GOO pills that shrink it. The last rack is Ralph’s fortress: break both pink weak points to drop its shield, dodge his goo, then knock it down.',
+        ' Legendary: the fastest ball, the tiniest tray, goo pills everywhere, and steel and gremlins from the first rack. The last rack is Ralph’s duplex: two fortresses, each with its own pink weak points, both throwing goo. The rack gives up when the second one falls.'
       ][mini.tier];
     return {
       title: i.game + ' · Level ' + (mini.tier + 1),
@@ -293,6 +326,7 @@ const BRICKS = registerGame({
   },
   onWin() {
     const B = mini.br;
+    if (B.fortressDown && B.fortsDown > 1) return 'Ralph’s duplex is rubble, both halves. He wants his security deposit back.';
     if (B.fortressDown) return 'Ralph’s fortress is rubble. He is drafting a strongly worded memo to the lounge.';
     if (!B.drops) return 'Three racks, zero dropped softballs. The bricks are requesting a transfer.';
     return B.broken + ' bricks broken, best chain ' + mini.maxCombo + '. The bricks have filed a grievance.';
@@ -416,7 +450,9 @@ function bricksInit() {
     dry: 0,
     fortress: null,
     fortressDown: false,
+    fortsDown: 0,
     ralphT: 3,
+    ralphTurn: 0,
     creepT: lv.creep / bricksPace(),
     creeps: 0,
     trailT: 0,
@@ -456,8 +492,12 @@ function bricksBuildRack(i, slide = true) {
       bricksAddBrick(kind, c, r, hp);
     }
   });
+  // A weak point guards the fortress nearest to it.
+  const forts = B.bricks.filter(b => b.kind === 'boss'),
+    mid = b => b.x + b.w / 2;
   for (const b of B.bricks) {
-    if (b.kind === 'weak') b.boss = B.fortress;
+    if (b.kind === 'weak')
+      b.boss = forts.length ? forts.reduce((a, f) => (Math.abs(mid(f) - mid(b)) < Math.abs(mid(a) - mid(b)) ? f : a)).id : null;
     if (slide) b.oy = -330 - b.row * 22;
   }
 }
@@ -498,21 +538,28 @@ function bricksAddBrick(kind, col, row, hp) {
   return b;
 }
 
-// Ralph's fortress: a 4 × 2 block, shielded until both weak points beside it fall.
+// Ralph's fortress: a 4 × 2 block, shielded until the weak points guarding it fall. Legendary's last
+// rack has two (nth 0 is Ralph's, nth 1 is Ralph Jr.'s).
 function bricksAddFortress(col, row) {
   const B = mini.br,
-    b = bricksAddBrick('boss', col, row, 10 + 3 * state.difficulty);
+    [base, per] = bricksLevel().fortress || [10, 3],
+    b = bricksAddBrick('boss', col, row, base + per * state.difficulty);
   b.span = 4;
   b.w = BRICKS_PITCH * 3 + BRICKS_BW;
   b.h = BRICKS_ROWH + BRICKS_BH;
+  b.nth = B.bricks.filter(n => n.kind === 'boss' && n !== b).length;
   B.fortress = b.id;
   B.ralphT = 3;
   return b;
 }
 
+// Every standing fortress, and the first of them (or null).
+function bricksFortresses() {
+  return mini.br.bricks.filter(b => b.kind === 'boss' && b.hp > 0);
+}
+
 function bricksFortress() {
-  const B = mini.br;
-  return B.fortress === null ? null : B.bricks.find(b => b.id === B.fortress && b.hp > 0) || null;
+  return bricksFortresses()[0] || null;
 }
 
 function bricksGuarded(boss) {
@@ -782,12 +829,13 @@ function bricksTimers(h) {
       if (mini.screen !== 'play') return;
     }
   }
-  const boss = bricksFortress();
-  if (boss) {
+  // One goo clock; two fortresses take turns on a quicker beat.
+  const forts = bricksFortresses();
+  if (forts.length) {
     B.ralphT -= h;
     if (B.ralphT <= 0) {
-      B.ralphT = (3.3 * rand(0.85, 1.2)) / pace;
-      bricksRalphThrow(boss);
+      B.ralphT = (3.3 * rand(0.85, 1.2)) / pace / (forts.length > 1 ? 1.7 : 1);
+      bricksRalphThrow(forts[B.ralphTurn++ % forts.length]);
     }
   }
   // Stragglers: a few bricks left and nothing broken for a while drops a pillow pill from the lowest one.
@@ -984,7 +1032,7 @@ function bricksBreak(b) {
     sfx('explode', { vol: 0.6 });
   } else if (b.kind === 'nurse') bricksPop(cx, cy - 18, 'CALL CANCELLED', '#ffd2dc');
   else if (b.kind === 'weak') {
-    const boss = bricksFortress();
+    const boss = bricksFortresses().find(f => f.id === b.boss);
     if (boss && !bricksGuarded(boss)) {
       mini.flash = 1.2;
       mini.flashText = 'SHIELD DOWN · KNOCK OVER THE FORTRESS';
@@ -1027,6 +1075,16 @@ function bricksReactionDone() {
 
 function bricksFortressFalls(b) {
   const B = mini.br;
+  B.fortsDown++;
+  // The first half of a duplex falls alone; the rack only gives up with the last fortress.
+  if (bricksFortresses().length) {
+    mini.flash = 1.4;
+    mini.flashText = 'ONE FORTRESS DOWN · ONE TO GO';
+    bricksKick(0.4);
+    bricksBurst(b.x + b.w / 2, b.y + b.h / 2, '#f6dfaf', 24);
+    sfx('bossDie');
+    return;
+  }
   B.fortressDown = true;
   B.goo = [];
   mini.flash = 1.6;
@@ -1369,7 +1427,7 @@ function bricksDrawBoss(g, b, x, y) {
     g.globalAlpha = 1;
     label(g, 'SHIELD', x + 34, y + 30, 10, '#e8f6ff', 'center');
     label(g, 'SHIELD', x + b.w - 34, y + 30, 10, '#e8f6ff', 'center');
-  } else label(g, 'RALPH · ' + Math.ceil(b.hp), x + b.w - 40, y + 30, 11, '#ffe3ef', 'center');
+  } else label(g, (b.nth ? 'JR · ' : 'RALPH · ') + Math.ceil(b.hp), x + b.w - 40, y + 30, 11, '#ffe3ef', 'center');
 }
 
 function bricksDrawBrick(g, b) {

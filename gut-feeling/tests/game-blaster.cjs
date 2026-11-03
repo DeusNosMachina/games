@@ -190,3 +190,58 @@ n('T.d2=blasterSpawnBoss();bbTick(.8);T.d2.mode="roar";mini.rush=true;mini.light
 n('bbMouse("pointermove",300,300);drawMini();finishMini(false);updateMini(2.3);drawResultArt();BLASTER.scene($("miniPreview").getContext("2d"),420,240)');
 close();
 console.log('PASS: every blaster draw path runs.');
+
+// Legendary (level 4): registered, with every breed from the first watch, shorter fuses than level 3, six
+// charges, a longer night with a bigger quota, and Ralph Jr. twice but never two at once.
+assert.equal(n('BLASTER.legendary'), true, 'Bedside Blaster has a Legendary level');
+assert.equal(n('BLASTER.tierNotes.length'), 4);
+assert.equal(n('miniTierCount(BLASTER)'), 4);
+for (const k of ['crawler', 'helmet', 'bruiser', 'pouncer']) assert.ok(n(`BLASTER_MIX[3][0].${k}>0`), `Legendary watch 1 has ${k}s`);
+for (let s = 0; s < 3; s++) {
+  const l3 = j(`blasterTuning(2,${s})`), l4 = j(`blasterTuning(3,${s})`);
+  assert.ok(l4.windup < l3.windup && l4.leap < l3.leap, `Legendary watch ${s + 1} has shorter fuses than level 3`);
+  assert.ok(Object.values(l4).flat().every(Number.isFinite), 'every Legendary number is finite');
+  assert.ok(l4.cap >= l3.cap, 'and at least as big a crowd');
+}
+assert.ok(n('BLASTER_MAGAZINES[3]<BLASTER_MAGAZINES[2]&&BLASTER_GOALS[3]>BLASTER_GOALS[2]'), 'fewer charges, more evictions');
+n('bbStart(3)');
+assert.equal(n('mini.limit'), 150, 'the longest night');
+assert.equal(n('mini.magazine'), 6);assert.equal(n('mini.ammo'), 6);
+assert.ok(n('BLASTER.lesson().goal').includes('Legendary'), 'the briefing says so');
+assert.ok(n('BLASTER.shiftMessage(1)').includes('Ralph Jr.'), 'watch 2 warns about Ralph Jr.');
+n('mini.phaseTime=mini.limit/3+.01;bbTick(.1);T.r1=mini.targets.find(e=>e.kind==="boss")');
+assert.ok(n('!!T.r1'), 'Ralph Jr. crashes Legendary watch 2');assert.equal(n('mini.bossVisits'), 1);
+n('mini.phaseTime=mini.limit*2/3+.01;bbTick(.1)');
+assert.equal(n('mini.targets.filter(e=>e.kind==="boss").length'), 1, 'watch 3 waits while he is still in the room');
+n('T.r1.mode="roar";T.r1.cycleT=9;T.r1.hp=2;T.rp=shooterProjection(T.r1);mini.shotCd=0;fireBlaster(T.rp.x+2*T.r1.s,T.rp.y+17*T.r1.s)');
+assert.equal(n('T.r1.mode'), 'dying');
+n('bbTick(1.1);T.r2=mini.targets.find(e=>e.kind==="boss")');
+assert.ok(n('!!T.r2&&T.r2!==T.r1'), 'then he is back for watch 3');
+assert.ok(n('mini.flashText').includes('BACK'));assert.equal(n('mini.bossVisits'), 2);
+n('bbTick(.8);T.r2.mode="roar";T.r2.cycleT=9;T.r2.hp=2;T.rp=shooterProjection(T.r2);mini.shotCd=0;mini.ammo=3;fireBlaster(T.rp.x+2*T.r2.s,T.rp.y+17*T.r2.s);bbTick(1.1)');
+assert.equal(n('mini.bossDowns'), 2);assert.ok(n('BLASTER.onWin()').includes('twice'));
+assert.ok(n('!mini.targets.some(e=>e.kind==="boss")'), 'and only twice');
+close();
+// The lobby offers it once level 3 has a medal.
+n('T.m=state.medals[5].slice();state.medals[5][2]=1;openMini(5)');
+assert.ok(n('$("tierGrid").innerHTML').includes('LEVEL 4'), 'the lobby shows Legendary');
+n('state.medals[5]=T.m');close();
+// Idle play loses Legendary on every prescription.
+for (let d = 0; d < 3; d++) {
+  n(`state.difficulty=${d};openMini(5);mini.tier=3;startMini();launchMini();updateMini(3.3);for(let i=0;i<4000&&mini.screen==="play";i++)updateMini(.05);updateMini(2.3)`);
+  assert.equal(n('mini.screen'), 'result');assert.equal(n('mini.win'), false, `idle Legendary P${d} lost`);
+  close();
+}
+// Every screen of a Legendary run draws, in a wide and a tall window.
+for (const tall of [false, true]) {
+  if (tall) n('window.innerWidth=390;window.innerHeight=844');
+  n('state.difficulty=2;openMini(5);mini.tier=3;startMini();drawMini();launchMini();drawMini();updateMini(3.3);drawMini()');
+  assert.equal(n('mini.screen'), 'play');
+  n('for(let i=0;i<70;i++){updateMini(.05);drawMini()}');
+  n('mini.phaseTime=mini.limit/3+.01;updateMini(.05);drawMini();T.lb=mini.targets.find(e=>e.kind==="boss");T.lb.mode="roar";drawMini();mini.ammo=0;reloadBlaster();drawMini()');
+  n('finishMini(true);drawMini();updateMini(2.3);drawResultArt();drawMini()');
+  assert.equal(n('mini.screen'), 'result');
+  close();
+  if (tall) n('delete window.innerWidth;delete window.innerHeight;resize()');
+}
+console.log('PASS: Legendary: every breed, short fuses, six charges, Ralph Jr. twice, idle loses, every screen draws.');
