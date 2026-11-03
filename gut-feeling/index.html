@@ -42273,18 +42273,22 @@ function raceMacyBack(g, t, lean) {
   );
   ellipse(g, 0, -76, 15, 6, hood[0]);
   macyNumber(g, 0, -56, 14, '#f6f3de', hood[2]);
+  // The back of her head, then the ponytail: gathered by the scrunchie at the back of the head and
+  // hanging down over the hood, streaming with the lean. The scrunchie sits where the hair gathers,
+  // never on the crown.
+  ellipse(g, 0, -91, 15, 16, gradient(g, 0, -107, 0, 32, '#704c3e', '#3c2830'));
   path(
     g,
     p => {
-      p.moveTo(-4, -100);
-      p.quadraticCurveTo(sw - 7, -86, sw, -70);
-      p.quadraticCurveTo(sw + 7, -86, 4, -100);
+      p.moveTo(-5, -88);
+      p.quadraticCurveTo(sw - 8, -80, sw - 2, -60);
+      p.quadraticCurveTo(sw + 2, -57, sw + 6, -62);
+      p.quadraticCurveTo(sw + 7, -80, 5, -88);
       p.closePath();
     },
     '#4d3530'
   );
-  ellipse(g, 0, -91, 15, 16, gradient(g, 0, -107, 0, 32, '#704c3e', '#3c2830'));
-  ellipse(g, 0, -100, 6.5, 3.5, look.scrunchie);
+  ellipse(g, 0, -87, 6, 4, look.scrunchie);
 }
 
 function raceCartArt(g, c, t) {
