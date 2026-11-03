@@ -293,7 +293,7 @@ const PITCH = registerGame({
     genre: 'FLICK · ARC · BANK · LEAD',
     headline: 'Bed rest. Rocket arm.',
     desc:
-      'Broad daylight in Room 5, a bucket of softballs and a gremlin problem. Flick to throw: harder goes farther, a longer swipe throws higher. The ball arcs, banks off the walls, rattles the furniture and splats whatever it finds. Lead the walkers, time the peekers, ring the Ensure bottles. Every hit puts a ball back in the bucket.',
+      'Broad daylight in Room 10, a bucket of softballs and a gremlin problem. Flick to throw: harder goes farther, a longer swipe throws higher. The ball arcs, banks off the walls, rattles the furniture and splats whatever it finds. Lead the walkers, time the peekers, ring the Ensure bottles. Every hit puts a ball back in the bucket.',
     goal: 'Hit the eviction quota before the last inning ends, and keep the gremlins off the bed.',
     control:
       'Swipe up through a gremlin and let go. Flick harder to throw farther. A short flick is a fast low ball, a long slow swipe is a lob that drops behind the furniture. The faint arc shows the throw while your finger moves. Mouse: drag and let go the same way. Keys: left and right aim, up and down set the power, W and S the arc, Space throws.',
@@ -436,7 +436,7 @@ const PITCH = registerGame({
       : mini.pitchBanks
         ? ` ${mini.pitchBanks} of them off the wall. Show-off.`
         : ' The Ensure is shaken, not stirred.';
-    return `Room 5 is gremlin-free. ${mini.pitchHits} of ${mini.pitchThrows} throws found something.` + tail;
+    return `Room 10 is gremlin-free. ${mini.pitchHits} of ${mini.pitchThrows} throws found something.` + tail;
   },
   onLose(reason) {
     const stormed = reason !== PITCH_QUOTA_MISSED;
@@ -2162,7 +2162,7 @@ function pitchPaintShell(g, w, h, part) {
   pitchWallFrame(g, [X, 200, 290], [X, 200, 368], [X, 150, 290], 78, 50);
   rr(g, 0, 0, 78, 50, 6, '#e9eed3', '#6f9c94', 1.5);
   rr(g, 4, 4, 70, 18, 4, '#476c66');
-  label(g, 'MACY · ROOM 5', 39, 17, 10, '#f3f6e4', 'center');
+  label(g, 'MACY · ROOM 10', 39, 17, 10, '#f3f6e4', 'center');
   label(g, 'VALLEY · 7 WEST', 39, 36, 8, '#476c66', 'center');
   label(g, 'PEDIATRICS', 39, 46, 7, '#6d8b7a', 'center');
   g.restore();
