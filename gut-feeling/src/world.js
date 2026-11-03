@@ -532,8 +532,13 @@ const tvChannels = { 0: 0, 2: 0 },
   curtainSprites = new Map();
 
 // ---- Poses ----
+// macyGreeting is the greeting playing now ({ pose, dir }) or null. It holds off the idles and the
+// walk cycle, and any step, dash or jump ends it.
+let macyGreeting = null;
+
 function macySetPose(kind) {
   if (!MACY_POSES[kind]) return false;
+  macyGreeting = null;
   player.pose = kind;
   player.poseT = 0;
   player.poseLen = MACY_POSES[kind];
@@ -541,16 +546,38 @@ function macySetPose(kind) {
 }
 
 function macyClearPose() {
+  macyGreeting = null;
   player.pose = '';
   player.poseT = 0;
   player.poseLen = 0;
+}
+
+// A greeting next to a visitor: pose is any of MACY_POSES (hug, fistbump, selfie, highfive, wave,
+// flinch...), held for seconds (default the pose's own length, 0.3 to 12), facing dir (1 right, -1
+// left). A new call replaces a running one; moving cancels it. Returns false for an unknown pose.
+function macyGreet(pose, seconds, dir) {
+  if (!macySetPose(pose)) return false;
+  if (Number.isFinite(seconds) && seconds > 0) player.poseLen = clamp(seconds, 0.3, 12);
+  if (dir === 1 || dir === -1) player.dir = dir;
+  macyGreeting = { pose, dir: player.dir };
+  macyIdleT = 0;
+  macyIdleWait = 0;
+  player.walk = 0;
+  return true;
+}
+
+const macyGreetOn = () => !!macyGreeting && player.pose === macyGreeting.pose;
+
+// Moving, dashing or jumping ends a greeting.
+function macyGreetCancel() {
+  if (macyGreetOn() && (player.moving || player.dash > 0 || player.z > 0)) macyClearPose();
 }
 
 const macyIsIdle = () => MACY_IDLES.includes(player.pose);
 
 // What girl() should play right now, or null.
 function macyAct() {
-  return player.pose ? { kind: player.pose, t: player.poseT } : null;
+  return player.pose ? { kind: player.pose, t: player.poseT, len: player.poseLen } : null;
 }
 
 // The medal grin, straight at the camera. The result screen calls this; it clears on its own.
@@ -608,6 +635,10 @@ function macyBusy() {
 
 // After 4 to 7 still seconds (a fixed, repeatable spread), one idle from the rotation.
 function macyIdleStep(dt) {
+  if (macyGreetOn()) {
+    macyIdleT = 0;
+    return;
+  }
   if (macyBusy()) {
     macyWake();
     return;
@@ -1954,6 +1985,7 @@ function updateWorld(dt) {
     player.vy = dy * speed;
   }
   moveEntity(player, player.vx * dt, player.vy * dt);
+  macyGreetCancel();
   if (keys.has(' ') || heldAttack) attack();
   updateCombat(dt);
   if (typeof updateRoomExtras === 'function') updateRoomExtras(dt);
@@ -2101,7 +2133,7 @@ function drawWorld() {
         0,
         0,
         MACY_SCALE,
-        player.walk,
+        macyGreetOn() ? 0 : player.walk,
         player.visualDir ?? player.dir,
         player.inv > 0 && player.vomit <= 0,
         player.z <= 0,
