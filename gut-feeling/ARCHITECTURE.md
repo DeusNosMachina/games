@@ -16,7 +16,7 @@ At load time a file may only use names from earlier files (each game calls `regi
 | `art.js` | Drawing primitives, Macy and gremlins, furniture, `roomProps`, cached `roomBg`, shared arcade art (`panel`, `glow`, `drawTimingBar`, `miniBed`, `miniBackdrop`, `arcadeBackdrop`, `softball`, `nutrient`, `vomitArt`) |
 | `audio.js` | `tone()`, `sfx()`, `music()`, `audio` |
 | `world.js` | Title screen, ward HUD, rooms, room-extra hooks, movement, tap-the-room touch control, the light switch (`roomLights()`), pickups, snack carts, floor nutrient and brick drops, the turn-your-phone hint, effects, `drawWorld`, map hookup (`renderMap` mounts `src/map.js`), department cards, frame loop and canvas sizing |
-| `combat.js` | The kit (swing, shield, brick, trap and their supplies), gremlin breeds, waves, persistent fights (`state.wardFights`), the rematch, the four room twists, first-clear pacing (`WARD.firstCap`, `firstTell`, `queueGap`), the combo and its slam, attacks, jumping, damage, `drawEnemy` |
+| `combat.js` | The kit (swing, shield and brick and their supplies), gremlin breeds, waves, persistent fights (`state.wardFights`), the rematch, the four room twists, first-clear pacing (`WARD.firstCap`, `firstTell`, `queueGap`), the combo and its slam, attacks, jumping, damage, `drawEnemy` |
 | `minigames.js` | Arcade framework: lobby, run lifecycle, canvas shape (`activeCanvas`, portrait flips), HUD, instruction toast, assists, scoring, rewards, results, `drawMini`, pointer plumbing, shared gesture-game helpers |
 | `transitions.js` | Briefing, countdown, finish, `lesson()` dispatch, countdown card for games with their own overlay (`paintTransition`, sized to the active canvas) |
 | `discharge.js` | The send-off cinematic: `dischargeStart()`, `updateDischarge(dt)`, `dischargeActive()`, `drawDischarge(g, vw, vh)`, `dischargeAction(kind, point)`; it also claims keys and pointer presses through its own capture listeners on `document` while it plays, as dream.js does; writes `state.stats.sendoffs` |
@@ -103,7 +103,7 @@ Game-owned: `limit` (set it in `init`; the HUD clock and default `timeUp` use it
 - `briefed` holds `"<id>:<phase>"` keys; a game's full briefing shows once, then a 1.2 s GO card. Countdown is 1.5 s (3.2 s under reduced motion).
 - `daily` holds the Daily Dose record (date, best, streak, paid). During a daily run `mini.daily` is true and a date-seeded RNG replaces `Math.random` around the game hooks (`dailyScoped`).
 - `arcade` remembers fullscreen ("arcade mode", `body.arcade`), which phones and tablets enter on first start.
-- `controls` is the touch scheme: `'stick'` (joystick bottom left, the action rings bottom right; the default on coarse pointers) or `'tap'` (the room is the controller; the default with a mouse). `controlsChosen` marks a scheme the player picked, which is then kept. `body.tap-controls` / `body.stick-controls` follow it.
+- `controls` is the touch scheme: `'stick'` (joystick bottom left with EAT beside it, the action buttons bottom right; the default on coarse pointers) or `'tap'` (the room is the controller; the default with a mouse). `controlsChosen` marks a scheme the player picked, which is then kept. `body.tap-controls` / `body.stick-controls` follow it.
 - `cosmetics.worn` feeds `macyLook()` for `girl()`.
 - `recoveries` counts forced IV recoveries (the Frequent Flyer sticker reads it); games/iv.js increments it. A lost recovery can end through `patchUp()` at a price in coins. `grantReward()` still resets the count on any medal outside a recovery.
 - `stats.knocks` counts knocks on the map's restroom door (map.js); the Knock Knock sticker reads it.
@@ -153,7 +153,7 @@ node gut-feeling/tests/smoke.cjs        # one file (build first)
 
 | File | Covers | Owner |
 | --- | --- | --- |
-| `verify.cjs` | Saves, nutrients, run lifecycle, idle failure for every game, tier and prescription, frame-rate independence, discharge, press-to-act buttons (JUMP, BRICK and TRAP with the joystick held), EAT, portrait canvases, the instruction toast, tap the room, the title screen, recoveries, run-screen sizing, the room-extra hooks | framework |
+| `verify.cjs` | Saves, nutrients, run lifecycle, idle failure for every game, tier and prescription, frame-rate independence, discharge, press-to-act buttons (JUMP and BRICK with the joystick held), the joystick double-tap dash, EAT, portrait canvases, the instruction toast, tap the room, the title screen, recoveries, run-screen sizing, the room-extra hooks | framework |
 | `combat.cjs` | Ward rules, breeds, spawns, grudge, Ralph, first-clear pacing, the combo, health drops, and the masher-vs-kiter tuning check | combat |
 | `game-<name>.cjs` | That game's mechanics rules | that game |
 | `bots/<name>.cjs` | `{id, policy}` (or `{id: 'recovery', room, forced, policy}`): input-only controller code run every play tick by `playthrough.cjs`, with a persistent `bot` object for its memory. It must win every tier and difficulty. | that game |

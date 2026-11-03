@@ -35,7 +35,7 @@ Four departments have gremlins. Each has three waves, and the first wave of your
 
 Each department has its own twist, taught once. The MRI's magnet pulls every 13 seconds after a warning: bruisers fly into the bore by their helmets and three loose bedpans bowl whatever they cross (kick one into line). The lounge has a remote on the couch: hit it and the TV flips to the cat cam, and every gremlin in front of the screen zones out for a few seconds. The CT's Donut II rolls through the lit lane every 12 seconds and bowls gremlins and Macy alike unless she jumps or shields. The ultrasound floor has gel puddles that make everyone slide, knocks skid into walls, and charges overshoot.
 
-Hitting a gremlin staggers it. Stuns come only from the third hit of a combo, the spin, a brick, a stomp or a trap, so mashing one button no longer works. Hit a gremlin twice in a row and it hops out of reach, angry.
+Hitting a gremlin staggers it. Stuns come only from the third hit of a combo, the spin, a brick or a stomp, so mashing one button no longer works. Hit a gremlin twice in a row and it hops out of reach, angry.
 
 Three landed attacks in a row (each within four seconds, no whiff, no hit taken) charge a COMBO: a gold ring fills around the attack button and three pips show over Macy. The next attack with a gremlin in reach is a slam that hits everything within 150 px, knocks it back, stuns it for 0.9 s and cancels its wind-up. A slam pays five coins; the first one each room drops a nutrient, then every third.
 
@@ -51,32 +51,30 @@ First clears are paced: waves 2 and 3 keep at most three gremlins up at once (fo
 | --- | --- | --- |
 | SWING | The pillow: a three-hit combo, deflects blobs; hold to keep swinging, and the third swing of a held run spins | always |
 | JUMP | Over low attacks; swing in the air to stomp on landing | always |
-| DASH | Through a gremlin mid-wind-up to cancel its attack | always |
+| DASH | Double-tap the joystick (or Q): through a gremlin mid-wind-up to cancel its attack | always |
 | SHIELD | The barf-bag bubble, up while held: nothing gets through, and she cannot swing from inside; a 2.5 s meter that refills | always |
 | BRICK | A lob that auto-leads the nearest gremlin and lands a stunning burst | 3 per fight, plus one glinting on the floor each wave to pick up (carry 5) |
-| TRAP | Stuns whatever steps on it within 30 s | 1 per wave |
 
 **Ralph** waits in your room once your passport is complete. Phase 1 is a spit barrage you deflect back at him. Phase 2 is charges that leave him dizzy when he hits the bed, plus minions. Phase 3 is leaping slams that shake the room. Beat him to get discharged.
 
 ## Phone, tablet and desktop controls
 
-On phones and tablets the joystick scheme is the default: a joystick bottom left and an action cluster bottom right, SWING in the corner with JUMP beside it, DASH and SHIELD in the first ring above, BRICK and TRAP in the outer ring, EAT on top. In landscape the room fills the screen and the controls float over it; in portrait they sit under the room, and a phone held upright gets a one-time "turn your phone sideways" pill. "Tap the room" (the floor is the controller) is one switch away in the pause menu or the settings, and a chosen scheme is kept.
+On phones and tablets the joystick scheme is the default: a joystick bottom left (it wears a »: double-tap it in any direction to dash) with EAT just to its right, and an action cluster bottom right: SWING in the corner, JUMP beside it, SHIELD above SWING and BRICK between them. In landscape the room fills the screen and the controls float over it; in portrait they sit under the room, and a phone held upright gets a one-time "turn your phone sideways" pill. "Tap the room" (the floor is the controller) is one switch away in the pause menu or the settings, and a chosen scheme is kept.
 
 | Action | Joystick scheme | Tap the room | Keyboard |
 | --- | --- | --- | --- |
 | Move | Left joystick | Tap the floor; drag to steer | WASD / arrows |
 | Swing | SWING; hold to repeat, drag to aim | Tap a gremlin (hold to keep swinging) | Space |
 | Jump | JUMP | Two-finger tap, or JUMP | Shift / J |
-| Dash | DASH | Flick | Q |
+| Dash | Double-tap the joystick | Flick | Q |
 | Shield | Hold SHIELD | Long-press the floor, or hold SHIELD | Hold R |
 | Brick | BRICK (shows how many you carry) | BRICK | B |
-| Trap | TRAP (shows the charge) | TRAP | E |
 | Nutrient | EAT (shows how many you carry) | EAT | F |
 | Map | Map button | Map button | M |
 | Nearby arcade | Play button, or tap the beacon | Same | Enter |
 | Pause | Pause button | Pause button | Escape |
 
-In her room and the hallway, where there are no gremlins, the cluster slims to the joystick, EAT and one big button that reads USE or TALK. Every touch button acts the moment your finger lands, so JUMP, BRICK and TRAP work with a thumb on the joystick, and SHIELD tracks its own finger. SWING is 96 to 128 px depending on the screen; a drag on it aims.
+In her room and the hallway, where there are no gremlins, the cluster slims to the joystick, EAT and one big button that reads USE or TALK. Every touch button acts the moment your finger lands, so JUMP and BRICK work with a thumb on the joystick, and SHIELD tracks its own finger. SWING is 96 to 128 px depending on the screen; a drag on it aims.
 
 Fullscreen ("arcade mode") pins the game to the screen, and phones and tablets enter it when you press START. iPad Safari uses the real fullscreen API; iPhones use a CSS fallback because Safari has none for pages. Tablets get bigger buttons, and the lobby and results use the width.
 

@@ -589,22 +589,22 @@ body.returning .game-layout {
   background: var(--mint);
 }
 
-/* ---- Touch controls (v0.9) ----
-   A joystick for the left thumb and, for the right, one button per action in rings around the big SWING
-   button in the corner (hold it to keep swinging, drag it to aim): JUMP beside it, DASH and SHIELD (hold)
-   in the first ring, BRICK and TRAP in the second with a badge saying how many are left, EAT on top. The
-   right thumb pivots on the corner, so the busiest buttons sit closest to it. One geometry for every
-   screen: each button sits at a fixed offset from the bottom-right corner of .touch-controls, all sized
-   from --atk. The --edge-* tokens are the margins to the screen edges (safe areas included in landscape).
-   Tap-the-room (body.tap-controls) hides the joystick, DASH and SWING, and packs JUMP, SHIELD, BRICK, TRAP
-   and EAT into the corner instead. */
+/* ---- Touch controls (v0.10) ----
+   The left thumb has the joystick (double-tap it to dash; the » on the stick says so) and EAT right beside
+   it. The right thumb has the big SWING button in the corner (hold it to keep swinging, drag it to aim),
+   JUMP beside it, SHIELD (hold) above it and BRICK between the two with a badge saying how many are left.
+   The right thumb pivots on the corner, so the busiest buttons sit closest to it. One geometry for every
+   screen: the right-hand buttons sit at fixed offsets from the bottom-right corner of .touch-controls and
+   EAT at a fixed offset from the joystick, all sized from --atk. The --edge-* tokens are the margins to the
+   screen edges (safe areas included in landscape). Tap-the-room (body.tap-controls) hides the joystick and
+   SWING: JUMP takes the corner with SHIELD and BRICK beside it, and EAT keeps the left side. */
 :root {
   --atk: 104px;
   --jmp: calc(var(--atk) * 0.68);
   --sm: calc(var(--atk) * 0.56);
   --gap: 10px;
   --joy: 132px;
-  --cluster-h: calc(var(--atk) * 2.34);
+  --cluster-h: calc(var(--atk) * 1.72);
   --edge-t: 0px;
   --edge-r: 0px;
   --edge-b: 0px;
@@ -641,6 +641,8 @@ body.returning .game-layout {
   height: calc(var(--cluster-h) + var(--edge-t) + var(--edge-b));
   user-select: none;
   -webkit-user-select: none;
+  /* EAT reads the row's width (cqw) to know whether it fits beside the stick. */
+  container-type: inline-size;
 }
 #joystick {
   position: absolute;
@@ -669,6 +671,17 @@ body.returning .game-layout {
   width: 38%;
   height: 38%;
   margin: -19% 0 0 -19%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* The dash mark on the stick's face: double-tap the stick to dash. It dims while the dash rests (world.js). */
+.joy-dash {
+  margin-top: -2px;
+  color: #17313ad9;
+  font: 900 22px/1 var(--mono);
+  pointer-events: none;
+  transition: opacity 0.2s;
 }
 /* The buttons are placed against .touch-controls, so their row does not need a box of its own. */
 #touchActions {
@@ -682,8 +695,8 @@ body.returning .game-layout {
 #touchActions > * {
   position: absolute;
 }
-/* Offsets in --atk units, worked out from the ring around SWING (centres 0.875 --atk apart, the outer
-   ring 1.54 out) so neighbours keep at least --gap between them. */
+/* Offsets in --atk units, worked out from the ring around SWING so neighbours keep at least --gap between
+   them. */
 #touchActions .attack {
   right: var(--edge-r);
   bottom: var(--edge-b);
@@ -692,27 +705,32 @@ body.returning .game-layout {
   right: calc(var(--edge-r) + var(--atk) + var(--gap));
   bottom: var(--edge-b);
 }
-#touchActions #dashBtn {
-  right: calc(var(--edge-r) + var(--atk) * 0.89);
-  bottom: calc(var(--edge-b) + var(--atk) * 0.78);
-}
 #touchActions #shieldBtn {
   right: calc(var(--edge-r) + var(--atk) * 0.33);
   bottom: calc(var(--edge-b) + var(--atk) * 1.09);
 }
 #touchActions #brickBtn {
-  right: calc(var(--edge-r) + var(--atk) * 1.58);
-  bottom: calc(var(--edge-b) + var(--atk) * 0.94);
+  right: calc(var(--edge-r) + var(--atk) * 0.89);
+  bottom: calc(var(--edge-b) + var(--atk) * 0.78);
 }
-#touchActions #trapBtn {
-  right: calc(var(--edge-r) + var(--atk) * 0.99);
-  bottom: calc(var(--edge-b) + var(--atk) * 1.55);
-}
+/* EAT: just right of the joystick, level with its middle. Where the row is too narrow for the stick, EAT,
+   JUMP and SWING side by side (phones held upright), it stops short of JUMP and rides up onto the stick's
+   shoulder instead. --eat-need is the width the side-by-side row takes; the clamp turns "too narrow" into
+   all of the lift or none of it. */
 #touchActions .eat {
-  right: calc(var(--edge-r) + var(--atk) * 0.22);
-  bottom: calc(var(--edge-b) + var(--atk) * 1.76);
+  --eat-y: calc((var(--joy) - var(--sm)) / 2);
+  --eat-need: calc(var(--edge-l) + var(--joy) + var(--sm) + var(--jmp) + var(--atk) + var(--gap) * 4 + var(--edge-r));
+  --eat-lift: calc(var(--joy) * 0.8 - var(--eat-y));
+  right: auto;
+  left: calc(var(--edge-l) + var(--joy) + var(--gap) * 1.5);
+  left: min(
+    calc(var(--edge-l) + var(--joy) + var(--gap) * 1.5),
+    calc(100% - var(--edge-r) - var(--atk) - var(--jmp) - var(--sm) - var(--gap) * 2.5)
+  );
+  bottom: calc(var(--edge-b) + var(--eat-y));
+  bottom: calc(var(--edge-b) + var(--eat-y) + clamp(0px, (var(--eat-need) - 100cqw) * 1000, var(--eat-lift)));
 }
-/* JUMP, DASH, SHIELD, BRICK, TRAP and EAT: round, translucent, thumb-sized. */
+/* JUMP, SHIELD, BRICK and EAT: round, translucent, thumb-sized. */
 #touchActions .act {
   display: flex;
   flex-direction: column;
@@ -773,14 +791,10 @@ body.returning .game-layout {
   box-shadow: 0 2px 6px #0006;
   font: 800 12px/22px var(--mono);
 }
-/* The kit. BRICK and TRAP wear their count on the outer side (clear of their neighbours) and go dim at
-   zero; SHIELD drains a ring (--meter, set by combat.js) while it is held and dims while the bag dries. */
+/* The kit. BRICK wears its count on the outer side (clear of its neighbours) and goes dim at zero; SHIELD
+   drains a ring (--meter, set by combat.js) while it is held and dims while the bag dries. */
 #touchActions .kit.brick {
   background: #e6a58fd9;
-  color: var(--ink);
-}
-#touchActions .kit.trap {
-  background: #f1c27ad9;
   color: var(--ink);
 }
 #touchActions .kit.shield {
@@ -882,10 +896,9 @@ body.returning .game-layout {
   transform: scale(0.92);
   filter: brightness(1.15);
 }
-/* Tap the room: the floor walks, hits and dashes, so the joystick, DASH and SWING step aside. JUMP takes
-   the corner with SHIELD and EAT beside it and BRICK and TRAP above, all within one thumb. */
+/* Tap the room: the floor walks, hits and dashes (a flick), so the joystick and SWING step aside. JUMP
+   takes the corner with SHIELD beside it and BRICK above, all within one thumb; EAT keeps the left side. */
 body.tap-controls #joystick,
-body.tap-controls #touchActions #dashBtn,
 body.tap-controls #touchActions .attack {
   display: none;
 }
@@ -900,15 +913,11 @@ body.tap-controls #touchActions #shieldBtn {
   bottom: calc(var(--edge-b) + (var(--jmp) - var(--sm)) / 2);
 }
 body.tap-controls #touchActions .eat {
-  right: calc(var(--edge-r) + var(--jmp) + var(--sm) + var(--gap) * 2);
+  left: var(--edge-l);
   bottom: calc(var(--edge-b) + (var(--jmp) - var(--sm)) / 2);
 }
 body.tap-controls #touchActions #brickBtn {
   right: calc(var(--edge-r) + (var(--jmp) - var(--sm)) / 2);
-  bottom: calc(var(--edge-b) + var(--jmp) + var(--gap));
-}
-body.tap-controls #touchActions #trapBtn {
-  right: calc(var(--edge-r) + var(--jmp) + var(--gap));
   bottom: calc(var(--edge-b) + var(--jmp) + var(--gap));
 }
 /* Outside arcade mode the controls sit under the room in the page. */
@@ -2881,7 +2890,7 @@ body.safe-room .touch-controls .attack::before{content:'\2022\2022\2022';display
 <symbol id="i-heart" viewBox="0 0 24 24"><path d="M2 5h3V2h5v3h4V2h5v3h3v8l-10 9L2 13z"/></symbol>
 <symbol id="i-pillow" viewBox="0 0 24 24"><path d="m4 3 3 2h10l3-2 1 3-2 3v7l2 4-4-1H7l-4 2 1-5V8L2 4zM8 8h8m-9 7h9"/></symbol>
 <symbol id="i-bag" viewBox="0 0 24 24"><path d="M7 3h10l-1 5 3 13H5L8 8zM7 6h10m-7 8h4m-2-2v4"/></symbol>
-<symbol id="i-trap" viewBox="0 0 24 24"><path d="M3 19h18M4 19l2-8 2 8 2-8 2 8 2-8 2 8 2-8 2 8M12 11V5m-3 0h6"/></symbol>
+<symbol id="i-dash" viewBox="0 0 24 24"><path d="M4 6l6 6-6 6M12 6l6 6-6 6"/></symbol>
 <symbol id="i-brick" viewBox="0 0 24 24"><path d="m3 10 9-5 9 5v8l-9 5-9-5zM3 10l9 5 9-5m-9 5v8M7 7V4l3-2 3 2v3m0-1V3l3-2 3 2v5"/></symbol>
 <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
 <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
@@ -2894,17 +2903,17 @@ body.safe-room .touch-controls .attack::before{content:'\2022\2022\2022';display
 <div class="game-layout"><div>
 <div class="cabinet" id="cabinet">
 <div class="gamebar"><div class="room-label"><span><svg><use href="#i-bed"/></svg></span><div><strong id="roomTitle">Your room</strong><small id="roomSub">HOME BASE · FLOOR 04</small></div></div><button id="arcadeBtn" class="smallbtn arcade-launch">▶ Drip or Die</button><button id="mapBtn" class="smallbtn" aria-label="Hospital map"><svg><use href="#i-map"/></svg><span class="btn-label">Map</span></button><button id="pauseBtn" class="smallbtn" aria-label="Pause" aria-pressed="false"><span aria-hidden="true">Ⅱ</span><span class="btn-label">Pause</span></button><button id="arcadeToggle" class="smallbtn arcade-toggle" aria-label="Play fullscreen"><svg><use href="#i-expand"/></svg><span class="btn-label">Fullscreen</span></button></div>
-<div class="stage" id="stage"><canvas id="game" width="1000" height="625" tabindex="0" aria-label="Playable hospital adventure. Move with WASD or arrow keys, Space to swing the pillow, Shift to jump, Q to dash, hold R for the barf-bag shield, B to throw a brick, E to set a trap."></canvas>
+<div class="stage" id="stage"><canvas id="game" width="1000" height="625" tabindex="0" aria-label="Playable hospital adventure. Move with WASD or arrow keys, Space to swing the pillow, Shift to jump, Q to dash, hold R for the barf-bag shield, B to throw a brick."></canvas>
 <div class="hud"><div class="hud-card"><div class="health-name" id="healthName">Queasiness resistance</div><div class="hearts-row"><div class="hearts" id="hearts" role="img"></div><button id="hudEat" class="hud-eat" aria-label="Eat a nutrient">+♥ 0</button></div></div><div class="hud-card score"><small>POCKET MONEY</small><span id="score">00000</span></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="scene-tag" id="sceneTag">COZY ROOM / CHAOTIC ENERGY</div>
 <div class="ward-pause hidden" id="wardPaused" role="group" aria-labelledby="wardPausedTitle"><div class="ward-pause-card"><strong id="wardPausedTitle">Paused.</strong><p>The gremlins are pretending to be furniture.</p><button class="primary coral" id="wardResume">Resume</button><div class="ward-pause-grid"><button class="smallbtn pause-rematch hidden" id="pauseRematch">Rematch ↻</button><button class="smallbtn" id="pauseMap">Map</button><button class="smallbtn" id="pauseShop">Gift shop</button><button class="smallbtn" id="pauseStickers">Stickers</button><button class="smallbtn" id="pauseHelp">How to play</button><button class="smallbtn" id="pauseSound">Sound on</button><button class="smallbtn" id="pauseFull">Fullscreen</button><button class="smallbtn" id="pauseControls">Controls: Joystick</button><button class="smallbtn" id="pauseQuit">Quit to title</button></div></div></div>
 </div>
-<div class="ward-strip"><span id="wardStatus">HOME BASE</span><button id="rematchBtn" class="smallbtn hidden">Rematch ↻</button></div><div class="controlbar"><div class="key-guide" id="keyGuide"><span><b>W A S D</b> move</span><span><b>SPACE</b> swing</span><span><b>SHIFT / J</b> jump</span><span><b>Q</b> dash</span><span><b>HOLD R</b> shield</span><span><b>B</b> brick</span><span><b>E</b> trap</span><span><b>F</b> eat</span></div><div class="play-status"><i></i><span id="playStatus">READY WHEN YOU ARE</span></div><div class="touch-controls"><div class="joystick" id="joystick" role="group" aria-label="Movement joystick"><div class="stick" id="stick"></div></div><div class="touch-actions" id="touchActions"><button class="act eat" id="touchEat" aria-label="Eat a nutrient. 0 carried." disabled><span class="act-icon" aria-hidden="true">+♥</span><small>EAT</small><b class="act-badge" id="touchEatCount">0</b></button><button class="act kit trap" id="trapBtn" aria-label="Set a trap. One per wave."><svg aria-hidden="true"><use href="#i-trap"/></svg><small>TRAP</small><b class="act-badge" id="trapCount">1</b></button><button class="act kit brick" id="brickBtn" aria-label="Throw a brick. 3 left."><svg aria-hidden="true"><use href="#i-brick"/></svg><small>BRICK</small><b class="act-badge" id="brickCount">3</b></button><button class="act kit shield" id="shieldBtn" aria-label="Hold for the barf-bag shield"><svg aria-hidden="true"><use href="#i-bag"/></svg><small>SHIELD</small></button><button class="act" id="dashBtn" aria-label="Dash"><span class="act-icon" aria-hidden="true">»</span><small>DASH</small></button><button class="act" id="jumpBtn" aria-label="Jump"><span class="act-icon" aria-hidden="true">↑</span><small>JUMP</small></button><button class="attack" id="attackBtn" aria-label="Swing the pillow. Hold to keep swinging, drag to aim."><svg aria-hidden="true"><use href="#i-pillow"/></svg><span>SWING</span><b class="combo-tag" aria-hidden="true">COMBO</b></button></div></div></div></div>
+<div class="ward-strip"><span id="wardStatus">HOME BASE</span><button id="rematchBtn" class="smallbtn hidden">Rematch ↻</button></div><div class="controlbar"><div class="key-guide" id="keyGuide"><span><b>W A S D</b> move</span><span><b>SPACE</b> swing</span><span><b>SHIFT / J</b> jump</span><span><b>Q</b> dash</span><span><b>HOLD R</b> shield</span><span><b>B</b> brick</span><span><b>F</b> eat</span></div><div class="play-status"><i></i><span id="playStatus">READY WHEN YOU ARE</span></div><div class="touch-controls"><div class="joystick" id="joystick" role="group" aria-label="Movement joystick. Double-tap it to dash."><div class="stick" id="stick"><span class="joy-dash" id="joyDash" aria-hidden="true">»</span></div></div><div class="touch-actions" id="touchActions"><button class="act eat" id="touchEat" aria-label="Eat a nutrient. 0 carried." disabled><span class="act-icon" aria-hidden="true">+♥</span><small>EAT</small><b class="act-badge" id="touchEatCount">0</b></button><button class="act kit brick" id="brickBtn" aria-label="Throw a brick. 3 left."><svg aria-hidden="true"><use href="#i-brick"/></svg><small>BRICK</small><b class="act-badge" id="brickCount">3</b></button><button class="act kit shield" id="shieldBtn" aria-label="Hold for the barf-bag shield"><svg aria-hidden="true"><use href="#i-bag"/></svg><small>SHIELD</small></button><button class="act" id="jumpBtn" aria-label="Jump"><span class="act-icon" aria-hidden="true">↑</span><small>JUMP</small></button><button class="attack" id="attackBtn" aria-label="Swing the pillow. Hold to keep swinging, drag to aim."><svg aria-hidden="true"><use href="#i-pillow"/></svg><span>SWING</span><b class="combo-tag" aria-hidden="true">COMBO</b></button></div></div></div></div>
 <div class="turn-hint" id="turnHint"><span>Turn your phone sideways for the full ward.</span><button id="turnHintClose" aria-label="Hide this hint">✕</button></div>
 </div>
 <div class="supplybar"><button id="eatBtn" class="smallbtn">♧ Drink / eat <span id="foodCount">0 / 3</span></button><span id="supplyNote">Find glowing nutrients. Each restores one heart.</span><button id="difficultyBtn" class="smallbtn">Questionable Decisions ⚙</button></div>
-</div><aside class="sidebar"><section class="daily-card" id="dailyCard" aria-label="Daily Dose"></section><section class="questcard"><div class="section-kicker">✚ Macy’s discharge passport</div><h2>Play your <br>way home.</h2><p>Better medals. Bigger rewards.<br>One very dramatic exit.</p><div id="passport"></div><div class="progress-label"><span>DISCHARGE STARS</span><span id="progressLabel">0 / 12</span></div><div class="progress-track"><div id="progressBar"></div></div><p id="dischargeRules" class="rules"></p><button id="shopBtn" class="textbtn">Visit the questionable gift shop ↗</button></section><section class="inventory"><h3>YOUR VERY SERIOUS ARSENAL <span>↓</span></h3><div class="items"><div class="item"><span class="item-icon"><svg><use href="#i-pillow"/></svg></span><span><strong>Pillow of destiny</strong><small>Swing combos. Hold it to spin.</small></span><kbd>SPACE</kbd></div><div class="item"><span class="item-icon"><svg><use href="#i-bag"/></svg></span><span><strong>Emergency barf bag</strong><small>Hold it up as a shield.</small></span><kbd>R</kbd></div><div class="item"><span class="item-icon"><svg><use href="#i-brick"/></svg></span><span><strong>Brick-based revenge</strong><small>Three a fight. Find more.</small></span><kbd>B</kbd></div><div class="item"><span class="item-icon"><svg><use href="#i-trap"/></svg></span><span><strong>Gremlin trap</strong><small>One a wave. They step in it.</small></span><kbd>E</kbd></div></div></section><div class="sidebar-col"><section class="hall-panel" aria-labelledby="hallTitle"><h3 id="hallTitle">HALL OF NONSENSE</h3><div id="hallStats" class="hall"></div></section><section class="sticker-card" aria-labelledby="stickerCardTitle"><div class="sticker-card-top"><h3 id="stickerCardTitle">STICKER SHEET</h3><span id="stickerCardCount">0 / 0</span></div><div class="sticker-card-track" aria-hidden="true"><div id="stickerCardBar"></div></div><div class="sticker-strip" id="stickerCardStrip"></div><p id="stickerCardNote" class="sticker-card-note"></p><button id="stickerBtn" class="smallbtn sticker-open">Open the sticker sheet ↗</button></section></div><div class="aside-note"><svg><use href="#i-spark"/></svg><div>The court and the field miss Macy.<br>Her homework is being less subtle.</div></div></aside></div>
+</div><aside class="sidebar"><section class="daily-card" id="dailyCard" aria-label="Daily Dose"></section><section class="questcard"><div class="section-kicker">✚ Macy’s discharge passport</div><h2>Play your <br>way home.</h2><p>Better medals. Bigger rewards.<br>One very dramatic exit.</p><div id="passport"></div><div class="progress-label"><span>DISCHARGE STARS</span><span id="progressLabel">0 / 12</span></div><div class="progress-track"><div id="progressBar"></div></div><p id="dischargeRules" class="rules"></p><button id="shopBtn" class="textbtn">Visit the questionable gift shop ↗</button></section><section class="inventory"><h3>YOUR VERY SERIOUS ARSENAL <span>↓</span></h3><div class="items"><div class="item"><span class="item-icon"><svg><use href="#i-pillow"/></svg></span><span><strong>Pillow of destiny</strong><small>Swing combos. Hold it to spin.</small></span><kbd>SPACE</kbd></div><div class="item"><span class="item-icon"><svg><use href="#i-bag"/></svg></span><span><strong>Emergency barf bag</strong><small>Hold it up as a shield.</small></span><kbd>R</kbd></div><div class="item"><span class="item-icon"><svg><use href="#i-brick"/></svg></span><span><strong>Brick-based revenge</strong><small>Three a fight. Find more.</small></span><kbd>B</kbd></div><div class="item"><span class="item-icon"><svg><use href="#i-dash"/></svg></span><span><strong>Sock-slide dash</strong><small>Double-tap the stick. Slide through a wind-up.</small></span><kbd>Q</kbd></div></div></section><div class="sidebar-col"><section class="hall-panel" aria-labelledby="hallTitle"><h3 id="hallTitle">HALL OF NONSENSE</h3><div id="hallStats" class="hall"></div></section><section class="sticker-card" aria-labelledby="stickerCardTitle"><div class="sticker-card-top"><h3 id="stickerCardTitle">STICKER SHEET</h3><span id="stickerCardCount">0 / 0</span></div><div class="sticker-card-track" aria-hidden="true"><div id="stickerCardBar"></div></div><div class="sticker-strip" id="stickerCardStrip"></div><p id="stickerCardNote" class="sticker-card-note"></p><button id="stickerBtn" class="smallbtn sticker-open">Open the sticker sheet ↗</button></section></div><div class="aside-note"><svg><use href="#i-spark"/></svg><div>The court and the field miss Macy.<br>Her homework is being less subtle.</div></div></aside></div>
 <section class="world-section"><div class="world-heading"><div><p class="eyebrow" style="margin-bottom:9px">Pick a department. Pick your problem.</p><h2>The hospital is your arcade.</h2></div><p>6 MINI GAMES · 3 LEVELS EACH · PERFORMANCE MATTERS</p></div><div class="department-grid" id="departmentGrid"></div></section>
 </main><footer><strong>EXPLORE → PLAY → EARN → UPGRADE → DISCHARGE.</strong><span>ONE HTML FILE · PHONE + LAPTOP · MADE WITH LOVE & BAD JOKES</span></footer></div>
 <dialog id="mapDialog" class="sheet map-sheet"><div class="modal-head"><div><small class="modal-kicker">Valley Hospital · Pediatrics · floor 7</small><h2>The hospital arcade.</h2></div><button class="close" data-close aria-label="Close map"><svg><use href="#i-close"/></svg></button></div><div class="modal-body">
@@ -2912,7 +2921,7 @@ body.safe-room .touch-controls .attack::before{content:'\2022\2022\2022';display
 <p id="mapPassport" class="map-passport"></p>
 <div class="map-cards"><div id="mapDaily" class="daily-card"></div><section class="hall-card" aria-labelledby="mapHallTitle"><h3 id="mapHallTitle" class="card-kicker">Hall of Nonsense</h3><div id="mapHall" class="hall"></div></section></div>
 </div></dialog>
-<dialog id="helpDialog" class="sheet"><div class="modal-head"><div><small class="modal-kicker">How to play</small><h2>A patient’s guide to causing trouble.</h2></div><button class="close" data-close aria-label="Close instructions"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="help-grid"><div><strong>Keyboard</strong><p id="helpKeys">WASD / arrows: move<br>Space: swing (hold to keep swinging; a held run spins)<br>Shift / J: jump<br>Q: dash<br>hold R: barf-bag shield<br>B: brick (3 a fight, find more)<br>E: trap (1 a wave)<br>F: eat a nutrient<br>M: map<br>Enter: nearby arcade<br>Esc: pause</p></div><div><strong>Phones and tablets: the joystick</strong><p>Turn the phone sideways for the big room<br>Left thumb: the joystick<br>SWING: tap to hit, hold to keep swinging (every third held swing spins), drag to aim<br>JUMP beside it, DASH and SHIELD (hold it) just above<br>BRICK and TRAP on the outer ring: the badge says how many are left<br>EAT on top: one nutrient, one heart</p></div><div><strong>Tap the room instead</strong><p>Tap the floor: walk there<br>Tap a gremlin: go bonk it. Hold to keep swinging<br>Flick: dash that way<br>Two-finger tap: jump<br>Long-press the floor: shield, for as long as you hold<br>TRAP, SHIELD, BRICK, JUMP and EAT stay on screen</p></div><div><strong>The combo</strong><p>Land three hits in a row without getting hit or whiffing and the ring around SWING fills. Your next swing near a gremlin is a COMBO SLAM: everything close gets knocked back and dizzy, and you get paid. Taps count; a held button still swings, it just does not count.</p></div><div><strong>Medals matter</strong><p>Bronze is 1 discharge star, silver 2, gold 3. Only your best medal per level counts. A bronze unlocks the next level. Spend coins in the gift shop.</p></div><div><strong>Health has a budget</strong><p>Every room has a snack cart (the lounge has a vending machine) good for one nutrient; it restocks after a ward clear or two minutes. Cleared waves, every sixth gremlin and some combo slams leave one on the floor. Carry up to 3 (5 with Pocket snacks); each restores a heart. Still no bottomless snack fountain.</p></div><div><strong>The kit</strong><p>Three bricks a fight, and a few more turn up glinting behind the furniture as the waves come. One trap a wave. The barf-bag shield blocks everything while you hold it, until the bag gives out. Inside the bubble you cannot swing.</p></div><div><strong>Every department fights dirty</strong><p>The MRI magnet yanks bedpans and bruiser helmets into the scanner. The lounge remote zones out anything in front of the TV. Donut II rolls a lane through the CT. Ultrasound gel makes everyone slide. Use it.</p></div><div><strong>Cleared means cleared</strong><p>Gremlins you evict stay evicted, even if you leave mid-fight. A cleared department stays calm until you ask for a rematch: the button in the strip under the room (tap it twice) or in the pause menu.</p></div><div><strong>Zero hearts</strong><p>Macy goes back on the IV for one gentle round. Miss it and the nurses patch her up for a few coins. Progress survives, and a failed recovery is still spectacularly anatomical.</p></div></div>
+<dialog id="helpDialog" class="sheet"><div class="modal-head"><div><small class="modal-kicker">How to play</small><h2>A patient’s guide to causing trouble.</h2></div><button class="close" data-close aria-label="Close instructions"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="help-grid"><div><strong>Keyboard</strong><p id="helpKeys">WASD / arrows: move<br>Space: swing (hold to keep swinging; a held run spins)<br>Shift / J: jump<br>Q: dash<br>hold R: barf-bag shield<br>B: brick (3 a fight, find more)<br>F: eat a nutrient<br>M: map<br>Enter: nearby arcade<br>Esc: pause</p></div><div><strong>Phones and tablets: the joystick</strong><p>Turn the phone sideways for the big room<br>Left thumb: the joystick. Double-tap it (the » on the stick) to dash whichever way you push<br>EAT right beside the stick: one nutrient, one heart<br>SWING in the corner: tap to hit, hold to keep swinging (every third held swing spins), drag to aim<br>JUMP beside it, SHIELD (hold it) above it<br>BRICK between them: the badge says how many are left</p></div><div><strong>Tap the room instead</strong><p>Tap the floor: walk there<br>Tap a gremlin: go bonk it. Hold to keep swinging<br>Flick: dash that way<br>Two-finger tap: jump<br>Long-press the floor: shield, for as long as you hold<br>SHIELD, BRICK, JUMP and EAT stay on screen</p></div><div><strong>The combo</strong><p>Land three hits in a row without getting hit or whiffing and the ring around SWING fills. Your next swing near a gremlin is a COMBO SLAM: everything close gets knocked back and dizzy, and you get paid. Taps count; a held button still swings, it just does not count.</p></div><div><strong>Medals matter</strong><p>Bronze is 1 discharge star, silver 2, gold 3. Only your best medal per level counts. A bronze unlocks the next level. Spend coins in the gift shop.</p></div><div><strong>Health has a budget</strong><p>Every room has a snack cart (the lounge has a vending machine) good for one nutrient; it restocks after a ward clear or two minutes. Cleared waves, every sixth gremlin and some combo slams leave one on the floor. Carry up to 3 (5 with Pocket snacks); each restores a heart. Still no bottomless snack fountain.</p></div><div><strong>The kit</strong><p>Three bricks a fight, and a few more turn up glinting behind the furniture as the waves come. The barf-bag shield blocks everything while you hold it, until the bag gives out. Inside the bubble you cannot swing.</p></div><div><strong>Every department fights dirty</strong><p>The MRI magnet yanks bedpans and bruiser helmets into the scanner. The lounge remote zones out anything in front of the TV. Donut II rolls a lane through the CT. Ultrasound gel makes everyone slide. Use it.</p></div><div><strong>Cleared means cleared</strong><p>Gremlins you evict stay evicted, even if you leave mid-fight. A cleared department stays calm until you ask for a rematch: the button in the strip under the room (tap it twice) or in the pause menu.</p></div><div><strong>Zero hearts</strong><p>Macy goes back on the IV for one gentle round. Miss it and the nurses patch her up for a few coins. Progress survives, and a failed recovery is still spectacularly anatomical.</p></div></div>
 <section class="settings-card" aria-label="Settings"><h3 class="card-kicker">Settings</h3><div class="controls-pick" id="controlsPick" role="group" aria-label="Touch controls"><span>Touch controls</span><button class="smallbtn" data-controls="stick" aria-pressed="true">Joystick</button><button class="smallbtn" data-controls="tap" aria-pressed="false">Tap the room</button></div><label for="heroName">Name your heroine</label><div class="name-row"><input id="heroName" maxlength="18" autocomplete="off" placeholder="Macy"><button class="primary" id="saveName">Save</button></div><p class="modal-note">Progress saves in this browser. No account, no internet. All medical mechanics are gloriously fictional.</p><p id="storageNote">This browser has disabled local saves. Keep this tab open to keep your progress.</p><button id="resetBtn" class="textbtn danger">Start a fresh adventure</button></section></div></dialog>
 <dialog id="difficultyDialog" class="sheet"><div class="modal-head"><div><small class="modal-kicker">Prescription</small><h2>Choose your chaos.</h2></div><button class="close" data-close aria-label="Close difficulty settings"><svg><use href="#i-close"/></svg></button></div><div class="modal-body"><div class="difficulty-options" id="difficultyOptions"></div><p class="modal-note">Change it between challenges. Medals stay earned. It never refills your health or restocks nutrients.</p></div></dialog>
 <dialog id="shopDialog" class="sheet shop-sheet"><div class="modal-head"><div><small class="modal-kicker">Lobby level · open 24/7</small><h2>Questionable gift shop.</h2></div><button class="close" data-close aria-label="Close gift shop"><svg><use href="#i-close"/></svg></button></div><div class="modal-body">
@@ -3241,7 +3250,6 @@ let time = 0,
   enemies = [],
   particles = [],
   floats = [],
-  traps = [],
   projectiles = [],
   puddles = [],
   cameraX = 0,
@@ -14357,7 +14365,6 @@ function loadRoom(id, at = null) {
   projectiles = [];
   particles = [];
   puddles = [];
-  traps = [];
   floats = [];
   wardDrops = [];
   snackFullShown = false;
@@ -14414,7 +14421,7 @@ function begin() {
   // First steps on a touch screen: the room is the controller, or the joystick and the big buttons.
   if (wardCoarsePointer && tapScheme())
     toast('Tap to walk. Tap a gremlin to bonk it. Flick to dash. Two fingers: jump.', 4.5);
-  else if (wardCoarsePointer) toast('Left thumb walks. Smash SWING. Hold SHIELD, lob a BRICK, set a TRAP.', 4.5);
+  else if (wardCoarsePointer) toast('Left thumb walks; double-tap it to dash. Smash SWING. Hold SHIELD, lob a BRICK.', 4.5);
   turnHintCheck();
   canvas.focus({ preventScroll: true });
   sfx('ui');
@@ -14835,7 +14842,7 @@ function roomBeaconNear() {
   return !!station && dist(player, { x: station[0], y: station[1] }) < 85;
 }
 
-// Space, E or Enter at a hotspot, or a tap on one. Enter by the arcade beacon stays the arcade's.
+// Space or Enter at a hotspot, or a tap on one. Enter by the arcade beacon stays the arcade's.
 function roomSpotAction(kind, point) {
   if (roomSpotsBlocked()) return false;
   let spot = null;
@@ -15689,7 +15696,7 @@ function titleEyes(g, x, y, ww, t) {
 // ---- Tap the room ----
 // On touch screens the floor is the controller: tap to walk there, tap a gremlin to go and hit it (hold
 // to keep swinging), flick to dash, tap with two fingers to jump, long-press the floor to hold the
-// barf-bag shield up until the finger lifts. TRAP, SHIELD, BRICK, JUMP and EAT stay on screen as buttons.
+// barf-bag shield up until the finger lifts. SHIELD, BRICK, JUMP and EAT stay on screen as buttons.
 // state.controls === 'stick' swaps this for the joystick and the full button column. Mice never use it.
 const TAP_ARRIVE = 12,
   TAP_SLOP = 12,
@@ -16030,7 +16037,8 @@ function updateWorld(dt) {
   tvTick(dt);
   roomOpinionsTick(dt);
   turnHintTick();
-  $('dashBtn').style.opacity = player.dashCd > 0 ? '.45' : '1';
+  // The » on the stick dims while the dash rests.
+  $('joyDash').style.opacity = player.dashCd > 0 ? '.35' : '1';
 }
 
 function updateEffects(dt) {
@@ -16048,8 +16056,6 @@ function updateEffects(dt) {
   floats = floats.filter(f => f.life > 0);
   for (let p of puddles) p.life -= dt;
   puddles = puddles.filter(p => p.life > 0);
-  for (let t of traps) t.life -= dt;
-  traps = traps.filter(t => t.life > 0);
 }
 
 // The arcade beacon on the floor: LOCKED until the ward is cleared, then a pulsing ring.
@@ -16105,10 +16111,6 @@ function drawWorld() {
     spark(c, s.x + 15, s.y - 35, '#fff0ad', 0.4);
   }
   drawWardDrops(c);
-  for (let tr of traps) {
-    brick(c, tr.x - 15, tr.y, '#e38878');
-    brick(c, tr.x + 2, tr.y + 5, '#6faeab');
-  }
   drawWardGoal(c);
   const renderables = (roomProps[state.room] || []).map(p => ({ y: p.y, draw: p.draw }));
   renderables.push(...roomCultRenderables());
@@ -16430,7 +16432,6 @@ function animateFrame(now) {
 // Macy's kit: one button per tool, nothing to switch. The pillow is the swing (hold to keep swinging; the
 // third swing of a held run is a SPIN once spinCool has passed). The barf bag is a bubble she holds up while
 // its meter lasts. Bricks are lobs with ammo: `bricks` per fight plus the extras hidden around the room.
-// The trap is one per wave.
 const WARD_KIT = {
   swingCool: 0.42,
   finisherCool: 0.56,
@@ -16444,9 +16445,6 @@ const WARD_KIT = {
   brickShow: 3.5,
   brickAway: 220,
   brickReach: 32,
-  traps: 1,
-  trapLife: 30,
-  trapMax: 3,
   // The bubble: shieldCap seconds on a full meter (shieldCapDeluxe with the Deluxe dignity bubble), refilling
   // shieldRefill a second while it is down. Held to empty, it pops and needs shieldMin back and a fresh press.
   shieldCap: 2.5,
@@ -16484,7 +16482,6 @@ const WARD = {
   spinStun: 0.9,
   brickStun: 1.3,
   bruiserBrickStun: 1.6,
-  trapStun: 2,
   stompStun: 0.8,
   stompRadius: 105,
   landWindow: 0.16,
@@ -16695,9 +16692,9 @@ let encounter = { room: -1, wave: 0, rest: 0, complete: true, calm: true, grudge
   wardAttackSerial = 0,
   wardQueueT = 0,
   wardComboShown = '',
-  // What is left in Macy's kit (bricks in the pocket, the trap for this wave), extra bricks lying on the
-  // floor waiting to be found, and the seconds until the next one turns up (-1: none due).
-  wardKit = { bricks: WARD_KIT.bricks, trap: WARD_KIT.traps },
+  // What is left in Macy's kit (bricks in the pocket), extra bricks lying on the floor waiting to be
+  // found, and the seconds until the next one turns up (-1: none due).
+  wardKit = { bricks: WARD_KIT.bricks },
   wardKitShown = '',
   wardBrickDrops = [],
   wardBrickDue = -1,
@@ -16931,20 +16928,17 @@ function equip() {
 
 const wardShieldCap = () => (wardHas('bag') ? WARD_KIT.shieldCapDeluxe : WARD_KIT.shieldCap);
 
-// BRICK and TRAP show what is left as a badge (and dim at zero); SHIELD drains a ring (--meter) while held.
+// BRICK shows what is left as a badge (and dims at zero); SHIELD drains a ring (--meter) while held.
 function wardKitSync() {
   const cap = wardShieldCap(),
     meter = Math.round(clamp((player.shieldMeter ?? cap) / cap, 0, 1) * 20) / 20,
     up = player.shield > 0,
-    key = [wardKit.bricks, wardKit.trap, meter, player.shieldBroken ? 1 : 0, up ? 1 : 0].join('|');
+    key = [wardKit.bricks, meter, player.shieldBroken ? 1 : 0, up ? 1 : 0].join('|');
   if (key === wardKitShown) return;
   wardKitShown = key;
   $('brickCount').textContent = String(wardKit.bricks);
   $('brickBtn').classList.toggle('empty', wardKit.bricks <= 0);
   $('brickBtn').setAttribute('aria-label', `Throw a brick. ${wardKit.bricks} left.`);
-  $('trapCount').textContent = String(wardKit.trap);
-  $('trapBtn').classList.toggle('empty', wardKit.trap <= 0);
-  $('trapBtn').setAttribute('aria-label', wardKit.trap > 0 ? 'Set a trap. One per wave.' : 'Trap set. A new one comes with the next wave.');
   const shield = $('shieldBtn');
   shield.classList.toggle('empty', !!player.shieldBroken);
   shield.classList.toggle('up', up);
@@ -16957,10 +16951,9 @@ function wardKitDirty() {
   wardKitSync();
 }
 
-// A fresh fight: three bricks in the pocket and a trap ready.
+// A fresh fight: three bricks in the pocket.
 function wardKitFill() {
   wardKit.bricks = Math.max(wardKit.bricks, WARD_KIT.bricks);
-  wardKit.trap = WARD_KIT.traps;
   wardKitDirty();
 }
 
@@ -17195,8 +17188,7 @@ function spawnWave(popIn = WARD.breather, roster = null) {
     enemies.push(e);
   });
   ensureArm(wave, encounter.ensure);
-  // A trap for every wave, and an extra brick turns up somewhere a little after the wave does.
-  wardKit.trap = WARD_KIT.traps;
+  // An extra brick turns up somewhere a little after the wave does.
   wardKitDirty();
   wardBrickDue = popIn + WARD_KIT.brickShow;
   wardRecord();
@@ -17639,24 +17631,6 @@ function throwBrick() {
   return true;
 }
 
-// TRAP: set at Macy's feet. One a wave (the next wave brings another); it waits for whoever steps on it.
-function layTrap() {
-  if (isModal() || state.paused || deadDelay > 0) return false;
-  if (!state.started) begin();
-  if (wardKit.trap <= 0) {
-    floating('NEXT WAVE', player.x, player.y - 115 * MACY_TALL, '#ffcfb0');
-    sfx('miss');
-    return false;
-  }
-  wardKit.trap--;
-  wardKitDirty();
-  traps.push({ x: player.x, y: player.y + 8, life: WARD_KIT.trapLife, serial: ++wardAttackSerial });
-  while (traps.length > WARD_KIT.trapMax) traps.shift();
-  floating('TRAP SET', player.x, player.y - 115 * MACY_TALL, '#ffcfb0');
-  sfx('trap');
-  return true;
-}
-
 // SHIELD: the barf-bag bubble stays up while it is held (the button, R, a long-press on the floor) and the
 // meter lasts. Released, it drops; emptied, it pops and wants a fresh press once shieldMin is back.
 function shieldHold(on) {
@@ -17797,7 +17771,7 @@ function wardStomp() {
 }
 
 // ---- Hits, kills and splits ----
-// opt.kind: pillow | finisher | spin | stomp | combo | brick | trap | returned | magnet | bedpan | donut.
+// opt.kind: pillow | finisher | spin | stomp | combo | brick | returned | magnet | bedpan | donut.
 // opt.from: hit origin.
 function hitEnemy(e, power = 1, knock = 36, opt = {}) {
   if (!e || e.hp <= 0 || e.emerge > 0 || e.iframes > 0) return false;
@@ -17838,7 +17812,7 @@ function hitEnemy(e, power = 1, knock = 36, opt = {}) {
   if (e.dizzy > 0 && (e.type === 2 || e.boss)) dmg += 1;
   if (e.boss) {
     knock = 0;
-    stun = kind === 'brick' ? 0.5 : kind === 'trap' ? 1 : 0;
+    stun = kind === 'brick' ? 0.5 : 0;
     if (kind === 'brick') dmg += 1;
   }
   if (dmg <= 0) {
@@ -18462,15 +18436,6 @@ function wardEnemy(e, dt) {
     return;
   }
   if (e.popT > 0) return;
-  for (const t of traps)
-    if (t.life > 0 && e.z < 10 && dist(e, t) < 32 + (e.boss ? 30 : 0)) {
-      t.life = 0;
-      e.iframes = 0;
-      hitEnemy(e, 2, 20, { kind: 'trap', stun: WARD.trapStun, from: t, serial: t.serial });
-      wardFx({ kind: 'ring', ground: true, x: t.x, y: t.y, r0: 8, r1: 46, life: 0.35, col: '#ffcfb0', w: 5 });
-      sfx('trap');
-      if (e.hp <= 0 || e.stun > 0) return;
-    }
   if (e.boss) wardRalph(e, dt);
   else if (e.type === 0) wardNibbler(e, dt);
   else if (e.type === 1) wardSpitter(e, dt);
@@ -19037,7 +19002,7 @@ function startRalph() {
     ensure: n
   };
   ensureNotice(n);
-  // Ralph gets the full kit thrown at him: three bricks, a trap a phase, and a brick turning up each phase.
+  // Ralph gets the full kit thrown at him: three bricks, and a fresh one turning up each phase.
   wardKitFill();
   wardBrickDue = r.emerge + WARD_KIT.brickShow;
   wardSetBanner('RALPH', 'has entered the chat', 3);
@@ -19254,7 +19219,6 @@ function wardRalphPhase(e) {
   e.cool = 0.4;
   e.act = null;
   e.minionT = next === 2 ? 0.2 : 8;
-  wardKit.trap = WARD_KIT.traps;
   wardKitDirty();
   wardBrickDue = WARD_KIT.brickShow;
   wardSetBanner('PHASE ' + next, next === 2 ? 'Ralph discovers cardio' : 'Ralph is not okay', 2.6);
@@ -53143,14 +53107,50 @@ function releaseArcade(e) {
 // ---- Ward touch controls ----
 const joystick = $('joystick');
 
+// Double-tap the stick to dash. A short touch (a tap or a flick, JOY_TAP_SECONDS at most), then a second
+// press within JOY_DOUBLE_SECONDS of letting go: if that press lands off centre, or gets there within
+// JOY_DASH_WINDOW, Macy dashes that way and the stick keeps steering. The » on the stick says so. A dash
+// uses up the double-tap, so a third quick touch is a fresh first tap. Q dashes on the keyboard; tap the
+// room has its flick.
+const JOY_TAP_SECONDS = 0.3,
+  JOY_DOUBLE_SECONDS = 0.3,
+  JOY_DASH_WINDOW = 0.15,
+  JOY_DASH_PUSH = 0.4;
+let joyDownAt = -9,
+  joyUpAt = -9,
+  joyLastShort = false,
+  joyDashArmed = false,
+  joyDashed = false;
+
 joystick.addEventListener('pointerdown', e => {
   if (joyPointer !== null) return;
   e.preventDefault();
   joyPointer = e.pointerId;
   joystick.setPointerCapture(e.pointerId);
   if (!state.started) begin();
+  joyDashArmed = joyLastShort && time - joyUpAt <= JOY_DOUBLE_SECONDS;
+  joyLastShort = false;
+  joyDashed = false;
+  joyDownAt = time;
   handleJoy(e);
 });
+
+// The second press of a double-tap, once it points somewhere: dash that way.
+function joyDashCheck() {
+  if (!joyDashArmed) return;
+  if (time - joyDownAt > JOY_DASH_WINDOW) {
+    joyDashArmed = false;
+    return;
+  }
+  const d = Math.hypot(joy.x, joy.y);
+  if (d < JOY_DASH_PUSH) return;
+  joyDashArmed = false;
+  joyDashed = true;
+  player.lastDx = joy.x / d;
+  player.lastDy = joy.y / d;
+  if (Math.abs(joy.x) > 0.1) player.dir = joy.x > 0 ? 1 : -1;
+  if (!roomAction('dash')) dash();
+}
 
 function handleJoy(e) {
   if (e.pointerId !== joyPointer) return;
@@ -53166,6 +53166,7 @@ function handleJoy(e) {
   joy.x = x / max;
   joy.y = y / max;
   $('stick').style.transform = `translate(${x}px,${y}px)`;
+  joyDashCheck();
 }
 
 joystick.addEventListener('pointermove', handleJoy);
@@ -53174,6 +53175,10 @@ joystick.addEventListener('pointermove', handleJoy);
   joystick.addEventListener(type, e => {
     if (e.pointerId === joyPointer) {
       joyPointer = null;
+      // A quick touch that did not dash is the first half of a double-tap.
+      joyLastShort = type === 'pointerup' && !joyDashed && time - joyDownAt <= JOY_TAP_SECONDS;
+      joyUpAt = time;
+      joyDashArmed = false;
       joy.x = joy.y = 0;
       $('stick').style.transform = 'translate(0,0)';
     }
@@ -53218,9 +53223,6 @@ $('attackBtn').addEventListener('click', e => {
 });
 
 onPress($('jumpBtn'), () => roomAction('jump') || jump());
-onPress($('dashBtn'), () => roomAction('dash') || dash());
-// TRAP is also the "use" press: at her room's TV, the E-Type or the light switch it uses that instead.
-onPress($('trapBtn'), () => roomAction('use') || layTrap());
 onPress($('brickBtn'), () => throwBrick());
 onPress($('touchEat'), eat);
 
@@ -53267,7 +53269,7 @@ const ARCADE_KEYS = [
 ];
 const WARD_KEYS = [
   ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
-  'w', 'a', 's', 'd', 'e', 'q', 'f', 'r', 'b', 'enter', 'shift', 'j'
+  'w', 'a', 's', 'd', 'q', 'f', 'r', 'b', 'enter', 'shift', 'j'
 ];
 
 // Arcade keys: Escape pauses, E is the assist, everything else goes to the game's key hook.
@@ -53322,8 +53324,7 @@ window.addEventListener('keydown', e => {
     keys.add(k);
   }
   if (e.repeat) return;
-  // One key per action (CONTROL_NAMES.keys): E trap, B brick, hold R for the shield.
-  if (k === 'e' && !roomAction('use')) layTrap();
+  // One key per action (CONTROL_NAMES.keys): B brick, hold R for the shield.
   if (k === 'b') throwBrick();
   if (k === 'r') shieldHold(true);
   if (k === 'q' && !roomAction('dash')) dash();
@@ -53380,7 +53381,6 @@ const CONTROL_NAMES = {
     ['Q', 'dash'],
     ['hold R', 'barf-bag shield'],
     ['B', 'brick (3 a fight, find more)'],
-    ['E', 'trap (1 a wave)'],
     ['F', 'eat a nutrient'],
     ['M', 'map'],
     ['Enter', 'nearby arcade'],
@@ -53397,7 +53397,7 @@ function renderControls() {
   const short = { move: 'move', 'barf-bag shield': 'shield', 'eat a nutrient': 'eat' };
   $('helpKeys').innerHTML = CONTROL_NAMES.keys.map(([k, what]) => `${k}: ${what}`).join('<br>');
   $('keyGuide').innerHTML = CONTROL_NAMES.keys
-    .slice(0, 8)
+    .slice(0, 7)
     .map(([k, what]) => `<span><b>${k.replace('WASD / arrows', 'W A S D').toUpperCase()}</b> ${short[what] || what.split(' (')[0]}</span>`)
     .join('');
 }
