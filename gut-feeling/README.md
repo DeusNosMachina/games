@@ -14,7 +14,7 @@ Six arcade games with three levels each, a ward that fights back properly, a bos
 | MRI | **Polarity Panic** | Drag a magnet, hold to pull or push, release to coast, sort mint circles left and gold diamonds right, flush pink gunk down the vent. Later levels add gremlin thieves, an overheating magnet, repulsor walls, a sweeping barrier, port swaps, surge pickups and chain sorting up to 5×. |
 | Family lounge | **Brick Rebellion** | Pull back from the softball (or flick it) and send a volley into the rack. Armored, rubber, sliding gremlin and nurse-call bricks join the pink chain-reaction and star blocks. Clear a row in one volley to earn it back, bank shots hit harder, the last ball slows time, and level 3 ends at Ralph's fortress. |
 | CT | **Gurney Grand Prix** | Swipe to steer, jump crates, slide under bars, throw softballs. Later levels add boost pads, nurse carts that hop lanes, rolling IV stands, curves that skid you sideways, ramps you can swerve off mid-air, gunk throwers, close-call bonuses, stunt chains and a donut tunnel. |
-| Ultrasound | **Gel Yeah!** | Slice gremlins in clean swipes. Formations spread across the screen, arrow gremlins only split along their arrow, numbered sets pay for order, a gold gremlin starts a five-second frenzy, helmets need two strokes, blue ones split, and lit bombs can be flicked away on level 3. |
+| Ultrasound | **Gel Yeah!** | Swipe gel gremlins as they hop up the sonar screen. Three or more in one stroke is a combo (big ones get slow motion and a zoom), combos fill a party meter, gold starts a frenzy, and every level ends on a jumbo gel you scribble on. Level 1 is just slicing with one lone bomb; level 2 adds splitters, helmets and bombs one at a time; level 3 is faster with bombs in the lineup. |
 | Your room, after dark | **Bedside Blaster** | Tap to shoot, drag to look, hold to charge a piercing shot. Crawlers, bedpan helmets, bruisers and pouncers hide behind furniture and leap at your face. Active reloads reward timing, juice bottles refill charges, and level 3 ends with Ralph Jr. |
 
 Every game shows its full briefing once. After that you get a 1.2-second GO card with the one-line rule and a 1.5-second countdown. Reduced-motion settings keep the longer reading time.
@@ -74,7 +74,7 @@ Arcade controls:
 - **Magnet:** press and drag; release to coast; Space flips polarity. Let go to cool an overheated magnet.
 - **Bricks:** drag back from the ball, or flick it. 1/2/3 pick normal, heavy or fan; Space recalls.
 - **Race:** swipe or A/D to steer, W jump, S slide, Space throw. Swipe down in the air to slam.
-- **Gel:** press and swipe; lift to bank a combo. Swipe along an arrow gremlin's arrow. Flick up through a lit bomb.
+- **Gel:** press and swipe; a press on a gremlin slices it at once. Bombs only count on a moving swipe through their middle. E freezes the gel for five seconds.
 - **Blaster:** tap to shoot, drag to look, hold and release to pierce. Mouse: the sight follows the pointer, click fires, right-drag looks. R reloads; tap R again in the green for an instant reload.
 - **All games:** E uses a limited assist; Escape pauses.
 
