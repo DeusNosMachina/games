@@ -2820,3 +2820,8 @@ body.dreaming .hud,body.dreaming .toast,body.dreaming .ward-strip{opacity:0;poin
 
 /* The send-off (src/discharge.js) takes the screen: the ward chrome steps aside as it does for a dream. */
 body.discharging .hud,body.discharging .toast,body.discharging .ward-strip,body.discharging .touch-controls,body.discharging .gamebar{opacity:0;pointer-events:none;transition:opacity .5s}
+
+/* Safe rooms (hers, lights out, the hallway): no kit. The joystick, EAT and one TALK / USE button. */
+body.safe-room .touch-controls .act:not(.eat){display:none!important}
+body.safe-room .touch-controls .attack svg,body.safe-room .touch-controls .attack .combo-tag{display:none!important}
+body.safe-room .touch-controls .attack::before{content:'\2022\2022\2022';display:block;font-size:26px;line-height:1;letter-spacing:3px;margin-bottom:2px}

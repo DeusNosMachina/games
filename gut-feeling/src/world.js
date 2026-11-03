@@ -332,9 +332,32 @@ function roomToast(id) {
 
 // at: where Macy stands once the room is loaded (the light switch leaves her where she is, with no iris).
 // Without it she starts in the middle of the room.
+// What the big touch button does here: SWING where there are gremlins, TALK in the hallway, USE in her room.
+function wardActLabel(id = state.room) {
+  if (id === 6) return 'TALK';
+  if (typeof wardCombatRoom === 'function' ? !wardCombatRoom(id) : id === 0 || id === 5) return 'USE';
+  return 'SWING';
+}
+
 function loadRoom(id, at = null) {
   hitStop = 0;
   state.room = id;
+  // Safe rooms (hers, lights out, the hallway) need no kit: the cluster slims to the joystick, EAT and
+  // one button to talk to people or use what is in front of her.
+  const safeRoom = wardActLabel(id) !== 'SWING';
+  if (document.body && document.body.classList) document.body.classList.toggle('safe-room', safeRoom);
+  const actBtn = $('attackBtn'),
+    actLabel = actBtn && actBtn.querySelector ? actBtn.querySelector('span') : null;
+  if (actLabel) actLabel.textContent = wardActLabel(id);
+  if (actBtn && actBtn.setAttribute)
+    actBtn.setAttribute(
+      'aria-label',
+      id === 6
+        ? 'Talk to whoever is nearest, or go through a door'
+        : safeRoom
+          ? 'Use what is in front of you'
+          : 'Swing the pillow. Hold to keep swinging, drag to aim.'
+    );
   player.x = at ? at.x : 505;
   player.y = at ? at.y : 470;
   player.inv = at ? player.inv : 1.5;

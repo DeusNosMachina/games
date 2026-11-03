@@ -494,3 +494,16 @@ run('globalThis.tvLateDraw = undefined; globalThis.tvLateTick = undefined; globa
 assert.equal(run('tvChannel()'), 0, 'without the module the channel quietly falls back');
 run('advanceSimulation(0.1); drawWorld(); tvChannels[0] = 0');
 console.log('PASS: the 3 AM channel exists only in room 5 and only with tvlate.js; it ticks, draws and captions.');
+
+// ---- Safe rooms slim the touch cluster to the joystick, EAT and one TALK / USE button ----
+run('loadRoom(6)');
+assert.equal(run('wardActLabel(6)'), 'TALK', 'the hallway button talks');
+assert.equal(nodes.attackBtnchild.textContent, 'TALK', 'and the big button says so');
+run('loadRoom(0)');
+assert.equal(run('wardActLabel(0)'), 'USE', 'her room: use the TV, the switch, the car');
+assert.equal(run('wardActLabel(5)'), 'USE', 'lights out too');
+assert.equal(nodes.attackBtnchild.textContent, 'USE');
+run('loadRoom(1)');
+assert.equal(run('wardActLabel(1)'), 'SWING', 'a ward with gremlins swings');
+assert.equal(nodes.attackBtnchild.textContent, 'SWING');
+console.log('PASS: safe rooms relabel the big button TALK or USE; wards keep SWING.');

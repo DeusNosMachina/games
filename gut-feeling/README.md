@@ -76,7 +76,7 @@ On phones and tablets the joystick scheme is the default: a joystick bottom left
 | Nearby arcade | Play button, or tap the beacon | Same | Enter |
 | Pause | Pause button | Pause button | Escape |
 
-Every touch button acts the moment your finger lands, so JUMP, BRICK and TRAP work with a thumb on the joystick, and SHIELD tracks its own finger. SWING is 96 to 128 px depending on the screen; a drag on it aims.
+In her room and the hallway, where there are no gremlins, the cluster slims to the joystick, EAT and one big button that reads USE or TALK. Every touch button acts the moment your finger lands, so JUMP, BRICK and TRAP work with a thumb on the joystick, and SHIELD tracks its own finger. SWING is 96 to 128 px depending on the screen; a drag on it aims.
 
 Fullscreen ("arcade mode") pins the game to the screen, and phones and tablets enter it when you press START. iPad Safari uses the real fullscreen API; iPhones use a CSS fallback because Safari has none for pages. Tablets get bigger buttons, and the lobby and results use the width.
 
