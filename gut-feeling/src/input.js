@@ -156,7 +156,7 @@ function showDifficulty() {
       (d, i) =>
         `<button class="difficulty-option ${state.difficulty === i ? 'selected' : ''}" data-difficulty="${i}">` +
         `<strong>${d.name}</strong><p>${d.desc}</p>` +
-        `<small>${d.coins.toFixed(1)}× coin earnings · ${d.misses + 2} IV mistakes · ${i === 0 ? 8 : i === 1 ? 6 : 5} action-game mistakes · ${Math.round(d.window * 100)}% starting IV window</small></button>`
+        `<small>${d.coins.toFixed(1)}× coin earnings · ${i === 0 ? 8 : i === 1 ? 6 : 5} action-game mistakes · ${Math.round(d.mini * 100)}% arcade pace</small></button>`
     )
     .join('');
   modalOpen($('difficultyDialog'));

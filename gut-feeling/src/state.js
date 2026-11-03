@@ -178,7 +178,7 @@ let state = {
   // settings or the pause menu. Older saves wrote 'tap' without choosing, so only a chosen one is kept.
   controls: savedControls(),
   controlsChosen: saved.controlsChosen === true || saved.controls === 'stick',
-  // Mandatory recoveries since the last medal outside one. games/iv.js counts them to escalate.
+  // Mandatory recoveries since the last medal outside one (the Frequent Flyer sticker reads it).
   recoveries: savedCount(saved.recoveries),
   // Daily Dose: last day played (YYYY-MM-DD), that day's best score, consecutive-day streak.
   daily: {

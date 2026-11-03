@@ -319,7 +319,7 @@ function roomToast(id) {
   if (!isArcadeRoom(id)) return rooms[id].toast || 'Hallway. Be nice to the nurses. They know where the pudding is.';
   if (id === 0 && state.ralphReady && !state.ralph) return 'Ralph is in your room. He is not here to visit.';
   if (id === 5) return 'After hours. Bedside Blaster is up. Ralph brought friends.';
-  if (id === 0) return 'Home base. Snacks on the rug. IV game by the bed.';
+  if (id === 0) return 'Home base. Snack cart by the door. Fastpitch Fever from the bed.';
   return arcadeBlocked(id)
     ? 'Three waves stand between you and this arcade. Make them regret it.'
     : 'Grab supplies, then find the glowing arcade beacon.';

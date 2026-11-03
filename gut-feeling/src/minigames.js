@@ -269,10 +269,12 @@ function orientMini() {
 
 // Department card and lobby preview art.
 function miniScene(g, id, w, h) {
-  games[id].scene(g, w, h);
+  // The lobby of a forced run shows the recovery's picture, not the room's arcade.
+  const def = mini.open && mini.forced && games.recovery && id === mini.id ? games.recovery : games[id];
+  def.scene(g, w, h);
 }
 
-const MINI_RECOVERY_LINE = 'Finish one IV phase to get out of bed. Fail it and the nurses patch you up for a few coins.';
+const MINI_RECOVERY_LINE = 'Land eight drips to get out of bed. Pop, and you can try again or get patched up for coins.';
 
 // The definition the current run uses. A forced recovery runs the game registered as `recovery`
 // (games/iv.js) in place of the room's own arcade, when one is registered.
@@ -363,7 +365,9 @@ function showLobby() {
       ? 'Start the recovery →'
       : 'Let’s make poor decisions →';
   $('miniRewardInfo').textContent = mini.forced ? MINI_RECOVERY_LINE : '';
-  $('miniBest').textContent = 'Best here: ' + (state.records[mini.id][mini.tier] || 'nothing yet') + '.';
+  $('miniBest').textContent = mini.forced
+    ? 'No medals in bed. Just land the drips.'
+    : 'Best here: ' + (state.records[mini.id][mini.tier] || 'nothing yet') + '.';
   $('miniDifficulty').textContent = 'Chaos prescription: ' + cfg().name + ' ↗';
   miniScene($('miniPreview').getContext('2d'), mini.id, 420, 240);
 }
@@ -619,6 +623,13 @@ function grantReward(id, tier, grade, quality, multiplier, arcadeScore = 0) {
   return { delta, pay, old };
 }
 
+// A won recovery pays a few coins and nothing else.
+function recoveryReward() {
+  const pay = Math.round(12 * mini.rules.coins);
+  coins(pay);
+  return { delta: 0, pay, old: 0 };
+}
+
 function resolveMiniResult(win, reason) {
   if (mini.screen !== 'outro') return;
   const def = miniGame();
@@ -640,22 +651,21 @@ function resolveMiniResult(win, reason) {
   $('miniBack').textContent =
     mini.forced && !win ? (typeof def.patchUpLabel === 'function' ? def.patchUpLabel() : 'Get patched up') : 'Back to the hospital';
   $('miniRetry').textContent = mini.daily ? 'Run it back' : win ? 'Improve / next level' : 'Reassemble. Try again.';
+  // Out of bed is out of bed: a won recovery offers no second helping.
+  $('miniRetry').classList.toggle('hidden', mini.forced && win);
   $('miniResult').dataset.medal = '0';
   $('resultStamp').classList.add('hidden');
   let tiles = null;
   if (win) {
     mini.qualityFinal = qualityScore();
     mini.grade = mini.qualityFinal >= 88 ? 3 : mini.qualityFinal >= 68 ? 2 : 1;
-    const previousBest = state.records[mini.id][mini.tier];
-    state.records[mini.id][mini.tier] = Math.max(previousBest, mini.score);
-    const reward = grantReward(
-      mini.id,
-      mini.tier,
-      mini.grade,
-      mini.qualityFinal,
-      mini.rules.coins,
-      mini.score
-    );
+    // A recovery stamps nothing on the room's arcade: no medal, no record, a small fixed payout.
+    const forced = mini.forced,
+      previousBest = forced ? 0 : state.records[mini.id][mini.tier];
+    if (!forced) state.records[mini.id][mini.tier] = Math.max(previousBest, mini.score);
+    const reward = forced
+      ? recoveryReward()
+      : grantReward(mini.id, mini.tier, mini.grade, mini.qualityFinal, mini.rules.coins, mini.score);
     mini.reward = reward;
     stickerCountRun(mini);
     const winText = def.onWin ? def.onWin() : undefined;
@@ -675,7 +685,7 @@ function resolveMiniResult(win, reason) {
         to: mini.score,
         pre: '',
         post: '',
-        label: `ARCADE SCORE · BEST ${state.records[mini.id][mini.tier]}`,
+        label: forced ? 'RECOVERY SCORE' : `ARCADE SCORE · BEST ${state.records[mini.id][mini.tier]}`,
         pop: previousBest > 0 && mini.score > previousBest ? 'NEW BEST' : ''
       },
       { to: mini.qualityFinal, pre: '', post: '%', label: 'PERFORMANCE', pop: '' },
@@ -690,13 +700,16 @@ function resolveMiniResult(win, reason) {
           '</div>'
       )
       .join('');
-    $('resultStamp').classList.remove('hidden');
-    $('stampRoom').textContent = rooms[mini.id].name;
-    $('stampLevel').textContent = `Level ${mini.tier + 1} · ${tiers[mini.tier]}`;
-    $('stampStars').textContent = '★'.repeat(mini.grade) + '☆'.repeat(3 - mini.grade);
-    $('miniResult').dataset.medal = String(mini.grade);
-    $('resultJourney').textContent =
-      `${stars()}/12 stars · ${stamps()}/${ARCADE_COUNT} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins paid.'}`;
+    if (!forced) {
+      $('resultStamp').classList.remove('hidden');
+      $('stampRoom').textContent = rooms[mini.id].name;
+      $('stampLevel').textContent = `Level ${mini.tier + 1} · ${tiers[mini.tier]}`;
+      $('stampStars').textContent = '★'.repeat(mini.grade) + '☆'.repeat(3 - mini.grade);
+    }
+    $('miniResult').dataset.medal = forced ? '0' : String(mini.grade);
+    $('resultJourney').textContent = forced
+      ? 'Out of bed. Hearts back, nothing stamped. The ward is waiting.'
+      : `${stars()}/12 stars · ${stamps()}/${ARCADE_COUNT} arcades · ${levelTwo() ? 'Level 2 stamped' : 'Level 2 stamp still needed'}. ${reward.delta ? 'New personal best.' : 'Your best medal stays. Replay coins paid.'}`;
     // The ceremony plays the thud and the win sting when the medal lands.
     $('miniDialog').classList.remove('gory');
   } else {

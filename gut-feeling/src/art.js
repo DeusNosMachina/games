@@ -1765,6 +1765,8 @@ function miniBackdrop(g, top, glowColor, title) {
       y = 90 + (i % 3) * 95;
     ellipse(g, x, y, 43, 43, '#d5ede306');
   }
+  // The HUD pills sit over this top edge on small screens, so a game may pass no title and draw none.
+  if (!title) return;
   label(g, title, 24, 29, 11, '#a2cacb');
   label(g, 'LEVEL ' + (mini.tier + 1), 776, 29, 11, '#b8d8cf', 'right');
 }

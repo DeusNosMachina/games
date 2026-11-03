@@ -4,18 +4,22 @@ A hospital adventure for Macy: volleyball and softball phenom, gremlin wrangler,
 
 **[Play on phone or laptop](https://deusnosmachina.github.io/games/gut-feeling/)** · [Games catalog](../README.md)
 
-## v0.6: the gremlins got organized
+## v0.7: the gameplay pass
+
+The first live playtest said the arcades swung between too easy and too hard, with Bedside Blaster the one genuine arcade game. So every other arcade was rebuilt or reworked against that bar, and every one now ships with a human-speed yardstick (`tests/tools/`) that must clear level 1 nearly always, level 2 most of the time and level 3 sometimes at a quarter-second reaction. Drip or Die is no longer an arcade: her room has Fastpitch Fever by day, and the IV is only the recovery, one gentle round that is never a dead end. The MRI has pinball, the CT has a real race, the lounge has a paddle breakout, Gel Yeah! is pure slicing from the first swipe, and the ward plays landscape with a joystick and a big SWING button, a combo slam, snack carts and a paced wave 3.
 
 Six arcade games with three levels each, a ward that fights back properly, a boss named Ralph, music, fullscreen play, and a failure animation that finally earns its name. Level 1 of everything teaches you. Levels 2 and 3 are the real deal.
 
 | Place | Game | What you do |
 | --- | --- | --- |
-| Your room | **Drip or Die** | Three phases, three strikes for the whole run, and the third one pops. Tap the sweep in the mint window (every sweep gets its own width, windows shrink with each drip and start sliding mid-phase), catch the recipe in three lanes (waves come faster, a wrong flavor rides beside the right one, which soon lands across the screen from you; miss a sip or dump the order and the drops still high up re-mix to what you need now, with a ring so you see it), hold the pressure in a band that jumps to new heights and slims as you bank. Level 1 starts gentle and ends real; levels 2 and 3 start there and add double drips, decoys, echo sweeps, mix orders, hopping skulls (they never hop into the lane the order wants, and the arrow shows 1.3 s out), coughs you must counter, split bands and three seconds of flipped controls. The pace has a floor a person can play: waves never come closer than 0.8 s and a drop never falls in under 1.1 s. Gold-center chains multiply points. |
+| Your room | **Fastpitch Fever** | Throw softballs from the bed at the gremlins in her room, with real physics: gravity, bank shots off the walls and furniture, lobs that drop behind cover. Tap for a fastball at the spot (taps near a gremlin aim at its depth, so leading a walker works), drag back and release for a pitch with a preview arc, drag up for a lob. Walkers, hoppers, chargers headed for the bed, peekers behind the footboard, bedpan shields that only fall to a bank shot, golden gremlins worth two, Ensure bottles that knock over like carnival cans for extra balls, and the Ump on level 3. Every hit refunds the ball and the bucket refills, so it never stalls. |
 | MRI | **Loud Donut Pinball** | Pinball inside the MRI. Flip the steel softball into gremlin bumpers until they move out, ride the scan ramp, light M-R-I, and hold both flippers to fire the magnet and save a drain. Level 2 adds drop targets and meaner outlanes; level 3 adds Clank in his bucket and multiball. |
 | Family lounge | **Brick Rebellion** | Paddle breakout with a hospital lunch tray. Slide anywhere to move it, tap to serve, and land the softball on the tray's edges to send it wide. Three racks per level: pink bricks chain-react, gold stars drop pills (wide tray, multiball, sticky catch, pillow ammo, nap; green goo shrinks the tray), and the pillow cannon snipes stragglers. Level 2 adds steel, hopping gremlins, nurse calls and a creeping rack; level 3 is faster and ends at Ralph's fortress. |
 | CT | **Gurney Grand Prix** | A pseudo-3D race: steer a gurney through curves, hills and CT donut tunnels against gremlin gurneys, med carts, a runaway IV and Barb. Donut gates add time; finish top three. Level 2 adds S-bends and traffic; level 3 adds night, heavy traffic and Ralph blocking on a motorized bed. |
 | Ultrasound | **Gel Yeah!** | Swipe gel gremlins as they hop up the sonar screen. Three or more in one stroke is a combo (big ones get slow motion and a zoom), combos fill a party meter, gold starts a frenzy, and every level ends on a jumbo gel you scribble on. Level 1 is just slicing with one lone bomb; level 2 adds splitters, helmets and bombs one at a time; level 3 is faster with bombs in the lineup. |
 | Your room, after dark | **Bedside Blaster** | Tap to shoot, drag to look, hold to charge a piercing shot. Crawlers, bedpan helmets, bruisers and pouncers hide behind furniture and leap at your face. Active reloads reward timing, juice bottles refill charges, and level 3 ends with Ralph Jr. |
+
+**Drip or Die** is no longer an arcade. It is the recovery: zero hearts puts Macy in bed for one gentle round of tap-the-drip (eight drips, three strikes, the same every time), and the third strike is still the staged cartoon explosion. Pop and you can try again or get patched up for 15% of your coins; either way you are back in the ward with a heart. No run is a dead end.
 
 Every game shows its full briefing once. After that you get a 1.2-second GO card with the one-line rule and a 1.5-second countdown. Reduced-motion settings keep the longer reading time.
 
@@ -74,7 +78,8 @@ Fullscreen ("arcade mode") pins the game to the screen, and phones and tablets e
 
 Arcade controls:
 
-- **IV:** Space taps or pumps; A/S/D pick lanes.
+- **Fastpitch:** tap, drag back and release, or drag up to lob; arrows aim and Space throws; the THROW button repeats the last throw.
+- **Recovery (Drip or Die):** tap anywhere or Space when the line crosses mint.
 - **Pinball:** left half or Z / Left flips left, right half or slash / Right flips right, hold both for the magnet, tap or Space to launch, swipe up or Shift to nudge (three quick nudges tilt).
 - **Bricks:** slide a finger (or the mouse) to move the tray; press to serve; arrows or A/D slide, Space serves, Up or W fires a pillow.
 - **Race:** hold left or right (arrows, A/D) to steer, drag to steer gently, swipe up or Shift to boost, tap a gurney or Space to throw.

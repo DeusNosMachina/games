@@ -48,7 +48,7 @@ for (const [w, h, kind] of SIZES) {
   assert.equal(run(`hospitalMapDraw(c, ${w}, ${h}).kind`), kind, `${w}x${h} draws`);
   const texts = run(`hmDraw(${w}, ${h})`);
   for (const name of [...NAMES, 'Gift shop', 'DAILY', 'EXIT', 'YOU']) assert.ok(texts.includes(name), `${kind} shows ${name}`);
-  assert.ok(texts.includes('PLAY Drip or Die') || texts.includes('PLAY'), `${kind} shows a PLAY chip in Macy's room`);
+  assert.ok(texts.includes('PLAY ' + run('games[0].info.game')) || texts.includes('PLAY'), `${kind} shows a PLAY chip in Macy's room`);
 }
 console.log('PASS: 900x560, 390x600 and 800x360 pick wide, portrait and strip layouts and draw them.');
 

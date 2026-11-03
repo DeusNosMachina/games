@@ -359,8 +359,6 @@ const PITCH = registerGame({
     finishMini(met, met ? undefined : PITCH_QUOTA_MISSED);
   },
   lesson() {
-    // The framework's lesson() asks the room's arcade; a forced recovery has its own briefing.
-    if (mini.forced && games.recovery && games.recovery !== PITCH) return games.recovery.lesson();
     const i = PITCH.info;
     return {
       title: i.game + ' · ' + mini.limit + ' second game',
@@ -426,8 +424,6 @@ const PITCH = registerGame({
     return true;
   },
   scene(g, w, h) {
-    // The lobby asks the room's arcade for its picture; a forced recovery's lobby shows the recovery.
-    if (mini.open && mini.forced && games.recovery && games.recovery !== PITCH) return games.recovery.scene(g, w, h);
     pitchScene(g, w, h);
   }
 });

@@ -185,8 +185,14 @@ console.log('PASS: the badge pop queues, shows one at a time with a chime, clear
 
 // ---- Run counters from the result ----
 run('state.stats.flawless = 0; state.stats.ivClutch = 0; state.stats.recovered = 0; state.stickers = state.stickers.filter(id => id !== "flawless" && id !== "iv-clutch")');
+// A won recovery on two strikes is the clutch; a two-strike win in the room's own arcade is not.
+run('openMini(0, true); startMini(); launchMini(); updateMini(INTRO_SECONDS + 0.1); mini.score = 900; games.recovery.quality = () => 70; mini.miss = 2; finishMini(true); updateMini(2.3)');
+assert.equal(run('mini.screen'), 'result');
+assert.equal(run('state.stats.ivClutch'), 1, 'a recovery won on two strikes counts');
+assert.equal(run('state.stats.recovered'), 1, 'and so does the recovery itself');
+run('leaveMini()');
 winRun(0, 70, 900, 'mini.miss = 2;');
-assert.equal(run('state.stats.ivClutch'), 1, 'an IV win on two strikes counts');
+assert.equal(run('state.stats.ivClutch'), 1, 'a two-strike win in the throwing game is not a clutch');
 assert.equal(run('state.stats.flawless'), 0, 'and is not flawless');
 assert.ok(json('state.stickers').includes('iv-clutch'), 'the result checks stickers');
 close();

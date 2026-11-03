@@ -5,7 +5,7 @@
 // Public API
 //   sfx(name, {combo, count, pan, vol})  One designed effect. Unknown names play a generic blip.
 //                                        sfx('talk', {voice, count, combo}) is one syllable of a hallway voice.
-//   music(name)                          Crossfade to a looped track ('room:0'..'room:6', 'game:0'..'game:5',
+//   music(name)                          Crossfade to a looped track ('room:0'..'room:6', 'game:0'..'game:5', 'game:pitch',
 //                                        'boss', 'title') or a one-shot sting ('result:win', 'result:lose').
 //                                        music(null) stops; repeating the current name does nothing.
 //   tone(freq, dur, type, vol)           Legacy beep, routed through the same mixer.

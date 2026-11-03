@@ -7,12 +7,13 @@ const INTRO_SECONDS = reduced ? 3.2 : 1.5,
 
 // Briefing copy for the current run or phase.
 function lesson() {
-  return games[mini.id].lesson();
+  return miniGame().lesson();
 }
 
 // Each game (and each IV phase) gets the full briefing once; after that a short GO card.
+// The recovery has its own briefing, apart from the room's arcade.
 function briefKey() {
-  return mini.id + ':' + (mini.phase || 0);
+  return (mini.forced && games.recovery ? 'recovery' : mini.id) + ':' + (mini.phase || 0);
 }
 
 function prepareBriefing() {

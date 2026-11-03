@@ -113,8 +113,6 @@ const IV = registerGame({
     mini.ivBoomBeep = 0;
     mini.ivAfter = null;
     mini.ivRipples = [];
-    // What a won run would overwrite on the room's arcade (see onWin).
-    mini.ivKeep = { medal: state.medals[mini.id][0], record: state.records[mini.id][0] };
     // The burst word never repeats back to back.
     const words = IV_WORDS.filter(w => w !== ivLastWord);
     mini.ivWord = pick(words);
@@ -218,13 +216,6 @@ const IV = registerGame({
   // Out of bed: hearts back by medal, and the next collapse starts a new recovery.
   onWin() {
     ivRecovery = null;
-    // The framework stamps a won run's medal and best score on the room's arcade (the throwing game,
-    // id 0). A recovery is not that game, so put both back and show no new stars.
-    if (mini.ivKeep) {
-      state.medals[mini.id][mini.tier] = mini.reward ? mini.reward.old : mini.ivKeep.medal;
-      state.records[mini.id][mini.tier] = mini.ivKeep.record;
-      if (mini.reward) mini.reward.delta = 0;
-    }
     state.hp = Math.max(state.hp, 2 + mini.grade);
     player.vomit = 0;
     save();
@@ -848,40 +839,16 @@ function ivDrawPlay(g) {
   if (mini.portrait) {
     ivBackdropTall(g);
     ivDrawStrip(g);
-    ivDrawStrikes(g);
     drawIVMini(g);
     return;
   }
-  miniBackdrop(g, '#295d65', '#6ad6aa3d', IV.info.game.toUpperCase());
+  miniBackdrop(g, '#295d65', '#6ad6aa3d', '');
   drawIVMini(g);
-  ivDrawStrikes(g);
 }
 
 function drawIVMini(g) {
   if (mini.portrait) ivDrawTapTall(g);
   else ivDrawTapScene(g);
-}
-
-// Three strike marks beside the level tag: empty rings fill with red crosses. Portrait makes them a bit bigger.
-function ivDrawStrikes(g) {
-  const n = mini.rules ? mini.rules.misses : IV_STRIKES;
-  const o = mini.portrait
-    ? { lx: 300, ly: 28, size: 12, x0: 316, dx: 22, y: 23, k: 1.2 }
-    : { lx: 668, ly: 29, size: 11, x0: 682, dx: 18, y: 25, k: 1 };
-  const k = o.k;
-  label(g, 'STRIKES', o.lx, o.ly, o.size, '#a2cacb', 'right');
-  for (let i = 0; i < n; i++) {
-    const x = o.x0 + i * o.dx;
-    const y = o.y;
-    if (i < mini.miss) {
-      ellipse(g, x, y, 7.5 * k, 7.5 * k, '#8a2a40');
-      line(g, [[x - 3.5 * k, y - 3.5 * k], [x + 3.5 * k, y + 3.5 * k]], '#ffd6dc', 2.2 * k);
-      line(g, [[x + 3.5 * k, y - 3.5 * k], [x - 3.5 * k, y + 3.5 * k]], '#ffd6dc', 2.2 * k);
-    } else {
-      ellipse(g, x, y, 7.5 * k, 7.5 * k, '#a2cacb');
-      ellipse(g, x, y, 5.5 * k, 5.5 * k, '#1f4a55');
-    }
-  }
 }
 
 // ---------- Portrait (450 × 800): a scene strip on top, the bar below ----------
@@ -895,8 +862,6 @@ function ivBackdropTall(g) {
     const y = 300 + i * 62;
     ellipse(g, x, y, 43, 43, '#d5ede306');
   }
-  label(g, IV.info.game.toUpperCase(), 18, 28, 13, '#a2cacb');
-  label(g, 'LEVEL ' + (mini.tier + 1), 432, 28, 13, '#b8d8cf', 'right');
 }
 
 // The top 30% of the portrait canvas: the IV stand dripping, Macy in bed with
@@ -1090,7 +1055,7 @@ function ivDrawBoom(g) {
   if (t < 0.25) {
     if (mini.portrait) ivDrawPlay(g);
     else {
-      miniBackdrop(g, '#295d65', '#6ad6aa3d', IV.info.game.toUpperCase());
+      miniBackdrop(g, '#295d65', '#6ad6aa3d', '');
       drawIVMini(g);
     }
   }

@@ -460,7 +460,7 @@ function stickerCountRun(run) {
   state.stats ||= {};
   const add = key => (state.stats[key] = stickerStat(state, key) + 1);
   if (!run.miss) add('flawless');
-  if ((run.forced || run.id === 0) && run.miss >= 2) add('ivClutch');
+  if (run.forced && run.miss >= 2) add('ivClutch');
   if (run.forced) add('recovered');
 }
 
@@ -1079,7 +1079,7 @@ function shareDateLabel(d = new Date()) {
 // A result card for the run on the result screen (or the given numbers).
 function shareResultSpec(over = {}) {
   const id = mini.id,
-    def = games[id];
+    def = typeof miniGame === 'function' ? miniGame(id) : games[id];
   return {
     kind: 'result',
     id,
