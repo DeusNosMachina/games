@@ -38365,7 +38365,7 @@ function magnetPanels(g, V) {
     rw = V.w - rx - 18;
   if (lw < 120) return;
   panel(g, lx, 60, lw, V.h - 78);
-  label(g, 'POLARITY PANIC', lx + 16, 92, 17, '#f1e2b9');
+  label(g, 'LOUD DONUT PINBALL', lx + 16, 92, 17, '#f1e2b9');
   label(g, 'THE LOUD DONUT · LEVEL ' + (mini.tier + 1), lx + 16, 112, 11, '#a9c9c3');
   label(g, 'SCORE', lx + 16, 150, 10, '#a9c9c3');
   label(g, magnetComma(mini.score), lx + 16, 184, 30, '#ffb347');
@@ -38510,7 +38510,7 @@ function magnetScene(g, w, h) {
   for (let i = 1; i < 6; i++) ellipse(g, bx - i * 7, by + i * 3, 7 - i, 7 - i, '#e9f2ef22');
   magnetSteel(g, bx, by, 8, time * 4);
   rr(g, 120, 14, 180, 22, 8, '#170f08', '#6b4a1e', 1);
-  label(g, 'POLARITY PANIC', 210, 30, 12, '#ffb347', 'center');
+  label(g, 'LOUD DONUT PINBALL', 210, 30, 12, '#ffb347', 'center');
   g.restore();
 }
 
