@@ -112,6 +112,8 @@ const cases = [
   ['rowdy-fan', 'st.stats.cheers = 10', 'st.stats.cheers = 9'],
   ['socialite', 'st.stats.talked = STICKER_CAST.map(id => (id === "nurse" ? "nurse3" : id))', 'st.stats.talked = STICKER_CAST.slice(1)'],
   ['socialite', 'st.stats.talks = Object.fromEntries(STICKER_CAST.map(id => [id, 2]))', 'st.stats.talks = { dad: 3 }'],
+  ['legend', 'st.medals[2] = [3, 3, 3, 1]', 'st.medals[2] = [3, 3, 3, 0]'],
+  ['knock-knock', 'st.stats.knocks = 10', 'st.stats.knocks = 9'],
   ['socialite', 'st.stats.talks = 10', 'st.stats.talks = 9'],
   ['cat-cam', 'st.stats.catCam = 5', 'st.stats.catCam = 4'],
   ['pillow-fort', 'st.stats.idles = 10', 'st.stats.idles = 9'],

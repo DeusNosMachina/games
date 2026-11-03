@@ -158,6 +158,28 @@ const STICKERS = [
     test: st => stickerStat(st, 'recovered') >= 5 || (Number(st && st.recoveries) || 0) >= 5
   },
   {
+    id: 'legend',
+    group: 'Arcade',
+    name: 'Legendary',
+    blurb: 'A medal on a Legendary level. One win in four is still a win.',
+    hint: 'Medal any arcade on its Legendary level.',
+    tone: 'yellow',
+    shape: 'shield',
+    icon: 'crown',
+    test: st => stickerMedals(st).some(row => Array.isArray(row) && (Number(row[3]) || 0) > 0)
+  },
+  {
+    id: 'knock-knock',
+    group: 'Hallway',
+    name: 'Knock Knock',
+    blurb: 'Ten knocks on the restroom door. It is still occupied. It will always be occupied.',
+    hint: 'Knock on the restroom door on the map. Keep knocking.',
+    tone: 'coral',
+    shape: 'round',
+    icon: 'bubbles',
+    test: st => stickerStat(st, 'knocks') >= 10
+  },
+  {
     id: 'arcade-rat',
     group: 'Arcade',
     name: 'Arcade Rat',

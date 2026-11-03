@@ -107,7 +107,7 @@ Refuse Barb's Ensure often enough and the hospital fills with it: bottles in row
 
 Idle long enough in bed after dark and Macy dreams: a 40-second interlude from a pool of vignettes, with its own woozy theme, until a nurse wakes her.
 
-Medals land with a stamp, confetti and a sting (Rowdy gallops across on gold). There is a sheet of 34 stickers to earn, and a Share button that renders a card as a PNG for the family chat.
+Medals land with a stamp, confetti and a sting (Rowdy gallops across on gold). There is a sheet of 36 stickers to earn, and a Share button that renders a card as a PNG for the family chat.
 
 ## Sound
 
