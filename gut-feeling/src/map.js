@@ -4,13 +4,19 @@
 // says what sits under a point. mountHospitalMap(el) puts a live, tappable canvas inside el plus a
 // visually hidden button list for keyboards and screen readers, and writes the dialog's header line
 // (HOSPITAL_MAP_COPY.header) into its .modal-kicker. hospitalMapInvalidate() redraws.
+// On the plan: every room's plate names its arcade (tap it to play from anywhere) with a medal dot per
+// level; her room shows both of hers and a LIGHTS OUT / LIGHTS ON switch to and from the night room;
+// the exit spells out dischargeMissing() and reads GO HOME once she is free; the restroom knocks back
+// (state.stats.knocks counts the knocks).
 // Every global here starts with hospitalMap or HOSPITAL_MAP; nothing reassigns another file's names.
 
 // Plans in design units. A plan stretches up to 30% to fill its box, then letterboxes.
 // Rects are [x, y, w, h]. door is [side, where]: side t/b/l/r, where a 0..1 fraction along that
-// wall, 'open' (a counter, no wall) or 'lift' (sliding doors). Inside a place, chip, macy, moon and
-// eyes are [fx, fy] fractions of its rect; props are [type, fx, fy, scale] and may step outside
-// 0..1 (the strip plan posts CT's NO BRAKES sign in the corridor).
+// wall, 'open' (a counter, no wall) or 'lift' (sliding doors). Inside a place, chip (PLAY or GO),
+// lights (her room's LIGHTS OUT / LIGHTS ON chip), macy and eyes are [fx, fy] fractions of its rect;
+// plateW caps the name plate's width as a fraction of the room; props are [type, fx, fy, scale] and
+// may step outside 0..1 (the strip plan posts CT's NO BRAKES sign in the corridor).
+// Each room's plate reads: room name, then its arcade (tap it to play) with one medal dot per level.
 const HOSPITAL_MAP_PLANS = {
   wide: {
     w: 680,
@@ -35,9 +41,9 @@ const HOSPITAL_MAP_PLANS = {
         r: [10, 10, 226, 158],
         door: ['b', 0.84],
         label: 't',
-        chip: [0.46, 0.87],
+        chip: [0.17, 0.88],
+        lights: [0.52, 0.88],
         macy: [0.84, 0.93],
-        moon: [0.9, 0.21],
         props: [['iv', 0.5, 0.71, 1], ['bed', 0.7, 0.74, 1]]
       },
       {
@@ -124,10 +130,11 @@ const HOSPITAL_MAP_PLANS = {
         r: [10, 10, 250, 124],
         door: ['b', 0.86],
         label: 't',
-        chip: [0.48, 0.86],
+        plateW: 0.6,
+        chip: [0.13, 0.86],
+        lights: [0.48, 0.86],
         macy: [0.86, 0.94],
-        moon: [0.92, 0.24],
-        props: [['iv', 0.6, 0.74, 0.86], ['bed', 0.76, 0.76, 0.86]]
+        props: [['iv', 0.64, 0.74, 0.86], ['bed', 0.79, 0.76, 0.86]]
       },
       {
         kind: 'room',
@@ -208,41 +215,42 @@ const HOSPITAL_MAP_PLANS = {
     floorText: [180, 181],
     plants: [[202, 92, 0.34]],
     // A narrow nook off the station's corridor side; its sign runs down the corridor like the floor text.
-    storage: { r: [118, 372, 26, 38], door: 'r', sign: [184, 402], vertical: true },
+    storage: { r: [118, 380, 26, 38], door: 'r', sign: [184, 402], vertical: true },
     places: [
       { kind: 'lift', r: [146, 10, 68, 54], door: ['b', 'lift'] },
+      // Her room is the tallest on the phone: two arcades, PLAY and LIGHTS OUT all live in it.
       {
         kind: 'room',
         id: 0,
-        r: [10, 10, 136, 160],
-        door: ['r', 0.84],
+        r: [10, 10, 136, 200],
+        door: ['r', 0.86],
         label: 't',
-        chip: [0.4, 0.91],
-        macy: [0.85, 0.94],
-        moon: [0.83, 0.2],
-        props: [['iv', 0.13, 0.74, 0.8], ['bed', 0.46, 0.76, 0.82]]
+        chip: [0.3, 0.93],
+        lights: [0.36, 0.56],
+        macy: [0.88, 0.97],
+        props: [['iv', 0.13, 0.8, 0.8], ['bed', 0.47, 0.82, 0.82]]
       },
       {
         kind: 'room',
         id: 2,
-        r: [10, 170, 136, 150],
+        r: [10, 210, 136, 140],
         door: ['r', 0.5],
         label: 't',
         chip: [0.4, 0.91],
-        macy: [0.85, 0.62],
-        eyes: [[0.85, 0.24], [0.1, 0.62]],
+        macy: [0.85, 0.8],
+        eyes: [[0.85, 0.42], [0.1, 0.64]],
         props: [['sofa', 0.46, 0.76, 0.8]]
       },
       {
         kind: 'station',
-        r: [10, 320, 136, 124],
+        r: [10, 350, 136, 106],
         door: ['r', 'open'],
         label: 't',
-        props: [['counter', 0.46, 0.8, 0.82]]
+        props: [['counter', 0.46, 0.84, 0.8]]
       },
       {
         kind: 'restroom',
-        r: [10, 444, 136, 132],
+        r: [10, 456, 136, 120],
         door: ['r', 0.5],
         label: 't',
         props: [['toilet', 0.28, 0.9, 1], ['plant', 0.78, 0.92, 0.8]]
@@ -265,7 +273,7 @@ const HOSPITAL_MAP_PLANS = {
         door: ['l', 0.5],
         label: 't',
         chip: [0.6, 0.91],
-        macy: [0.15, 0.62],
+        macy: [0.15, 0.82],
         eyes: [[0.86, 0.72], [0.16, 0.56]],
         props: [['scanner', 0.56, 0.6, 0.72], ['brakes2', 0.79, 0.4, 1]]
       },
@@ -276,7 +284,7 @@ const HOSPITAL_MAP_PLANS = {
         door: ['l', 0.5],
         label: 't',
         chip: [0.6, 0.91],
-        macy: [0.15, 0.62],
+        macy: [0.15, 0.82],
         eyes: [[0.62, 0.42], [0.14, 0.58]],
         props: [['bed', 0.58, 0.76, 0.74], ['gel', 0.84, 0.62, 0.9]]
       },
@@ -295,25 +303,49 @@ const HOSPITAL_MAP_COPY = {
   header: 'VALLEY HOSPITAL · FLOOR 7',
   station: ['Nurses’ station', 'ASK NICELY'],
   restroom: ['Restroom', 'OCCUPIED. ALWAYS.'],
+  // After the tenth knock the sign admits it happened once.
+  restroomAfter: 'OCCUPIED. AGAIN.',
   shop: 'Gift shop',
   floor: 'VALLEY · 7F · PEDIATRICS',
   lift: '7',
-  // Macy's room is Room 5. Its plate keeps the name "Your room" and puts the number underneath.
+  // Macy's room is Room 5: its plate says so next to the name when there is room.
   home: 'ROOM 5',
+  // Her room's second arcade line, under the moon.
+  night: ' · after dark',
+  lightsOut: 'LIGHTS OUT',
+  lightsOn: 'LIGHTS ON',
+  play: 'PLAY',
+  go: 'GO',
+  lockedChip: 'LOCKED',
   storage: ['ENSURE STORAGE', '(DO NOT ASK)'],
   storageTap: 'Do not ask.',
   storageList: 'Ensure storage. Do not ask.',
   you: 'YOU',
   nope: 'NOPE.',
   exit: 'EXIT',
+  goHome: 'GO HOME',
   daily: ['DAILY', 'DOSE'],
   locked: 'Clear the ward first. The gremlins are sitting on the arcade.',
   won: 'Discharged. The door is just showing off now.',
-  stamps: 'Medal all six arcades first. The door is counting.',
-  levelTwo: 'One level 2 medal, then the door will talk to you.',
-  ralph: 'Ralph is blocking the exit. Go to your room and evict him.',
+  wants: 'The exit still wants: ',
   ralphNew: 'Passport complete. Ralph heard. He is waiting in your room.'
 };
+
+// Knock on the restroom: a new line every time, in order, round and round. The tenth knock gets
+// the payoff (state.stats.knocks counts them for the stickers module).
+const HOSPITAL_MAP_KNOCKS = [
+    'OCCUPIED. STILL.',
+    'Someone is reading in there. A whole book.',
+    'It’s Ralph. He’s been in there since Tuesday.',
+    'A voice says “five more minutes.” It said that yesterday.',
+    'The door knocks back. Rude.',
+    'Someone in there is humming the hold music.',
+    'You hear a page turn. Then a sigh. Then another page.',
+    'A note slides out: “Do you MIND.”',
+    'Nurse Pat sent the plumber in. Nobody has seen the plumber since.'
+  ],
+  HOSPITAL_MAP_KNOCK_PAYOFF_AT = 10,
+  HOSPITAL_MAP_KNOCK_PAYOFF = 'FLUSH. The door swings open. Nobody comes out. Nobody was ever in there.';
 
 // Visually hidden but focusable: the canvas is the picture, these buttons are the controls.
 const HOSPITAL_MAP_SKELETON =
@@ -341,10 +373,16 @@ let hospitalMapView = {
     press: '',
     focus: '',
     notice: '',
-    noticeUntil: 0
+    noticeUntil: 0,
+    // The restroom door: when the last knock landed, and when its second knock is due.
+    knockT: -9,
+    knockQueue: []
   },
   hospitalMapLayoutMemo = { key: '', value: null },
-  hospitalMapBaseMemo = { key: '', canvas: null };
+  hospitalMapBaseMemo = { key: '', canvas: null },
+  // The context text is measured with: the one drawing this frame, else the mounted canvas's.
+  hospitalMapMeasureCtx = null,
+  hospitalMapPlateMemo = { ctx: undefined, map: new Map() };
 
 // ---- Small helpers ----
 function hospitalMapReduced() {
@@ -382,10 +420,38 @@ function hospitalMapText(g, t, x, y, size, color, align = 'left', maxW = 0) {
   g.textAlign = 'left';
 }
 
+// Text width in px. Without a context (hit tests before the first draw) it estimates.
 function hospitalMapMeasure(g, t, size) {
+  t = String(t);
+  if (!g) return t.length * size * 0.58;
   g.font = `700 ${size}px ${HOSPITAL_MAP_FONT}`;
   const m = typeof g.measureText === 'function' ? g.measureText(t) : null;
   return m && Number.isFinite(m.width) ? m.width : t.length * size * 0.58;
+}
+
+// Greedy line breaks for maxW, preferring the " · " joints, then spaces.
+function hospitalMapWrap(g, text, size, maxW) {
+  const fits = s => hospitalMapMeasure(g, s, size) <= maxW,
+    lines = [];
+  let cur = '';
+  for (const seg of String(text).split(' · ')) {
+    const joined = cur ? cur + ' · ' + seg : seg;
+    if (fits(joined)) {
+      cur = joined;
+      continue;
+    }
+    if (cur) lines.push(cur);
+    cur = '';
+    for (const word of seg.split(' ')) {
+      const next = cur ? cur + ' ' + word : word;
+      if (cur && !fits(next)) {
+        lines.push(cur);
+        cur = word;
+      } else cur = next;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
 }
 
 function hospitalMapInRect(r, x, y, m = 0) {
@@ -409,15 +475,24 @@ function hospitalMapLocked(id) {
 function hospitalMapRoomState(id) {
   const cur = state.room,
     combat = id >= 1 && id <= 4,
-    medals = (state.medals && state.medals[id]) || [0, 0, 0];
+    medals = (state.medals && state.medals[id]) || [];
   return {
     id,
     here: id === cur || (id === 0 && cur === 5),
     combat,
     locked: hospitalMapLocked(id),
     grudge: combat ? Math.max(0, Math.floor(Number(state.wardClears && state.wardClears[id]) || 0)) : 0,
-    medals: [0, 1, 2].map(i => clamp(Math.floor(Number(medals[i]) || 0), 0, 3))
+    // One per level, Legendary included (TIER_COUNT), whether or not the game has a Legendary level yet.
+    medals: Array.from({ length: hospitalMapTierCount() }, (_, i) => clamp(Math.floor(Number(medals[i]) || 0), 0, 3))
   };
+}
+
+function hospitalMapTierCount() {
+  return typeof TIER_COUNT === 'number' ? TIER_COUNT : 3;
+}
+
+function hospitalMapLegendary(id) {
+  return typeof games !== 'undefined' && !!games[id] && !!games[id].legendary;
 }
 
 function hospitalMapDailyPick() {
@@ -428,14 +503,21 @@ function hospitalMapDischargeReady() {
   return !state.won && stars() >= DISCHARGE_STARS && stamps() === ARCADE_COUNT && levelTwo();
 }
 
+// What the exit still wants (minigames.js), as the hallway exit says it too.
+function hospitalMapMissing() {
+  return typeof dischargeMissing === 'function' ? dischargeMissing() : [];
+}
+
+// Nothing missing and Ralph out: the exit sign reads GO HOME.
+function hospitalMapGoHome() {
+  return !!state.won || (!!state.ralph && hospitalMapMissing().length === 0);
+}
+
 function hospitalMapExitLine() {
   if (state.won) return HOSPITAL_MAP_COPY.won;
-  if (state.ralphReady && !state.ralph) return HOSPITAL_MAP_COPY.ralph;
-  const need = DISCHARGE_STARS - stars();
-  if (need > 0) return `The exit wants ${need} more ${need === 1 ? 'star' : 'stars'}. It has standards.`;
-  if (stamps() < ARCADE_COUNT) return HOSPITAL_MAP_COPY.stamps;
-  if (!levelTwo()) return HOSPITAL_MAP_COPY.levelTwo;
-  return HOSPITAL_MAP_COPY.ralph;
+  const missing = hospitalMapMissing();
+  if (missing.length) return HOSPITAL_MAP_COPY.wants + missing.join(' · ') + '.';
+  return HOSPITAL_MAP_COPY.ralphNew;
 }
 
 // ---- Layout ----
@@ -506,15 +588,22 @@ function hospitalMapPlace(p, r, L) {
     rect: r,
     inner,
     label: p.label || 't',
+    plateW: p.plateW || 1,
     door: hospitalMapDoor(p.door, r, L),
     props: (p.props || []).map(q => Object.assign(at([q[1], q[2]]), { type: q[0], s: q[3] * L.k })),
     chipAt: at(p.chip),
     macyAt: at(p.macy),
-    moonAt: at(p.moon),
+    lightsAt: at(p.lights),
     eyesAt: (p.eyes || []).map(at)
   };
-  const plate = hospitalMapPlateBox(place, L);
-  place.labelAt = { x: plate.x + plate.pad + L.font.name, y: plate.y + plate.row1 - L.font.name * 0.35 };
+  // A point on the room name: tapping it travels there. The plate depends on state, so read it live.
+  Object.defineProperty(place, 'labelAt', {
+    enumerable: true,
+    get() {
+      const plate = hospitalMapPlate(place, L);
+      return plate ? plate.nameAt : { x: inner.x + inner.w / 2, y: inner.y + inner.h / 2 };
+    }
+  });
   return place;
 }
 
@@ -603,66 +692,255 @@ function hospitalMapWalls(L) {
   return segs;
 }
 
-// The name plate: name, department, then medal stars and grudge flames (rooms only).
-function hospitalMapPlateBox(place, L) {
-  const f = L.font,
-    pad = clamp(6 * L.k, 5, 8),
-    compact = place.inner.h < 104,
-    rows = place.kind === 'room' && !compact ? 3 : 2,
-    row1 = pad + f.name * 0.8,
-    row2 = row1 + f.sub * 1.2 + 1,
-    row3 = rows === 3 ? row2 + f.star * 1.9 + 2 : 0,
-    h = (rows === 3 ? row3 + f.star * 1.2 : row2 + f.sub * 0.3) + pad,
-    x = place.inner.x,
-    y = place.label === 'b' ? place.inner.y + place.inner.h - h : place.inner.y;
-  return { x, y, h, pad, rows, compact, row1, row2, row3 };
+// ---- Name plates ----
+// What a plate says. A room: its name (her room adds ROOM 5, and goes "after dark" at night), then
+// each arcade in it with a glyph (play, padlock, or the moon for the night shift) and its medals.
+// Her room has two: Fastpitch Fever by day, Bedside Blaster after dark. Other places: name and a line.
+function hospitalMapPlaceCopy(place) {
+  if (place.kind === 'room') {
+    const cur = state.room,
+      here = place.id === cur || (place.id === 0 && cur === 5),
+      playing = cur === 5 ? 5 : cur,
+      arcade = (id, text, glyph) => {
+        const info = hospitalMapRoomState(id);
+        return {
+          id,
+          text,
+          glyph: info.locked ? 'lock' : glyph,
+          locked: info.locked,
+          current: here && playing === id,
+          muted: place.id === 0 && here && playing !== id,
+          medals: info.medals,
+          grudge: info.grudge,
+          legendary: hospitalMapLegendary(id)
+        };
+      };
+    if (place.id === 0) {
+      return {
+        name: rooms[cur === 5 ? 5 : 0].name,
+        nameShort: rooms[0].name,
+        tag: HOSPITAL_MAP_COPY.home,
+        arcades: [arcade(0, hospitalMapGame(0), 'play'), arcade(5, hospitalMapGame(5) + HOSPITAL_MAP_COPY.night, 'moon')]
+      };
+    }
+    return { name: rooms[place.id].name, arcades: [arcade(place.id, hospitalMapGame(place.id), 'play')] };
+  }
+  if (place.kind === 'station') return { name: HOSPITAL_MAP_COPY.station[0], sub: HOSPITAL_MAP_COPY.station[1] };
+  if (place.kind === 'restroom')
+    return {
+      name: HOSPITAL_MAP_COPY.restroom[0],
+      sub: hospitalMapKnocks() >= HOSPITAL_MAP_KNOCK_PAYOFF_AT ? HOSPITAL_MAP_COPY.restroomAfter : HOSPITAL_MAP_COPY.restroom[1]
+    };
+  if (place.kind === 'shop') return { name: HOSPITAL_MAP_COPY.shop, sub: state.coins + ' COINS' };
+  return null;
 }
 
-// The arcade chip in a room tile. Sized from the copy length so draw and hit agree everywhere.
+// Medal dots: radius, and the width of a row of n.
+function hospitalMapDotR(L) {
+  return clamp(L.font.star * 0.62, 3.6, 4.8);
+}
+
+function hospitalMapDotsW(L, n) {
+  const r = hospitalMapDotR(L);
+  return r * 2 + (n - 1) * r * 2.55;
+}
+
+// The plate laid out in rows of items, measured with g (the drawing context; estimates without
+// one), so the drawing and the hit test read the same boxes. A game name that does not fit wraps at
+// " · " or a space; its dots ride on its last line when they fit, else take a row of their own;
+// grudge flames follow the dots, else the name, else get a row. Each arcade's rows are one tap
+// target (arcades[i].rect) that opens its lobby; the name row (nameAt) belongs to the room.
+// A plan's plateW narrows the plate to keep furniture in view, unless that leaves no row for a chip.
+function hospitalMapPlate(place, L, g = hospitalMapMeasureCtx || hospitalMapView.g) {
+  // Chips, hits and the YOU tag all ask for the same plate many times a frame: remember it until
+  // anything it shows changes (or the measuring context does).
+  const memo = hospitalMapPlateMemo,
+    sig = [L.w, L.h, place.key, state.room, state.coins, hospitalMapKnocks(), JSON.stringify(state.medals), JSON.stringify(state.wardClears)].join('|');
+  if (memo.ctx !== g) {
+    memo.ctx = g;
+    memo.map.clear();
+  }
+  if (memo.map.has(sig)) return memo.map.get(sig);
+  const copy = hospitalMapPlaceCopy(place);
+  let plate = null;
+  if (copy) {
+    plate = hospitalMapPlateAt(place, L, g, copy, place.plateW);
+    if (place.plateW < 1 && plate.h > place.inner.h - clamp(22 * L.k, 22, 28) - 8 * L.k) plate = hospitalMapPlateAt(place, L, g, copy, 1);
+  }
+  if (memo.map.size > 80) memo.map.clear();
+  memo.map.set(sig, plate);
+  return plate;
+}
+
+function hospitalMapPlateAt(place, L, g, copy, widthFraction) {
+  const f = L.font,
+    pad = clamp(6 * L.k, 5, 8),
+    gap = f.sub * 0.45,
+    maxW = place.inner.w * widthFraction,
+    textMax = maxW - pad * 2,
+    meas = (t, size) => hospitalMapMeasure(g || null, t, size),
+    rowEnd = row => row.items.reduce((m, it) => Math.max(m, it.x + it.w), 0),
+    textRow = items => ({ h: f.sub * 1.32, base: f.sub * 1.0, items }),
+    rows = [],
+    arcades = [];
+  let name = copy.name;
+  if (copy.nameShort && meas(name, f.name) > textMax) name = copy.nameShort;
+  const nameW = Math.min(meas(name, f.name), textMax),
+    nameRow = { h: f.name * 1.22, base: f.name * 0.92, items: [{ type: 'name', text: name, x: 0, w: nameW }] };
+  rows.push(nameRow);
+  if (copy.tag) {
+    const tw = meas(copy.tag, f.sub);
+    if (nameW + gap * 2 + tw <= textMax) nameRow.items.push({ type: 'tag', text: copy.tag, x: nameW + gap * 2, w: tw });
+  }
+  if (copy.sub) rows.push(textRow([{ type: 'sub', text: copy.sub, x: 0, w: Math.min(meas(copy.sub, f.sub), textMax) }]));
+  const R = hospitalMapDotR(L),
+    glyph = f.sub * 1.1,
+    indent = glyph + gap,
+    room = textMax - indent;
+  for (const a of copy.arcades || []) {
+    const first = rows.length,
+      lines = meas(a.text, f.sub) > room * 1.08 ? hospitalMapWrap(g || null, a.text, f.sub, room) : [a.text];
+    lines.forEach((text, i) => {
+      const items = [{ type: 'game', text, x: indent, w: Math.min(meas(text, f.sub), room), arcade: a }];
+      if (i === 0) items.unshift({ type: 'glyph', x: 0, w: glyph, arcade: a });
+      rows.push(textRow(items));
+    });
+    const dots = { type: 'dots', w: hospitalMapDotsW(L, a.medals.length), arcade: a };
+    let dotsRow = rows[rows.length - 1];
+    // The dots join the last line when it fits, squeezing that line by up to a tenth to make room.
+    const lastText = dotsRow.items[dotsRow.items.length - 1],
+      over = rowEnd(dotsRow) + gap * 1.2 + dots.w - textMax;
+    if (over <= 0 || (lastText.type === 'game' && over <= lastText.w * 0.1)) {
+      if (over > 0) lastText.w -= over;
+      dots.x = rowEnd(dotsRow) + gap * 1.2;
+    } else {
+      dots.x = indent;
+      dotsRow = { h: R * 2 + 5, items: [] };
+      rows.push(dotsRow);
+    }
+    dotsRow.items.push(dots);
+    if (a.grudge) {
+      const pipW = f.star * 1.9,
+        fit = row => {
+          const at = rowEnd(row) + gap;
+          for (let n = Math.min(5, a.grudge); n >= 1; n--) {
+            const extra = a.grudge > n ? '+' + (a.grudge - n) : '',
+              w = n * pipW + (extra ? meas(extra, f.sub) + 2 : 0);
+            if (at + w <= textMax) return { type: 'flames', x: at, w, pips: n, extra, arcade: a };
+          }
+          return null;
+        };
+      let flames = fit(dotsRow);
+      if (flames) dotsRow.items.push(flames);
+      else if ((flames = fit(nameRow))) nameRow.items.push(flames);
+      else {
+        const row = { h: R * 2 + 5, items: [] };
+        rows.push(row);
+        row.items.push(fit(row) || { type: 'flames', x: indent, w: pipW, pips: 1, extra: '', arcade: a });
+      }
+    }
+    arcades.push({ id: a.id, locked: a.locked, current: a.current, first, last: rows.length - 1 });
+  }
+  const w = Math.min(maxW, Math.max(...rows.map(rowEnd)) + pad * 2),
+    h = rows.reduce((s, r) => s + r.h, 0) + pad * 2,
+    x = place.inner.x,
+    y = place.label === 'b' ? place.inner.y + place.inner.h - h : place.inner.y;
+  let top = y + pad;
+  for (const row of rows) {
+    row.top = top;
+    top += row.h;
+  }
+  for (const a of arcades) {
+    const r0 = rows[a.first],
+      r1 = rows[a.last];
+    a.rect = { x, y: r0.top - (a.first ? 1 : 0), w, h: r1.top + r1.h - r0.top + (a.last === rows.length - 1 ? pad : 1) };
+  }
+  return {
+    x,
+    y,
+    w,
+    h,
+    pad,
+    rows,
+    arcades,
+    nameAt: { x: x + pad + Math.min(nameW / 2, f.name), y: nameRow.top + nameRow.h / 2 }
+  };
+}
+
+// ---- Chips ----
+// A pill sized from its copy length, so draw and hit agree everywhere. It keeps clear of the room's
+// name plate: below a top plate, above a bottom one.
+function hospitalMapChipBox(at, place, L, text) {
+  const size = L.font.chip,
+    h = clamp(22 * L.k, 22, 28),
+    pad = size * 0.7,
+    icon = size * 1.1,
+    gap = size * 0.4,
+    w = Math.min(pad * 2 + icon + (text ? gap + text.length * size * 0.58 : 0), place.inner.w * 0.94),
+    plate = hospitalMapPlate(place, L),
+    clear = 4 * L.k,
+    cx = clamp(at.x, place.inner.x + w / 2, place.inner.x + place.inner.w - w / 2);
+  let cy = at.y;
+  if (plate && place.label === 'b') cy = Math.min(cy, plate.y - clear - h / 2);
+  else if (plate) cy = Math.max(cy, plate.y + plate.h + clear + h / 2);
+  cy = clamp(cy, place.inner.y + h / 2, place.inner.y + place.inner.h - h / 2);
+  return { x: cx - w / 2, y: cy - h / 2, w, h, text, size, pad, icon, gap };
+}
+
+// PLAY (or LOCKED) in the room Macy is in, GO everywhere else.
 function hospitalMapChip(place, L) {
   if (place.kind !== 'room' || !place.chipAt) return null;
   const cur = state.room,
     id = place.id === 0 && cur === 5 ? 5 : place.id,
     here = id === cur,
     locked = hospitalMapLocked(id),
-    game = hospitalMapGame(id),
-    size = L.font.chip,
-    h = clamp(22 * L.k, 22, 28),
-    pad = size * 0.7,
-    icon = size * 1.1,
-    gap = size * 0.4,
-    maxW = place.inner.w * 0.94,
-    widthOf = (s, per = 0.58) => pad * 2 + icon + (s ? gap + s.length * size * per : 0);
-  let text = here ? (locked ? 'LOCKED' : 'PLAY') : game;
-  if (here && !locked && widthOf('PLAY ' + game, 0.5) <= maxW) text = 'PLAY ' + game;
-  if (widthOf(text, 0.5) > maxW) text = here ? text.split(' ')[0] : '';
-  const w = Math.min(widthOf(text), maxW),
-    cx = clamp(place.chipAt.x, place.inner.x + w / 2, place.inner.x + place.inner.w - w / 2),
-    cy = clamp(place.chipAt.y, place.inner.y + h / 2, place.inner.y + place.inner.h - h / 2);
-  return {
-    x: cx - w / 2,
-    y: cy - h / 2,
-    w,
-    h,
+    style = here ? (locked ? 'locked' : 'play') : 'go',
+    text = { play: HOSPITAL_MAP_COPY.play, locked: HOSPITAL_MAP_COPY.lockedChip, go: HOSPITAL_MAP_COPY.go }[style];
+  return Object.assign(hospitalMapChipBox(place.chipAt, place, L, text), {
     id,
     here,
     locked,
-    text,
-    size,
-    pad,
-    icon,
-    gap,
+    style,
     key: here ? 'room:' + id + ':play' : 'room:' + place.id
-  };
+  });
 }
 
-function hospitalMapMoon(place, L) {
-  if (!place.moonAt) return null;
-  return { x: place.moonAt.x, y: place.moonAt.y, r: clamp(13 * L.k, 13, 18) };
+// Her room's light switch: LIGHTS OUT goes to the night room, LIGHTS ON comes back.
+function hospitalMapLights(place, L) {
+  if (place.kind !== 'room' || !place.lightsAt) return null;
+  const night = state.room === 5,
+    chip = hospitalMapChip(place, L),
+    plate = hospitalMapPlate(place, L),
+    gap = 6 * L.k,
+    hits = (a, b) => !!b && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h,
+    // Macy stands at macyAt when she is in this room; the switch stays out of her way.
+    macy = place.macyAt && hospitalMapTile(state.room) === place.id ? place.macyAt.x - 14 * L.k : Infinity;
+  let box = hospitalMapChipBox(place.lightsAt, place, L, night ? HOSPITAL_MAP_COPY.lightsOn : HOSPITAL_MAP_COPY.lightsOut);
+  // Sharing a row with PLAY: step right of it, or up a row when the room is too narrow.
+  if (chip && hits(chip, { x: box.x - gap, y: box.y, w: box.w + gap * 2, h: box.h })) {
+    const right = chip.x + chip.w + gap;
+    if (right + box.w <= Math.min(place.inner.x + place.inner.w, macy)) box.x = right;
+    else box.y = chip.y - gap - box.h;
+  }
+  // The smallest phones have no row to spare: the switch keeps its moon (or bulb) and drops the
+  // words, beside PLAY.
+  if (hits(box, plate)) {
+    box = hospitalMapChipBox(place.lightsAt, place, L, '');
+    if (chip) {
+      box.y = chip.y;
+      box.x = Math.min(chip.x + chip.w + gap, place.inner.x + place.inner.w - box.w);
+    }
+  }
+  return Object.assign(box, { night, style: night ? 'lightsOn' : 'lightsOut', key: 'night' });
 }
 
 function hospitalMapTile(id) {
   return id === 5 ? 0 : id;
+}
+
+function hospitalMapKnocks() {
+  const s = state.stats;
+  return Math.max(0, Math.floor(Number(s && s.knocks) || 0));
 }
 
 // ---- Ensure storage ----
@@ -740,13 +1018,19 @@ function hospitalMapHit(x, y, w, h) {
   const L = hospitalMapLayout(w, h);
   if (hospitalMapStorageHit(L, x, y)) return { kind: 'storage' };
   for (const place of L.places) {
-    const moon = hospitalMapMoon(place, L);
-    if (moon && Math.hypot(x - moon.x, y - moon.y) <= moon.r + 6) return { kind: 'night' };
+    const lights = hospitalMapLights(place, L);
+    if (lights && hospitalMapInRect(lights, x, y, 4)) return { kind: 'night' };
   }
   for (const place of L.places) {
     const chip = hospitalMapChip(place, L);
-    if (!chip || !hospitalMapInRect(chip, x, y, 5)) continue;
+    if (!chip || !hospitalMapInRect(chip, x, y, 4)) continue;
     return chip.here ? { kind: 'room', id: chip.id, play: true } : { kind: 'room', id: place.id };
+  }
+  // A game's name (and its medal dots) opens its lobby, like PLAY.
+  for (const place of L.places) {
+    if (place.kind !== 'room' || !hospitalMapInRect(place.rect, x, y)) continue;
+    const plate = hospitalMapPlate(place, L);
+    for (const a of plate ? plate.arcades : []) if (hospitalMapInRect(a.rect, x, y)) return { kind: 'game', id: a.id };
   }
   if (hospitalMapInRect(L.daily, x, y, 4)) return { kind: 'daily' };
   if (hospitalMapInRect(L.exitZone, x, y)) return { kind: 'exit' };
@@ -754,6 +1038,7 @@ function hospitalMapHit(x, y, w, h) {
     if (!hospitalMapInRect(place.rect, x, y)) continue;
     if (place.kind === 'room') return { kind: 'room', id: place.id };
     if (place.kind === 'shop') return { kind: 'shop' };
+    if (place.kind === 'restroom') return { kind: 'restroom' };
     return null;
   }
   return null;
@@ -762,6 +1047,7 @@ function hospitalMapHit(x, y, w, h) {
 function hospitalMapKey(hit) {
   if (!hit) return '';
   if (hit.kind === 'room') return 'room:' + hit.id + (hit.play ? ':play' : '');
+  if (hit.kind === 'game') return 'game:' + hit.id;
   return hit.kind;
 }
 
@@ -772,7 +1058,8 @@ function hospitalMapHitFromKey(key) {
     if (parts[2] === 'play') hit.play = true;
     return hit;
   }
-  if (['night', 'shop', 'daily', 'exit', 'storage'].includes(parts[0])) return { kind: parts[0] };
+  if (parts[0] === 'game' && parts[1] !== undefined) return { kind: 'game', id: Number(parts[1]) };
+  if (['night', 'shop', 'daily', 'exit', 'storage', 'restroom'].includes(parts[0])) return { kind: parts[0] };
   return null;
 }
 
@@ -784,7 +1071,13 @@ function hospitalMapDraw(g, w, h) {
     base = hospitalMapBase(L);
   if (base) g.drawImage(base, 0, 0, L.w, L.h);
   else hospitalMapDrawBase(g, L);
-  hospitalMapDrawLive(g, L, t);
+  // Plates and chips measure with this context for the whole frame.
+  hospitalMapMeasureCtx = g;
+  try {
+    hospitalMapDrawLive(g, L, t);
+  } finally {
+    hospitalMapMeasureCtx = null;
+  }
   return L;
 }
 
@@ -820,7 +1113,8 @@ function hospitalMapDrawBase(g, L) {
     if (place.kind === 'lift') hospitalMapDrawLift(g, place, L);
   }
   hospitalMapDrawWalls(g, L);
-  for (const place of L.places) hospitalMapDrawDoor(g, place, L);
+  // The restroom door is drawn live: it rattles when someone knocks.
+  for (const place of L.places) if (place.kind !== 'restroom') hospitalMapDrawDoor(g, place, L);
 }
 
 function hospitalMapDrawBackdrop(g, L) {
@@ -1052,7 +1346,7 @@ function hospitalMapDrawWalls(g, L) {
 }
 
 // Swing doors drawn the floor-plan way: a leaf and its arc.
-function hospitalMapDrawDoor(g, place, L) {
+function hospitalMapDrawDoor(g, place, L, rattle = 0) {
   const d = place.door,
     k = L.k,
     ux = d.across ? 1 : 0,
@@ -1083,8 +1377,12 @@ function hospitalMapDrawDoor(g, place, L) {
   g.setLineDash([3 * k, 3 * k]);
   path(g, p => p.arc(hx, hy, len, a0, a1, diff < 0), null, '#2f556066', 1.2 * k);
   g.setLineDash([]);
-  line(g, [[hx, hy], [tx, ty]], '#41686f', 3.6 * k);
-  line(g, [[hx, hy], [tx, ty]], '#f6f0dc', 1.8 * k);
+  // rattle swings the leaf a little toward shut and back (radians).
+  const a = a0 + rattle * Math.sign(diff),
+    lx = rattle ? hx + Math.cos(a) * len : tx,
+    ly = rattle ? hy + Math.sin(a) * len : ty;
+  line(g, [[hx, hy], [lx, ly]], '#41686f', 3.6 * k);
+  line(g, [[hx, hy], [lx, ly]], '#f6f0dc', 1.8 * k);
 }
 
 function hospitalMapDrawLift(g, place, L) {
@@ -1267,7 +1565,9 @@ function hospitalMapDrawLive(g, L, t) {
     cur = state.room;
   hospitalMapDrawExit(g, L, t);
   if (cur === 5) hospitalMapDrawNight(g, L, t);
-  if (v.hover) hospitalMapHighlight(g, L, v.hover, v.press === v.hover ? 'press' : 'hover');
+  const onPlate = v.hover.startsWith('game:'),
+    mode = v.press === v.hover ? 'press' : 'hover';
+  if (v.hover && !onPlate) hospitalMapHighlight(g, L, v.hover, mode);
   const macyPlace = L.places.find(p => p.kind === 'room' && p.id === hospitalMapTile(cur)),
     macy = macyPlace ? macyPlace.macyAt : null;
   L.places.forEach((place, i) => {
@@ -1275,12 +1575,14 @@ function hospitalMapDrawLive(g, L, t) {
     const info = hospitalMapRoomState(place.id);
     if (info.locked) place.eyesAt.forEach((at, j) => hospitalMapEyes(g, at, L, t, i * 1.3 + j * 2.1, macy));
   });
+  for (const place of L.places) if (place.kind === 'restroom') hospitalMapDrawRestroomDoor(g, place, L, t);
   for (const place of L.places) hospitalMapDrawPlate(g, place, L, t);
+  if (onPlate) hospitalMapHighlight(g, L, v.hover, mode);
   for (const place of L.places) {
     const chip = hospitalMapChip(place, L);
     if (chip) hospitalMapDrawChip(g, chip, L, t);
-    const moon = hospitalMapMoon(place, L);
-    if (moon) hospitalMapDrawMoon(g, moon, L, t);
+    const lights = hospitalMapLights(place, L);
+    if (lights) hospitalMapDrawChip(g, lights, L, t);
   }
   hospitalMapDrawDaily(g, L, t);
   if (hospitalMapStorageShown()) hospitalMapDrawStorage(g, L);
@@ -1304,13 +1606,19 @@ function hospitalMapTargetShape(key, L) {
     const chip = hospitalMapChip(place, L);
     return chip ? { rect: chip, round: chip.h / 2, inset: -2 } : null;
   }
-  if (hit.kind === 'night') {
-    const place = L.places.find(p => p.moonAt),
-      m = place ? hospitalMapMoon(place, L) : null;
-    return m ? { rect: { x: m.x - m.r, y: m.y - m.r, w: m.r * 2, h: m.r * 2 }, round: m.r, inset: -3 } : null;
+  if (hit.kind === 'game') {
+    const place = L.places.find(p => p.kind === 'room' && p.id === hospitalMapTile(hit.id)),
+      plate = place ? hospitalMapPlate(place, L) : null,
+      a = plate ? plate.arcades.find(q => q.id === hit.id) : null;
+    return a ? { rect: a.rect, round: 6 * L.k, inset: 1 } : null;
   }
-  if (hit.kind === 'shop') {
-    const place = L.places.find(p => p.kind === 'shop');
+  if (hit.kind === 'night') {
+    const place = L.places.find(p => p.lightsAt),
+      c = place ? hospitalMapLights(place, L) : null;
+    return c ? { rect: c, round: c.h / 2, inset: -2 } : null;
+  }
+  if (hit.kind === 'shop' || hit.kind === 'restroom') {
+    const place = L.places.find(p => p.kind === hit.kind);
     return place ? { rect: place.rect, round: 6 * L.k, inset: L.wall / 2 } : null;
   }
   if (hit.kind === 'daily') return { rect: L.daily, round: 5 * L.k, inset: -4 };
@@ -1400,15 +1708,134 @@ function hospitalMapStar(g, x, y, r, fill, stroke) {
   );
 }
 
-const HOSPITAL_MAP_MEDAL_COLORS = ['#21414b14', '#d98f5c', '#b9cbd3', '#ffc93f'],
-  HOSPITAL_MAP_MEDAL_EDGES = ['#21414b40', '#8a4f2b', '#53707c', '#a27a12'];
+const HOSPITAL_MAP_MEDAL_COLORS = ['#21414b12', '#d98f5c', '#b9cbd3', '#ffc93f'],
+  HOSPITAL_MAP_MEDAL_EDGES = ['#21414b59', '#8a4f2b', '#53707c', '#a27a12'],
+  HOSPITAL_MAP_LEGEND_RING = '#d9a21f';
 
-function hospitalMapStars(g, x, y, R, medals) {
+// One dot per level, empty until medalled. Legendary's dot (level 4) wears a gold ring, faint
+// until the game has a Legendary level to win.
+function hospitalMapDots(g, x, cy, L, medals, legendary) {
+  const R = hospitalMapDotR(L);
   medals.forEach((m, i) => {
-    const sx = x + R + i * R * 2.5;
-    hospitalMapStar(g, sx, y, R, HOSPITAL_MAP_MEDAL_COLORS[m], HOSPITAL_MAP_MEDAL_EDGES[m]);
+    const cx = x + R + i * R * 2.8;
+    if (i === 3) path(g, p => p.arc(cx, cy, R + 1.9, 0, Math.PI * 2), null, legendary ? HOSPITAL_MAP_LEGEND_RING : HOSPITAL_MAP_LEGEND_RING + '66', 1.5);
+    path(g, p => p.arc(cx, cy, R, 0, Math.PI * 2), HOSPITAL_MAP_MEDAL_COLORS[m], HOSPITAL_MAP_MEDAL_EDGES[m], 1);
+    if (m === 3) ellipse(g, cx - R * 0.32, cy - R * 0.34, R * 0.32, R * 0.26, '#fff6d0');
   });
-  return R * 2.5 * 3;
+}
+
+// The glyph before a game's name: play, a padlock while the ward is locked, the moon for after dark.
+function hospitalMapGlyph(g, kind, cx, cy, size, muted) {
+  const s = size / 12;
+  if (kind === 'lock') return hospitalMapPadlock(g, cx, cy, s * 0.95, '#a3485f');
+  if (kind === 'moon') {
+    ellipse(g, cx, cy, 6 * s, 6 * s, '#22345a');
+    ellipse(g, cx - 0.4 * s, cy + 0.2 * s, 3.6 * s, 3.6 * s, '#ffe6a3');
+    ellipse(g, cx + 1.1 * s, cy - 0.9 * s, 3.1 * s, 3.1 * s, '#22345a');
+    return;
+  }
+  ellipse(g, cx, cy, 6 * s, 6 * s, muted ? '#c9a8a4' : '#e46a7a');
+  poly(g, [[cx - 1.9 * s, cy - 3.2 * s], [cx + 3.4 * s, cy], [cx - 1.9 * s, cy + 3.2 * s]], '#fff8ea');
+}
+
+function hospitalMapDrawPlate(g, place, L, t) {
+  const plate = hospitalMapPlate(place, L, g);
+  if (!plate) return;
+  const f = L.font,
+    k = L.k,
+    { x, y, w, h, pad } = plate,
+    R = hospitalMapDotR(L),
+    pipW = f.star * 1.9;
+  rr(g, x + 1.5 * k, y + 2.5 * k, w, h, 8 * k, '#0b1d2638');
+  rr(g, x, y, w, h, 8 * k, '#f8efd9f4', '#6f9c94', 1);
+  for (const row of plate.rows) {
+    const by = row.top + row.base,
+      cy = row.top + row.h / 2;
+    for (const it of row.items) {
+      const ix = x + pad + it.x,
+        a = it.arcade;
+      if (it.type === 'name') hospitalMapText(g, it.text, ix, by, f.name, '#21414b', 'left', it.w);
+      else if (it.type === 'tag' || it.type === 'sub') hospitalMapText(g, it.text, ix, by, f.sub, '#4f7a73', 'left', it.w);
+      else if (it.type === 'glyph') hospitalMapGlyph(g, a.glyph, ix + it.w / 2, by - f.sub * 0.36, f.sub, a.muted);
+      else if (it.type === 'game')
+        hospitalMapText(g, it.text, ix, by, f.sub, a.locked ? '#8a6a72' : a.muted ? '#6f8a85' : '#7a2f44', 'left', it.w);
+      else if (it.type === 'dots') {
+        const dy = row.base ? by - f.sub * 0.36 : cy;
+        hospitalMapDots(g, ix, dy, L, a.medals, a.legendary);
+      } else if (it.type === 'flames') {
+        const fy = (row.base ? by - f.sub * 0.36 : cy) + f.star * 1.05;
+        for (let n = 0; n < it.pips; n++) hospitalMapFlame(g, ix + pipW * (n + 0.5), fy, f.star / 5.2, t, n + place.id * 3);
+        if (it.extra) hospitalMapText(g, it.extra, ix + it.pips * pipW + 1, fy, f.sub, '#c2593a');
+      }
+    }
+  }
+}
+
+const HOSPITAL_MAP_CHIP_STYLES = {
+  play: { fill: '#ffda79', stroke: '#fff1c3', ink: '#17313a' },
+  locked: { fill: '#3a2c3c', stroke: '#ffa48e', ink: '#ffc4b4' },
+  go: { fill: '#17313a', stroke: '#6f9c94', ink: '#f8efd9' },
+  lightsOut: { fill: '#22345a', stroke: '#8fa6d0', ink: '#fff1c3' },
+  lightsOn: { fill: '#ffe6a3', stroke: '#fff8e0', ink: '#22345a' }
+};
+
+function hospitalMapDrawChip(g, chip, L, t) {
+  const k = L.k,
+    st = HOSPITAL_MAP_CHIP_STYLES[chip.style] || HOSPITAL_MAP_CHIP_STYLES.go,
+    play = chip.style === 'play',
+    pulse = play && !hospitalMapReduced() ? (Math.sin(t * 4) + 1) / 2 : 0,
+    cx = chip.x + chip.w / 2,
+    cy = chip.y + chip.h / 2;
+  if (play) glow(g, cx, cy, chip.w * 0.75, `rgba(255, 218, 121, ${0.22 + 0.22 * pulse})`);
+  if (chip.style === 'lightsOn') glow(g, cx, cy, chip.w * 0.7, '#ffe6a344');
+  rr(g, chip.x, chip.y + 2 * k, chip.w, chip.h, chip.h / 2, '#0b1d2655');
+  rr(g, chip.x, chip.y, chip.w, chip.h, chip.h / 2, st.fill, st.stroke, 1.2);
+  const ix = chip.x + chip.pad + chip.icon / 2,
+    s = chip.icon / 12;
+  if (chip.style === 'locked') hospitalMapPadlock(g, ix, cy, s, st.ink);
+  else if (play) poly(g, [[ix - 3.6 * s, cy - 4.8 * s], [ix + 4.8 * s, cy], [ix - 3.6 * s, cy + 4.8 * s]], st.ink);
+  else if (chip.style === 'lightsOut') {
+    ellipse(g, ix - 0.4 * s, cy, 5 * s, 5 * s, '#ffe6a3');
+    ellipse(g, ix + 1.8 * s, cy - 1.6 * s, 4.3 * s, 4.3 * s, st.fill);
+    spark(g, ix + 4.2 * s, cy + 3.4 * s, '#fff1c3', s * 0.18);
+  } else if (chip.style === 'lightsOn') {
+    ellipse(g, ix, cy - 1.2 * s, 4.4 * s, 4.4 * s, '#ffffff');
+    path(g, p => p.arc(ix, cy - 1.2 * s, 4.4 * s, 0, Math.PI * 2), null, '#c9902e', 1.1 * s);
+    rr(g, ix - 2.2 * s, cy + 2.8 * s, 4.4 * s, 3 * s, 1 * s, '#7d8b96');
+  } else {
+    // GO: an arrow out the door.
+    line(g, [[ix - 4.2 * s, cy], [ix + 3.6 * s, cy]], '#b5e8c5', 1.9 * s);
+    line(g, [[ix + 0.4 * s, cy - 3.4 * s], [ix + 4 * s, cy], [ix + 0.4 * s, cy + 3.4 * s]], '#b5e8c5', 1.9 * s);
+  }
+  if (chip.text) {
+    const tx = ix + chip.icon / 2 + chip.gap,
+      room = chip.x + chip.w - chip.pad - tx;
+    hospitalMapText(g, chip.text, tx, cy + chip.size * 0.36, chip.size, st.ink, 'left', room);
+  }
+}
+
+// The restroom door, live: a knock rattles it and leaves two little knock marks in the corridor.
+function hospitalMapDrawRestroomDoor(g, place, L, t) {
+  const v = hospitalMapView,
+    age = hospitalMapClock() - v.knockT,
+    live = age >= 0 && age < 0.55 && !hospitalMapReduced(),
+    fade = live ? 1 - age / 0.55 : 0,
+    rattle = live ? Math.sin(age * 46) * 0.2 * fade : 0;
+  hospitalMapDrawDoor(g, place, L, rattle);
+  if (!live) return;
+  const d = place.door,
+    k = L.k,
+    ox = d.x - d.nx * 10 * k,
+    oy = d.y - d.ny * 10 * k,
+    ux = d.across ? 1 : 0,
+    uy = d.across ? 0 : 1;
+  g.globalAlpha = fade;
+  for (const side of [-1, 1]) {
+    const mx = ox + ux * side * 7 * k,
+      my = oy + uy * side * 7 * k;
+    line(g, [[mx - d.nx * 3 * k, my - d.ny * 3 * k], [mx - d.nx * 7 * k, my - d.ny * 7 * k]], '#f8efd9', 1.8 * k);
+  }
+  g.globalAlpha = 1;
 }
 
 function hospitalMapFlame(g, x, y, s, t, seed) {
@@ -1433,117 +1860,10 @@ function hospitalMapFlame(g, x, y, s, t, seed) {
   );
 }
 
-function hospitalMapPlaceCopy(place) {
-  if (place.kind === 'room') {
-    const night = place.id === 0 && state.room === 5,
-      parts = String(rooms[night ? 5 : place.id].sub || '').split(' / ');
-    if (place.id === 0) {
-      const tail = night ? parts[1] || parts[0] : parts[0];
-      return { name: rooms[0].name, sub: HOSPITAL_MAP_COPY.home, subLong: tail ? HOSPITAL_MAP_COPY.home + ' · ' + tail : '' };
-    }
-    return { name: rooms[place.id].name, sub: parts[0], subLong: parts.length > 1 ? parts[0] + ' · ' + parts[1] : '' };
-  }
-  if (place.kind === 'station') return { name: HOSPITAL_MAP_COPY.station[0], sub: HOSPITAL_MAP_COPY.station[1] };
-  if (place.kind === 'restroom') return { name: HOSPITAL_MAP_COPY.restroom[0], sub: HOSPITAL_MAP_COPY.restroom[1] };
-  if (place.kind === 'shop') return { name: HOSPITAL_MAP_COPY.shop, sub: state.coins + ' COINS' };
-  return null;
-}
-
-function hospitalMapDrawPlate(g, place, L, t) {
-  const copy = hospitalMapPlaceCopy(place);
-  if (!copy) return;
-  const f = L.font,
-    pb = hospitalMapPlateBox(place, L),
-    pad = pb.pad,
-    k = L.k,
-    room = place.kind === 'room',
-    info = room ? hospitalMapRoomState(place.id) : null,
-    R = f.star,
-    starsW = room ? R * 2.5 * 3 - R * 0.5 : 0,
-    pips = pb.compact ? 3 : 5,
-    flames = info ? Math.min(info.grudge, pips) : 0,
-    extra = info && info.grudge > pips ? '+' + (info.grudge - pips) : '',
-    flameW = flames ? R * 0.8 + flames * R * 1.9 + (extra ? hospitalMapMeasure(g, extra, f.sub) + 2 : 0) : 0,
-    moon = hospitalMapMoon(place, L),
-    maxW = (moon ? moon.x - moon.r - 4 * k : place.inner.x + place.inner.w) - place.inner.x,
-    textMax = maxW - pad * 2,
-    nameW = Math.min(hospitalMapMeasure(g, copy.name, f.name), textMax);
-  let sub = copy.sub;
-  if (copy.subLong && hospitalMapMeasure(g, copy.subLong, f.sub) <= place.inner.w * 0.5) sub = copy.subLong;
-  const subW = Math.min(hospitalMapMeasure(g, sub, f.sub), textMax);
-  let w = pb.compact
-    ? Math.max(nameW + (starsW ? R + starsW : 0), subW + flameW)
-    : Math.max(nameW, subW, starsW + flameW);
-  w = Math.min(w + pad * 2, maxW);
-  const x = pb.x,
-    y = pb.y,
-    h = pb.h;
-  rr(g, x + 1.5 * k, y + 2.5 * k, w, h, 8 * k, '#0b1d2638');
-  rr(g, x, y, w, h, 8 * k, '#f8efd9f4', '#6f9c94', 1);
-  hospitalMapText(g, copy.name, x + pad, y + pb.row1, f.name, '#21414b', 'left', textMax);
-  hospitalMapText(g, sub, x + pad, y + pb.row2, f.sub, '#4f7a73', 'left', textMax);
-  if (!room) return;
-  const starY = pb.compact ? y + pb.row1 - f.name * 0.32 : y + pb.row3,
-    starX = pb.compact ? x + pad + nameW + R * 0.6 : x + pad,
-    drawn = hospitalMapStars(g, starX, starY, R, info.medals);
-  if (!flames) return;
-  const fy = pb.compact ? y + pb.row2 + 1 : starY + R * 1.05,
-    fx = pb.compact ? x + pad + subW + R * 1.4 : starX + drawn + R * 0.4;
-  for (let n = 0; n < flames; n++) hospitalMapFlame(g, fx + n * R * 1.9, fy, R / 5.2, t, n + place.id * 3);
-  if (extra) hospitalMapText(g, extra, fx + flames * R * 1.9 - R * 0.6, fy, f.sub, '#c2593a');
-}
-
-function hospitalMapDrawChip(g, chip, L, t) {
-  const k = L.k,
-    play = chip.here && !chip.locked,
-    pulse = play && !hospitalMapReduced() ? (Math.sin(t * 4) + 1) / 2 : 0,
-    cx = chip.x + chip.w / 2,
-    cy = chip.y + chip.h / 2;
-  if (play) glow(g, cx, cy, chip.w * 0.75, `rgba(255, 218, 121, ${0.22 + 0.22 * pulse})`);
-  rr(g, chip.x, chip.y + 2 * k, chip.w, chip.h, chip.h / 2, '#0b1d2655');
-  const fill = play ? '#ffda79' : chip.locked ? '#3a2c3c' : '#17313a',
-    stroke = play ? '#fff1c3' : chip.locked ? '#ffa48e' : '#6f9c94',
-    ink = play ? '#17313a' : chip.locked ? '#ffc4b4' : '#f8efd9';
-  rr(g, chip.x, chip.y, chip.w, chip.h, chip.h / 2, fill, stroke, 1.2);
-  const ix = chip.x + chip.pad + chip.icon / 2,
-    s = chip.icon / 12;
-  if (chip.locked) hospitalMapPadlock(g, ix, cy, s, ink);
-  else if (play) poly(g, [[ix - 3.6 * s, cy - 4.8 * s], [ix + 4.8 * s, cy], [ix - 3.6 * s, cy + 4.8 * s]], ink);
-  else {
-    rr(g, ix - 5 * s, cy + 1 * s, 10 * s, 4 * s, 2 * s, '#6f9c94');
-    line(g, [[ix, cy + 1.5 * s], [ix - 1.5 * s, cy - 3 * s]], '#b5e8c5', 1.6 * s);
-    ellipse(g, ix - 1.5 * s, cy - 3.6 * s, 2.4 * s, 2.4 * s, '#ffa48e');
-  }
-  if (chip.text) {
-    const tx = ix + chip.icon / 2 + chip.gap,
-      room = chip.x + chip.w - chip.pad - tx;
-    hospitalMapText(g, chip.text, tx, cy + chip.size * 0.36, chip.size, ink, 'left', room);
-  }
-}
-
 function hospitalMapPadlock(g, x, y, s, col) {
   path(g, p => p.arc(x, y - 1.6 * s, 3.2 * s, Math.PI, 0), null, col, 1.7 * s);
   rr(g, x - 4.8 * s, y - 1.8 * s, 9.6 * s, 7.4 * s, 1.8 * s, col);
   ellipse(g, x, y + 1.2 * s, 1.1 * s, 1.3 * s, '#3a2c3c');
-}
-
-function hospitalMapDrawMoon(g, m, L, t) {
-  const night = state.room === 5,
-    k = L.k,
-    face = night ? '#304d8a' : '#22345a';
-  if (night) glow(g, m.x, m.y, m.r * 2.6, '#ffe6a35a');
-  ellipse(g, m.x + 1 * k, m.y + 2 * k, m.r, m.r, '#0b1d2655');
-  ellipse(g, m.x, m.y, m.r, m.r, face);
-  path(g, p => p.arc(m.x, m.y, m.r, 0, Math.PI * 2), null, night ? '#ffe6a3' : '#8fa6d0', 1.4);
-  ellipse(g, m.x - m.r * 0.1, m.y + m.r * 0.04, m.r * 0.56, m.r * 0.56, '#ffe6a3');
-  ellipse(g, m.x + m.r * 0.16, m.y - m.r * 0.12, m.r * 0.5, m.r * 0.5, face);
-  spark(g, m.x + m.r * 0.5, m.y - m.r * 0.42, '#fff1c3', m.r / 55);
-  const medals = hospitalMapRoomState(5).medals,
-    R = L.font.star * 0.72,
-    sy = m.y + m.r + R * 1.6;
-  medals.forEach((md, i) => {
-    hospitalMapStar(g, m.x + (i - 1) * R * 2.3, sy, R, md ? HOSPITAL_MAP_MEDAL_COLORS[md] : '#0b1d2666', md ? '#21414b88' : '#8fa6d0aa');
-  });
 }
 
 function hospitalMapDrawDaily(g, L, t) {
@@ -1620,29 +1940,33 @@ function hospitalMapDrawExit(g, L, t) {
   }
 }
 
+// EXIT, or GO HOME once nothing is missing and Ralph is out.
 function hospitalMapDrawExitSign(g, L, t) {
   const s = L.sign,
     k = L.k,
     size = clamp(11 * k, 11, 14),
     pulse = hospitalMapReduced() ? 0.5 : (Math.sin(t * 3) + 1) / 2,
-    w = size * 4.1,
+    home = hospitalMapGoHome(),
+    text = home ? HOSPITAL_MAP_COPY.goHome : HOSPITAL_MAP_COPY.exit,
+    fit = L.axis === 'y' ? L.corridor.w - 6 * k : Infinity,
+    w = Math.min(fit, hospitalMapMeasure(g, text, size) + size * 1.75),
     h = size + 8,
     right = L.exit.side === 'r';
-  glow(g, s.x, s.y, 26 * k + 6 * pulse * k, `rgba(110, 255, 170, ${0.2 + 0.18 * pulse})`);
+  glow(g, s.x, s.y, (home ? 34 : 26) * k + 6 * pulse * k, `rgba(110, 255, 170, ${(home ? 0.3 : 0.2) + 0.18 * pulse})`);
   rr(g, s.x - w / 2, s.y - h / 2 + 2 * k, w, h, 4 * k, '#0b1d2655');
   rr(g, s.x - w / 2, s.y - h / 2, w, h, 4 * k, '#1e9c63', '#c9ffd9', 1.2);
-  hospitalMapText(g, HOSPITAL_MAP_COPY.exit, s.x - size * 0.45, s.y + size * 0.36, size, '#f2fff3', 'center');
+  hospitalMapText(g, text, s.x - size * 0.45, s.y + size * 0.36, size, '#f2fff3', 'center', w - size * 1.6);
   const ax = s.x + w / 2 - size * 0.6,
     a = size * 0.3;
   if (right) poly(g, [[ax - a, s.y - a], [ax + a, s.y], [ax - a, s.y + a]], '#f2fff3');
   else poly(g, [[ax - a, s.y - a], [ax + a, s.y - a], [ax, s.y + a]], '#f2fff3');
 }
 
-// The exit's status: stars to go, Ralph, or freedom.
+// The passport corner by the exit: stars against DISCHARGE_STARS, Ralph, or freedom.
 function hospitalMapBadge(g, L) {
   const b = L.badge,
     size = clamp(10.5 * L.k, 11, 13);
-  let text = stars() + '/12',
+  let text = stars() + '/' + DISCHARGE_STARS,
     fill = '#17313a',
     ink = '#ffda79',
     star = true;
@@ -1735,7 +2059,6 @@ function hospitalMapParty(g, L, t) {
 function hospitalMapMacy(g, at, L, t, place) {
   const k = L.k,
     phase = hospitalMapReduced() ? 0.4 : (t * 0.9) % 1,
-    size = clamp(9.5 * k, 11, 12),
     dir = place.door.nx < 0 || (place.door.across && at.x > place.rect.x + place.rect.w / 2) ? -1 : 1;
   ellipse(g, at.x, at.y, 17 * k, 6.4 * k, '#ffda7940');
   g.globalAlpha = 1 - phase;
@@ -1743,12 +2066,27 @@ function hospitalMapMacy(g, at, L, t, place) {
   g.globalAlpha = 1;
   path(g, p => p.ellipse(at.x, at.y, 14 * k, 5.4 * k, 0, 0, Math.PI * 2), null, '#ffe9b0', 1.4 * k);
   girl(g, at.x, at.y, 0.36 * k, 0, dir);
-  const tw = size * 2.2,
-    th = size + 6,
-    ty = at.y - 41 * k - th;
-  rr(g, at.x - tw / 2, ty, tw, th, th / 2, '#e46a7a', '#fff1c3', 1);
-  poly(g, [[at.x - 3, ty + th - 0.5], [at.x, ty + th + 4], [at.x + 3, ty + th - 0.5]], '#e46a7a');
-  hospitalMapText(g, HOSPITAL_MAP_COPY.you, at.x, ty + th / 2 + size * 0.36, size, '#fff8ea', 'center', tw - 4);
+  const tag = hospitalMapYouTag(at, L, place);
+  if (!tag) return;
+  rr(g, tag.x, tag.y, tag.w, tag.h, tag.h / 2, '#e46a7a', '#fff1c3', 1);
+  if (tag.side) poly(g, [[tag.x + tag.w - 0.5, tag.y + tag.h / 2 - 3], [tag.x + tag.w + 4, tag.y + tag.h / 2], [tag.x + tag.w - 0.5, tag.y + tag.h / 2 + 3]], '#e46a7a');
+  else poly(g, [[at.x - 3, tag.y + tag.h - 0.5], [at.x, tag.y + tag.h + 4], [at.x + 3, tag.y + tag.h - 0.5]], '#e46a7a');
+  hospitalMapText(g, HOSPITAL_MAP_COPY.you, tag.x + tag.w / 2, tag.y + tag.h / 2 + tag.size * 0.36, tag.size, '#fff8ea', 'center', tag.w - 4);
+}
+
+// The YOU tag over her head, or beside it when a chip is in the way, or none in a very tight room.
+function hospitalMapYouTag(at, L, place) {
+  const k = L.k,
+    size = clamp(9.5 * k, 11, 12),
+    w = size * 2.2,
+    h = size + 6,
+    chips = [hospitalMapChip(place, L), hospitalMapLights(place, L), hospitalMapPlate(place, L)].filter(Boolean),
+    hits = r => chips.some(c => r.x < c.x + c.w + 2 && c.x < r.x + r.w + 2 && r.y < c.y + c.h + 2 && c.y < r.y + r.h + 2),
+    above = { x: at.x - w / 2, y: at.y - 41 * k - h, w, h, size, side: false },
+    beside = { x: at.x - 9 * k - w - 4, y: at.y - 30 * k - h / 2, w, h, size, side: true };
+  if (!hits({ ...above, h: h + 4 })) return above;
+  if (!hits({ ...beside, w: w + 4 })) return beside;
+  return null;
 }
 
 function hospitalMapDrawNotice(g, L) {
@@ -1757,35 +2095,43 @@ function hospitalMapDrawNotice(g, L) {
   const left = v.noticeUntil - hospitalMapClock();
   if (left <= 0) return;
   const size = clamp(12 * L.k, 12, 15),
+    lead = size * 1.3,
     maxW = L.w - 24,
-    w = Math.min(maxW, hospitalMapMeasure(g, v.notice, size) + 30),
-    h = size * 2.3,
+    lines = hospitalMapWrap(g, v.notice, size, maxW - 30),
+    w = Math.min(maxW, Math.max(...lines.map(s => hospitalMapMeasure(g, s, size))) + 30),
+    h = size * 1.1 + lines.length * lead,
     x = L.w / 2 - w / 2,
     y = L.h - h - 12;
   g.globalAlpha = clamp(left / 0.4, 0, 1);
-  rr(g, x, y + 3, w, h, h / 2, '#0b1d2666');
-  rr(g, x, y, w, h, h / 2, '#f8efd9', '#17313a', 2);
-  hospitalMapText(g, v.notice, L.w / 2, y + h / 2 + size * 0.36, size, '#17313a', 'center', w - 24);
+  rr(g, x, y + 3, w, h, Math.min(h / 2, size * 1.2), '#0b1d2666');
+  rr(g, x, y, w, h, Math.min(h / 2, size * 1.2), '#f8efd9', '#17313a', 2);
+  lines.forEach((s, i) =>
+    hospitalMapText(g, s, L.w / 2, y + h / 2 + (i - (lines.length - 1) / 2) * lead + size * 0.36, size, '#17313a', 'center', w - 24)
+  );
   g.globalAlpha = 1;
 }
 
+// A notice stays long enough to read: longer lines (the exit's list) stay longer.
 function hospitalMapNotice(text) {
   hospitalMapView.notice = text;
-  hospitalMapView.noticeUntil = hospitalMapClock() + 2.8;
+  hospitalMapView.noticeUntil = hospitalMapClock() + clamp(2.8 + (String(text).length - 40) * 0.045, 2.8, 7.5);
   hospitalMapInvalidate();
 }
 
 // ---- Actions ----
 function hospitalMapActivate(hit) {
   if (!hit) return false;
+  if (hit.kind === 'restroom') return hospitalMapKnock();
   hospitalMapSfx('ui');
+  if (hit.kind === 'game') return hospitalMapPlay(hit.id);
   if (hit.kind === 'room' && hit.play) return hospitalMapPlay(hit.id);
   if (hit.kind === 'room') {
     if (typeof goRoom === 'function') goRoom(hit.id);
     return true;
   }
+  // LIGHTS OUT: her room after dark. LIGHTS ON: back to her room.
   if (hit.kind === 'night') {
-    if (typeof goRoom === 'function') goRoom(5);
+    if (typeof goRoom === 'function') goRoom(state.room === 5 ? 0 : 5);
     return true;
   }
   if (hit.kind === 'shop') {
@@ -1817,50 +2163,102 @@ function hospitalMapPlay(id) {
   return ok;
 }
 
-// The exit only acts when the passport is complete; otherwise it explains itself.
+// The exit explains itself with dischargeMissing(), word for word. A complete passport (Ralph aside)
+// asks checkDischarge; once she is discharged, GO HOME hands over to the send-off (src/discharge.js).
 function hospitalMapExit() {
-  if (!hospitalMapDischargeReady() || typeof checkDischarge !== 'function') {
-    hospitalMapNotice(hospitalMapExitLine());
+  if (state.won) {
+    if (typeof dischargeStart === 'function') {
+      const d = typeof document !== 'undefined' && document.getElementById ? document.getElementById('mapDialog') : null;
+      if (d && d.open && typeof d.close === 'function') d.close();
+      dischargeStart();
+      return true;
+    }
+    hospitalMapNotice(HOSPITAL_MAP_COPY.won);
     return false;
   }
-  const before = state.ralphReady;
-  checkDischarge();
-  if (!state.won) hospitalMapNotice(before ? HOSPITAL_MAP_COPY.ralph : HOSPITAL_MAP_COPY.ralphNew);
+  if (hospitalMapDischargeReady() && typeof checkDischarge === 'function') {
+    const before = state.ralphReady;
+    checkDischarge();
+    if (!state.won) hospitalMapNotice(before ? hospitalMapExitLine() : HOSPITAL_MAP_COPY.ralphNew);
+    return true;
+  }
+  hospitalMapNotice(hospitalMapExitLine());
+  return false;
+}
+
+// Knock on the restroom: knock-knock, the door rattles, and the deck answers with its next line.
+// The tenth knock in a save gets the payoff; state.stats.knocks keeps count for the stickers module.
+function hospitalMapKnock() {
+  const v = hospitalMapView,
+    stats = (state.stats ||= {}),
+    n = hospitalMapKnocks() + 1,
+    at = HOSPITAL_MAP_KNOCK_PAYOFF_AT,
+    deck = HOSPITAL_MAP_KNOCKS,
+    now = hospitalMapClock();
+  stats.knocks = n;
+  if (typeof save === 'function') save();
+  v.knockT = now;
+  v.knockQueue = [{ at: now + 0.17, name: 'pump' }];
+  if (n === at) v.knockQueue.push({ at: now + 0.55, name: 'unlock' });
+  hospitalMapSfx('pump');
+  hospitalMapNotice(n === at ? HOSPITAL_MAP_KNOCK_PAYOFF : deck[(n - 1 - (n > at ? 1 : 0)) % deck.length]);
   return true;
+}
+
+// The second knock (and the payoff's unlock) land on the map's own clock. Stale ones are dropped.
+function hospitalMapSoundTick() {
+  const v = hospitalMapView,
+    now = hospitalMapClock();
+  while (v.knockQueue.length && now >= v.knockQueue[0].at) {
+    const due = v.knockQueue.shift();
+    if (now - due.at < 0.5) hospitalMapSfx(due.name);
+  }
 }
 
 // ---- Accessible button list ----
 function hospitalMapMedalWords(id) {
   const names = ['none', 'bronze', 'silver', 'gold'];
   return hospitalMapRoomState(id)
-    .medals.map((m, i) => `level ${i + 1} ${names[m]}`)
+    .medals.map((m, i) => `${i === 3 ? 'Legendary' : 'level ' + (i + 1)} ${names[m]}`)
     .join(', ');
 }
 
 function hospitalMapTargets() {
   const out = [],
-    cur = state.room;
+    cur = state.room,
+    arcadeIds = [];
   for (const r of rooms) {
-    if (r.noArcade) continue;
-    if (r.id === 5) continue;
+    if (r.noArcade || r.id === 5 || r.id >= ARCADE_COUNT) continue;
     const info = hospitalMapRoomState(r.id);
-    let text = `${r.name}${r.id === 0 ? ' (Room 5)' : ''}: ${hospitalMapGame(r.id)}.`;
+    let text = r.id === 0 ? `${r.name} (Room 5).` : `${r.name}.`;
     if (info.here) text += cur === 5 ? ' You are here, after dark.' : ' You are here.';
-    if (info.locked) text += ' Arcade locked until the gremlins are cleared.';
-    else if (info.grudge) text += ` Grudge level ${info.grudge}.`;
-    out.push({ key: 'room:' + r.id, label: `${text} Medals: ${hospitalMapMedalWords(r.id)}.` });
+    if (info.grudge) text += ` Grudge level ${info.grudge}.`;
+    out.push({ key: 'room:' + r.id, label: `${text} Go there.` });
+    arcadeIds.push(r.id);
+    if (r.id === 0 && rooms[5]) arcadeIds.push(5);
   }
-  out.push({ key: 'night', label: `Your room after dark: ${hospitalMapGame(5)}. Medals: ${hospitalMapMedalWords(5)}.` });
-  const lockedHere = hospitalMapLocked(cur);
+  for (const id of arcadeIds) {
+    const info = hospitalMapRoomState(id);
+    out.push({
+      key: 'game:' + id,
+      label:
+        `Play ${hospitalMapGame(id)} (${rooms[id].name}).` +
+        `${info.locked ? ' Locked until the gremlins are cleared.' : ''} Medals: ${hospitalMapMedalWords(id)}.`
+    });
+  }
   out.push({
-    key: 'room:' + cur + ':play',
-    label: `Play ${hospitalMapGame(cur)} here${lockedHere ? '. Locked until the gremlins are cleared.' : '.'}`
+    key: 'night',
+    label: cur === 5 ? `Lights on: back to ${rooms[0].name}.` : `Lights out: ${rooms[5].name}, ${hospitalMapGame(5)}.`
   });
   const pick = hospitalMapDailyPick();
   if (pick) out.push({ key: 'daily', label: `Daily Dose: ${hospitalMapGame(pick.id)}, level ${pick.tier + 1}.` });
   out.push({ key: 'shop', label: `Gift shop. ${state.coins} coins to spend.` });
+  out.push({ key: 'restroom', label: 'Restroom. Occupied. Knock anyway.' });
   if (hospitalMapEnsureN() >= HOSPITAL_MAP_STORAGE_LIST_AT) out.push({ key: 'storage', label: HOSPITAL_MAP_COPY.storageList });
-  out.push({ key: 'exit', label: `Discharge exit. ${hospitalMapDischargeReady() ? 'Ready.' : hospitalMapExitLine()}` });
+  out.push({
+    key: 'exit',
+    label: `Discharge exit. ${hospitalMapGoHome() ? 'Go home.' : hospitalMapDischargeReady() ? 'Ready.' : hospitalMapExitLine()}`
+  });
   return out;
 }
 
@@ -1966,9 +2364,12 @@ function hospitalMapTick(now) {
     return;
   }
   v.wait = 0;
+  hospitalMapSoundTick();
   if (v.dirty || now - v.last >= 1000 / 30 - 2) {
     v.last = now;
-    hospitalMapRender(!hospitalMapReduced());
+    // Reduced motion draws only on change, but a notice still has to go away on time.
+    const fading = v.notice && v.noticeUntil > hospitalMapClock() - 0.5;
+    hospitalMapRender(!hospitalMapReduced() || fading);
   }
   v.raf = requestAnimationFrame(hospitalMapTick) || 0;
 }
