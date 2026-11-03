@@ -124,7 +124,7 @@ assert.equal(copy0.name, 'Your room');
 assert.equal(copy0.tag, 'ROOM 10');
 assert.deepEqual(copy0.arcades.map(a => [a.id, a.text, a.glyph]), [
   [0, 'Fastpitch Fever', 'play'],
-  [5, 'Bedside Blaster · after dark', 'moon']
+  [5, 'Bedside Blaster · lights out', 'moon']
 ]);
 assert.deepEqual(copy0.arcades.map(a => a.medals.length), [4, 4], 'four medal dots each (TIER_COUNT)');
 assert.equal(run('TIER_COUNT'), 4);
@@ -135,7 +135,7 @@ assert.deepEqual(
 );
 run('state.room = 5');
 const copy5 = J('hospitalMapPlaceCopy(hospitalMapLayout(900, 560).places.find(p => p.id === 0))');
-assert.equal(copy5.name, 'Your room · after dark', 'after dark, the plate takes the night name');
+assert.equal(copy5.name, 'Your room · lights out', 'lights out, the plate takes the night name');
 assert.equal(copy5.nameShort, 'Your room', 'and shortens to the day name where it does not fit');
 assert.deepEqual(copy5.arcades.map(a => a.current), [false, true], 'the night line is the one in play');
 run('state.room = 0');
@@ -151,7 +151,7 @@ for (const [w, h, kind] of ALL_SIZES) {
       const first = id === 5 ? 'Bedside Blaster' : game;
       assert.ok(texts.some(t => t.startsWith(first.split(' ')[0])) && all.includes(first.split(' ').pop()), `${kind} ${w}x${h} (room ${room}) names ${game}`);
     }
-    assert.ok(all.includes('after dark'), `${kind} ${w}x${h}: the night arcade says after dark`);
+    assert.ok(all.includes('lights out'), `${kind} ${w}x${h}: the night arcade says lights out`);
     const plates = J(`(() => {
       const L = hospitalMapLayout(${w}, ${h});
       return L.places.filter(p => p.kind === 'room').map(p => {
@@ -167,7 +167,7 @@ for (const [w, h, kind] of ALL_SIZES) {
   }
 }
 run('state.room = 0');
-console.log('PASS: every plate names its arcade (her room both, the night one after dark) with four medal dots, in every layout.');
+console.log('PASS: every plate names its arcade (her room both, the night one lights out) with four medal dots, in every layout.');
 
 // The dots: bronze, silver and gold fill in; Legendary's dot wears a gold ring, faint until the game
 // has a Legendary level.
@@ -393,8 +393,8 @@ const KEYS = ['room:0', 'room:1', 'room:2', 'room:3', 'room:4', 'game:0', 'game:
 const list = run('hmList.innerHTML');
 for (const key of KEYS) assert.ok(list.includes(`data-hmap="${key}"`), `hidden list has ${key}`);
 assert.equal((list.match(/aria-label="/g) || []).length, KEYS.length, 'every hidden button has an aria-label');
-assert.match(list, /Play Bedside Blaster \(Your room · after dark\)\. Medals: level 1 none, level 2 none, level 3 none, Legendary none\./);
-assert.match(list, /Lights out: Your room · after dark, Bedside Blaster\./);
+assert.match(list, /Play Bedside Blaster \(Your room · lights out\)\. Medals: level 1 none, level 2 none, level 3 none, Legendary none\./);
+assert.match(list, /Lights out: Your room · lights out, Bedside Blaster\./);
 assert.ok(!list.includes('data-room'), 'hidden buttons do not trigger the old grid handler');
 assert.ok(run('mountHospitalMap(hmEl) === hmCanvas'), 'a second mount reuses the canvas');
 // The harness's plain mapGrid node works too, which is what renderMap will hand over.
@@ -512,12 +512,15 @@ assert.equal(run('hospitalMapView.notice'), 'The exit still wants: Ralph evicted
 run('state.ralph = true');
 assert.equal(run('hospitalMapGoHome()'), true, 'nothing missing and Ralph out reads GO HOME');
 run('state.won = true');
+// The real send-off (src/discharge.js) is in the build; hide it to see the plain line, then stub it.
+run('var hmRealSendOff = dischargeStart; dischargeStart = undefined');
 run(tapExit);
 assert.deepEqual(calls(), [], 'discharged: no more checks');
 assert.equal(run('hospitalMapView.notice'), run('HOSPITAL_MAP_COPY.won'), 'without a send-off it says so');
 run(`var hmSendOff = 0; dischargeStart = () => hmSendOff++; $('mapDialog').open = true;`);
 run(tapExit);
 assert.equal(run('hmSendOff'), 1, 'GO HOME starts the send-off');
+run('dischargeStart = hmRealSendOff');
 assert.equal(run("$('mapDialog').open"), false, 'and closes the map first');
 run('delete globalThis.dischargeStart; state.won = false; state.ralph = false; state.ralphReady = false; state.medals = Array.from({ length: 6 }, () => [0, 0, 0, 0])');
 console.log('PASS: the exit lists exactly what dischargeMissing() says, then reads GO HOME and starts the send-off.');

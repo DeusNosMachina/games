@@ -1193,7 +1193,7 @@ const ROOM_TVS = {
     2: { x: 425, y: 22, w: 191, h: 101 },
     4: { x: 535, y: 24, w: 155, h: 91 }
   },
-  ROOM_SIGN = { title: 'MACY · ROOM 5', floor: '7TH FLOOR', sub: 'GREMLINS NOT FOUND' },
+  ROOM_SIGN = { title: 'MACY · ROOM 10', floor: '7TH FLOOR', sub: 'GREMLINS NOT FOUND' },
   WALL_BOARD = { x: 86, y: 66, w: 162, h: 62 },
   ROOM_DOOR_GLASS = { x: 928, y: 50, w: 27, h: 37 },
   ROOM_SHAFT = [[365, 155], [590, 155], [730, 462], [477, 462]],

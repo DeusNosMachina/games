@@ -1650,7 +1650,7 @@ function blasterFarFront(g) {
     2
   );
   rr(g, 1205, 110, 60, 46, 4, '#16303f');
-  label(g, 'ROOM 5', 1235, 182, 10, '#9bb7c4', 'center');
+  label(g, 'ROOM 10', 1235, 182, 10, '#9bb7c4', 'center');
   ellipse(g, 1278, 210, 5, 5, '#c7d3c0');
   rect(g, 1180, 333, 130, 3, '#bfe7d866');
 }

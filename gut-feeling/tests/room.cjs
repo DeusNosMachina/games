@@ -287,7 +287,7 @@ for (const [h, part] of Object.entries(hours)) {
 run('drawTitleArt(c, 1280, 820, 3, false); drawTitleArt(c, 390, 844, 3, true); drawTitleArt(c, 1920, 1080, 1, false)');
 assert.equal(run('TITLE_HOSPITAL'), 'VALLEY HOSPITAL');
 assert.equal(run('TITLE_FLOORS - TITLE_MACY_FLOOR'), 1, 'Macy is on the 7th of 8 floors');
-assert.equal(run('ROOM_SIGN.title + " · " + ROOM_SIGN.floor'), 'MACY · ROOM 5 · 7TH FLOOR');
+assert.equal(run('ROOM_SIGN.title + " · " + ROOM_SIGN.floor'), 'MACY · ROOM 10 · 7TH FLOOR');
 assert.equal(run('ROOM_SIGN.sub'), 'GREMLINS NOT FOUND');
 for (const n of [22, 7, 10, 99, 0]) run(`state.jersey = ${n}; girl(c, 0, 0); titleSilhouette(c, 0, 0, 60, 40)`);
 run('state.jersey = 22');

@@ -311,7 +311,7 @@ const HOSPITAL_MAP_COPY = {
   // Macy's room is Room 10: its plate says so next to the name when there is room.
   home: 'ROOM 10',
   // Her room's second arcade line, under the moon.
-  night: ' · after dark',
+  night: ' · lights out',
   lightsOut: 'LIGHTS OUT',
   lightsOn: 'LIGHTS ON',
   play: 'PLAY',
@@ -2231,7 +2231,7 @@ function hospitalMapTargets() {
     if (r.noArcade || r.id === 5 || r.id >= ARCADE_COUNT) continue;
     const info = hospitalMapRoomState(r.id);
     let text = r.id === 0 ? `${r.name} (Room 10).` : `${r.name}.`;
-    if (info.here) text += cur === 5 ? ' You are here, after dark.' : ' You are here.';
+    if (info.here) text += cur === 5 ? ' You are here, lights out.' : ' You are here.';
     if (info.grudge) text += ` Grudge level ${info.grudge}.`;
     out.push({ key: 'room:' + r.id, label: `${text} Go there.` });
     arcadeIds.push(r.id);

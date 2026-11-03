@@ -17,7 +17,7 @@ Six arcade games with three levels each, a ward that fights back properly, a bos
 | Family lounge | **Brick Rebellion** | Paddle breakout with a hospital lunch tray. Slide anywhere to move it, tap to serve, and land the softball on the tray's edges to send it wide. Three racks per level: pink bricks chain-react, gold stars drop pills (wide tray, multiball, sticky catch, pillow ammo, nap; green goo shrinks the tray), and the pillow cannon snipes stragglers. Level 2 adds steel, hopping gremlins, nurse calls and a creeping rack; level 3 is faster and ends at Ralph's fortress. |
 | CT | **Gurney Grand Prix** | A pseudo-3D race: steer a gurney through curves, hills and CT donut tunnels against gremlin gurneys, med carts, a runaway IV and Barb. Donut gates add time; finish top three. Level 2 adds S-bends and traffic; level 3 adds night, heavy traffic and Ralph blocking on a motorized bed. |
 | Ultrasound | **Gel Yeah!** | Swipe gel gremlins as they hop up the sonar screen, in bursts with a breath between. Three or more in one stroke is a combo (big ones get slow motion and a zoom) and combos pull the tempo up, gold starts a frenzy, and every level ends on a jumbo gel you scribble on. Level 1 is just slicing, slow to start, with two lone bombs; level 2 adds splitters, helmets and bombs one at a time; level 3 adds laughing gas that fogs the screen, with both hiding in the lineup; Legendary is all of it, fast, on a short clock. |
-| Your room, after dark | **Bedside Blaster** | Tap to shoot, drag to look, hold to charge a piercing shot. Crawlers, bedpan helmets, bruisers and pouncers hide behind furniture and leap at your face. Active reloads reward timing, juice bottles refill charges, and level 3 ends with Ralph Jr. |
+| Your room, lights out | **Bedside Blaster** | Tap to shoot, drag to look, hold to charge a piercing shot. Crawlers, bedpan helmets, bruisers and pouncers hide behind furniture and leap at your face. Active reloads reward timing, juice bottles refill charges, and level 3 ends with Ralph Jr. |
 
 **Drip or Die** is no longer an arcade. It is the recovery: zero hearts puts Macy in bed for one round, at the level of the game that flattened her (Legendary included), and a coin flip picks which: prime the pump (tap when the line crosses mint) or hold the pressure (hold to pump, keep the needle in a band that jumps while she coughs and hiccups). Three strikes is still the staged cartoon explosion. Pop and you can try again (same round, same level) or get patched up for 15% of your coins; either way you are back in the ward with a heart. No run is a dead end.
 
@@ -31,7 +31,9 @@ The map is a drawn floor plan of the seventh floor of Valley Hospital in Paramus
 
 ## The ward fights back
 
-Four departments have gremlins. Each has three waves, and the first wave of your first visit is a teaching wave with hints. Clear a ward once to unlock its arcade. Clear it again and Ralph's grudge rises: more gremlins, faster, bigger payout. Fights persist if you leave mid-wave, and a cleared room stays calm when you come back.
+Four departments have gremlins. Each has three waves, and the first wave of your first visit is a teaching wave with hints. Clear a ward once to unlock its arcade. A cleared room stays cleared, through the map, the hallway, an arcade, a pause and a reload, until you press REMATCH (two presses in the ward strip, one in the pause menu); then Ralph's grudge rises: more gremlins, faster, bigger payout. A fight you leave mid-wave remembers who was still standing.
+
+Each department has its own twist, taught once. The MRI's magnet pulls every 13 seconds after a warning: bruisers fly into the bore by their helmets and three loose bedpans bowl whatever they cross (kick one into line). The lounge has a remote on the couch: hit it and the TV flips to the cat cam, and every gremlin in front of the screen zones out for a few seconds. The CT's Donut II rolls through the lit lane every 12 seconds and bowls gremlins and Macy alike unless she jumps or shields. The ultrasound floor has gel puddles that make everyone slide, knocks skid into walls, and charges overshoot.
 
 Hitting a gremlin staggers it. Stuns come only from the third hit of a combo, the spin, a brick, a stomp or a trap, so mashing one button no longer works. Hit a gremlin twice in a row and it hops out of reach, angry.
 
@@ -45,34 +47,36 @@ First clears are paced: waves 2 and 3 keep at most three gremlins up at once (fo
 - **Split peas** split on the first hit and re-merge if you leave the halves alone for four seconds.
 - **Hurlers** lob gunk bricks that leave sticky puddles. They show up from wave 2 in later rooms.
 
-| Weapon | Primary attack | Ability (E) |
+| Action | What it does | Supply |
 | --- | --- | --- |
-| Pillow | Three-hit combo, deflects blobs | Spin |
-| Barf bag | Ranged throw that bounces once | Shield |
-| Brick | Lob with an area burst, stuns bruisers | Trap |
-
-Jump over low attacks; swing in the air to stomp on landing. Dash through a gremlin mid-wind-up to cancel its attack.
+| SWING | The pillow: a three-hit combo, deflects blobs; hold to keep swinging, and the third swing of a held run spins | always |
+| JUMP | Over low attacks; swing in the air to stomp on landing | always |
+| DASH | Through a gremlin mid-wind-up to cancel its attack | always |
+| SHIELD | The barf-bag bubble, up while held: nothing gets through, and she cannot swing from inside; a 2.5 s meter that refills | always |
+| BRICK | A lob that auto-leads the nearest gremlin and lands a stunning burst | 3 per fight, plus one glinting on the floor each wave to pick up (carry 5) |
+| TRAP | Stuns whatever steps on it within 30 s | 1 per wave |
 
 **Ralph** waits in your room once your passport is complete. Phase 1 is a spit barrage you deflect back at him. Phase 2 is charges that leave him dizzy when he hits the bed, plus minions. Phase 3 is leaping slams that shake the room. Beat him to get discharged.
 
 ## Phone, tablet and desktop controls
 
-On phones and tablets the joystick scheme is the default: a joystick bottom left, a big smashable SWING / THROW / LOB button bottom right with JUMP beside it, DASH and the ability around them, EAT with its count above, and the weapon strip top right. In landscape the room fills the screen and the controls float over it; in portrait they sit under the room, and a phone held upright gets a one-time "turn your phone sideways" pill. "Tap the room" (the floor is the controller) is one switch away in the pause menu or the settings, and a chosen scheme is kept.
+On phones and tablets the joystick scheme is the default: a joystick bottom left and an action cluster bottom right, SWING in the corner with JUMP beside it, DASH and SHIELD in the first ring above, BRICK and TRAP in the outer ring, EAT on top. In landscape the room fills the screen and the controls float over it; in portrait they sit under the room, and a phone held upright gets a one-time "turn your phone sideways" pill. "Tap the room" (the floor is the controller) is one switch away in the pause menu or the settings, and a chosen scheme is kept.
 
 | Action | Joystick scheme | Tap the room | Keyboard |
 | --- | --- | --- | --- |
 | Move | Left joystick | Tap the floor; drag to steer | WASD / arrows |
-| Attack | SWING / THROW / LOB; hold to repeat, drag to aim | Tap a gremlin (hold to keep swinging) | Space |
+| Swing | SWING; hold to repeat, drag to aim | Tap a gremlin (hold to keep swinging) | Space |
 | Jump | JUMP | Two-finger tap, or JUMP | Shift / J |
 | Dash | DASH | Flick | Q |
-| Ability | SPIN / SHIELD / TRAP | Long-press the floor, or the ability button | E |
-| Equip | Swipe sideways across SWING, or the weapon strip | Weapon strip | 1 / 2 / 3, C for the next one |
+| Shield | Hold SHIELD | Long-press the floor, or hold SHIELD | Hold R |
+| Brick | BRICK (shows how many you carry) | BRICK | B |
+| Trap | TRAP (shows the charge) | TRAP | E |
 | Nutrient | EAT (shows how many you carry) | EAT | F |
 | Map | Map button | Map button | M |
 | Nearby arcade | Play button, or tap the beacon | Same | Enter |
 | Pause | Pause button | Pause button | Escape |
 
-Every touch button acts the moment your finger lands, so JUMP works with a thumb on the joystick. The attack button is 104 px on a phone and 128 on a tablet; a sideways swipe across it of 40 px within a third of a second changes weapons (the canvas flashes the new one), a slow or vertical drag aims.
+Every touch button acts the moment your finger lands, so JUMP, BRICK and TRAP work with a thumb on the joystick, and SHIELD tracks its own finger. SWING is 96 to 128 px depending on the screen; a drag on it aims.
 
 Fullscreen ("arcade mode") pins the game to the screen, and phones and tablets enter it when you press START. iPad Safari uses the real fullscreen API; iPhones use a CSS fallback because Safari has none for pages. Tablets get bigger buttons, and the lobby and results use the width.
 
@@ -101,7 +105,7 @@ Nutrients restore one heart and go in the pocket (three, or five with Pocket sna
 
 ## Her room, and the rest of the hospital
 
-Macy is 5'10", wears 22, and stands around when you leave her alone: she looks about, fixes her scrunchie, bounces a volleyball. Her room has the LEGO water lilies on the sill, the LEGO Jaguar E-Type on the cabinet, a window on Paramus that follows the real clock, and a 75-inch TV with a cat cam (Addie asleep, Stella grooming, Pepper attacking the hand that feeds her), a Rams game, a get-well slideshow and, after dark, the 3 AM channel that should not exist. Every machine on the floor has opinions and one of them is Employee of the Month each day.
+A light switch on the wall between the get-well board and the monitor turns her room into the night room and back (Bedside Blaster lives there). Macy is 5'10", wears 22, and stands around when you leave her alone: she looks about, fixes her scrunchie, bounces a volleyball. Her room has the LEGO water lilies on the sill, the LEGO Jaguar E-Type on the cabinet, a window on Paramus that follows the real clock, and a 75-inch TV with a cat cam (Addie asleep, Stella grooming, Pepper attacking the hand that feeds her), a Rams game, a get-well slideshow and, after dark, the 3 AM channel that should not exist. Every machine on the floor has opinions and one of them is Employee of the Month each day.
 
 Refuse Barb's Ensure often enough and the hospital fills with it: bottles in rows, a storage closet on the map you are not to ask about, gremlins carrying bottles as shields, a cafeteria renamed The Ensure Experience, and finally one bottle that reads FINE. YOU WIN. on a pedestal in her room.
 
