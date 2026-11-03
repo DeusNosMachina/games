@@ -7,8 +7,9 @@
 // never aims. The bots win everything by design; this says whether a person can.
 // Usage from the repository root (reaction s, trials, prescription 0-2):
 //   node gut-feeling/tests/tools/magnet-human.cjs 0.25 30 1
-// Target: at 0.25 s level 1 nearly always, level 2 most of the time, level 3 sometimes; a 0.35 s
-// player still clears level 1. ONLY=0 runs one level.
+// Target: at 0.25 s level 1 nearly always, level 2 most of the time, level 3 sometimes, Legendary
+// (level 4) about one run in four; a 0.35 s player still clears level 1. It also counts heaves (the
+// Barf-o-meter filling): a level 1 run should usually see one. ONLY=0 runs one level.
 const {run,close}=require('../harness.cjs');
 const REACT=+process.argv[2]||0.25, TRIALS=+process.argv[3]||30, DIFF=process.argv[4]!==undefined?+process.argv[4]:1, ONLY=process.env.ONLY;
 run('var rng=1;Math.random=()=>{rng=(rng*1664525+1013904223)>>>0;return rng/4294967296}');
@@ -57,15 +58,15 @@ function humanStep(REACT){
     }
   }
 }`);
-for (const tier of (ONLY?[+ONLY]:[0,1,2])) {
+for (const tier of (ONLY?[+ONLY]:[...Array(run('miniTierCount(games[1])')).keys()])) {
   const runs=[];
   for (let trial=0;trial<TRIALS;trial++){
     close();
     run(`rng=${1000+trial*7919};humanReset(${77+trial*131});state.difficulty=${DIFF};openMini(1);mini.tier=${tier};startMini();launchMini();updateMini(3.3)`);
     const r=JSON.parse(run(`(()=>{let n=0;while(mini.screen==='play'&&n++<60000){humanStep(${REACT});updateMini(1/60)}
-      return JSON.stringify({win:!!(mini.pendingFinish&&mini.pendingFinish.win),got:mini.got,goal:mini.goal,t:mini.total,drains:mini.pinDrains,score:mini.score,ramps:mini.pinRamps,saves:mini.pinMagSaves,uses:mini.pinMagUses})})()`));
+      return JSON.stringify({win:!!(mini.pendingFinish&&mini.pendingFinish.win),got:mini.got,goal:mini.goal,t:mini.total,drains:mini.pinDrains,score:mini.score,ramps:mini.pinRamps,saves:mini.pinMagSaves,uses:mini.pinMagUses,heaves:mini.pinHeaves,barf:mini.pinBarf})})()`));
     runs.push(r);
   }
   const won=runs.filter(r=>r.win).length,avg=k=>(runs.reduce((a,r)=>a+r[k],0)/runs.length).toFixed(1);
-  console.log('L'+(tier+1),'P'+DIFF,'react',REACT,'won',won,'/',runs.length,'avg evicted',avg('got'),'of',runs[0].goal,'avg s',avg('t'),'drains',avg('drains'),'score',avg('score'),'scans',avg('ramps'),'magnet saves',avg('saves'));
+  console.log('L'+(tier+1),'P'+DIFF,'react',REACT,'won',won,'/',runs.length,'avg evicted',avg('got'),'of',runs[0].goal,'avg s',avg('t'),'drains',avg('drains'),'score',avg('score'),'scans',avg('ramps'),'magnet saves',avg('saves'),'heaves',avg('heaves'),'runs with a heave',runs.filter(r=>r.heaves>0).length);
 }
