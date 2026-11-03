@@ -37859,13 +37859,15 @@ function raceResultArt(g) {
   return true;
 }
 
-// Gel Yeah! (ultrasound). Gel gremlins hop up the sonar screen and you swipe through them. Several in
-// one stroke is a combo: the big ones get slow motion and a zoom, and every combo fills the party meter.
-// Gold starts a frenzy. Level 1 is just slicing, with one very obvious bomb; level 2 brings in
-// splitters, helmets and bombs one at a time, each with a callout; level 3 mixes everything, faster,
-// with bombs in the lineup. Every level ends on a jumbo gel you swipe as often as you can.
-// Canvas 600 × 600, or 450 × 800 on an upright screen. The arena is laid out in fractions of the active
-// canvas, and everything in flight rescales if the phone turns mid-run.
+// Gel Yeah! (ultrasound). Gel gremlins get tossed up the sonar screen and you swipe through them.
+// Several in one stroke is a combo: the big ones get slow motion and a zoom, and every combo fills the
+// party meter. Gold starts a frenzy. The tosses come in bursts with a breath between them, and the
+// tempo climbs through the round and after every combo. Level 1 is just slicing, slow to start, with
+// two very obvious lone bombs; level 2 brings in splitters, helmets and bombs one at a time, each with a
+// callout; level 3 adds laughing gas (no heart, two seconds of fog) and hides both in the lineup;
+// Legendary is all of it, fast, on a short clock. Every level ends on a jumbo gel you swipe as often as
+// you can. Canvas 600 × 600, or 450 × 800 on an upright screen. The arena is laid out in fractions of
+// the active canvas, and everything in flight rescales if the phone turns mid-run.
 const SLICE_G = 650; // gravity on a 600-tall canvas; scales with the canvas height
 const SLICE_REACH = 8; // the blade cuts a gremlin within r + REACH: generous on purpose
 const SLICE_BOMB_GRACE = 7; // a bomb only goes off within r - GRACE: near misses are free
@@ -37875,6 +37877,9 @@ const SLICE_FRENZY = 4.5; // seconds of party
 const SLICE_HOVER = 2.8; // seconds the jumbo gel hangs around
 const SLICE_JUMBO_MAX = 16; // hits before the jumbo pops on its own
 const SLICE_JUMBO_GAP = 0.09; // seconds between jumbo hits, so a scribble cannot empty it at once
+const SLICE_FOG = 2; // seconds of laughing-gas fog
+const SLICE_HOLD = 2.6; // a breath waits at most this long for the screen to clear
+const SLICE_FINALE = 10.5; // seconds left when the jumbo is due
 
 const SLICE_KINDS = {
   plain: { r: 31, art: 0, col: '#9bd77f', pts: 10 },
@@ -37882,87 +37887,164 @@ const SLICE_KINDS = {
   kid: { r: 21, art: 3, col: '#86cfee', pts: 15 },
   helmet: { r: 32, art: 0, col: '#b8e08f', pts: 20 },
   gold: { r: 29, art: 2, col: '#f3cf6e', pts: 50 },
-  bomb: { r: 29, art: -1, col: '#ec86b0', pts: 0 },
+  bomb: { r: 29, art: -1, col: '#ec86b0', pts: 0, hazard: true },
+  gas: { r: 28, art: -1, col: '#a98be8', pts: 0, hazard: true },
   jumbo: { r: 74, art: 0, col: '#9bd77f', pts: 15 }
 };
 
-// Per-level tuning. Arrays of three are per wave (shift); size lists the wave sizes to pick from.
-// escapes is drops per heart, meter the party points that start a frenzy (a combo of n is worth
-// n - 2), combos the combo count that maxes the medal's combo term.
+// The toss catalogue. Small tosses carry one or two gremlins; formations carry the wave's size.
+const SLICE_SMALL = ['single', 'pair', 'lob', 'floater', 'low', 'cross'];
+// Formations a hazard can hide inside: one clean swipe along them would cross it.
+const SLICE_LINEUPS = ['line', 'arc', 'v', 'diag', 'drum', 'fan', 'criss'];
+
+// Per-level tuning. Arrays of three are per wave (shift); pairs are [tempo 0, tempo 1].
+// Pacing: the tempo climbs from ramp[0] to ramp[1] by the finale, plus combo heat. Tosses come in bursts
+// of `burst` (a range at each end), `gap` apart; a burst ends on a breath: the screen clears, then
+// `breath` seconds of nothing. `quick` caps the gap once the screen is clear mid-burst. `big` is the
+// chance a toss is a formation (size from `size`) rather than a small toss.
+// Content: blue, helmet and bombs are per-toss chances (bombs covers both hazards; gas is the share
+// that is laughing gas from gasFrom on), inLine the chance a hazard hides in a formation. loneBombs
+// are level 1's solo bombs, warned `warn` seconds ahead. escapes is drops per heart, meter the party
+// points that start a frenzy (a combo of n is worth n - 2), combos the count that maxes the medal term.
 const SLICE_TIERS = [
-  // Level 1: just slicing. One lone bomb to meet, one gold party, the jumbo finale.
+  // Level 1: just slicing. Slow to start, two lone bombs to meet, one gold party, the jumbo finale.
   {
     limit: 60,
-    goal: 85,
+    goal: 80,
     speed: 0.84,
-    interval: [1.75, 1.65, 1.55],
-    size: [[2, 3, 3], [3, 3, 4], [3, 4, 4]],
-    forms: [['line', 'arc', 'line'], ['line', 'arc', 'v', 'diag'], ['line', 'arc', 'v', 'diag', 'fountain']],
+    ramp: [0, 1],
+    gap: [1.4, 0.45],
+    breath: [1.4, 0.3],
+    burst: [[1, 2], [4, 6]],
+    quick: [1, 0.4],
+    big: [0.08, 0.75],
+    size: [[3], [3, 3, 4], [3, 4, 4]],
+    small: [['single', 'pair', 'lob', 'floater'], ['single', 'pair', 'lob', 'floater', 'low', 'cross'], SLICE_SMALL],
+    forms: [['line', 'arc', 'fan'], ['line', 'arc', 'v', 'diag', 'fan'], ['line', 'arc', 'v', 'diag', 'fan', 'drum']],
     blue: [0, 0, 0],
     helmet: [0, 0, 0],
     helmetFrom: 0,
     bombs: [0, 0, 0],
     inLine: [0, 0, 0],
-    loneBomb: 0.38,
+    gas: [0, 0, 0],
+    gasFrom: 1,
+    loneBombs: [0.3, 0.64],
+    warn: 0.9,
     gold: [0.55],
     escapes: 10,
     meter: 6,
     combos: 12,
     hints: ['first', 'bomb', 'gold', 'jumbo']
   },
-  // Level 2: one new thing at a time, each with a callout: splitters, helmets, then bombs.
+  // Level 2: one new thing at a time, each with a callout: splitters, helmets, then bombs, which
+  // start out clear of the rows and later hide in them.
   {
     limit: 75,
     goal: 200,
     speed: 1.05,
-    interval: [1.3, 1.2, 1.1],
+    ramp: [0.3, 1],
+    gap: [1.15, 0.6],
+    breath: [1.2, 0.5],
+    burst: [[2, 3], [3, 5]],
+    quick: [0.8, 0.35],
+    big: [0.35, 0.8],
     size: [[3, 4, 4], [3, 4, 5], [4, 4, 5]],
+    small: [SLICE_SMALL, SLICE_SMALL, SLICE_SMALL],
     forms: [
-      ['line', 'arc', 'v', 'diag', 'drum'],
-      ['line', 'arc', 'v', 'diag', 'drum', 'fountain'],
-      ['line', 'arc', 'v', 'diag', 'drum', 'fountain', 'scatter', 'criss']
+      ['line', 'arc', 'v', 'diag', 'drum', 'fan'],
+      ['line', 'arc', 'v', 'diag', 'drum', 'fan', 'scatter'],
+      ['line', 'arc', 'v', 'diag', 'drum', 'fan', 'scatter', 'criss']
     ],
     blue: [0.3, 0.12, 0.12],
     helmet: [0.25, 0.22, 0.18],
     helmetFrom: 0.18,
-    bombs: [0, 0.55, 0.7],
-    inLine: [0, 0, 0.4],
-    loneBomb: 0,
+    bombs: [0, 0.4, 0.55],
+    inLine: [0, 0.25, 0.45],
+    gas: [0, 0, 0],
+    gasFrom: 1,
+    loneBombs: [],
+    warn: 0,
     gold: [0.42],
     escapes: 3,
     meter: 10,
     combos: 24,
     hints: ['blue', 'helmet', 'bomb', 'gold', 'jumbo']
   },
-  // Level 3: the skill test. Faster, bombs from the start and in the lineup, criss-cross launches.
+  // Level 3: faster, both hazards, and they hide in the lineup. Laughing gas arrives early, alone.
   {
     limit: 90,
     goal: 220,
     speed: 1.1,
-    interval: [1.4, 1.3, 1.2],
+    ramp: [0.4, 1],
+    gap: [1, 0.65],
+    breath: [1, 0.55],
+    burst: [[2, 3], [3, 5]],
+    quick: [0.7, 0.35],
+    big: [0.45, 0.85],
     size: [[3, 4, 4], [3, 4, 5], [4, 4, 5]],
+    small: [SLICE_SMALL, SLICE_SMALL, SLICE_SMALL],
     forms: [
-      ['line', 'arc', 'v', 'diag', 'drum', 'fountain', 'scatter'],
-      ['line', 'arc', 'v', 'diag', 'drum', 'fountain', 'scatter', 'criss'],
-      ['line', 'arc', 'v', 'diag', 'drum', 'fountain', 'scatter', 'criss']
+      ['line', 'arc', 'v', 'diag', 'drum', 'fan', 'scatter'],
+      ['line', 'arc', 'v', 'diag', 'drum', 'fan', 'scatter', 'criss'],
+      ['line', 'arc', 'v', 'diag', 'drum', 'fan', 'scatter', 'criss']
     ],
     blue: [0.15, 0.15, 0.15],
     helmet: [0.15, 0.2, 0.22],
     helmetFrom: 0,
-    bombs: [0.55, 0.7, 0.85],
-    inLine: [0.5, 0.6, 0.7],
-    loneBomb: 0,
+    bombs: [0.38, 0.48, 0.58],
+    inLine: [0.4, 0.5, 0.6],
+    gas: [0.35, 0.4, 0.45],
+    gasFrom: 0.1,
+    loneBombs: [],
+    warn: 0,
     gold: [0.3, 0.68],
     escapes: 3,
     meter: 10,
     combos: 30,
-    hints: ['bomb', 'gold', 'jumbo']
+    hints: ['bomb', 'gas', 'gold', 'jumbo']
+  },
+  // Legendary: fast tosses from the first second, both hazards in the lineup, a high quota, a short clock.
+  {
+    limit: 60,
+    goal: 180,
+    speed: 1.15,
+    ramp: [0.47, 1],
+    gap: [0.85, 0.55],
+    breath: [0.85, 0.45],
+    burst: [[2, 4], [4, 5]],
+    quick: [0.5, 0.3],
+    big: [0.55, 0.85],
+    size: [[3, 4, 4], [3, 4, 5], [4, 4, 5]],
+    small: [SLICE_SMALL, SLICE_SMALL, SLICE_SMALL],
+    forms: [
+      ['line', 'arc', 'v', 'diag', 'drum', 'fan', 'scatter', 'criss'],
+      ['line', 'arc', 'v', 'diag', 'drum', 'fan', 'scatter', 'criss'],
+      ['line', 'arc', 'v', 'diag', 'drum', 'fan', 'scatter', 'criss']
+    ],
+    blue: [0.15, 0.15, 0.15],
+    helmet: [0.2, 0.22, 0.25],
+    helmetFrom: 0,
+    bombs: [0.52, 0.6, 0.66],
+    inLine: [0.55, 0.65, 0.75],
+    gas: [0.4, 0.45, 0.5],
+    gasFrom: 0,
+    loneBombs: [],
+    warn: 0,
+    gold: [0.35],
+    escapes: 3,
+    meter: 10,
+    combos: 30,
+    hints: ['bomb', 'gas', 'jumbo']
   }
 ];
+
+// Levels with laughing gas brief (and toast) the purple one too.
+const SLICE_GAS_CUE = 'Swipe through gremlins · 3+ in one swipe = combo · never touch pink or purple';
 
 const SLICE_HINTS = {
   first: 'SWIPE THROUGH ALL THREE',
   bomb: 'PINK BOMB · DO NOT TOUCH',
+  gas: 'LAUGHING GAS · POPS INTO FOG',
   gold: 'GOLD · SLICE IT FOR A PARTY',
   blue: 'BLUE SPLITS · GET THE KIDS',
   helmet: 'HELMET · HIT IT TWICE',
@@ -37984,21 +38066,25 @@ const SLICE = registerGame({
     control:
       'Press and swipe through gremlins. Mouse: hold the button and drag. Three or more in one swipe is a combo, and combos fill the party meter.',
     avoid:
-      'Pink bombs cost a heart and blow the screen clear. Gremlins that drop off the bottom add up to an oops.',
+      'Pink bombs cost a heart and blow the screen clear. Purple laughing gas fogs the screen. Gremlins that drop off the bottom add up to an oops.',
     cue: 'Swipe through gremlins · 3+ in one swipe = combo · never touch pink'
   },
+  legendary: true,
   tierNotes: [
-    '60s · just slicing · one very obvious bomb',
+    '60s · just slicing · starts slow · two very obvious bombs',
     '75s · splitters, helmets, bombs · one at a time',
-    '90s · everything, faster · bombs in the lineup'
+    '90s · faster · laughing gas · bombs in the lineup',
+    '60s · fast tosses · both bombs in the rows · big quota'
   ],
   shiftName: 'WAVE',
   init() {
     const tier = SLICE_TIERS[mini.tier];
     initArcadeRun(tier.limit);
+    if (tier.gas.some(Boolean)) setInstructions(SLICE_GAS_CUE);
     const { w, h } = activeCanvas();
     Object.assign(mini, {
-      goal: tier.goal,
+      // A gentler prescription throws fewer gremlins, so it asks for fewer.
+      goal: Math.round(tier.goal * Math.min(1, Math.sqrt(mini.rules.mini))),
       gels: [],
       gelSerial: 0,
       sliceQueue: [],
@@ -38015,10 +38101,21 @@ const SLICE = registerGame({
       sliceFrenzyClock: 0,
       sliceFrenzySide: 1,
       sliceFrenzies: 0,
+      sliceParty: false,
       sliceGoldAt: tier.gold.map(f => f * tier.limit),
-      sliceLoneDone: !tier.loneBomb,
+      sliceLoneAt: tier.loneBombs.map(f => f * tier.limit),
       sliceLoneId: null,
       sliceRestUntil: 0,
+      // The director: tosses left in this burst, the breath after it, the last toss, combo heat.
+      sliceBurst: 1,
+      sliceLull: null,
+      sliceLastToss: null,
+      sliceTosses: [],
+      sliceHeat: 0,
+      sliceMet: {},
+      sliceWarns: [],
+      sliceFog: 0,
+      sliceGas: 0,
       sliceJumboDue: false,
       sliceJumboDone: false,
       sliceJumboWait: 0,
@@ -38082,17 +38179,18 @@ const SLICE = registerGame({
   },
   assist() {
     mini.slow = 5;
-    for (const o of mini.gels) if (o.kind === 'bomb' && !o.dead) slicePoof(o);
-    mini.sliceQueue = mini.sliceQueue.filter(q => q.gel.kind !== 'bomb');
+    sliceDefuse();
+    mini.sliceFog = Math.min(mini.sliceFog, 0.3);
     mini.flash = 1;
     mini.flashText = 'GEL FREEZE · BOMBS FIZZLED · SLOW MOTION';
     sfx('stun');
   },
   shiftMessage: shift =>
     [
-      ['WAVE 2 · three in a row is one swipe, not three.', 'FINAL WAVE · the jumbo one is coming. Save some swipes.'],
-      ['WAVE 2 · pink bombs join in. Swipe around them.', 'FINAL WAVE · more of everything. Three drops is a heart.'],
-      ['WAVE 2 · bombs hide in the lineup. Two short swipes beat one long one.', 'FINAL WAVE · three drops is a heart. Make every swipe count.']
+      ['WAVE 2 · it speeds up. Three in a row is one swipe, not three.', 'FINAL WAVE · the jumbo one is coming. Save some swipes.'],
+      ['WAVE 2 · pink bombs join in. Swipe around them.', 'FINAL WAVE · bombs hide in the rows now. Three drops is a heart.'],
+      ['WAVE 2 · bombs hide in the lineup. Two short swipes beat one long one.', 'FINAL WAVE · gas and bombs together. Make every swipe count.'],
+      ['WAVE 2 · faster. Short swipes, clean lines.', 'FINAL WAVE · everything at once. The jumbo is your bonus round.']
     ][mini.tier][shift - 1],
   timeUp() {
     const met = mini.got >= mini.goal;
@@ -38110,9 +38208,9 @@ const SLICE = registerGame({
     return [
       {
         title: i.game + ' · gel school',
-        goal: quota + 'Just slicing. One pink bomb shows up alone, so you can meet it from a safe distance.',
+        goal: quota + 'Just slicing. It starts slow and picks up. Two pink bombs show up alone, with a warning, so you can meet them from a safe distance.',
         control: i.control,
-        avoid: 'The pink bomb. Gremlins that drop off the bottom count, but slowly: ' + t.escapes + ' drops is one heart.',
+        avoid: 'The pink bombs. Gremlins that drop off the bottom count, but slowly: ' + t.escapes + ' drops is one heart.',
         demo: 'slice',
         cue: i.cue
       },
@@ -38120,7 +38218,7 @@ const SLICE = registerGame({
         title: i.game + ' · ' + mini.limit + ' second scan',
         goal: quota + 'New things arrive one at a time: blue ones split, helmets need two hits, then the pink bombs join in.',
         control: i.control,
-        avoid: 'Pink bombs cost a heart and blow the screen clear. ' + t.escapes + ' drops is one heart.',
+        avoid: 'Pink bombs cost a heart and blow the screen clear. Later they hide in the rows. ' + t.escapes + ' drops is one heart.',
         demo: 'slice',
         cue: i.cue
       },
@@ -38128,9 +38226,17 @@ const SLICE = registerGame({
         title: i.game + ' · ' + mini.limit + ' second scan',
         goal: quota + 'Everything at once, faster, and bombs hide in the lineup. Two short swipes beat one long one.',
         control: i.control,
-        avoid: 'Pink bombs cost a heart. ' + t.escapes + ' drops is one heart. The jumbo still shows up at the end.',
+        avoid: 'Pink bombs cost a heart. Purple laughing gas costs no heart, but it fogs the screen for two seconds. ' + t.escapes + ' drops is one heart.',
         demo: 'slice',
-        cue: i.cue
+        cue: SLICE_GAS_CUE
+      },
+      {
+        title: i.game + ' · Legendary',
+        goal: quota + 'Fast tosses from the first second, both bombs hiding in the rows, and a short clock. Legends win this about one time in four.',
+        control: i.control,
+        avoid: 'Pink costs a heart, purple fogs the screen, ' + t.escapes + ' drops is a heart. The jumbo is your bonus round, so save some swipes.',
+        demo: 'slice',
+        cue: SLICE_GAS_CUE
       }
     ][mini.tier];
   },
@@ -38165,7 +38271,8 @@ const SLICE = registerGame({
   },
   onLose() {
     const hearts = mini.miss >= mini.rules.misses,
-      bombs = mini.sliceBombs > 0 && mini.sliceBombs >= mini.sliceDropOops;
+      bombs = mini.sliceBombs > 0 && mini.sliceBombs >= mini.sliceDropOops,
+      gassed = !bombs && mini.sliceGas >= 2;
     for (let i = 0; i < 70; i++)
       gore.push({
         x: 400 + rand(-50, 50),
@@ -38181,7 +38288,9 @@ const SLICE = registerGame({
       heading: !hearts ? 'SCAN INCONCLUSIVE.' : bombs ? 'GEL NO.' : 'THEY GOT AWAY.',
       text: bombs
         ? 'The pink ones are bombs. Swipe around them, not through them, and wait for a clear line.'
-        : 'Too many slid off the bottom. Catch them at the top of their hop, where they hang for a moment.'
+        : gassed
+          ? 'Too much laughing gas. The purple canisters are not gel. Two short swipes around them beat one long one through.'
+          : 'Too many slid off the bottom. Catch them at the top of their hop, where they hang for a moment.'
     };
   },
   // The result art: gel halves on a win, a gloating, sticky gremlin on a loss.
@@ -38278,6 +38387,7 @@ function sliceFit() {
     for (const o of mini[list]) fit(o);
   for (const q of mini.sliceQueue) fit(q.gel);
   for (const o of [mini.sliceRun, mini.sliceBanner, mini.sliceBoomFx, mini.sliceZoom]) fit(o);
+  for (const o of mini.sliceWarns) o.x *= kx;
   mini.sliceW = w;
   mini.sliceH = h;
 }
@@ -38308,11 +38418,13 @@ function sliceWorld(p) {
 
 // ---- Spawning ----
 
-// A gel aimed so its apex lands at (ax, ay): the launch speed comes from the apex height.
+// A gel aimed so its apex lands at (ax, ay): the launch speed comes from the apex height. A gel may
+// carry its own gravity (`grav`, a share of the arena's): floaters drift, low tosses zip.
 function sliceGel(kind, x0, ax, ay, extra = {}) {
   const A = sliceArena(),
-    vy = -Math.sqrt(2 * A.G * Math.max(40, A.launchY - ay)),
-    rise = -vy / A.G;
+    G = A.G * (extra.grav || 1),
+    vy = -Math.sqrt(2 * G * Math.max(40, A.launchY - ay)),
+    rise = -vy / G;
   return {
     id: mini.gelSerial++,
     kind,
@@ -38325,7 +38437,7 @@ function sliceGel(kind, x0, ax, ay, extra = {}) {
     stroke: -1,
     lock: 0,
     angle: rand(-0.5, 0.5),
-    spin: kind === 'bomb' ? rand(-0.8, 0.8) : rand(-1.6, 1.6),
+    spin: SLICE_KINDS[kind].hazard ? rand(-0.8, 0.8) : rand(-1.6, 1.6),
     entered: false,
     age: 0,
     ...extra
@@ -38334,12 +38446,15 @@ function sliceGel(kind, x0, ax, ay, extra = {}) {
 
 // Where a gel will peak.
 function sliceApex(o) {
-  const G = sliceArena().G,
+  const G = sliceArena().G * (o.grav || 1),
     rise = Math.max(0, -o.vy / G);
   return { x: o.x + o.vx * rise, y: o.y + o.vy * rise + 0.5 * G * rise * rise };
 }
 
-// Apex points for a formation of n gels, spread across the sonar screen.
+// Apex points for a toss of n gels: {x0 launch x, ax/ay apex, delay, and optional grav and spin}.
+// Small tosses: a single, a pair (split from one spot or side by side), a high lazy lob, a low fast
+// one from the side, a slow floater, two arcs crossing from opposite corners. Formations: a row, an
+// arc, a V, a diagonal, a drum roll, a fan from one spot, a criss-cross, a scatter.
 function sliceFormation(kind, n) {
   const { W, H } = sliceArena(),
     gap = Math.max(84, W * rand(0.15, 0.19)),
@@ -38354,32 +38469,86 @@ function sliceFormation(kind, n) {
     const j = Math.floor(rand(0, i + 1));
     [order[i], order[j]] = [order[j], order[i]];
   }
-  for (let i = 0; i < n; i++) {
-    const ax = n > 1 ? left + (span * i) / (n - 1) : W / 2,
-      u = n > 1 ? (2 * i) / (n - 1) - 1 : 0;
-    if (kind === 'line') spots.push({ ax, ay: baseY, x0: ax + rand(-20, 20), delay: 0 });
-    else if (kind === 'drum') spots.push({ ax, ay: baseY, x0: ax, delay: (flip > 0 ? i : n - 1 - i) * 0.16 });
-    else if (kind === 'arc') spots.push({ ax, ay: baseY + flip * H * 0.1 * (u * u - 0.5), x0: ax + u * 30, delay: 0 });
-    else if (kind === 'v') spots.push({ ax, ay: baseY + flip * H * 0.13 * (Math.abs(u) - 0.5), x0: ax - u * 25, delay: 0 });
-    else if (kind === 'diag') spots.push({ ax, ay: baseY + flip * H * 0.11 * u, x0: ax + rand(-15, 15), delay: 0 });
-    else if (kind === 'fountain') spots.push({ ax, ay: baseY + H * rand(-0.06, 0.08), x0: src, delay: i * 0.1 });
-    else if (kind === 'criss') {
-      const fromLeft = i % 2 === 0;
-      spots.push({
-        ax: fromLeft ? W * rand(0.58, 0.82) : W * rand(0.18, 0.42),
-        ay: H * rand(0.25, 0.45),
-        x0: fromLeft ? W * rand(0.04, 0.16) : W * rand(0.84, 0.96),
-        delay: Math.floor(i / 2) * 0.22
-      });
+  if (kind === 'single') {
+    const x0 = W * rand(0.14, 0.86);
+    spots.push({ x0, ax: x0 + W * rand(-0.22, 0.22), ay: H * rand(0.22, 0.46), delay: 0 });
+  } else if (kind === 'pair') {
+    const ay = H * rand(0.24, 0.42);
+    if (rand(0, 1) < 0.5) {
+      // Two from one spot, splitting apart on the way up.
+      const x0 = W * rand(0.32, 0.68),
+        d = Math.max(70, W * rand(0.13, 0.19));
+      for (const s of [-1, 1]) spots.push({ x0, ax: x0 + s * d, ay: ay + H * rand(-0.05, 0.05), delay: s > 0 ? rand(0, 0.15) : 0 });
     } else {
-      const sx = n > 1 ? left + (span * order[i]) / (n - 1) : W / 2;
-      spots.push({ ax: sx + rand(-18, 18), ay: H * rand(0.24, 0.5), x0: sx + rand(-60, 60), delay: rand(0, 0.4) });
+      // Side by side, one a beat behind the other.
+      const c = W * rand(0.3, 0.7),
+        d = Math.max(64, W * rand(0.12, 0.16));
+      for (const s of [-1, 1])
+        spots.push({ x0: c + s * d + rand(-20, 20), ax: c + s * d, ay: ay + H * rand(-0.04, 0.04), delay: s === flip ? 0.24 : 0 });
     }
-  }
+  } else if (kind === 'lob') {
+    // High and lazy: it hangs near the top of the glass and barely spins.
+    for (let i = 0; i < n; i++) {
+      const ax = n > 1 ? W * ((i ? flip > 0 : flip < 0) ? rand(0.62, 0.8) : rand(0.2, 0.38)) : W * rand(0.25, 0.75);
+      spots.push({ x0: ax + W * rand(-0.14, 0.14), ax, ay: H * rand(0.16, 0.21), delay: i * 0.4, spin: rand(-0.5, 0.5) });
+    }
+  } else if (kind === 'low') {
+    // Low and fast, from one side most of the way across, spinning hard. A second one trails it and
+    // falls a little short.
+    const reach = rand(0.56, 0.72);
+    for (let i = 0; i < n; i++)
+      spots.push({
+        x0: flip < 0 ? W * rand(0.04, 0.12) : W * rand(0.88, 0.96),
+        ax: flip < 0 ? W * (reach - i * 0.18) : W * (1 - reach + i * 0.18),
+        ay: H * (rand(0.5, 0.58) - i * 0.07),
+        delay: i * 0.3,
+        grav: 1.3,
+        spin: -flip * rand(3, 5)
+      });
+  } else if (kind === 'floater') {
+    // A slow floater: half the gravity, so it drifts up and hangs.
+    const x0 = W * rand(0.24, 0.76);
+    spots.push({ x0, ax: x0 + W * rand(-0.12, 0.12), ay: H * rand(0.26, 0.4), delay: 0, grav: 0.5, spin: rand(-0.4, 0.4) });
+  } else if (kind === 'cross') {
+    // Two arcs from opposite corners that cross mid-screen.
+    for (const s of [-1, 1])
+      spots.push({
+        x0: s < 0 ? W * rand(0.04, 0.14) : W * rand(0.86, 0.96),
+        ax: s < 0 ? W * rand(0.6, 0.8) : W * rand(0.2, 0.4),
+        ay: H * rand(0.24, 0.42),
+        delay: s === flip ? 0 : rand(0.08, 0.22),
+        spin: -s * rand(1.5, 3)
+      });
+  } else
+    for (let i = 0; i < n; i++) {
+      const ax = n > 1 ? left + (span * i) / (n - 1) : W / 2,
+        u = n > 1 ? (2 * i) / (n - 1) - 1 : 0;
+      if (kind === 'line') spots.push({ ax, ay: baseY, x0: ax + rand(-20, 20), delay: 0 });
+      else if (kind === 'drum') spots.push({ ax, ay: baseY, x0: ax, delay: (flip > 0 ? i : n - 1 - i) * 0.16 });
+      else if (kind === 'arc') spots.push({ ax, ay: baseY + flip * H * 0.1 * (u * u - 0.5), x0: ax + u * 30, delay: 0 });
+      else if (kind === 'v') spots.push({ ax, ay: baseY + flip * H * 0.13 * (Math.abs(u) - 0.5), x0: ax - u * 25, delay: 0 });
+      else if (kind === 'diag') spots.push({ ax, ay: baseY + flip * H * 0.11 * u, x0: ax + rand(-15, 15), delay: 0 });
+      else if (kind === 'fan') spots.push({ ax, ay: baseY + H * rand(-0.06, 0.08), x0: src, delay: i * 0.1 });
+      else if (kind === 'criss') {
+        // Pairs from opposite corners; each side alternates a near and a far apex.
+        const fromLeft = i % 2 === 0,
+          reach = 0.18 * (Math.floor(i / 2) % 2) + rand(-0.025, 0.025);
+        spots.push({
+          ax: fromLeft ? W * (0.6 + reach) : W * (0.4 - reach),
+          ay: H * rand(0.25, 0.45),
+          x0: fromLeft ? W * rand(0.04, 0.16) : W * rand(0.84, 0.96),
+          delay: Math.floor(i / 2) * 0.22,
+          spin: fromLeft ? rand(1.5, 3) : -rand(1.5, 3)
+        });
+      } else {
+        const sx = n > 1 ? left + (span * order[i]) / (n - 1) : W / 2;
+        spots.push({ ax: sx + rand(-18, 18), ay: H * rand(0.24, 0.5), x0: sx + rand(-60, 60), delay: rand(0, 0.4) });
+      }
+    }
   for (const s of spots) {
     s.ax = clamp(s.ax, W * 0.1, W * 0.9);
-    s.ay = clamp(s.ay, H * 0.18, H * 0.58);
-    s.x0 = clamp(s.x0, W * 0.05, W * 0.95);
+    s.ay = clamp(s.ay, H * 0.16, H * 0.6);
+    s.x0 = clamp(s.x0, W * 0.04, W * 0.96);
   }
   return spots;
 }
@@ -38398,7 +38567,50 @@ function sliceHint(o, key) {
   return o;
 }
 
-// Launches the next wave (during a frenzy: one party gel). Returns every gel it created.
+const sliceLerp = (pair, k) => pair[0] + (pair[1] - pair[0]) * k;
+
+// How hot the round is, 0 to 1: the level's ramp eased over the run up to the finale, plus combo heat.
+function sliceTempo() {
+  const t = SLICE_TIERS[mini.tier],
+    u = clamp(mini.phaseTime / Math.max(1, mini.limit - SLICE_FINALE - 1.5), 0, 1);
+  return clamp(sliceLerp(t.ramp, Math.pow(u, 1.15)) + mini.sliceHeat, 0, 1);
+}
+
+// The next toss: a formation or a small toss by the tempo, never the same one twice in a row.
+function slicePickToss() {
+  const tier = SLICE_TIERS[mini.tier],
+    shift = mini.shift,
+    big = rand(0, 1) < sliceLerp(tier.big, sliceTempo()),
+    fresh = list => list.filter(k => k !== mini.sliceLastToss);
+  let pool = fresh(big ? tier.forms[shift] : tier.small[shift]);
+  if (!pool.length) pool = fresh(big ? tier.small[shift] : tier.forms[shift]);
+  return pick(pool);
+}
+
+// How many gremlins a toss carries. Lobs and low ones come in twos once the round heats up.
+function sliceTossSize(kind) {
+  const k = sliceTempo();
+  if (kind === 'single' || kind === 'floater') return 1;
+  if (kind === 'pair' || kind === 'cross') return 2;
+  if (kind === 'lob' || kind === 'low') return rand(0, 1) < k * 0.6 ? 2 : 1;
+  return pick(SLICE_TIERS[mini.tier].size[mini.shift]);
+}
+
+// Which hazard: laughing gas from gasFrom on, at the level's share, else a pink bomb.
+function sliceHazardKind() {
+  const t = SLICE_TIERS[mini.tier];
+  return mini.phaseTime >= t.gasFrom * mini.limit && rand(0, 1) < t.gas[mini.shift] ? 'gas' : 'bomb';
+}
+
+// A hazard on its way: a blinking marker at the bottom edge where it will rise, then the launch.
+// The marker runs on the gremlins' clock, so slow motion stretches both together.
+function sliceWarned(o, delay, wave) {
+  mini.sliceWarns.push({ x: o.x, t: delay, max: delay, kind: o.kind });
+  sfx('lock', { vol: 0.7, pan: sliceToPan(o.x) });
+  return sliceQueueGel(o, delay, wave);
+}
+
+// Launches the next toss (during a frenzy: one party gel). Returns every gel it created.
 function spawnGelWave() {
   if (mini.sliceFrenzy > 0) return sliceFrenzyVolley();
   const tier = SLICE_TIERS[mini.tier],
@@ -38406,23 +38618,33 @@ function spawnGelWave() {
     { W, H } = sliceArena(),
     wave = [],
     first = mini.sliceWaves === 0 && tier.hints.includes('first'),
-    form = first ? 'line' : pick(tier.forms[shift]),
-    n = first ? 3 : pick(tier.size[shift]),
-    spots = sliceFormation(form, n);
+    toss = first ? 'line' : slicePickToss(),
+    n = first ? 3 : sliceTossSize(toss),
+    spots = sliceFormation(toss, n);
   mini.sliceWaves++;
-  const lineup = ['line', 'arc', 'diag', 'drum', 'v'].includes(form) && n >= 3,
-    bombRoll = mini.limit - mini.phaseTime > 3 && rand(0, 1) < tier.bombs[shift],
-    inLine = bombRoll && lineup && rand(0, 1) < tier.inLine[shift],
-    bombSpot = inLine ? Math.floor(n / 2) : -1;
+  mini.sliceLastToss = toss;
+  mini.sliceTosses.push(toss);
+  if (mini.sliceTosses.length > 200) mini.sliceTosses.shift();
+  // A hazard rides along on some tosses. The first of each kind always flies clear, with a warning;
+  // after that, some hide in a formation, where one long swipe along the row would cross them.
+  const hazard = !first && mini.limit - mini.phaseTime > 3 && rand(0, 1) < tier.bombs[shift] ? sliceHazardKind() : null,
+    teach = hazard && !mini.sliceMet[hazard],
+    inLine = hazard && !teach && SLICE_LINEUPS.includes(toss) && n >= 3 && rand(0, 1) < tier.inLine[shift],
+    // It takes a spot inside the row, never an end, so one swipe along the whole row crosses it.
+    hazSpot = inLine ? pick([...spots.keys()].sort((a, b) => spots[a].ax - spots[b].ax).slice(1, -1)) : -1;
   spots.forEach((s, i) => {
-    if (i === bombSpot) {
-      sliceQueueGel(sliceHint(sliceGel('bomb', s.x0, s.ax, s.ay), 'bomb'), s.delay, wave);
+    const extra = {};
+    if (s.grav) extra.grav = s.grav;
+    if (s.spin !== undefined) extra.spin = s.spin;
+    if (i === hazSpot) {
+      mini.sliceMet[hazard] = true;
+      sliceQueueGel(sliceHint(sliceGel(hazard, s.x0, s.ax, s.ay), hazard), s.delay, wave);
       return;
     }
     const roll = rand(0, 1),
       helmet = mini.phaseTime >= tier.helmetFrom * mini.limit ? tier.helmet[shift] : 0,
       kind = roll < tier.blue[shift] ? 'blue' : roll < tier.blue[shift] + helmet ? 'helmet' : 'plain',
-      o = sliceGel(kind, s.x0, s.ax, s.ay);
+      o = sliceGel(kind, s.x0, s.ax, s.ay, extra);
     if (kind !== 'plain') sliceHint(o, kind);
     sliceQueueGel(o, s.delay, wave);
   });
@@ -38435,9 +38657,9 @@ function spawnGelWave() {
       });
     sliceQueueGel(sliceHint(o, 'gold'), 0.35, wave);
   }
-  // Bombs stay clear of the lineup unless this level hides them in it.
-  if (bombRoll && !inLine) {
-    const count = mini.tier === 2 && shift === 2 && rand(0, 1) < 0.35 ? 2 : 1,
+  // Hazards that are not in the lineup keep well clear of every gremlin's apex.
+  if (hazard && !inLine) {
+    const count = mini.tier >= 2 && shift === 2 && !teach && rand(0, 1) < (mini.tier === 3 ? 0.45 : 0.35) ? 2 : 1,
       taken = spots.map(s => s.ax);
     for (let k = 0; k < count; k++) {
       let best = null;
@@ -38448,22 +38670,28 @@ function spawnGelWave() {
       }
       if (best.d < Math.max(W * 0.2, 105)) break;
       taken.push(best.x);
-      const ay = clamp(spots[0].ay + H * (rand(0, 1) < 0.5 ? -0.1 : 0.1), H * 0.2, H * 0.55),
-        o = sliceGel('bomb', clamp(best.x + rand(-30, 30), W * 0.06, W * 0.94), best.x, ay);
-      sliceQueueGel(sliceHint(o, 'bomb'), rand(0.25, 0.45), wave);
+      const kind = k ? sliceHazardKind() : hazard,
+        ay = clamp(spots[0].ay + H * (rand(0, 1) < 0.5 ? -0.1 : 0.1), H * 0.2, H * 0.55),
+        o = sliceGel(kind, clamp(best.x + rand(-30, 30), W * 0.06, W * 0.94), best.x, ay),
+        warned = !mini.sliceMet[kind];
+      mini.sliceMet[kind] = true;
+      sliceHint(o, kind);
+      if (warned) sliceWarned(o, 0.75 * sliceRate(), wave);
+      else sliceQueueGel(o, rand(0.25, 0.45), wave);
     }
   }
   return wave;
 }
 
-// Level 1 meets its only bomb alone, center stage, with nothing else in the air.
+// Level 1 meets its bombs alone, center stage, with nothing else in the air and a warning first.
 function sliceLoneBomb() {
   const { W, H } = sliceArena(),
     wave = [];
-  mini.sliceLoneDone = true;
-  const o = sliceGel('bomb', W * rand(0.42, 0.58), W * rand(0.42, 0.58), H * 0.34);
+  mini.sliceLoneAt.shift();
+  mini.sliceMet.bomb = true;
+  const o = sliceGel('bomb', W * rand(0.38, 0.62), W * rand(0.42, 0.58), H * rand(0.3, 0.38));
   mini.sliceLoneId = o.id;
-  sliceQueueGel(sliceHint(o, 'bomb'), 0, wave);
+  sliceWarned(sliceHint(o, 'bomb'), SLICE_TIERS[mini.tier].warn * sliceRate(), wave);
   return wave;
 }
 
@@ -38488,13 +38716,20 @@ function sliceJumbo() {
   return wave;
 }
 
+// Every hazard in the air or on its way fizzles: the frenzy and the freeze.
+function sliceDefuse() {
+  for (const o of mini.gels) if (SLICE_KINDS[o.kind].hazard && !o.dead) slicePoof(o);
+  mini.sliceQueue = mini.sliceQueue.filter(q => !SLICE_KINDS[q.gel.kind].hazard);
+  mini.sliceWarns = [];
+}
+
 function sliceStartFrenzy(gold) {
   mini.sliceFrenzy = SLICE_FRENZY;
   mini.sliceFrenzyClock = 0.25;
   mini.sliceFrenzies++;
+  mini.sliceParty = true;
   mini.sliceMeter = 0;
-  for (const o of mini.gels) if (o.kind === 'bomb' && !o.dead) slicePoof(o);
-  mini.sliceQueue = mini.sliceQueue.filter(q => q.gel.kind !== 'bomb');
+  sliceDefuse();
   mini.flash = 1.4;
   mini.flashText = gold ? 'GOLD · GEL FRENZY · DOUBLE POINTS' : 'PARTY METER FULL · GEL FRENZY · DOUBLE POINTS';
   sfx('fever');
@@ -38532,9 +38767,12 @@ function sliceSegment(a, b) {
       sliceJumboPass(o, d, len, stroke, ang, B);
       continue;
     }
-    if (o.kind === 'bomb') {
-      // A press is not a swipe, and a near miss is free: bombs only go off well inside.
-      if (len >= 3 && d <= o.r - SLICE_BOMB_GRACE) sliceBoom(o);
+    if (SLICE_KINDS[o.kind].hazard) {
+      // A press is not a swipe, and a near miss is free: hazards only go off well inside.
+      if (len >= 3 && d <= o.r - SLICE_BOMB_GRACE) {
+        if (o.kind === 'gas') sliceGasPop(o);
+        else sliceBoom(o);
+      }
       continue;
     }
     if (d > o.r + SLICE_REACH || o.stroke === stroke) continue;
@@ -38670,6 +38908,7 @@ function sliceJumboHit(o, ang, at) {
 // The hover ends (or the jumbo maxes out): it bursts for a bonus if it was swiped at all.
 function sliceJumboEnd(o) {
   mini.sliceJumboDone = true;
+  mini.sliceLull = null;
   mini.spawn = Math.min(mini.spawn, 0.5);
   if (!o.hits) {
     o.hover = 0;
@@ -38713,6 +38952,10 @@ function sliceBank() {
   }
   if (mini.sliceFrenzy <= 0) {
     mini.sliceMeter += n - 2;
+    // A combo heats the round up: the tempo rises for a while and the next toss comes sooner.
+    mini.sliceHeat = Math.min(0.3, mini.sliceHeat + 0.05 * (n - 1));
+    if (mini.sliceLull) mini.sliceLull.beat *= 0.6;
+    else mini.spawn = Math.min(mini.spawn, sliceLerp(SLICE_TIERS[mini.tier].quick, sliceTempo()));
     if (mini.sliceMeter >= SLICE_TIERS[mini.tier].meter) sliceStartFrenzy(false);
   }
 }
@@ -38747,7 +38990,22 @@ function sliceBoom(o) {
   if (o.x < 0 || o.x > W) mini.sliceBoomFx.x = clamp(o.x, 0, W);
 }
 
-// A bomb defused by a frenzy or the freeze: a harmless puff.
+// Laughing gas: no heart and no blast, but the stroke's combo is gone and a giggly fog rolls over the
+// screen for two seconds. Everything keeps flying under it, faintly; the bombs still glow through.
+function sliceGasPop(o) {
+  o.dead = true;
+  mini.sliceGas++;
+  mini.sliceRun = null;
+  mini.sliceFog = SLICE_FOG;
+  sliceSplash(o.x, o.y, 0, '#c9b6ff', 18, 1.4);
+  slicePop('HEE HEE HEE', o.x, o.y - o.r - 10, '#e3d8ff', 18);
+  mini.flash = 1;
+  mini.flashText = 'LAUGHING GAS · NO HEART · JUST GIGGLES AND FOG';
+  sfx('pump', { pan: sliceToPan(o.x) });
+  sfx('stun', { vol: 0.8 });
+}
+
+// A hazard defused by a frenzy or the freeze: a harmless puff.
 function slicePoof(o) {
   o.dead = true;
   sliceSplash(o.x, o.y, 0, '#c9c2cf', 10, 0.8);
@@ -38838,6 +39096,8 @@ function updateSlice(dt) {
   mini.sliceFrenzy = Math.max(0, mini.sliceFrenzy - dt);
   mini.sliceSlowmo = Math.max(0, mini.sliceSlowmo - dt);
   mini.sliceShake = Math.max(0, mini.sliceShake - dt);
+  mini.sliceFog = Math.max(0, mini.sliceFog - dt);
+  mini.sliceHeat = Math.max(0, mini.sliceHeat - dt * 0.03);
   if (mini.sliceZoom) {
     mini.sliceZoom.t -= dt * 1.8;
     if (mini.sliceZoom.t <= 0) mini.sliceZoom = null;
@@ -38852,6 +39112,8 @@ function updateSlice(dt) {
     if (q.delay <= 0) mini.gels.push(q.gel);
   }
   mini.sliceQueue = mini.sliceQueue.filter(q => q.delay > 0);
+  for (const w of mini.sliceWarns) w.t -= step;
+  mini.sliceWarns = mini.sliceWarns.filter(w => w.t > 0);
   for (const o of mini.gels) {
     if (o.dead) continue;
     o.age += step;
@@ -38863,7 +39125,7 @@ function updateSlice(dt) {
       sliceUpdateJumbo(o, dt * slow, step, A);
       continue;
     }
-    o.vy += A.G * step;
+    o.vy += A.G * (o.grav || 1) * step;
     o.x += o.vx * step;
     o.y += o.vy * step;
     o.angle += o.spin * step;
@@ -38894,14 +39156,15 @@ function sliceRate() {
   return SLICE_TIERS[mini.tier].speed * Math.sqrt(mini.rules.mini) * slow * tall;
 }
 
-// Waves on a timer, sooner when the screen is already clear. A frenzy streams party gels instead;
+// The director. Tosses come in bursts and every burst ends on a breath: the screen clears, then a beat
+// of nothing. The tempo (the level's ramp plus combo heat) shortens the gaps and the breaths and makes
+// the bursts longer and the tosses bigger. A frenzy streams party gels instead and ends on a breath;
 // the finale clears the decks for the jumbo.
 function sliceSpawns(dt) {
   const tier = SLICE_TIERS[mini.tier],
-    pace = mini.rules.mini,
     left = mini.limit - mini.phaseTime,
-    alive = mini.gels.some(o => !o.dead && !o.blown && o.kind !== 'bomb') || mini.sliceQueue.length > 0;
-  if (!mini.sliceJumboDone && !mini.sliceJumboDue && left <= 10.5 && !mini.gels.some(o => o.kind === 'jumbo')) {
+    alive = mini.gels.some(o => !o.dead && !o.blown && !SLICE_KINDS[o.kind].hazard) || mini.sliceQueue.length > 0;
+  if (!mini.sliceJumboDone && !mini.sliceJumboDue && left <= SLICE_FINALE && !mini.gels.some(o => o.kind === 'jumbo')) {
     mini.sliceJumboDue = true;
     mini.sliceJumboWait = 0;
   }
@@ -38919,21 +39182,50 @@ function sliceSpawns(dt) {
     }
     return;
   }
-  // Level 1's bomb waits for a clear screen, flies alone, and the next wave waits until it is gone.
-  if (!mini.sliceLoneDone && mini.phaseTime >= tier.loneBomb * mini.limit) {
-    if (!alive && left > 6) sliceLoneBomb();
+  if (mini.sliceParty) {
+    // The party is over: catch your breath.
+    mini.sliceParty = false;
+    sliceBreathe(0.7);
+  }
+  // Level 1's bombs wait for a clear screen and fly alone; the tosses wait until each one is gone.
+  if (mini.sliceLoneAt.length && mini.phaseTime >= mini.sliceLoneAt[0]) {
+    if (left <= 6) mini.sliceLoneAt = [];
+    else if (!alive) sliceLoneBomb();
     return;
   }
   if (mini.sliceLoneId !== null) {
     if (mini.gels.some(o => o.id === mini.sliceLoneId) || mini.sliceQueue.some(q => q.gel.id === mini.sliceLoneId)) return;
     mini.sliceLoneId = null;
-    mini.spawn = 0.3;
+    mini.sliceLull = { held: SLICE_HOLD, beat: 0.5 };
+  }
+  if (mini.phaseTime < mini.sliceRestUntil) return;
+  if (mini.sliceLull) {
+    const l = mini.sliceLull;
+    l.held += dt;
+    if (alive && l.held < SLICE_HOLD) return;
+    l.beat -= dt;
+    if (l.beat > 0) return;
+    mini.sliceLull = null;
+    mini.spawn = 0;
   }
   mini.spawn -= dt;
-  if (!alive && mini.spawn > 0.45 && mini.phaseTime > mini.sliceRestUntil) mini.spawn = 0.45;
+  const k = sliceTempo(),
+    quick = sliceLerp(tier.quick, k);
+  if (!alive && mini.spawn > quick) mini.spawn = quick;
   if (mini.spawn > 0 || left <= 2.6) return;
   spawnGelWave();
-  mini.spawn = tier.interval[mini.shift] / pace;
+  if (--mini.sliceBurst > 0) mini.spawn = (sliceLerp(tier.gap, k) * rand(0.85, 1.2)) / mini.rules.mini;
+  else sliceBreathe(1);
+}
+
+// End the burst: roll the next one's length and hold a breath (scaled by `share`) once the screen clears.
+function sliceBreathe(share) {
+  const tier = SLICE_TIERS[mini.tier],
+    k = sliceTempo(),
+    lo = sliceLerp([tier.burst[0][0], tier.burst[1][0]], k),
+    hi = sliceLerp([tier.burst[0][1], tier.burst[1][1]], k);
+  mini.sliceBurst = Math.max(1, Math.round(rand(lo, hi)));
+  mini.sliceLull = { held: 0, beat: (sliceLerp(tier.breath, k) * rand(0.85, 1.25) * share) / mini.rules.mini };
 }
 
 function sliceUpdateJumbo(o, dt, step, A) {
@@ -39076,6 +39368,8 @@ function drawSlice(g) {
     line(g, [[s.x - dx, s.y - dy], [s.x + dx, s.y + dy]], '#ffffff', 5);
   }
   g.globalAlpha = 1;
+  for (const w of mini.sliceWarns) sliceDrawWarn(g, w, H);
+  sliceDrawFog(g, W, H);
   sliceDrawGuide(g);
   for (const o of mini.gels) if (o.hint && !o.dead && o.y < H - 40 && o.y > 50) sliceCallout(g, o.x, o.y - o.r - 30, o.hint, W);
   for (const p of mini.slicePops) {
@@ -39165,10 +39459,28 @@ function sliceDrawGel(g, o) {
     sliceDrawBomb(g, o, mini.total);
     return;
   }
+  if (o.kind === 'gas') {
+    sliceDrawGas(g, o, mini.total);
+    return;
+  }
   const k = SLICE_KINDS[o.kind],
     s = o.r / 26;
   g.save();
   g.translate(o.x, o.y);
+  // A floater rides up in a gel bubble.
+  if (o.grav && o.grav < 1 && !o.blown) {
+    g.globalAlpha = 0.5;
+    g.strokeStyle = '#d9fff0';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(0, 0, o.r + 9 + Math.sin(mini.total * 3 + o.id) * 2, 0, Math.PI * 2);
+    g.stroke();
+    g.globalAlpha = 0.18;
+    ellipse(g, 0, 0, o.r + 9, o.r + 9, '#bff5e0');
+    g.globalAlpha = 0.6;
+    ellipse(g, -o.r * 0.55, -o.r * 0.6, o.r * 0.28, o.r * 0.15, '#ffffff');
+    g.globalAlpha = 1;
+  }
   if (o.kind === 'gold') {
     glow(g, 0, 0, o.r + 30, '#ffe29a66');
     for (let i = 0; i < 3; i++) {
@@ -39256,6 +39568,113 @@ function sliceDrawBomb(g, o, t) {
   glow(g, 14, -r - 14, 14, '#ffd39caa');
   spark(g, 14, -r - 14, '#ffe9b0', 0.45 + 0.2 * Math.sin(t * 30));
   g.restore();
+}
+
+// Laughing gas: a violet cylinder with a white shoulder, a valve and a big grin, inside a dashed
+// keep-out ring. A different shape and color from the pink bomb, readable at a glance.
+function sliceDrawGas(g, o, t) {
+  const r = o.r,
+    pulse = 0.5 + 0.5 * Math.sin(t * 8 + o.id);
+  g.save();
+  g.translate(o.x, o.y);
+  glow(g, 0, 0, r + 26, '#9b78ff44');
+  g.globalAlpha = 0.35 + pulse * 0.45;
+  g.strokeStyle = '#b896ff';
+  g.lineWidth = 3;
+  g.setLineDash([7, 6]);
+  g.beginPath();
+  g.arc(0, 0, r + 7 + pulse * 3, t * 1.5, t * 1.5 + Math.PI * 2);
+  g.stroke();
+  g.setLineDash([]);
+  g.globalAlpha = 1;
+  g.rotate((o.angle || 0) * 0.5);
+  rr(g, -r * 0.62, -r * 0.6, r * 1.24, r * 1.5, r * 0.5, gradient(g, -r * 0.62, 0, r * 1.24, 0, '#ddd2ff', '#6a4cc6'), '#3d2a78', 2);
+  path(
+    g,
+    p => {
+      p.moveTo(-r * 0.62, -r * 0.18);
+      p.quadraticCurveTo(-r * 0.62, -r * 0.62, 0, -r * 0.62);
+      p.quadraticCurveTo(r * 0.62, -r * 0.62, r * 0.62, -r * 0.18);
+      p.closePath();
+    },
+    '#f6f2ff',
+    '#3d2a78',
+    2
+  );
+  rr(g, -4, -r * 0.98, 8, r * 0.4, 2, '#a9b2bc', '#56616b', 1.5);
+  rr(g, -9, -r * 1.06, 18, 6, 3, '#d2d8de', '#56616b', 1.5);
+  // Happy squinty eyes and a big grin.
+  for (const x of [-r * 0.24, r * 0.24])
+    path(
+      g,
+      p => {
+        p.moveTo(x - 5, r * 0.08);
+        p.quadraticCurveTo(x, r * 0.08 - 6, x + 5, r * 0.08);
+      },
+      null,
+      '#2a1a55',
+      3
+    );
+  path(
+    g,
+    p => {
+      p.moveTo(-r * 0.36, r * 0.32);
+      p.quadraticCurveTo(0, r * 0.78, r * 0.36, r * 0.32);
+      p.closePath();
+    },
+    '#2a1a55'
+  );
+  ellipse(g, 0, r * 0.5, r * 0.16, r * 0.07, '#ff9fc4');
+  ellipse(g, -r * 0.34, -r * 0.05, r * 0.1, r * 0.5, '#ffffff44');
+  // A giggly wisp leaking from the valve.
+  g.globalAlpha = 0.45 + 0.25 * pulse;
+  ellipse(g, 7 + pulse * 4, -r * 1.12 - pulse * 6, 5 + pulse * 2, 4, '#e3d8ff');
+  g.globalAlpha = 1;
+  g.restore();
+}
+
+// A hazard about to rise: a blinking chevron and bang at the bottom edge, in its color.
+function sliceDrawWarn(g, w, H) {
+  const col = w.kind === 'gas' ? '#c4a8ff' : '#ff7fae',
+    blink = 0.55 + 0.45 * Math.sin((w.max - w.t) * 18),
+    y = H - 34;
+  g.globalAlpha = blink;
+  glow(g, w.x, y, 34, w.kind === 'gas' ? '#a07cff66' : '#ff5a8a66');
+  poly(g, [[w.x - 16, y + 14], [w.x, y - 6], [w.x + 16, y + 14], [w.x, y + 6]], col);
+  label(g, '!', w.x, y - 12, 22, col, 'center');
+  g.globalAlpha = 1;
+}
+
+// The laughing-gas fog: a lavender haze with drifting puffs over everything in the arena. Gremlins show
+// through faintly and the hazards glow through, so you can still dodge what you cannot quite see.
+function sliceDrawFog(g, W, H) {
+  const f = mini.sliceFog;
+  if (f <= 0) return;
+  const a = clamp(Math.min((SLICE_FOG - f) / 0.2, f / 0.6), 0, 1),
+    t = mini.total;
+  g.globalAlpha = a * 0.8;
+  rect(g, -40, -40, W + 80, H + 80, '#c9b9ee');
+  for (let i = 0; i < 10; i++) {
+    const drift = reduced ? 0 : t * (14 + i * 4),
+      x = ((sliceHash(i + 3) * (W + 240) + drift) % (W + 240)) - 120,
+      y = sliceHash(i + 40) * H,
+      r = 70 + sliceHash(i + 70) * 90;
+    g.globalAlpha = a * 0.35;
+    ellipse(g, x, y, r, r * 0.7, i % 2 ? '#efe8ff' : '#ae98e6');
+  }
+  for (const o of mini.gels) {
+    if (!SLICE_KINDS[o.kind].hazard || o.dead) continue;
+    g.globalAlpha = a * 0.75;
+    g.strokeStyle = o.kind === 'gas' ? '#7a52e0' : '#ff4f8a';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(o.x, o.y, o.r + 6, 0, Math.PI * 2);
+    g.stroke();
+  }
+  g.globalAlpha = a * 0.6;
+  for (let i = 0; i < 3; i++)
+    label(g, 'HEE', W * (0.22 + i * 0.28) + Math.sin(t * 2 + i) * 12, H * (0.3 + 0.18 * (i % 2)) - (SLICE_FOG - f) * 20, 20, '#6f55b8', 'center');
+  g.globalAlpha = 1;
 }
 
 function sliceDrawHalf(g, h) {
@@ -39424,7 +39843,13 @@ function sliceHud(g, W, H) {
   if (fill > 0) rr(g, mx, my, mw * fill, 9, 5, party ? '#ffd86a' : mini.sliceMeter >= full - 2 ? '#ffe9a6' : '#9dd8b6');
   label(
     g,
-    party ? 'GEL FRENZY · DOUBLE POINTS' : mini.slow > 0 ? 'GEL FREEZE · SLOW MOTION' : 'COMBOS FILL THE PARTY METER',
+    party
+      ? 'GEL FRENZY · DOUBLE POINTS'
+      : mini.slow > 0
+        ? 'GEL FREEZE · SLOW MOTION'
+        : mini.sliceFog > 0
+          ? 'LAUGHING GAS · IT CLEARS IN A SEC'
+          : 'COMBOS FILL THE PARTY METER',
     W / 2,
     my - 8,
     11,

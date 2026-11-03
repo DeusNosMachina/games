@@ -7,7 +7,7 @@ assert.equal(run('Object.keys(games).join()'), '0,1,2,3,4,5');
 for (let id = 0; id < 6; id++) {
   assert.equal(run(`games[${id}].id`), id);
   assert.ok(run(`games[${id}].canvas.w>0&&games[${id}].canvas.h>0`), `game ${id} canvas`);
-  assert.equal(run(`games[${id}].tierNotes.length`), 3, `game ${id} tier notes`);
+  assert.equal(run(`games[${id}].tierNotes.length`), run(`miniTierCount(games[${id}])`), `game ${id} tier notes`);
   for (const key of ['game', 'genre', 'headline', 'desc']) assert.equal(run(`typeof games[${id}].info.${key}`), 'string', `game ${id} info.${key}`);
   for (const hook of REQUIRED) assert.equal(run(`typeof games[${id}].${hook}`), 'function', `game ${id} is missing ${hook}()`);
 }
