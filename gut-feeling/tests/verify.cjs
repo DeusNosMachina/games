@@ -96,13 +96,16 @@ run('openMini(2);startMini()');
 nodes.miniGo.events.click();
 assert.equal(run('mini.screen'), 'intro', 'tapping the GO card skips it');
 close();
-run(`openMini(0);startMini();launchMini();updateMini(${INTRO + 0.01});ivPhase(1)`);
+// The recovery is one phase with its own briefing, not the briefing of the room's arcade.
+run('ivRecovery=null;openMini(0,true);startMini()');
 assert.equal(run('mini.screen'), 'briefing');
-assert.equal(run('mini.quickBrief'), false, 'a new IV phase gets its own full briefing');
-run('launchMini()');
-assert.ok(saved().briefed.includes('0:1'));
+assert.equal(nodes.miniBriefTitle.textContent, 'Recovery / Drip or Die', 'a forced run briefs the recovery');
+run(`launchMini();updateMini(${INTRO + 0.01})`);
+assert.equal(run('mini.screen'), 'play');
+assert.equal(run('mini.phase'), 0, 'the recovery never moves on to another phase');
+run('mini.forced=false;ivRecovery=null');
 close();
-console.log('PASS: briefings show in full once per game and IV phase, then a skippable GO card.');
+console.log('PASS: briefings show in full once per game, then a skippable GO card; the recovery briefs as itself.');
 
 // Every game, tier and prescription has finite physics and fails when idle.
 for (let d = 0; d < 3; d++)
@@ -597,25 +600,40 @@ assert.equal(nodes.titleScreen.dataset.state, 'gone');`
 );
 console.log('PASS: reduced motion skips the title iris.');
 
-// ---- Recovery escalation bookkeeping ----
+// ---- Recovery bookkeeping ----
+// The recovery never climbs: every collapse is the same gentle level. A won recovery still counts, a
+// medal outside one resets the count, and a lost one can end from the result screen for coins.
 run("state.recoveries=2;state.hp=5;openMini(1);mini.forced=false;startMini();launchMini();updateMini(2);finishMini(true);updateMini(2.3)");
 assert.equal(run('mini.win'), true);
-assert.equal(run('state.recoveries'), 0, 'a medal outside a recovery resets the escalation');
+assert.equal(run('state.recoveries'), 0, 'a medal outside a recovery resets the count');
 assert.equal(saved().recoveries, 0, 'recoveries are saved');
 close();
-run('state.recoveries=2;openMini(0,true)');
-assert.equal(run('mini.tier'), run('ivRecoveryPlan().level'), 'the recovery lobby shows the planned level');
-assert.equal(run('mini.tier'), 2);
-assert.match(nodes.tierGrid.innerHTML, /tier-card selected" data-tier="2" >/, 'the planned level is selectable');
+run('ivRecovery=null;state.recoveries=2;openMini(0,true)');
+assert.equal(run('JSON.stringify(ivRecoveryPlan())'), JSON.stringify({ phase: 0, level: 0, count: 2 }), 'no escalation');
+assert.equal(run('mini.tier'), 0, 'the recovery lobby shows level 1');
+assert.match(nodes.tierGrid.innerHTML, /tier-card selected" data-tier="0" >/, 'level 1 is the one on offer');
 assert.equal(nodes.miniRewardInfo.textContent, run('MINI_RECOVERY_LINE'));
-assert.match(run('MINI_RECOVERY_LINE'), /one IV phase/);
-run('startMini();launchMini();updateMini(2);finishMini(true);updateMini(2.3)');
+run('state.medals[0]=[0,0,0];state.records[0]=[0,0,0];startMini();launchMini();updateMini(2);finishMini(true);updateMini(2.3)');
 assert.equal(run('mini.win'), true);
-assert.ok(run('state.recoveries') > 0, 'a won recovery keeps counting');
+assert.equal(run('state.recoveries'), 3, 'a won recovery keeps counting');
+assert.equal(run('JSON.stringify(state.medals[0])'), '[0,0,0]', "a won recovery stamps nothing on the room's arcade");
 run('mini.forced=false');
 close();
+// A lost recovery keeps Retry, and the patch-up ends it for 15% of her coins.
+run('ivRecovery=null;state.recoveries=0;state.hp=0;state.coins=200;openMini(0,true);startMini();launchMini();updateMini(2);finishMini(false);updateMini(2.3)');
+assert.equal(run('mini.screen'), 'result');
+assert.equal(run('mini.win'), false);
+assert.equal(nodes.miniBack.textContent, 'Get patched up · 30 coins', 'the button names the price');
+assert.match(nodes.resultText.textContent, /30 coins/, 'and so does the result');
+const medalsBeforePatch = run('JSON.stringify(state.medals)');
+run('leaveMini()');
+assert.equal(run('mini.open'), false, 'the patch-up ends the recovery');
+assert.equal(run('state.coins'), 170, 'for 15% of her coins');
+assert.ok(run('state.hp') >= 1, 'with at least one heart');
+assert.equal(run('JSON.stringify(state.medals)'), medalsBeforePatch, 'never progress or medals');
+assert.equal(run('ivRecovery'), null, 'the next collapse is a new recovery');
 run('state.recoveries=0;state.hp=5;save()');
-console.log('PASS: recoveries save, reset on a medal outside recovery, and set the recovery lobby level.');
+console.log('PASS: the recovery never climbs, counts collapses, stamps nothing, and a lost one can be patched up for coins.');
 
 // ---- The run screen: canvas plus the minimum, sized to the window ----
 run('window.innerWidth=1280;window.innerHeight=820;openMini(4);startMini()');

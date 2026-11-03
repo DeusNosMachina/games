@@ -1556,6 +1556,14 @@ const AUDIO_MUSIC = {
   'game:3': { base: 'race' },
   'game:4': { base: 'slice' },
   'game:5': { base: 'blaster' },
+  // Fastpitch Fever: Brick Rebellion's bounce on a ballpark organ, with the crowd clapping the charge.
+  'game:pitch': {
+    base: 'bricks',
+    transpose: 2,
+    lead: 'organ',
+    tempo: 1.04,
+    perc: { kind: 'clap', pattern: ['................', '................', '................', 'x.x.x...x.x.x...'] }
+  },
   boss: { base: 'boss' },
   'result:win': { base: 'win' },
   'result:lose': { base: 'lose' }

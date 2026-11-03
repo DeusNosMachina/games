@@ -13,7 +13,7 @@ const SOUNDS = [
 ];
 const TRACKS = [
   'room:0', 'room:1', 'room:2', 'room:3', 'room:4', 'room:5', 'game:0', 'game:1', 'game:2', 'game:3', 'game:4',
-  'game:5', 'boss', 'result:win', 'result:lose'
+  'game:5', 'game:pitch', 'boss', 'result:win', 'result:lose'
 ];
 const q = JSON.stringify;
 
