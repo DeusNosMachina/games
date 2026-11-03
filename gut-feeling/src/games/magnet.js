@@ -123,7 +123,8 @@ const MAGNET = registerGame({
   tierNotes: [
     '150s · three gremlin bumpers · kickbacks · long ball save',
     '180s · drop targets · faster ball · meaner outlanes',
-    '210s · boss bumper · multiball · no kickbacks'
+    '210s · boss bumper · multiball · no kickbacks',
+    MAGNET_LEGENDARY_NOTE
   ],
   shiftName: 'BALL',
   init() {

@@ -36214,7 +36214,10 @@ function pitchScene(g, w, h) {
 // table: two flippers, a plunger, gremlin pop bumpers that take a few hits before they move out,
 // M-R-I rollover lanes, a scan ramp, drop targets from level 2, and a boss bumper with multiball on
 // level 3. Hold both flippers to fire the magnet and yank a doomed ball back up, until it overheats.
-// Swipe up to nudge; nudge too much and it tilts.
+// Swipe up to nudge; nudge too much and it tilts. Three green targets on the donut's housing fill the
+// Barf-o-meter (the ring around the donut); full, the table holds still while a gremlin climbs out of
+// the bore, retches, sprays a slime wave down the table and coughs up an extra ball. Level 4,
+// Legendary, is the skill test: a fast ball, wide outlanes, no kickbacks and no ball save.
 // Physics run in table units (400 × 720) at fixed 1/600 s substeps: a circle against segments, arcs,
 // round posts, bumpers and flippers (rotating capsules that hand the ball their surface speed), with a
 // top speed. Drawing maps the table into the active canvas: 450 × 820 in portrait with a score strip
@@ -36253,6 +36256,18 @@ const MAGNET_W = 400,
   MAGNET_RAMP_SPEED = 760,
   MAGNET_DRAIN_Y = 742,
   MAGNET_TAP_POWER = 0.35, // plunger power of a quick tap (0 to 1)
+  // The Barf-o-meter bank: three standups on the donut's housing, upper right, facing the bumpers. Its
+  // top end stays a ball's width clear of Clank's swing.
+  MAGNET_BARF = [
+    [302, 160, 318, 184],
+    [322, 194, 334, 222],
+    [338, 232, 343, 260]
+  ],
+  // The heave, in seconds: he climbs out, retches, sprays the slime wave and coughs up a ball while the
+  // table holds still, then sinks back as play resumes.
+  MAGNET_HEAVE = { climb: 0.8, retch: 0.9, spew: 1.4, spit: 0.45, sink: 0.6 },
+  MAGNET_HEAVE_HOLD = 0.8 + 0.9 + 1.4 + 0.45,
+  MAGNET_HEAVE_SIZE = 2, // his scale, fully out of the bore
   MAGNET_RAMP = magnetPath([
     [40, 320],
     [30, 250],
@@ -36271,33 +36286,45 @@ const MAGNET_W = 400,
 // Per level. hp: hits a gremlin takes; save: seconds of ball save after each launch; kick: which
 // outlanes carry a kickback (always relit, once per ball, never); divider: x of the post between
 // outlane and inlane (further in = a wider, meaner outlane); heat: seconds of magnet before it
-// overheats; cool: seconds to cool from full; par: the score a strong run reaches, for the medal.
+// overheats; cool: seconds to cool from full; par: the score a strong run reaches, for the medal;
+// barf: green-target hits that fill the Barf-o-meter the first time (each heave after asks two more).
+// Level 4 is Legendary: no ball save at any prescription, and the magnet is its only safety net, so it
+// gets a full second of it.
 const MAGNET_LEVELS = [
   {
     limit: 150, goal: 8, gravity: 700, hp: 3, save: 12, kick: 'always', divider: 42,
-    drops: false, boss: false, multi: false, heat: 1.25, cool: 4, par: 30000
+    drops: false, boss: false, multi: false, heat: 1.25, cool: 4, par: 30000, barf: 3
   },
   {
     limit: 180, goal: 15, gravity: 820, hp: 4, save: 7, kick: 'ball', divider: 48,
-    drops: true, boss: false, multi: false, heat: 1, cool: 7, par: 45000
+    drops: true, boss: false, multi: false, heat: 1, cool: 7, par: 45000, barf: 5
   },
   {
     limit: 210, goal: 22, gravity: 940, hp: 4, save: 5, kick: 'none', divider: 48,
-    drops: true, boss: true, multi: true, heat: 0.9, cool: 9, par: 65000
+    drops: true, boss: true, multi: true, heat: 0.9, cool: 9, par: 65000, barf: 8
+  },
+  {
+    limit: 170, goal: 25, gravity: 1010, hp: 4, save: 0, kick: 'none', divider: 52,
+    drops: true, boss: true, multi: true, heat: 1, cool: 9, par: 85000, barf: 10
   }
 ];
+
+// The lobby note for Legendary. tests/smoke.cjs still expects exactly three tierNotes per game; once it
+// counts miniTierCount(def) instead, this joins tierNotes as the fourth entry.
+const MAGNET_LEGENDARY_NOTE = '170s · fastest ball · wide outlanes · no ball save · 25 evictions';
 
 const MAGNET = registerGame({
   id: 1,
   canvas: { w: 800, h: 600 },
   portraitCanvas: { w: 450, h: 820 },
   layout: 'gesture',
+  legendary: true,
   info: {
     game: 'Loud Donut Pinball',
     genre: 'PINBALL · FLIPPERS · MAGNET SAVES',
     headline: 'Flippers in the bore. Gremlins on the bumpers.',
     desc:
-      'The gremlins moved into the MRI and turned it into a pinball table. Flip the steel softball into them until they move out. Hold both flippers to fire up the magnet and yank a doomed ball back up, until it overheats. Three balls. No metal allowed, except, apparently, this one.',
+      'The gremlins moved into the MRI and turned it into a pinball table. Flip the steel softball into them until they move out. Hold both flippers to fire up the magnet and yank a doomed ball back up, until it overheats. Hit the green targets to fill the Barf-o-meter, and the gremlin living in the scanner throws up slime and a spare ball. Three balls. No metal allowed, except, apparently, this one.',
     goal: 'Evict the gremlin quota before your last ball drains.',
     control:
       'Left half of the screen is the left flipper, right half the right one: two thumbs. Hold both to fire the magnet. Swipe up to nudge. Tap to launch. Keys: Z or ← flips left, / or → flips right, Space launches, Shift or ↑ nudges. Mouse: click the left or right half.',
@@ -36308,7 +36335,8 @@ const MAGNET = registerGame({
   tierNotes: [
     '150s · three gremlin bumpers · kickbacks · long ball save',
     '180s · drop targets · faster ball · meaner outlanes',
-    '210s · boss bumper · multiball · no kickbacks'
+    '210s · boss bumper · multiball · no kickbacks',
+    MAGNET_LEGENDARY_NOTE
   ],
   shiftName: 'BALL',
   init() {
@@ -36400,9 +36428,10 @@ const MAGNET = registerGame({
     const i = MAGNET.info,
       lv = MAGNET_LEVELS[mini.tier],
       extra = [
-        ' Kickbacks guard both outer lanes and every ball starts with a long ball save. Gremlins take 3 hits.',
-        ' New: drop targets on the right. Knock all three down and every gremlin takes a hit. Gremlins take 4 hits, the ball is quicker, and the outer lanes are wider.',
-        ' New: Clank, a boss gremlin in a metal bucket, slides across the top and counts for three. Clear the drop targets or ride the scan ramp three times for multiball. No kickbacks.'
+        ' Kickbacks guard both outer lanes and every ball starts with a long ball save. Gremlins take 3 hits. Hit the green targets up top on the right 3 times to fill the Barf-o-meter, and the gremlin in the scanner throws up slime and a spare ball.',
+        ' New: drop targets on the right. Knock all three down and every gremlin takes a hit. Gremlins take 4 hits, the ball is quicker, and the outer lanes are wider. The Barf-o-meter wants 5 green hits.',
+        ' New: Clank, a boss gremlin in a metal bucket, slides across the top and counts for three. Clear the drop targets or ride the scan ramp three times for multiball. No kickbacks. The Barf-o-meter wants 8 green hits.',
+        ' Legendary: the fastest ball, wide outer lanes, no kickbacks and no ball save, not even on Pillow Fort. Clank and multiball are back, the clock is shorter, and the Barf-o-meter wants 10 green hits. Most runs lose. That is the point.'
       ][mini.tier];
     return {
       title: i.game + ' · 3 balls · ' + lv.limit + ' s',
@@ -36421,7 +36450,7 @@ const MAGNET = registerGame({
     return ('● '.repeat(left) + '○ '.repeat(3 - left)).trim();
   },
   tactics: () =>
-    `SCORE ${mini.score} · ×${mini.pinMult} · ${mini.pinRamps} SCANS · MAGNET ${mini.pinHot ? 'HOT' : Math.round((1 - mini.pinHeat) * 100) + '%'}` +
+    `SCORE ${mini.score} · ×${mini.pinMult} · ${mini.pinRamps} SCANS · BARF ${mini.pinBarf}/${mini.pinBarfNeed} · MAGNET ${mini.pinHot ? 'HOT' : Math.round((1 - mini.pinHeat) * 100) + '%'}` +
     (mini.pinTilted ? ' · TILT' : ''),
   assistText: () => 'BALL SAVE · ' + mini.helps + ' (E)',
   // Quota overshoot, score against par and balls left drive the medal; drains, tilts and assists cost it.
@@ -36431,7 +36460,7 @@ const MAGNET = registerGame({
       score = clamp(mini.score / lv.par, 0, 1.5) * 16;
     return Math.round(
       clamp(
-        52 + over + score + mini.pinSpare * 6 + Math.min(6, mini.pinRamps * 2) - mini.miss * 5 - mini.pinTilts * 8 - mini.helpUsed * 4,
+        52 + over + score + mini.pinSpare * 6 + Math.min(6, mini.pinRamps * 2) + Math.min(6, mini.pinHeaves * 3) - mini.miss * 5 - mini.pinTilts * 8 - mini.helpUsed * 4,
         0,
         100
       )
@@ -36439,11 +36468,14 @@ const MAGNET = registerGame({
   },
   onWin() {
     const n = mini.pinEvicted,
+      h = mini.pinHeaves,
       tail = mini.pinBossDown
         ? ' Clank and his bucket have been escorted out. Metal is not allowed in here.'
-        : mini.pinMagSaves
-          ? ' The magnet saved ' + mini.pinMagSaves + (mini.pinMagSaves === 1 ? ' ball.' : ' balls.') + ' Radiology wants it back.'
-          : ' The MRI is legally a pinball machine now. Radiology is drafting a sign.';
+        : h
+          ? ' The gremlin in the scanner threw up ' + (h === 1 ? 'once' : h === 2 ? 'twice' : h + ' times') + '. Housekeeping has filed a complaint.'
+          : mini.pinMagSaves
+            ? ' The magnet saved ' + mini.pinMagSaves + (mini.pinMagSaves === 1 ? ' ball.' : ' balls.') + ' Radiology wants it back.'
+            : ' The MRI is legally a pinball machine now. Radiology is drafting a sign.';
     return `Lease terminated. ${n} gremlin${n === 1 ? '' : 's'} evicted, ${mini.pinRamps} scan${mini.pinRamps === 1 ? '' : 's'}.` + tail;
   },
   onLose(reason) {
@@ -36573,6 +36605,18 @@ function magnetBuildTable(lv) {
   // Drop targets (level 2 up): a bank of three on the right wall.
   if (lv.drops)
     MAGNET_DROP_Y.forEach((y, i) => segs.push(magnetSeg(MAGNET_DROP_X, y, MAGNET_DROP_X, y + 24, { r: 4, e: 0.4, tag: 'drop', drop: i })));
+  // The Barf-o-meter standups. Only the face toward the bore counts a hit.
+  MAGNET_BARF.forEach(([ax, ay, bx, by], i) => {
+    const s = magnetSeg(ax, ay, bx, by, { r: 4, e: 0.5, tag: 'barf', barf: i }),
+      l = Math.hypot(bx - ax, by - ay);
+    s.nx = -(by - ay) / l;
+    s.ny = (bx - ax) / l;
+    if (s.nx * (MAGNET_BORE.x - ax) + s.ny * (MAGNET_BORE.y - ay) < 0) {
+      s.nx *= -1;
+      s.ny *= -1;
+    }
+    segs.push(s);
+  });
   return { segs, posts, arcs };
 }
 
@@ -36583,7 +36627,8 @@ function magnetInit() {
     lv = {
       ...base,
       gravity: base.gravity * Math.sqrt(pace),
-      save: base.save + (state.difficulty === 0 ? 4 : state.difficulty === 2 ? -1 : 0),
+      // Legendary has no ball save at any prescription.
+      save: base.save ? base.save + (state.difficulty === 0 ? 4 : state.difficulty === 2 ? -1 : 0) : 0,
       heat: base.heat / Math.sqrt(pace)
     };
   mini.goal = lv.goal;
@@ -36652,7 +36697,17 @@ function magnetInit() {
     pinFx: [],
     pinSplats: [],
     pinMsg: null,
-    pinBanked: false
+    pinBanked: false,
+    // The Barf-o-meter: hits so far, hits it wants, each target's lamp and debounce, and the heave.
+    pinBarf: 0,
+    pinBarfNeed: lv.barf,
+    pinBarfLamp: [0, 0, 0],
+    pinBarfCd: [0, 0, 0],
+    pinBarfFlash: 0,
+    pinBarfHits: 0,
+    pinHeave: null,
+    pinHeaves: 0,
+    pinHeaveFlash: 0
   });
   magnetServe(false);
 }
@@ -36809,7 +36864,7 @@ function magnetHeld(side) {
 }
 
 function magnetNudge() {
-  if (mini.screen !== 'play' || mini.pinNudgeCd > 0) return;
+  if (mini.screen !== 'play' || mini.pinNudgeCd > 0 || magnetHolding()) return;
   mini.pinNudgeCd = 0.3;
   const live = mini.pinBalls.filter(b => b.state === 'play');
   if (!live.length || mini.pinTilted) return;
@@ -36833,6 +36888,16 @@ function magnetNudge() {
 // ---- Simulation ----
 function magnetUpdate(dt) {
   const lv = mini.pinLv;
+  if (mini.pinHeave) magnetHeaveStep(dt);
+  // The heave holds the table still: no ball, flipper, magnet, timer or clock moves until he has
+  // coughed up the ball. Presses still register and act the moment it lets go.
+  if (magnetHolding()) {
+    mini.limit += dt;
+    mini.pinMagOn = false;
+    mini.pinBothT = 0;
+    magnetLooks(dt);
+    return;
+  }
   for (const side of [0, 1]) mini.pinTapT[side] = Math.max(0, mini.pinTapT[side] - dt);
   // The plunger: a held key pulls until Space lifts.
   const pull = mini.pinPull;
@@ -36860,6 +36925,8 @@ function magnetUpdate(dt) {
     mini.pinAcc -= MAGNET_STEP;
     magnetStep(MAGNET_STEP);
     if (mini.screen !== 'play') return;
+    // A green hit that filled the meter stops the table mid-frame.
+    if (magnetHolding()) break;
   }
   magnetTimers(dt, lv);
 }
@@ -37040,6 +37107,7 @@ function magnetHitSeg(b, s) {
   const impact = magnetResolve(b, nx, ny, rad - d, s.e);
   if (s.tag === 'sling' && impact > 70 && nx * s.nx + ny * s.ny > 0.6) magnetSling(b, s);
   else if (s.tag === 'drop' && impact > 40) magnetDropHit(s.drop);
+  else if (s.tag === 'barf' && impact > 50 && nx * s.nx + ny * s.ny > 0.3) magnetBarfHit(s.barf);
   return true;
 }
 
@@ -37379,6 +37447,151 @@ function magnetMultiball() {
   mini.flashText = 'MULTIBALL';
 }
 
+// ---- The Barf-o-meter and the heave ----
+// True while the heave holds the table still (he climbs, retches, spews, coughs up the ball).
+function magnetHolding() {
+  return !!mini.pinHeave && mini.pinHeave.t < MAGNET_HEAVE_HOLD;
+}
+
+// Where the heave is: {name, u} with u running 0 to 1 through the phase, or null with none on.
+function magnetHeavePhase(h = mini.pinHeave) {
+  if (!h) return null;
+  let t = h.t;
+  for (const name of ['climb', 'retch', 'spew', 'spit', 'sink']) {
+    if (t < MAGNET_HEAVE[name]) return { name, u: t / MAGNET_HEAVE[name] };
+    t -= MAGNET_HEAVE[name];
+  }
+  return { name: 'sink', u: 1 };
+}
+
+// A green target took a hit from the front: one notch on the Barf-o-meter. Full, he heaves.
+function magnetBarfHit(i) {
+  if (mini.pinTilted || mini.pinBarfCd[i] > 0) return;
+  mini.pinBarfCd[i] = 0.3;
+  mini.pinBarfLamp[i] = 0.5;
+  mini.pinBarfFlash = 0.45;
+  mini.pinBarfHits++;
+  magnetPoints(250);
+  mini.pinBarf = Math.min(mini.pinBarfNeed, mini.pinBarf + 1);
+  const [ax, ay, bx, by] = MAGNET_BARF[i],
+    left = mini.pinBarfNeed - mini.pinBarf;
+  magnetPop((ax + bx) / 2 - 30, (ay + by) / 2, left ? mini.pinBarf + '/' + mini.pinBarfNeed : 'FULL', '#c9ffb0');
+  sfx('blob', { pan: 0.5 });
+  if (mini.pinHeave) return;
+  if (!left) magnetHeaveStart();
+  else if (left === 1) magnetSay('ONE MORE GREEN · HE IS GONNA BLOW', 1.6, '#c9ffb0');
+  else magnetSay('BARF-O-METER ' + mini.pinBarf + '/' + mini.pinBarfNeed, 1, '#c9ffb0');
+}
+
+function magnetHeaveStart() {
+  mini.pinHeaves++;
+  mini.pinBarf = 0;
+  // Each heave after the first asks two more hits.
+  mini.pinBarfNeed = mini.pinLv.barf + mini.pinHeaves * 2;
+  mini.pinHeave = { t: 0, n: mini.pinHeaves, wave: MAGNET_BORE.y, slimed: [] };
+  mini.pinMagOn = false;
+  mini.pinHeaveFlash = 0.8;
+  mini.pinShake = Math.max(mini.pinShake, 0.7);
+  sfx('clear');
+  sfx('blob', { vol: 1.2 });
+  magnetSay('SLIME TIME · HE IS COMING OUT', 2.2, '#c9ffb0');
+  mini.flash = 1;
+  mini.flashText = 'SLIME TIME';
+}
+
+// The heave's clock: retches, the slime wave (it pays, and every gremlin it reaches takes a hit), the
+// cough, then the extra ball as the table lets go, and the sink back into the bore.
+function magnetHeaveStep(dt) {
+  const h = mini.pinHeave,
+    H = MAGNET_HEAVE,
+    B = MAGNET_BORE,
+    was = h.t,
+    retch = H.climb,
+    spew = retch + H.retch,
+    spit = spew + H.spew,
+    cross = s => was < s && h.t >= s;
+  h.t += dt;
+  for (const [at, text] of [
+    [retch + 0.1, 'HURK'],
+    [retch + 0.55, 'HUUURK']
+  ])
+    if (cross(at)) {
+      sfx('organ', { vol: 1.3 });
+      mini.pinShake = Math.max(mini.pinShake, 0.45);
+      magnetPop(B.x, B.y - 74, text, '#c9ffb0');
+    }
+  if (cross(spew)) {
+    sfx('wallSplat');
+    sfx('wave');
+    mini.pinShake = Math.max(mini.pinShake, 1.5);
+    mini.pinHeaveFlash = 1;
+    const v = magnetPoints(5000 * h.n);
+    sfx('coin');
+    magnetPop(B.x, B.y + 70, 'SLIME +' + v, '#c9ffb0');
+    magnetSay('SLIME TIME · +' + magnetComma(v), 2, '#c9ffb0');
+  }
+  if (h.t >= spew && was < spit) {
+    h.wave = B.y + clamp((h.t - spew) / H.spew, 0, 1) * (MAGNET_H + 20 - B.y);
+    for (const gr of [...mini.pinGrem, mini.pinBoss]) {
+      if (!gr || gr.gone || h.slimed.includes(gr) || gr.y - gr.R > h.wave) continue;
+      h.slimed.push(gr);
+      magnetBurst(gr.x, gr.y, '#9be15d', 10);
+      magnetBumperHit(gr, 1, null);
+    }
+  }
+  if (cross(spit)) {
+    sfx('squelch');
+    magnetPop(B.x, B.y - 80, 'HACK', '#fff2c4');
+    for (let i = 0; i < 6; i++) mini.pinSplats.push({ x: rand(60, 320), y: rand(330, 600), t: 2.6, s: rand(0.8, 1.4) });
+  }
+  if (cross(MAGNET_HEAVE_HOLD)) magnetHeaveBall(h);
+  if (h.t >= MAGNET_HEAVE_HOLD + H.sink) {
+    mini.pinHeave = null;
+    if (mini.pinBarf >= mini.pinBarfNeed) magnetHeaveStart();
+  }
+}
+
+// His mouth on the table at size s (where the stream starts and the ball comes out).
+function magnetHeaveMouth(s) {
+  return { x: MAGNET_BORE.x + 2 * s, y: MAGNET_BORE.y + 12 * s };
+}
+
+// He coughs up a ball: it hops out of the bore to the top of an inlane (the sides take turns) and rolls
+// down to a flipper. With three balls already out he pays again instead.
+function magnetHeaveBall(h) {
+  if (mini.pinBalls.length >= 3) {
+    const v = magnetPoints(5000 * h.n);
+    magnetPop(MAGNET_BORE.x, MAGNET_BORE.y - 40, 'NO ROOM · +' + v, '#c9ffb0');
+    sfx('coin');
+    return null;
+  }
+  const D = mini.pinLv.divider,
+    inlane = h.n % 2 ? (D + 84) / 2 : 2 * MAGNET_CX - (D + 84) / 2,
+    m = magnetHeaveMouth(MAGNET_HEAVE_SIZE),
+    b = {
+      id: mini.pinBallSerial++,
+      x: m.x,
+      y: m.y,
+      vx: 0,
+      vy: 0,
+      state: 'hop',
+      spin: 0,
+      rs: 0,
+      still: 0,
+      fresh: false,
+      low: false,
+      hop: { x0: m.x, y0: m.y, x1: inlane, y1: 492, t: 0, dur: 0.75 }
+    };
+  mini.pinBalls.push(b);
+  mini.pinMulti = true;
+  if (mini.pinLv.save) mini.pinSave = Math.max(mini.pinSave, 6);
+  sfx('fever');
+  magnetSay('EXTRA BALL · MULTIBALL', 2.2, '#ffe08a');
+  mini.flash = 1;
+  mini.flashText = 'EXTRA BALL';
+  return b;
+}
+
 // The kickback hops the ball out of the outlane, over the divider post, and drops it at the top of the
 // inlane on the same side, where it rolls down onto the flipper.
 function magnetKickback(b, side) {
@@ -37456,8 +37669,6 @@ function magnetTimers(dt, lv) {
   for (const gr of [...mini.pinGrem, mini.pinBoss]) {
     if (!gr) continue;
     gr.cool = Math.max(0, gr.cool - dt);
-    gr.flash = Math.max(0, gr.flash - dt);
-    gr.pop = Math.max(0, gr.pop - dt);
     if (!gr.gone) continue;
     gr.respawn -= dt;
     const blocked = mini.pinBalls.some(b => b.state === 'play' && Math.hypot(b.x - gr.x, b.y - gr.y) < gr.R + MAGNET_BALL + 6);
@@ -37475,20 +37686,17 @@ function magnetTimers(dt, lv) {
   if (inPlay) mini.pinSave = Math.max(0, mini.pinSave - dt);
   mini.pinNudgeCd = Math.max(0, mini.pinNudgeCd - dt);
   mini.pinTilt = Math.max(0, mini.pinTilt - dt * 0.22);
-  mini.pinShake = Math.max(0, mini.pinShake - dt * 3);
   mini.pinRampCombo = Math.max(0, mini.pinRampCombo - dt);
   mini.pinLitFlash = Math.max(0, mini.pinLitFlash - dt);
   if (mini.pinLitFlash <= 0 && mini.pinLit.every(Boolean)) mini.pinLit = [false, false, false];
+  for (let i = 0; i < 3; i++) mini.pinBarfCd[i] = Math.max(0, mini.pinBarfCd[i] - dt);
   for (const side of [0, 1]) {
-    mini.pinSlingFlash[side] = Math.max(0, mini.pinSlingFlash[side] - dt);
-    mini.pinKickFlash[side] = Math.max(0, mini.pinKickFlash[side] - dt);
     if (mini.pinKickT[side] > 0) {
       mini.pinKickT[side] -= dt;
       if (mini.pinKickT[side] <= 0) mini.pinKick[side] = true;
     }
   }
   if (mini.pinDrops) {
-    for (const d of mini.pinDrops) d.flash = Math.max(0, d.flash - dt);
     if (mini.pinDropReset > 0) {
       mini.pinDropReset -= dt;
       if (mini.pinDropReset <= 0) {
@@ -37503,21 +37711,7 @@ function magnetTimers(dt, lv) {
     if (mini.pinAuto <= 0) magnetLaunch(0.55);
   }
   if (mini.pinBalls.some(b => b.state === 'plunger') && !inPlay) mini.pinWait += dt;
-  for (const p of mini.pinPops) p.t -= dt;
-  mini.pinPops = mini.pinPops.filter(p => p.t > 0);
-  for (const p of mini.pinFx) {
-    p.life -= dt;
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
-    p.vy += 420 * dt;
-  }
-  mini.pinFx = mini.pinFx.filter(p => p.life > 0);
-  for (const s of mini.pinSplats) s.t -= dt;
-  mini.pinSplats = mini.pinSplats.filter(s => s.t > 0);
-  if (mini.pinMsg) {
-    mini.pinMsg.t -= dt;
-    if (mini.pinMsg.t <= 0) mini.pinMsg = null;
-  }
+  magnetLooks(dt);
   // Ball trails for the art.
   for (const b of mini.pinBalls) {
     if (!magnetLive(b)) {
@@ -37533,6 +37727,39 @@ function magnetTimers(dt, lv) {
       magnetBankBonus();
       finishMini(true);
     }
+  }
+}
+
+// Clocks that only drive the art: they keep running while the heave holds the table.
+function magnetLooks(dt) {
+  for (const gr of [...mini.pinGrem, mini.pinBoss]) {
+    if (!gr) continue;
+    gr.flash = Math.max(0, gr.flash - dt);
+    gr.pop = Math.max(0, gr.pop - dt);
+  }
+  mini.pinShake = Math.max(0, mini.pinShake - dt * 3);
+  mini.pinBarfFlash = Math.max(0, mini.pinBarfFlash - dt);
+  mini.pinHeaveFlash = Math.max(0, mini.pinHeaveFlash - dt * 2.2);
+  for (let i = 0; i < 3; i++) mini.pinBarfLamp[i] = Math.max(0, mini.pinBarfLamp[i] - dt);
+  for (const side of [0, 1]) {
+    mini.pinSlingFlash[side] = Math.max(0, mini.pinSlingFlash[side] - dt);
+    mini.pinKickFlash[side] = Math.max(0, mini.pinKickFlash[side] - dt);
+  }
+  if (mini.pinDrops) for (const d of mini.pinDrops) d.flash = Math.max(0, d.flash - dt);
+  for (const p of mini.pinPops) p.t -= dt;
+  mini.pinPops = mini.pinPops.filter(p => p.t > 0);
+  for (const p of mini.pinFx) {
+    p.life -= dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 420 * dt;
+  }
+  mini.pinFx = mini.pinFx.filter(p => p.life > 0);
+  for (const s of mini.pinSplats) s.t -= dt;
+  mini.pinSplats = mini.pinSplats.filter(s => s.t > 0);
+  if (mini.pinMsg) {
+    mini.pinMsg.t -= dt;
+    if (mini.pinMsg.t <= 0) mini.pinMsg = null;
   }
 }
 
@@ -37574,6 +37801,12 @@ function magnetDraw(g) {
   g.translate(V.ox + Math.sin(mini.total * 83) * shake * 5, V.oy + Math.cos(mini.total * 71) * shake * 4);
   g.scale(V.s, V.s);
   magnetTable(g);
+  // The heave's table-wide flash (softer under reduced motion).
+  if (mini.pinHeaveFlash > 0) {
+    g.globalAlpha = Math.min(1, mini.pinHeaveFlash) * (reduced ? 0.15 : 0.42);
+    rr(g, 0, 0, MAGNET_W, MAGNET_H + 30, 20, '#e4ffc4');
+    g.globalAlpha = 1;
+  }
   g.restore();
   if (V.tall) magnetStrip(g, V);
   else magnetPanels(g, V);
@@ -37635,6 +37868,7 @@ function magnetTable(g) {
   }
   if (magOn) glow(g, B.x, B.y, 170, '#7fe3ff40');
   label(g, 'NO METAL · NO CHILL', B.x, B.y + 125, 9, '#a9d6dc88', 'center');
+  magnetBarfRing(g);
   // Lower inserts: up arrows toward the bore and the SAVE light between the flippers.
   for (let k = 0; k < 3; k++) {
     const y = 470 + k * 26,
@@ -37704,6 +37938,7 @@ function magnetTable(g) {
         rr(g, MAGNET_DROP_X - 5, y - 2, 10, 5, 2, '#e8eef0');
       } else rr(g, MAGNET_DROP_X - 5, y + 18, 10, 6, 2, d.flash > 0 ? '#ffffff' : '#0d2533', '#3c5d68', 1);
     });
+  magnetBarfBankArt(g);
   // Bumpers.
   for (const gr of mini.pinGrem) magnetBumperArt(g, gr);
   if (mini.pinBoss) magnetBumperArt(g, mini.pinBoss);
@@ -37738,6 +37973,8 @@ function magnetTable(g) {
     if (magOn && b.state === 'play') magnetFieldArt(g, b);
     magnetSteel(g, b.x, b.y, MAGNET_BALL, b.spin);
   }
+  // The heave: the slime wave and the gremlin over the table, then anything in the air above him.
+  magnetHeaveArt(g);
   for (const b of mini.pinBalls) {
     if (b.state !== 'ramp' && b.state !== 'hop') continue;
     ellipse(g, b.x + 7, b.y + 9, MAGNET_BALL, MAGNET_BALL * 0.8, '#04121b66');
@@ -37822,6 +38059,178 @@ function magnetSplatArt(g, s) {
       d = i ? 12 + (i % 3) * 8 : 0,
       r = (i ? 6 + (i % 2) * 4 : 14) * s.s;
     ellipse(g, s.x + Math.cos(ang) * d * s.s, s.y + Math.sin(ang) * d * s.s * 0.8, r, r * 0.8, i % 2 ? '#7cc244' : '#8fd14f');
+  }
+  g.globalAlpha = 1;
+}
+
+// The Barf-o-meter: a segmented ring around the donut, one notch per green hit, lit clockwise from the
+// upper left and skipping the arc the ramp block hides. As it fills, the bore turns green and his eyes
+// show in the dark. While he heaves, every notch strobes.
+function magnetBarfRing(g) {
+  const B = MAGNET_BORE,
+    need = mini.pinBarfNeed,
+    holding = magnetHolding(),
+    have = holding ? need : mini.pinBarf,
+    frac = have / need,
+    a0 = (-155 * Math.PI) / 180,
+    span = (318 * Math.PI) / 180,
+    step = span / need,
+    gap = Math.min(0.06, step * 0.3),
+    strobe = holding && Math.sin(mini.total * 22) > 0;
+  if (frac > 0 && !mini.pinHeave) ellipse(g, B.x, B.y, 92, 92, `rgba(143, 209, 79, ${0.05 + 0.13 * frac})`);
+  for (let k = 0; k < need; k++) {
+    const lit = k < have,
+      fresh = lit && k === have - 1 && mini.pinBarfFlash > 0 && !holding,
+      a = a0 + k * step + gap / 2,
+      b = a0 + (k + 1) * step - gap / 2;
+    path(g, p => p.arc(B.x, B.y, 147, a, b), null, '#071a10', 12);
+    path(g, p => p.arc(B.x, B.y, 147, a, b), null, fresh || strobe ? '#f2ffd8' : lit ? '#8fd14f' : '#1d3b2a', 7);
+  }
+  if (have && !holding) {
+    const k = have - 1,
+      a = a0 + (k + 0.5) * step;
+    glow(g, B.x + Math.cos(a) * 147, B.y + Math.sin(a) * 147, mini.pinBarfFlash > 0 ? 34 : 18, '#9be15d66');
+  }
+  // Two eyes in the dark once the meter is half full; one hit away they glow and blink faster.
+  if (!mini.pinHeave && frac >= 0.5) {
+    const close = need - have <= 1,
+      blink = Math.sin(mini.total * (close ? 5 : 2.2)) > 0.93,
+      y = B.y - 2 + Math.sin(mini.total * 3) * 2;
+    if (close) glow(g, B.x, y, 34, '#9be15d44');
+    for (const side of [-1, 1]) {
+      ellipse(g, B.x + side * 8, y, 5.5, blink ? 0.8 : 4.5, close ? '#f2ffd8' : '#c9e8b0aa');
+      if (!blink) ellipse(g, B.x + side * 8 + 1, y + 1, 2, 2.4, '#2c5a1e');
+    }
+  }
+}
+
+// The green standups, their lamps (a slow chase, bright on a hit or when one hit is left) and the name.
+function magnetBarfBankArt(g) {
+  const close = !mini.pinHeave && mini.pinBarfNeed - mini.pinBarf <= 1;
+  mini.pinT.segs.forEach(s => {
+    if (s.tag !== 'barf') return;
+    const i = s.barf,
+      hit = mini.pinBarfLamp[i] > 0,
+      chase = (mini.total * (close ? 4 : 1.2) - i * 0.33 + 3) % 1 < 0.33,
+      mx = (s.ax + s.bx) / 2,
+      my = (s.ay + s.by) / 2;
+    line(g, [[s.ax - s.nx * 5, s.ay - s.ny * 5], [s.bx - s.nx * 5, s.by - s.ny * 5]], '#0b2a14', 12);
+    line(g, [[s.ax, s.ay], [s.bx, s.by]], '#2c5a1e', 11);
+    line(g, [[s.ax, s.ay], [s.bx, s.by]], hit ? '#f2ffd8' : '#8fd14f', 7);
+    line(g, [[s.ax + s.nx * 2, s.ay + s.ny * 2], [mx + s.nx * 2, my + s.ny * 2]], '#ffffff66', 1.5);
+    const lx = mx + s.nx * 20,
+      ly = my + s.ny * 20,
+      on = hit || chase;
+    if (on) glow(g, lx, ly, hit ? 22 : 13, '#9be15d55');
+    ellipse(g, lx, ly, 5, 5, hit ? '#f2ffd8' : on ? '#9be15d' : '#1d3b2a');
+  });
+  rr(g, 264, 126, 90, 21, 8, '#0f2a17', '#8fd14f', 1.5);
+  label(g, 'BARF-O-METER', 309, 141, 10, '#c9ffb0', 'center');
+}
+
+function magnetEaseBack(u) {
+  const c = 1.70158;
+  return 1 + (c + 1) * Math.pow(u - 1, 3) + c * Math.pow(u - 1, 2);
+}
+
+// The heave on the table: the slime wave washing down, the gremlin out of the bore with his claws on
+// the rim, his retching, the stream, and the ball he coughs up.
+function magnetHeaveArt(g) {
+  const h = mini.pinHeave,
+    p = magnetHeavePhase(h);
+  if (!p) return;
+  const B = MAGNET_BORE,
+    S = MAGNET_HEAVE_SIZE;
+  let s = S,
+    sx = 1,
+    sy = 1,
+    t = 0;
+  if (p.name === 'climb') {
+    s = S * (0.12 + 0.88 * magnetEaseBack(p.u));
+    t = mini.total * 2;
+  } else if (p.name === 'sink') s = S * (1 - p.u);
+  if (p.name === 'retch') {
+    const k = Math.sin(p.u * Math.PI * 4);
+    sx = 1 + 0.1 * k;
+    sy = 1 - 0.12 * k;
+  } else if (p.name === 'spew') {
+    sx = 1.05;
+    sy = 0.96 + 0.03 * Math.sin(mini.total * 30);
+  } else if (p.name === 'spit') {
+    const k = Math.sin(p.u * Math.PI);
+    sx = 1 + 0.12 * k;
+    sy = 1 - 0.1 * k;
+  }
+  if (p.name === 'spew' || p.name === 'spit' || p.name === 'sink') magnetSlimeArt(g, h.wave, p.name === 'sink' ? 1 - p.u : 1);
+  if (s < 0.05) return;
+  const grow = s / S;
+  glow(g, B.x, B.y, 130 * grow, '#9be15d44');
+  ellipse(g, B.x, B.y + 6, 70 * grow, 22 * grow, '#04121b88');
+  // Claws on the rim of the bore.
+  for (const side of [-1, 1]) {
+    const cx = B.x + side * 84 * grow,
+      cy = B.y - 6;
+    ellipse(g, cx, cy, 11 * grow, 7 * grow, '#b5da81');
+    for (let k = -1; k <= 1; k++) line(g, [[cx + k * 5 * grow, cy - 3 * grow], [cx + k * 6 * grow, cy - 11 * grow]], '#61967c', 2.5 * grow);
+  }
+  g.save();
+  g.translate(B.x, B.y + 24 * s);
+  g.scale(sx, sy);
+  gremlin(g, 0, 0, s, 0, t);
+  if (p.name === 'retch' || p.name === 'spit') {
+    // Green around the gills.
+    ellipse(g, -10 * s, -18 * s, 6 * s, 3.5 * s, '#6cb33bbb');
+    ellipse(g, 10 * s, -18 * s, 6 * s, 3.5 * s, '#6cb33bbb');
+  }
+  if (p.name === 'spew') ellipse(g, 2 * s, -12 * s, 9 * s, 7 * s, '#3a2030');
+  if (p.name === 'spit') {
+    ellipse(g, -13 * s, -15 * s, 7 * s, 6 * s, '#b5da81');
+    ellipse(g, 15 * s, -15 * s, 7 * s, 6 * s, '#b5da81');
+    if (p.u > 0.35) magnetSteel(g, 2 * s, -12 * s, MAGNET_BALL, p.u * 6);
+  }
+  g.restore();
+  if (p.name === 'spew') {
+    // The stream from his mouth down to the wave front.
+    const m = magnetHeaveMouth(s),
+      end = Math.max(m.y + 30, h.wave),
+      wob = Math.sin(mini.total * 24) * 10;
+    path(g, q => {
+      q.moveTo(m.x, m.y);
+      q.bezierCurveTo(m.x + wob, m.y + 50, B.x - wob, end - 60, B.x, end);
+    }, null, '#6cb33b', 22);
+    path(g, q => {
+      q.moveTo(m.x, m.y);
+      q.bezierCurveTo(m.x + wob, m.y + 50, B.x - wob, end - 60, B.x, end);
+    }, null, '#b6ee6a', 9);
+    for (let k = 0; k < 8; k++) {
+      const u = (k / 8 + mini.total * 2.4) % 1,
+        y = m.y + (end - m.y) * u,
+        x = B.x + Math.sin(u * 9 + mini.total * 14) * 16;
+      ellipse(g, x, y, 4 + (k % 3), 4 + (k % 3), k % 2 ? '#d3df7e' : '#8fd14f');
+    }
+  }
+}
+
+// The slime wave: a green wash from the bore down to its wobbling front, bubbles along the edge.
+function magnetSlimeArt(g, front, fade) {
+  const top = MAGNET_BORE.y - 20,
+    edge = x => front + Math.sin(x * 0.09 + mini.total * 10) * 7;
+  if (front <= top || fade <= 0) return;
+  g.globalAlpha = 0.55 * fade;
+  path(
+    g,
+    q => {
+      q.moveTo(14, top);
+      q.lineTo(350, top);
+      for (let x = 350; x >= 14; x -= 14) q.lineTo(x, edge(x));
+      q.closePath();
+    },
+    gradient(g, 0, top, 0, front - top, '#8fd14f22', '#8fd14fcc')
+  );
+  g.globalAlpha = 0.9 * fade;
+  for (let k = 0; k < 14; k++) {
+    const x = 24 + k * 24 + Math.sin(k * 3.1) * 6;
+    ellipse(g, x, edge(x) - 2, 3.5 + (k % 3), 3.5 + (k % 3), k % 2 ? '#b6ee6a' : '#d3df7e');
   }
   g.globalAlpha = 1;
 }
@@ -37930,6 +38339,22 @@ function magnetStrip(g, V) {
   label(g, magnetComma(mini.score), x + 12, y + 29, 22, '#ffb347');
   label(g, 'BALL ' + Math.min(3, mini.pinBallNo + 1) + (mini.pinMult > 1 ? ' · ×' + mini.pinMult : ''), x + w - 12, y + 18, 11, '#ffcf8f', 'right');
   label(g, 'EVICTED ' + mini.got + '/' + mini.goal, x + w - 12, y + 34, 11, '#c9ffb0', 'right');
+  magnetBarfBar(g, V.w / 2 - 6, y + 9, 112, 'center');
+}
+
+// The Barf-o-meter as a labelled bar of notches, for the score strip and the side panel.
+function magnetBarfBar(g, x, y, w, align = 'left') {
+  const need = mini.pinBarfNeed,
+    holding = magnetHolding(),
+    have = holding ? need : mini.pinBarf,
+    left = align === 'center' ? x - w / 2 : x,
+    cell = w / need;
+  label(g, 'BARF-O-METER', align === 'center' ? x : left, y + 8, 9, '#9be15d', align);
+  for (let k = 0; k < need; k++) {
+    const lit = k < have,
+      on = holding ? Math.sin(mini.total * 22) > 0 : lit;
+    rr(g, left + k * cell + 1, y + 13, cell - 2, 9, 3, on ? (holding ? '#f2ffd8' : '#8fd14f') : '#1d3b2a');
+  }
 }
 
 // Landscape: score on the left, the magnet and the controls on the right.
@@ -37955,6 +38380,7 @@ function magnetPanels(g, V) {
     if (k >= left) ellipse(g, lx + 28 + k * 28, 316, 10, 10, '#0b202ccc');
   }
   label(g, 'BONUS ×' + mini.pinMult + ' · ' + mini.pinRamps + ' SCANS', lx + 16, 354, 11, '#ffe08a');
+  magnetBarfBar(g, lx + 16, 372, lw - 32);
   // Message window.
   const my = V.h - 140,
     m = mini.pinMsg,
@@ -38022,13 +38448,18 @@ function magnetHints(g, V) {
     return;
   }
   const live = mini.pinBalls.filter(b => b.state === 'play');
-  if (!live.length) return;
+  if (!live.length || mini.pinHeave) return;
   if (mini.pinBallNo === 0 && mini.tier === 0 && mini.total < 40)
     for (const side of [0, 1]) {
       if (mini.pinUsedFlip[side]) continue;
       const p = T(side ? 300 : 64, 600);
       magnetTag(g, coarse ? (side ? 'RIGHT HALF ▶' : '◀ LEFT HALF') : side ? 'CLICK RIGHT · / ▶' : '◀ Z · CLICK LEFT', p.x, p.y, false);
     }
+  // Level 1, once both flippers are found: point at the Barf-o-meter until its first hit.
+  if (mini.tier === 0 && !mini.pinHeaves && !mini.pinBarf && mini.pinUsedFlip[0] && mini.pinUsedFlip[1] && mini.total < 60) {
+    const p = T(312, 102);
+    magnetTag(g, 'HIT THE GREEN', p.x, p.y, true);
+  }
   const diving = live.some(b => b.y > 540 && b.vy > 0 && Math.abs(b.x - MAGNET_CX) < 70);
   if (mini.pinHot) {
     const p = T(282, 660);
