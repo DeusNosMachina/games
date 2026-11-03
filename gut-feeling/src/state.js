@@ -116,6 +116,13 @@ function savedCards(v) {
 
 const savedJersey = v => (Number.isInteger(v) && v >= 0 && v <= 99 ? v : 22);
 
+// A scheme the player chose stays chosen. Otherwise a finger as the main pointer gets the joystick.
+function savedControls() {
+  const chosen = saved.controlsChosen === true || saved.controls === 'stick';
+  if (chosen && (saved.controls === 'tap' || saved.controls === 'stick')) return saved.controls;
+  return matchMedia('(pointer: coarse)').matches ? 'stick' : 'tap';
+}
+
 const savedCount = v => Math.max(0, Math.floor(Number(v) || 0)),
   savedIds = (list, allowed) => (Array.isArray(list) ? list.filter(x => allowed.includes(x)) : []),
   savedUpgrades = savedIds(saved.upgrades, SHOP_UPGRADE_IDS),
@@ -166,8 +173,11 @@ let state = {
   briefed: Array.isArray(saved.briefed) ? saved.briefed.filter(x => typeof x === 'string') : [],
   // Arcade (fullscreen) preference: null until chosen, then true or false.
   arcade: typeof saved.arcade === 'boolean' ? saved.arcade : null,
-  // Touch scheme: 'tap' (the room is the controller, the default) or 'stick' (joystick and buttons).
-  controls: saved.controls === 'stick' ? 'stick' : 'tap',
+  // Touch scheme: 'stick' (the joystick and the big buttons, the default on phones and tablets) or 'tap'
+  // (the room is the controller, the default for a mouse). controlsChosen: the player picked one in the
+  // settings or the pause menu. Older saves wrote 'tap' without choosing, so only a chosen one is kept.
+  controls: savedControls(),
+  controlsChosen: saved.controlsChosen === true || saved.controls === 'stick',
   // Mandatory recoveries since the last medal outside one. games/iv.js counts them to escalate.
   recoveries: savedCount(saved.recoveries),
   // Daily Dose: last day played (YYYY-MM-DD), that day's best score, consecutive-day streak.
@@ -221,6 +231,9 @@ let player = {
   vz: 0,
   jumpCd: 0,
   swingHit: false,
+  // Ward time of the last attack press (a tap of SWING, Space, a tap on a gremlin). The combo counts
+  // swings that start right after a press, not the ones a held button repeats.
+  pressAt: -9,
   attackKind: 0,
   attackDuration: 0.42,
   // A pose girl() plays over the walk: an idle or a reaction (see MACY_POSES in art.js).
@@ -304,6 +317,7 @@ function save() {
         briefed: state.briefed,
         arcade: state.arcade,
         controls: state.controls,
+        controlsChosen: state.controlsChosen,
         recoveries: state.recoveries,
         daily: state.daily,
         stats: state.stats,

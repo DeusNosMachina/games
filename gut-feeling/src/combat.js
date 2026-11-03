@@ -4,7 +4,9 @@
 //
 // Hooks other files use: updateCombat(dt) runs every ward step; drawEnemy(g, e) draws one entry of
 // `enemies` (world.js depth-sorts them by e.y); drawPillowSwing(g, player) draws Macy's swing; wardLocked(id)
-// says whether a department arcade is still locked behind its first ward clear.
+// says whether a department arcade is still locked behind its first ward clear. Health the ward hands out
+// goes through world.js: wardDropNutrient(x, y) puts a nutrient on the floor, snackRestock(room) refills a
+// room's snack cart (both guarded).
 // `enemies` holds fighters, gremlins still emerging (e.emerge > 0) and corpses playing their death pop
 // (e.hp <= 0 with e.deadT set). wardFighters() returns only the ones that can fight or be hit.
 // Optional world.js draw hooks, all world-space except the last: drawCombatGround(g) after floor puddles,
@@ -54,7 +56,34 @@ const WARD = {
   corpse: 3,
   clearBonus: 45,
   grudgeBonus: 25,
-  ralphPay: 150
+  ralphPay: 150,
+  // First clears (no grudge yet): spit, charge and lob wind-ups (the tells) run firstTell times longer,
+  // and waves 2 and 3 keep at most firstCap gremlins up at once (one more on Absolute Gutastrophe). The
+  // rest wait in hiding and come out one at a time, queueGap seconds apart, once the room thins out.
+  firstTell: 1.25,
+  firstCap: 3,
+  queueGap: 1.2,
+  // The combo: comboHits landed attacks in a row, at most comboWindow seconds apart, with no whiff and no
+  // hit on Macy in between, charge it. The next attack with a gremlin inside slamRadius is the COMBO SLAM.
+  // Only pressed attacks count: a swing that starts within pressWindow of a press (a tap of SWING, Space,
+  // a tap on a gremlin). Holding the button still swings, but those swings neither count nor break the run.
+  comboHits: 3,
+  comboWindow: 4,
+  pressWindow: 0.3,
+  // The slam: everything within slamRadius takes slamHit, flies back (slamKnock) and is stunned slamStun
+  // seconds, armor or not, and wind-ups in progress are cancelled. Landing it pays slamPay coins. It is
+  // crowd control and a payout, not a kill button, so mashing into a slam does not carry a fight.
+  slamRadius: 150,
+  slamStun: 0.9,
+  slamHit: 1,
+  slamKnock: 110,
+  slamPay: 5,
+  // The first slam that lands drops a nutrient, then every slamFoodEvery-th after it.
+  slamFoodEvery: 3,
+  // Every evictFood-th gremlin evicted (lifetime count) leaves a nutrient behind.
+  evictFood: 6,
+  // On a first clear, clearing wave waveFoodFrom (and every wave after it, short of the last) drops one.
+  waveFoodFrom: 1
 };
 
 const WARD_FLASH = ['#ffffff', '#f1f1f1', '#ffffff'],
@@ -175,7 +204,21 @@ let encounter = { room: -1, wave: 0, rest: 0, complete: true, calm: true, grudge
   ralphRetreated = false,
   wardPrev = null,
   wardDashSerial = 0,
-  wardRematchAsked = false;
+  wardRematchAsked = false,
+  wardLastKill = null,
+  wardAttackSerial = 0,
+  wardQueueT = 0,
+  wardComboShown = '';
+
+// The combo meter. n: landed attacks so far; t: seconds left to land the next; ready: the slam is charged;
+// landed: recent attacks (by serial) that hit something, so one attack counts once however many it hits;
+// touched: attacks that only met armor or a stunned gremlin (they neither count nor break the run); free:
+// attacks that never count either way (swings a held button repeats, the slam itself).
+let wardCombo = wardComboFresh();
+
+function wardComboFresh() {
+  return { n: 0, t: 0, ready: false, landed: new Set(), touched: new Set(), free: new Set() };
+}
 
 // Dropped Ensure bottles on the floor: harmless props Macy kicks on the way past.
 let ensureProps = [];
@@ -191,7 +234,11 @@ const wardCombatRoom = id => id !== 0 && id !== 5 && id !== 6,
   wardHas = id => Array.isArray(state.upgrades) && state.upgrades.includes(id),
   wardSize = e => breeds[e.type].size * (e.small ? 0.68 : 1),
   wardPace = () => encounter.pace || 1,
-  wardWindScale = () => 1 / (cfg().speed * wardPace()),
+  // A first clear: the room has never been cleared and this is not Ralph.
+  wardFirst = () => !encounter.boss && !((encounter.grudge || 0) > 0),
+  // Wind-ups (the tells) run longer on a first clear; crouches and cooldowns between attacks do not.
+  wardWindScale = () => (wardFirst() ? WARD.firstTell : 1) / (cfg().speed * wardPace()),
+  wardCoolScale = () => 1 / (cfg().speed * wardPace()),
   wardShake = s => {
     if (!reduced) shake = Math.max(shake, s);
   },
@@ -366,10 +413,13 @@ function equip(i) {
     b.setAttribute('aria-pressed', String(on));
   });
   $('useIcon').innerHTML = '<use href="#i-' + w.icon + '"/>';
-  $('attackBtn').innerHTML = '<svg><use href="#i-' + w.icon + '"/></svg><span>' + w.verb + '</span>';
+  // The swipe chevrons say the big button also changes weapons; the tag lights up when the combo is charged.
+  $('attackBtn').innerHTML =
+    '<i class="swipe-hint" aria-hidden="true">‹</i><svg><use href="#i-' + w.icon + '"/></svg><span>' + w.verb +
+    '</span><b class="combo-tag" aria-hidden="true">COMBO</b><i class="swipe-hint" aria-hidden="true">›</i>';
   $('attackBtn').setAttribute(
     'aria-label',
-    w.name + ' ' + w.verb.toLowerCase() + '. Drag to aim, release to attack.'
+    w.name + ' ' + w.verb.toLowerCase() + '. Hold to keep going, drag to aim, swipe sideways for the next weapon.'
   );
   $('useBtn').querySelector('span').textContent = w.ability;
   $('weaponReadout').textContent =
@@ -421,6 +471,8 @@ function startEncounter() {
   wardChain = 0;
   wardBoss = null;
   wardPrev = null;
+  wardLastKill = null;
+  wardCombo = wardComboFresh();
   if (room !== 0) ralphRetreated = false;
   if (wardBossMusic) {
     wardBossMusic = false;
@@ -512,12 +564,16 @@ function spawnWave(popIn = WARD.breather) {
   encounter.ensure = ensureLevel();
   wardProgress[room] = encounter.wave;
   const used = [],
-    wave = [];
+    wave = [],
+    cap = wardCap();
   let lone = null;
+  wardQueueT = 0;
   plan.forEach((type, i) => {
     const e = makeEnemy(type, 0, 0);
     wave.push(e);
     wardLurk(e, popIn + i * 0.18, used);
+    // Past the cap on a first clear, it waits in hiding until the room thins out.
+    if (i >= cap) e.queued = true;
     if (type === 0 && !encounter.teach) {
       if (lone) {
         lone.partner = e.id;
@@ -531,6 +587,27 @@ function spawnWave(popIn = WARD.breather) {
   });
   ensureArm(wave, encounter.ensure);
   updateWardHUD();
+}
+
+// How many gremlins may be up at once: no limit on rematches, waves 2 and 3 of a first clear hold back.
+function wardCap() {
+  if (!wardFirst() || encounter.teach || (encounter.wave || 1) < 2) return Infinity;
+  return WARD.firstCap + (state.difficulty === 2 ? 1 : 0);
+}
+
+// A queued gremlin comes out once fewer than the cap are up (or on their way), one per WARD.queueGap.
+function wardQueueStep(dt) {
+  wardQueueT = Math.max(0, wardQueueT - dt);
+  const queued = enemies.filter(e => e.queued && e.hp > 0);
+  if (!queued.length) return;
+  const up = enemies.filter(e => e.hp > 0 && !e.queued).length;
+  if (up >= wardCap() || wardQueueT > 0) return;
+  const e = queued[0];
+  e.queued = false;
+  wardQueueT = WARD.queueGap;
+  // A fresh telegraph from a spot away from Macy.
+  const taken = enemies.filter(o => o !== e && o.emerge > 0 && o.spot).map(o => o.spot);
+  wardLurk(e, WARD.telegraph + 0.5, taken);
 }
 
 function wardPickSpot(used = [], min = WARD.spawnClear) {
@@ -611,6 +688,10 @@ function wardEncounter(dt) {
   encounter.lull = Math.max(0, (encounter.lull || 0) - dt);
   if (enemies.some(e => e.hp > 0)) return;
   if (encounter.wave < 3) {
+    // On a first clear, a cleared wave (from WARD.waveFoodFrom on) leaves a nutrient where the last
+    // gremlin fell. Rematches are for coins and stay mean.
+    const at = wardLastKill || { x: 500, y: 420 };
+    if (wardFirst() && encounter.wave >= WARD.waveFoodFrom) wardNutrient(at.x, at.y);
     encounter.wave++;
     encounter.teach = false;
     spawnWave(WARD.breather);
@@ -628,6 +709,8 @@ function wardClear() {
   state.wardClears[room] = (Number(state.wardClears[room]) || 0) + 1;
   delete wardProgress[room];
   coins(pay);
+  // The room's snack cart restocks for the walk out.
+  if (typeof snackRestock === 'function') snackRestock(room);
   save();
   wardSetBanner('WARD CLEAR', '+' + pay + ' coins · Macy 1, digestive nonsense 0', 3.2);
   if (state.wardClears[room] === 1) wardHint = { text: 'Arcade unlocked. The beacon is all yours.', t: 0, life: 3.6 };
@@ -825,6 +908,11 @@ function aimDirection() {
 function attack() {
   if (isModal() || state.paused || deadDelay > 0 || player.vomit > 0.55 || player.attackCd > 0) return;
   if (!state.started) begin();
+  // A charged combo turns the next attack with a gremlin close into the slam, whatever is in her hands.
+  if (wardCombo.ready && player.z <= 0 && wardSlamTargets().length) {
+    wardSlam();
+    return;
+  }
   const w = weapons[state.item],
     a = aimDirection();
   player.dir = a.x >= 0 ? 1 : -1;
@@ -848,6 +936,7 @@ function attack() {
       return;
     }
     player.swingHit = false;
+    player.swingSerial = wardPressSerial();
     player.combo = player.comboTime > 0 ? (player.combo + 1) % 3 : 0;
     player.comboTime = 1.1;
     const cool = player.combo === 2 ? 0.56 : w.cool;
@@ -872,7 +961,8 @@ function attack() {
       life: 1.3,
       kind: 'bag',
       friendly: true,
-      bounces: 0
+      bounces: 0,
+      serial: wardPressSerial()
     });
     sfx('throw');
     return;
@@ -907,13 +997,14 @@ function attack() {
     kind: 'brick',
     friendly: true,
     tx,
-    ty
+    ty,
+    serial: wardPressSerial()
   });
   sfx('throw');
 }
 
 // The pillow's hit frame: a front arc, wider on the finisher, all the way round on the spin.
-function pillowHit(spin = false) {
+function pillowHit(spin = false, serial = player.swingSerial) {
   const finisher = !spin && player.combo === 2,
     reach = (wardHas('pillow') ? 122 : 104) + (spin ? 25 : finisher ? 14 : 0),
     ax = player.aimX || player.dir,
@@ -929,7 +1020,7 @@ function pillowHit(spin = false) {
       const power = spin || finisher ? 2 : 1,
         knock = spin ? 60 : finisher ? 70 : 30,
         stun = spin ? WARD.spinStun : finisher ? WARD.finisherStun : 0;
-      if (hitEnemy(e, power, knock, { kind, stun })) landed++;
+      if (hitEnemy(e, power, knock, { kind, stun, serial })) landed++;
     }
   }
   for (const p of projectiles) {
@@ -938,8 +1029,13 @@ function pillowHit(spin = false) {
       dy = p.y + 32 - player.y,
       d = Math.hypot(dx, dy),
       dot = (dx * ax + dy * ay) / Math.max(1, d);
-    if (d < reach + 14 && (spin || dot > -0.1)) wardDeflect(p);
+    if (d < reach + 14 && (spin || dot > -0.1)) {
+      wardDeflect(p);
+      // Sending a blob back counts as a landed hit.
+      wardComboLanded(serial);
+    }
   }
+  wardComboResolve(serial);
   const fx = player.x + ax * 70,
     fy = player.y - 35 + ay * 60;
   if (!reduced)
@@ -966,6 +1062,8 @@ function wardDeflect(p) {
   p.kind = 'returned';
   p.life = 2.5;
   p.homing = target ? target.id : null;
+  // A returned blob that lands counts toward the combo; one that misses does not break it.
+  p.bonusSerial = ++wardAttackSerial;
   const tx = target ? target.x : p.x - p.vx,
     ty = target ? target.y - 30 * wardSize(target) : p.y - p.vy,
     d = Math.max(1, Math.hypot(tx - p.x, ty - p.y));
@@ -978,7 +1076,8 @@ function wardDeflect(p) {
 
 // A pillow spike on landing: everything close takes 2 and is stunned.
 function wardStomp() {
-  const r = WARD.stompRadius + (wardHas('pillow') ? 15 : 0);
+  const r = WARD.stompRadius + (wardHas('pillow') ? 15 : 0),
+    serial = ++wardAttackSerial;
   player.spike = false;
   player.landT = 0;
   player.attackKind = 0;
@@ -987,9 +1086,10 @@ function wardStomp() {
   player.attackCd = 0.4;
   player.stompT = 0.3;
   for (const e of wardFighters())
-    if (dist(player, e) < r + (e.boss ? 40 : 0)) hitEnemy(e, 2, 50, { kind: 'stomp', stun: WARD.stompStun });
+    if (dist(player, e) < r + (e.boss ? 40 : 0)) hitEnemy(e, 2, 50, { kind: 'stomp', stun: WARD.stompStun, serial });
   for (const p of projectiles)
     if (!p.friendly && p.kind === 'blob' && Math.hypot(p.x - player.x, p.y + 32 - player.y) < r) wardDeflect(p);
+  wardComboResolve(serial);
   wardFx({ kind: 'ring', ground: true, x: player.x, y: player.y, r0: 18, r1: r, life: 0.42, col: '#fff3cf', w: 7 });
   wardFx({ kind: 'puff', x: player.x, y: player.y, life: 0.5, n: 8, r: r * 0.7 });
   floating('SPIKE!', player.x, player.y - 100);
@@ -1008,7 +1108,7 @@ function useItem() {
     player.attack = player.attackDuration = 0.55;
     player.swingHit = true;
     player.spinT = 0.55;
-    pillowHit(true);
+    pillowHit(true, ++wardAttackSerial);
     player.inv = Math.max(player.inv, 0.25);
     wardFx({ kind: 'ring', ground: true, x: player.x, y: player.y, r0: 30, r1: 130, life: 0.35, col: '#fff6de', w: 5 });
     sfx('swing', { combo: 3 });
@@ -1020,7 +1120,7 @@ function useItem() {
     sfx('shield');
   }
   if (state.item === 2) {
-    traps.push({ x: player.x, y: player.y + 8, life: 12 });
+    traps.push({ x: player.x, y: player.y + 8, life: 12, serial: ++wardAttackSerial });
     player.itemCd = 3;
     sfx('trap');
   }
@@ -1041,6 +1141,7 @@ function hitEnemy(e, power = 1, knock = 36, opt = {}) {
   }
   if (e.bottle && e.bottle.shield) {
     ensurePop(e);
+    wardComboLanded(opt.serial);
     return true;
   }
   if (e.glugT > 0) ensureSpitTake(e);
@@ -1051,7 +1152,7 @@ function hitEnemy(e, power = 1, knock = 36, opt = {}) {
     stun = opt.stun || 0;
   e.iframes = 0.06;
   // Bruisers shrug off pillow pokes from the front, and even a finisher only dents them without a stun.
-  // Their back, a dizzy spell, a stomp from above or a brick gets through.
+  // Their back, a dizzy spell, a stomp from above, a brick or the combo slam gets through.
   if (e.type === 2 && pillowish && kind !== 'stomp' && !behind && !(e.dizzy > 0)) {
     if (kind === 'pillow') dmg = 0;
     else {
@@ -1087,8 +1188,14 @@ function hitEnemy(e, power = 1, knock = 36, opt = {}) {
     wardTeach('shrug', 'Bruisers shrug off pokes. Hit the back, wait for dizzy, or LOB a brick.', 'SHRUGGED');
     sfx('shield');
     wardPoise(e);
+    wardComboMark(wardCombo.touched, opt.serial);
     return true;
   }
+  // A combo is earned in the open: hitting a gremlin that is already stunned or dizzy is free, so it
+  // neither counts nor breaks the run (no slam, free hits, slam again).
+  if (e.stun > 0 || e.dizzy > 0) {
+    wardComboMark(wardCombo.touched, opt.serial);
+  } else wardComboLanded(opt.serial);
   if (e.type === 3 && !e.small && !e.split) {
     wardSplit(e);
     wardChainHit();
@@ -1109,7 +1216,7 @@ function hitEnemy(e, power = 1, knock = 36, opt = {}) {
         o.merging = false;
       }
   wardChainHit();
-  const big = kind === 'finisher' || kind === 'brick' || kind === 'stomp' || kind === 'spin';
+  const big = kind === 'finisher' || kind === 'brick' || kind === 'stomp' || kind === 'spin' || kind === 'combo';
   wardFx({
     kind: 'impact',
     x: e.x,
@@ -1138,7 +1245,7 @@ function hitEnemy(e, power = 1, knock = 36, opt = {}) {
     e.poiseT = 0;
     e.poisePending = false;
     sfx('stun');
-    if (kind === 'finisher') floating('STUNNED', e.x, e.y - 90 * size, '#ffe2a1');
+    if (kind === 'finisher' || kind === 'combo') floating('STUNNED', e.x, e.y - 90 * size, '#ffe2a1');
   } else {
     e.stagger = Math.max(e.stagger, WARD.stagger);
     wardPoise(e);
@@ -1220,6 +1327,113 @@ function wardChainHit() {
   if (wardChain > (state.bestChain || 0)) state.bestChain = wardChain;
 }
 
+// ---- The combo ----
+// A serial for an attack starting now. One that did not start from a press is free: it never counts.
+function wardPressSerial() {
+  const serial = ++wardAttackSerial;
+  if (!(time - (player.pressAt ?? -9) <= WARD.pressWindow)) wardComboMark(wardCombo.free, serial);
+  return serial;
+}
+
+function wardComboMark(set, serial) {
+  if (!serial) return;
+  set.add(serial);
+  if (set.size > 24) set.delete(set.values().next().value);
+}
+
+// An attack that hit something (by serial): one more toward the slam.
+function wardComboLanded(serial) {
+  if (!serial || wardCombo.landed.has(serial) || wardCombo.free.has(serial)) return;
+  wardComboMark(wardCombo.landed, serial);
+  if (wardCombo.ready) return;
+  wardCombo.n = wardCombo.t > 0 ? wardCombo.n + 1 : 1;
+  wardCombo.t = WARD.comboWindow;
+  if (wardCombo.n < WARD.comboHits) return;
+  wardCombo.ready = true;
+  wardCombo.n = 0;
+  wardCombo.t = 0;
+  floating('COMBO READY', player.x, player.y - 140 * MACY_TALL - player.z, '#ffd36e');
+  wardTeach('combo', 'Three in a row charged a COMBO. Your next swing near a gremlin is a slam.');
+  sfx('powerup');
+}
+
+// An attack that is over: if it hit nothing (and did not just bounce off armor), the run starts again.
+function wardComboResolve(serial) {
+  if (!serial || wardCombo.landed.has(serial) || wardCombo.touched.has(serial) || wardCombo.free.has(serial)) return;
+  wardCombo.n = 0;
+  wardCombo.t = 0;
+}
+
+function wardComboTick(dt) {
+  if (wardCombo.t > 0) {
+    wardCombo.t -= dt;
+    if (wardCombo.t <= 0) wardCombo.n = 0;
+  }
+  wardComboSync();
+}
+
+// The attack button's ring fills a third per hit and glows when the slam is charged.
+function wardComboSync() {
+  const key = wardCombo.ready ? 'ready' : String(wardCombo.n);
+  if (key === wardComboShown) return;
+  wardComboShown = key;
+  const btn = $('attackBtn');
+  btn.dataset.combo = key;
+  if (btn.style && typeof btn.style.setProperty === 'function')
+    btn.style.setProperty('--combo', String(wardCombo.ready ? 1 : wardCombo.n / WARD.comboHits));
+}
+
+function wardSlamTargets() {
+  return wardFighters().filter(e => e.z < 16 && dist(player, e) < WARD.slamRadius + (e.boss ? 40 : 0));
+}
+
+// The COMBO SLAM: the pillow comes down and everything close is hit, shoved back and stunned, bruiser
+// armor or not. Landing it pays a coin burst; the first one and every third after drop a nutrient.
+function wardSlam() {
+  const r = WARD.slamRadius,
+    serial = ++wardAttackSerial;
+  wardCombo.ready = false;
+  wardCombo.n = 0;
+  wardCombo.t = 0;
+  player.attackKind = 0;
+  player.swingHit = true;
+  player.spike = false;
+  player.attack = player.attackDuration = 0.42;
+  player.attackCd = 0.5;
+  player.stompT = 0.3;
+  player.inv = Math.max(player.inv, 0.35);
+  // The slam itself never counts toward the next combo.
+  wardComboMark(wardCombo.free, serial);
+  let landed = 0;
+  for (const e of wardSlamTargets())
+    if (hitEnemy(e, WARD.slamHit, WARD.slamKnock, { kind: 'combo', stun: WARD.slamStun, serial })) landed++;
+  for (const p of projectiles)
+    if (!p.friendly && p.kind === 'blob' && Math.hypot(p.x - player.x, p.y + 32 - player.y) < r) wardDeflect(p);
+  wardFx({ kind: 'ring', ground: true, x: player.x, y: player.y, r0: 24, r1: r, life: 0.5, col: '#ffd36e', w: 10 });
+  wardFx({ kind: 'ring', ground: true, x: player.x, y: player.y, r0: 10, r1: r * 0.6, life: 0.35, col: '#fff3cf', w: 6 });
+  wardFx({ kind: 'puff', x: player.x, y: player.y, life: 0.6, n: 12, r: r * 0.7 });
+  wardFx({ kind: 'impact', x: player.x, y: player.y - 30, life: 0.25, r: 60, col: '#ffe28a' });
+  floating('COMBO SLAM!', player.x, player.y - 130 * MACY_TALL, '#ffd36e', 1.4);
+  wardShake(0.3);
+  hitStop = Math.max(hitStop, 0.09);
+  sfx('combo', { combo: 3 });
+  if (!landed) return;
+  const stats = (state.stats ||= {}),
+    pay = Math.max(1, Math.round(WARD.slamPay * cfg().coins));
+  stats.combos = (Number(stats.combos) || 0) + 1;
+  coins(pay);
+  floating('+' + pay + ' COINS', player.x, player.y - 150 * MACY_TALL, '#ffe066');
+  emit(player.x, player.y - 60, '#ffe066', reduced ? 4 : 14, 150);
+  sfx('coin');
+  if ((stats.combos - 1) % WARD.slamFoodEvery === 0) wardNutrient(player.x + player.dir * 46, player.y + 10);
+  save();
+}
+
+// A nutrient on the floor (world.js keeps it, draws it and hands it over when Macy walks into it).
+function wardNutrient(x, y) {
+  if (typeof wardDropNutrient === 'function') wardDropNutrient(x, y);
+}
+
 function wardKill(e) {
   const size = wardSize(e),
     pay = e.boss
@@ -1253,6 +1467,9 @@ function wardKill(e) {
     });
   if (e.pay) coins(e.pay);
   state.evictions = (Number(state.evictions) || 0) + 1;
+  wardLastKill = { x: e.x, y: e.y };
+  // One gremlin in six leaves a snack behind. Counted, not rolled, so it always comes.
+  if (!e.boss && state.evictions % WARD.evictFood === 0) wardNutrient(e.x + 18, e.y + 6);
   emit(e.x, e.y - 20 * size, breeds[e.type].color, reduced ? 8 : e.boss ? 60 : 22, e.boss ? 260 : 180);
   emit(e.x, e.y - 20 * size, '#fffbe8', reduced ? 3 : e.boss ? 24 : 8, e.boss ? 200 : 140);
   hitStop = Math.max(hitStop, e.boss ? 0.25 : 0.06);
@@ -1359,6 +1576,9 @@ function damage(source, from) {
   floating(lines[source] || 'BLERGH!', player.x, player.y - 105, '#def281');
   sfx('hurt');
   wardChain = 0;
+  // A hit on Macy breaks the run toward a combo. A combo already charged stays charged.
+  wardCombo.n = 0;
+  wardCombo.t = 0;
   if (wardBoss && wardBoss.hp > 0 && !encounter.complete) wardTaunt(wardBoss, RALPH_LINES.hit);
   hud();
   save();
@@ -1378,7 +1598,7 @@ function brickBurst(p) {
   let hits = 0;
   for (const e of wardFighters())
     if (dist({ x, y }, e) < WARD.brickRadius + (e.boss ? 35 : 0))
-      if (hitEnemy(e, 2, 40, { kind: 'brick', stun: WARD.brickStun, from: { x, y } })) hits++;
+      if (hitEnemy(e, 2, 40, { kind: 'brick', stun: WARD.brickStun, from: { x, y }, serial: p.serial })) hits++;
   if (hits > 1) floating('BRICK-SHAPED OPINION', x, y - 70, '#f5c5ab');
   wardShake(0.2);
   hitStop = Math.max(hitStop, 0.05);
@@ -1402,6 +1622,7 @@ function updateCombat(dt) {
   wardRematchAsked = false;
   wardPlayer(dt);
   wardEncounter(dt);
+  wardQueueStep(dt);
   for (const e of [...enemies]) wardEnemy(e, dt);
   wardMerge(dt);
   wardProjectiles(dt);
@@ -1411,6 +1632,7 @@ function updateCombat(dt) {
     e => e.hp > 0 || (!e.gone && e.deadT !== undefined && e.deadT < (e.boss ? 4.5 : WARD.corpse))
   );
   projectiles = projectiles.filter(p => p.life > 0);
+  wardComboTick(dt);
   $('jumpBtn').style.opacity = player.jumpCd > 0 ? '.5' : '1';
 }
 
@@ -1548,7 +1770,7 @@ function wardEnemy(e, dt) {
     if (t.life > 0 && e.z < 10 && dist(e, t) < 32 + (e.boss ? 30 : 0)) {
       t.life = 0;
       e.iframes = 0;
-      hitEnemy(e, 2, 20, { kind: 'trap', stun: WARD.trapStun, from: t });
+      hitEnemy(e, 2, 20, { kind: 'trap', stun: WARD.trapStun, from: t, serial: t.serial });
       wardFx({ kind: 'ring', ground: true, x: t.x, y: t.y, r0: 8, r1: 46, life: 0.35, col: '#ffcfb0', w: 5 });
       sfx('trap');
       if (e.hp <= 0 || e.stun > 0) return;
@@ -1565,6 +1787,12 @@ function wardEnemy(e, dt) {
 function wardEmerge(e, dt) {
   const before = e.emerge,
     tele = Math.min(WARD.telegraph, e.emergeMax);
+  // Queued: watching from the dark, no telegraph yet.
+  if (e.queued) {
+    e.emerge = Math.max(e.emerge - dt, tele + 0.4);
+    if (dist(e, player) < WARD.spawnClear) wardRelocate(e, e.emerge);
+    return;
+  }
   e.emerge -= dt;
   if (!e.boss) {
     // Lurkers shy away from Macy; a telegraph never starts within WARD.spawnClear of her.
@@ -1585,7 +1813,13 @@ function wardEmerge(e, dt) {
   wardFx({ kind: 'puff', x: e.x, y: e.y, life: 0.45, n: e.boss ? 14 : 6, r: e.boss ? 70 : 26 });
   sfx(e.boss ? 'boss' : 'blob');
   if (e.boss) wardShake(0.3);
-  if (encounter.teach) wardTeach('swing', 'Tap SWING or press Space. Every third swing in a row stuns.', 'tap SWING');
+  if (encounter.teach)
+    wardTeach(
+      'swing',
+      (!wardCoarsePointer ? 'Press Space.' : tapScheme() ? 'Tap a gremlin to bonk it.' : 'Tap SWING.') +
+        ' Land three in a row and the next one is a COMBO SLAM.',
+      wardCoarsePointer ? 'tap SWING' : 'SPACE'
+    );
   updateWardHUD();
 }
 
@@ -1650,7 +1884,8 @@ function wardSeparate(e, dt) {
 
 // ---- Breeds ----
 function wardCrouch(e, base = 0.55) {
-  e.wind = e.windMax = base * wardWindScale() * (e.angry > 0 ? 0.65 : 1);
+  // A crouch keeps its pace on a first clear too: a longer one mostly gives a button-masher time to swing.
+  e.wind = e.windMax = base * wardCoolScale() * (e.angry > 0 ? 0.65 : 1);
   e.act = 'bite';
   e.huntT = 0;
   e.ready = false;
@@ -1691,7 +1926,7 @@ function wardLunge(e, dt, speed, reach) {
   if (e.charge > 0) return;
   e.charge = 0;
   // A biter that connects backs off to gloat; a miss recovers faster.
-  e.cool = (e.bit ? 2.2 : 1) * wardWindScale();
+  e.cool = (e.bit ? 2.2 : 1) * wardCoolScale();
   wardLull();
   if (e.poisePending) wardHop(e);
 }
@@ -1787,7 +2022,7 @@ function wardSpitter(e, dt) {
     if (e.wind <= 0) {
       const wide = encounter.wave >= 3 || (encounter.grudge || 0) >= 2;
       wardSpit(e, wide ? 3 : 1, 0.16, 190 * cfg().speed * wardPace());
-      e.cool = 2.6 * wardWindScale();
+      e.cool = 2.6 * wardCoolScale();
       wardLull();
       if (e.poisePending) wardHop(e);
     }
@@ -1882,7 +2117,7 @@ function wardCharge(e, dt, speed, reach) {
   if (e.charge > 0) return;
   e.charge = 0;
   e.recover = Math.max(e.recover, e.boss ? 0.9 : 0.8);
-  e.cool = (e.boss ? 0.6 : 1.8) * wardWindScale();
+  e.cool = (e.boss ? 0.6 : 1.8) * wardCoolScale();
   e.bit = false;
   e.jumped = false;
   if (e.glug && !e.boss) ensureStartGlug(e);
@@ -2068,7 +2303,7 @@ function wardLob(e) {
     ty
   });
   wardFx({ kind: 'target', ground: true, x: tx, y: ty, r: WARD.gunkRadius, life: 0.85, col: '#f08a7a' });
-  e.cool = 3.4 * wardWindScale();
+  e.cool = 3.4 * wardCoolScale();
   wardLull();
   sfx('throw');
 }
@@ -2427,8 +2662,8 @@ function wardProjectiles(dt) {
       );
       if (e) {
         const from = { x: e.x - p.vx, y: e.y - p.vy };
-        if (p.kind === 'bag') hitEnemy(e, 1, 26, { kind: 'bag', from });
-        else hitEnemy(e, 3, 40, { kind: 'returned', from });
+        if (p.kind === 'bag') hitEnemy(e, 1, 26, { kind: 'bag', from, serial: p.serial });
+        else hitEnemy(e, 3, 40, { kind: 'returned', from, serial: p.bonusSerial });
         p.life = 0;
       }
     } else if (Math.hypot(player.x - p.x, player.y - 32 - p.y) < 25 && player.z < 25) {
@@ -2441,6 +2676,12 @@ function wardProjectiles(dt) {
       p.life = 0;
     }
   }
+  // A thrown bag or a lobbed brick that is done: one that hit nothing breaks the combo run.
+  for (const p of projectiles)
+    if (p.life <= 0 && p.serial && !p.resolved) {
+      p.resolved = true;
+      wardComboResolve(p.serial);
+    }
 }
 
 function wardFxUpdate(dt) {
@@ -3456,6 +3697,36 @@ function wardDrawGround(g) {
 function wardDrawFx(g) {
   ensureDrawBlobs(g);
   for (const f of combatFx) if (!f.ground) wardDrawEffect(g, f);
+  wardDrawCombo(g);
+}
+
+// Over Macy's head: three pips for the run toward a combo while there is something to fight, and once it
+// is charged a COMBO tag and a dashed gold ring on the floor showing how far the slam reaches.
+function wardDrawCombo(g) {
+  if (state.room === 6 || !(wardCombo.ready || (wardCombo.n > 0 && wardFighters().length))) return;
+  const x = player.x,
+    y = player.y - player.z - 128 * MACY_TALL,
+    pulse = reduced ? 1 : 0.6 + 0.4 * Math.sin(time * 8);
+  g.save();
+  if (wardCombo.ready) {
+    g.globalAlpha = 0.3 + 0.3 * pulse;
+    g.strokeStyle = '#ffd36e';
+    g.lineWidth = 3;
+    g.setLineDash([10, 8]);
+    g.beginPath();
+    g.ellipse(player.x, player.y, WARD.slamRadius, WARD.slamRadius * 0.38, 0, 0, Math.PI * 2);
+    g.stroke();
+    g.setLineDash([]);
+    g.globalAlpha = 1;
+    rr(g, x - 36, y - 12, 72, 22, 11, '#3a2a10e6', '#ffd36e', 2);
+    label(g, 'COMBO', x, y + 4.5, 13, '#ffd36e', 'center');
+  } else
+    for (let i = 0; i < WARD.comboHits; i++) {
+      const px = x + (i - (WARD.comboHits - 1) / 2) * 16;
+      ellipse(g, px, y, 6.5, 6.5, '#173847');
+      ellipse(g, px, y, 4.6, 4.6, i < wardCombo.n ? '#ffd36e' : '#ffffff40');
+    }
+  g.restore();
 }
 
 // Dropped bottles lie on their side with a tiny label, fading out over their last second.

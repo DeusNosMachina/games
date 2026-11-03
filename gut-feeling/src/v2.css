@@ -275,7 +275,7 @@ body.returning .game-layout {
   min-height: 40px;
 }
 
-/* Orientation hint for phones held upright. */
+/* Orientation hint for phones held upright: shown once, by world.js (body.turn-hint-on). */
 .turn-hint {
   display: none;
   align-items: center;
@@ -293,11 +293,6 @@ body.returning .game-layout {
   background: transparent;
   color: inherit;
   font-size: 14px;
-}
-@media (orientation: portrait) and (pointer: coarse) and (max-width: 540px) {
-  .turn-hint {
-    display: flex;
-  }
 }
 
 /* Daily Dose card (sidebar and map). */
@@ -554,28 +549,45 @@ body.returning .game-layout {
   background: var(--mint);
 }
 
-/* ---- Touch controls (v0.7) ----
-   Sizes are tokens so phones, short phones and tablets share one layout. #touchActions holds, in order:
-   the weapon strip, EAT, the ability, DASH, JUMP and the big attack. Tap-the-room (body.tap-controls)
-   hides the joystick, DASH and the attack: the room does those. */
+/* ---- Touch controls (v0.8) ----
+   A joystick for the left thumb and a cluster for the right: the big attack button in the corner (hold it
+   to keep swinging, drag it to aim, swipe it sideways for the next weapon), JUMP beside it, DASH and the
+   ability around it, EAT above them, and the weapon strip on its own (top right in landscape, over the
+   joystick in portrait). One geometry for every screen: the buttons sit at fixed offsets from the
+   bottom-right corner of .touch-controls, all sized from --atk. The --edge-* tokens are the margins to
+   the screen edges (safe areas included in landscape). Tap-the-room (body.tap-controls) hides the
+   joystick, DASH and the attack, and lines JUMP, the ability and EAT up along the bottom instead. */
 :root {
+  --atk: 104px;
+  --jmp: calc(var(--atk) * 0.68);
+  --sm: calc(var(--atk) * 0.56);
+  --gap: 10px;
+  --joy: 132px;
   --slot: 48px;
-  --btn: 52px;
-  --btn-gap: 10px;
-  --attack-w: 74px;
-  --attack-h: 64px;
-  --joy: 124px;
   --strip-gap: 4px;
   --strip-w: calc(var(--slot) * 3 + var(--strip-gap) * 2);
+  --cluster-h: calc(var(--atk) * 2.06);
+  --edge-t: 0px;
+  --edge-r: 0px;
+  --edge-b: 0px;
+  --edge-l: 0px;
 }
+/* Tablets: bigger everything. */
 @media (pointer: coarse) and (min-width: 600px) and (min-height: 600px) {
   :root {
+    --atk: 128px;
+    --gap: 12px;
+    --joy: 164px;
     --slot: 58px;
-    --btn: 62px;
-    --btn-gap: 12px;
-    --attack-w: 92px;
-    --attack-h: 78px;
-    --joy: 156px;
+  }
+}
+/* Small phones held upright. */
+@media (max-width: 380px) {
+  :root {
+    --atk: 92px;
+    --gap: 8px;
+    --joy: 116px;
+    --slot: 44px;
   }
 }
 @media (pointer: coarse) {
@@ -583,18 +595,33 @@ body.returning .game-layout {
   .hud-eat {
     display: none;
   }
+  .touch-controls {
+    display: block;
+  }
 }
-.joystick {
+.touch-controls {
+  position: relative;
+  width: 100%;
+  height: calc(var(--cluster-h) + var(--edge-t) + var(--edge-b));
+  user-select: none;
+  -webkit-user-select: none;
+}
+#joystick {
+  position: absolute;
+  left: var(--edge-l);
+  bottom: var(--edge-b);
   width: var(--joy);
   height: var(--joy);
+  background: #152c35cc;
+  box-shadow: inset 0 0 0 10px #1d3741aa;
 }
-.joystick:before {
+#joystick:before {
   left: 50%;
   top: 14%;
   width: 1px;
   height: 72%;
 }
-.joystick:after {
+#joystick:after {
   top: 50%;
   left: 14%;
   width: 72%;
@@ -607,36 +634,43 @@ body.returning .game-layout {
   height: 38%;
   margin: -19% 0 0 -19%;
 }
+/* The buttons are placed against .touch-controls, so their row does not need a box of its own. */
 #touchActions {
-  display: grid;
-  grid-template-columns: repeat(3, var(--slot)) var(--attack-w);
-  grid-template-areas:
-    'strip strip strip eat'
-    'use dash jump attack';
-  gap: 8px;
-  align-items: center;
-  justify-items: center;
+  position: static;
+  display: block;
+  width: 0;
+  height: 0;
+  margin: 0;
+  gap: 0;
+}
+#touchActions > * {
+  position: absolute;
 }
 #touchActions .weapon-strip {
-  grid-area: strip;
-}
-#touchActions .eat {
-  grid-area: eat;
-}
-#touchActions #useBtn {
-  grid-area: use;
-}
-#touchActions #dashBtn {
-  grid-area: dash;
-}
-#touchActions #jumpBtn {
-  grid-area: jump;
+  left: var(--edge-l);
+  top: var(--edge-t);
 }
 #touchActions .attack {
-  grid-area: attack;
+  right: var(--edge-r);
+  bottom: var(--edge-b);
+}
+#touchActions #jumpBtn {
+  right: calc(var(--edge-r) + var(--atk) + var(--gap));
+  bottom: var(--edge-b);
+}
+#touchActions #dashBtn {
+  right: calc(var(--edge-r) + var(--atk) * 0.92);
+  bottom: calc(var(--edge-b) + var(--atk) * 0.79);
+}
+#touchActions #useBtn {
+  right: calc(var(--edge-r) + var(--atk) * 0.1);
+  bottom: calc(var(--edge-b) + var(--atk) + var(--gap));
+}
+#touchActions .eat {
+  right: calc(var(--edge-r) + var(--atk) * 0.68);
+  bottom: calc(var(--edge-b) + var(--atk) * 1.5);
 }
 .weapon-strip {
-  position: relative;
   display: flex;
   gap: var(--strip-gap);
   padding: 0;
@@ -716,47 +750,56 @@ body.returning .game-layout {
     transform: none;
   }
 }
+/* JUMP, DASH, the ability and EAT: round, translucent, thumb-sized. */
 #touchActions .act {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  width: var(--btn);
-  height: var(--btn);
+  width: var(--sm);
+  height: var(--sm);
   min-width: 0;
   min-height: 0;
   padding: 0;
-  border: 1px solid #ffffff33;
-  border-radius: 16px;
-  background: #18323fe6;
+  border: 2px solid #ffffff38;
+  border-radius: 50%;
+  background: #18323fcc;
   color: var(--cream);
   box-shadow: 0 3px 10px #0007;
-  font: 800 9px/1 var(--mono);
+  font: 800 10px/1 var(--mono);
   letter-spacing: 0.5px;
   touch-action: none;
 }
+#touchActions #jumpBtn {
+  width: var(--jmp);
+  height: var(--jmp);
+  background: #2c5f6bd9;
+  border-color: #b5e8c566;
+}
 #touchActions .act .act-icon {
-  font-size: 19px;
+  font-size: 20px;
   line-height: 1;
 }
+#touchActions #jumpBtn .act-icon {
+  font-size: 26px;
+}
 #touchActions .act small {
-  font-size: 9px;
+  font-size: 10px;
 }
 #touchActions .act svg {
-  width: 21px;
-  height: 21px;
+  width: 22px;
+  height: 22px;
 }
 #touchActions #useBtn {
-  background: #b5e8c5ee;
+  background: #b5e8c5d9;
   color: var(--ink);
 }
 #touchActions #useBtn span {
   font-size: 9px;
 }
 #touchActions .eat {
-  background: #f3a69ce6;
+  background: #f3a69cd9;
   color: var(--ink);
 }
 #touchActions .eat:disabled {
@@ -764,60 +807,135 @@ body.returning .game-layout {
 }
 #touchActions .act-badge {
   position: absolute;
-  top: -7px;
-  right: -7px;
-  min-width: 21px;
-  height: 21px;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
   padding: 0 5px;
   border-radius: 11px;
   background: var(--yellow);
   color: var(--ink);
   box-shadow: 0 2px 6px #0006;
-  font: 800 11px/21px var(--mono);
+  font: 800 12px/22px var(--mono);
 }
+/* The big one. A ring around it fills a third per landed hit (--combo, set by combat.js) and the whole
+   button glows gold when the slam is charged. The chevrons say it swipes. */
 #touchActions .attack {
-  width: var(--attack-w);
-  height: var(--attack-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: var(--atk);
+  height: var(--atk);
   min-width: 0;
   min-height: 0;
-  border: 2px solid #101e29;
-  border-radius: 22px;
-  background: #ffa48ef2;
+  padding: 0;
+  border: 3px solid #101e29aa;
+  border-radius: 50%;
+  background: #ffa48ee6;
   color: var(--ink);
-  box-shadow: 0 4px 12px #0007;
-  font: 800 11px var(--mono);
+  box-shadow: 0 5px 16px #0008;
+  font: 800 13px var(--mono);
+  letter-spacing: 0.6px;
   touch-action: none;
 }
 #touchActions .attack svg {
-  width: 26px;
-  height: 26px;
+  width: 34px;
+  height: 34px;
+  stroke-width: 2;
+}
+#touchActions .attack::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: conic-gradient(#ffd36e calc(var(--combo, 0) * 1turn), #ffffff30 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  pointer-events: none;
+}
+#touchActions .attack .swipe-hint {
+  position: absolute;
+  top: 50%;
+  margin-top: -12px;
+  font: 800 20px/24px var(--mono);
+  font-style: normal;
+  opacity: 0.45;
+  pointer-events: none;
+}
+#touchActions .attack .swipe-hint:first-child {
+  left: 9px;
+}
+#touchActions .attack .swipe-hint:last-child {
+  right: 9px;
+}
+#touchActions .attack .combo-tag {
+  display: none;
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: #3a2a10;
+  color: #ffd36e;
+  box-shadow: 0 2px 6px #0007;
+  font: 800 11px/1 var(--mono);
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+#touchActions .attack[data-combo='ready'] {
+  background: #ffd36ef2;
+  box-shadow: 0 0 0 3px #fff3c4, 0 0 26px #ffd36ecc;
+  animation: comboReady 0.7s ease-in-out infinite alternate;
+}
+#touchActions .attack[data-combo='ready'] .combo-tag {
+  display: block;
+}
+@keyframes comboReady {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.2);
+  }
 }
 #touchActions button.pressed {
   transform: scale(0.92);
   filter: brightness(1.15);
 }
-/* Tap the room: the floor walks, hits and dashes, so those controls step aside. */
-body.tap-controls .joystick,
+/* Tap the room: the floor walks, hits and dashes, so those controls step aside. JUMP takes the corner,
+   the ability and EAT line up beside it, and the strip waits on the left. */
+body.tap-controls #joystick,
 body.tap-controls #touchActions #dashBtn,
 body.tap-controls #touchActions .attack {
   display: none;
 }
-body.tap-controls #touchActions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--btn-gap);
-  margin-left: auto;
+body.tap-controls .touch-controls {
+  height: calc(var(--jmp) + var(--edge-t) + var(--edge-b));
 }
-/* Narrow phones outside arcade mode: the controls sit under the room in the page, so they shrink a bit. */
-@media (max-width: 540px) {
-  body:not(.arcade) {
-    --joy: 96px;
-    --attack-w: 64px;
-    --btn-gap: 6px;
-  }
-  body:not(.arcade) #touchActions {
-    gap: 6px;
+body.tap-controls #touchActions .weapon-strip {
+  top: calc(var(--edge-t) + (var(--jmp) - var(--slot)) / 2);
+}
+body.tap-controls #touchActions #jumpBtn {
+  right: var(--edge-r);
+}
+body.tap-controls #touchActions #useBtn {
+  right: calc(var(--edge-r) + var(--jmp) + var(--gap));
+  bottom: calc(var(--edge-b) + (var(--jmp) - var(--sm)) / 2);
+}
+body.tap-controls #touchActions .eat {
+  right: calc(var(--edge-r) + var(--jmp) + var(--sm) + var(--gap) * 2);
+  bottom: calc(var(--edge-b) + (var(--jmp) - var(--sm)) / 2);
+}
+/* Outside arcade mode the controls sit under the room in the page. */
+body:not(.arcade) .controlbar {
+  min-height: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  #touchActions .attack[data-combo='ready'] {
+    animation: none;
   }
 }
 .controls-pick {
@@ -936,64 +1054,44 @@ body.arcade .ward-strip .smallbtn {
   font-size: 9px;
 }
 
-/* Portrait: the room on top, the controls under it. */
+/* Portrait: the room on top, the controls under it. Joystick bottom left with the weapon strip over
+   it; the attack cluster in the bottom-right corner. */
 @media (orientation: portrait) {
   /* The room takes every pixel the controls leave. A tall room zooms in and the camera follows Macy. */
   body.arcade .stage {
     flex: 1 1 0;
   }
   body.arcade .controlbar {
-    padding: 10px 12px 12px;
+    padding: 8px 12px 10px;
   }
   /* Toasts drop below the hearts and coins cards. */
   body.arcade .toast {
     top: 58px;
     max-width: 90%;
   }
-  body.arcade .touch-controls {
-    align-items: flex-end;
-    gap: 12px;
-  }
-  /* Joystick on the left; the column hugs the right edge, strip on top and the attack at the bottom. */
-  body.arcade.stick-controls #touchActions {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: var(--btn-gap);
-  }
-  body.arcade.tap-controls .controlbar {
-    padding: 8px 12px 10px;
-  }
-  body.arcade.tap-controls .touch-controls {
-    justify-content: center;
-  }
-  body.arcade.tap-controls #touchActions {
-    margin: 0 auto;
-  }
-  body.arcade .turn-hint {
-    padding: 4px 6px 4px 12px;
-    font-size: 10px;
-  }
-}
-/* Short portrait screens (phone Safari with its toolbars): the column folds into three across. */
-@media (orientation: portrait) and (max-height: 719px) {
-  body.arcade.stick-controls #touchActions {
-    display: grid;
-    grid-template-columns: repeat(3, var(--btn));
-    grid-template-areas:
-      'strip strip strip'
-      'eat use jump'
-      'dash attack attack';
-    gap: 8px;
-    justify-items: end;
-  }
-  body.arcade.stick-controls #touchActions .attack {
-    width: 100%;
-  }
 }
 
-/* Landscape on touch screens: the room fills the screen. Joystick bottom left; the column rides
-   the right edge from the weapon strip at the top to the attack at the bottom. */
+/* The one-time "turn your phone" hint: a pill over the bottom of the room for a few seconds (world.js). */
+.cabinet {
+  position: relative;
+}
+body.turn-hint-on .turn-hint {
+  display: flex;
+}
+.turn-hint {
+  position: absolute;
+  z-index: 8;
+  bottom: calc(var(--cluster-h) + 76px);
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  transform: translateX(-50%);
+  border-radius: 18px;
+  box-shadow: 0 4px 14px #0008;
+}
+
+/* Landscape on touch screens: the room fills the screen and the controls float over it, translucent.
+   Joystick bottom left; the attack cluster bottom right; the weapon strip top right. */
 @media (orientation: landscape) and (pointer: coarse), (orientation: landscape) and (max-height: 540px) {
   body.arcade .cabinet {
     display: block;
@@ -1008,7 +1106,7 @@ body.arcade .ward-strip .smallbtn {
     position: absolute;
     z-index: 6;
     top: calc(env(safe-area-inset-top) + 6px);
-    right: calc(env(safe-area-inset-right) + 18px + var(--strip-w));
+    right: calc(env(safe-area-inset-right) + 26px + var(--strip-w));
     max-width: 46vw;
     height: auto;
     gap: 6px;
@@ -1051,7 +1149,7 @@ body.arcade .ward-strip .smallbtn {
     position: absolute;
     left: 50%;
     bottom: calc(env(safe-area-inset-bottom) + 8px);
-    max-width: 40%;
+    max-width: 36%;
     margin: 0;
     transform: translateX(-50%);
   }
@@ -1061,80 +1159,69 @@ body.arcade .ward-strip .smallbtn {
     background: none;
     pointer-events: none;
   }
-  body.arcade .turn-hint,
   body.arcade .key-guide,
   body.arcade .play-status {
     display: none;
   }
   body.arcade .touch-controls {
-    display: block;
-  }
-  body.arcade .joystick,
-  body.arcade #touchActions button {
-    pointer-events: auto;
-  }
-  body.arcade .joystick {
+    --edge-t: calc(env(safe-area-inset-top) + 8px);
+    --edge-r: calc(env(safe-area-inset-right) + 16px);
+    --edge-b: calc(env(safe-area-inset-bottom) + 14px);
+    --edge-l: calc(env(safe-area-inset-left) + 20px);
     position: absolute;
     z-index: 4;
-    left: calc(env(safe-area-inset-left) + 16px);
-    bottom: calc(env(safe-area-inset-bottom) + 14px);
-    background: #152c3599;
-    opacity: 0.85;
-  }
-  body.arcade #touchActions,
-  body.arcade.tap-controls #touchActions {
-    position: absolute;
-    z-index: 4;
-    top: calc(env(safe-area-inset-top) + 6px);
-    right: calc(env(safe-area-inset-right) + 8px);
-    bottom: calc(env(safe-area-inset-bottom) + 8px);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    justify-content: flex-start;
-    gap: var(--btn-gap);
-    margin: 0;
+    inset: 0;
+    height: auto;
     pointer-events: none;
   }
-  /* Strip at the top, everything else stacked down to the bottom edge. */
-  body.arcade #touchActions .eat {
-    margin-top: auto;
+  body.arcade #joystick,
+  body.arcade #touchActions > * {
+    pointer-events: auto;
+  }
+  body.arcade #joystick {
+    background: #152c3580;
+    box-shadow: inset 0 0 0 10px #1d374177;
+    opacity: 0.9;
+  }
+  body.arcade #touchActions .weapon-strip {
+    left: auto;
+    right: var(--edge-r);
+    top: var(--edge-t);
+    background: #0f222cb3;
   }
   body.arcade #touchActions .act {
-    background: #132c37b8;
+    background: #132c37b3;
+  }
+  body.arcade #touchActions #jumpBtn {
+    background: #2c5f6bc4;
   }
   body.arcade #touchActions #useBtn {
-    background: #b5e8c5cc;
+    background: #b5e8c5c4;
   }
   body.arcade #touchActions .eat {
-    background: #f3a69cd0;
+    background: #f3a69cc4;
   }
   body.arcade #touchActions .attack {
-    background: #ffa48ee0;
+    background: #ffa48ed4;
+  }
+  body.arcade #touchActions .attack[data-combo='ready'] {
+    background: #ffd36ee6;
+  }
+  body.arcade.tap-controls #touchActions .weapon-strip {
+    top: var(--edge-t);
   }
   /* The floating controls step aside while the pause menu is up. */
   body.arcade.ward-paused .controlbar {
     visibility: hidden;
   }
 }
-/* Short landscape screens: EAT joins the weapon strip's row so the column fits. */
-@media (orientation: landscape) and (max-height: 400px) {
+/* Short landscape phones (most of them): a touch smaller so the cluster clears the strip. */
+@media (orientation: landscape) and (max-height: 430px) {
   :root {
-    --btn: 48px;
-    --btn-gap: 8px;
-    --attack-h: 58px;
-  }
-  body.arcade.stick-controls #touchActions .eat {
-    position: absolute;
-    top: 0;
-    right: calc(var(--strip-w) + 8px);
-    margin: 0;
-  }
-  body.arcade.stick-controls .gamebar {
-    right: calc(env(safe-area-inset-right) + 26px + var(--strip-w) + var(--btn));
-  }
-  body.arcade.stick-controls #touchActions #useBtn {
-    margin-top: auto;
+    --atk: 96px;
+    --gap: 8px;
+    --joy: 124px;
+    --slot: 44px;
   }
 }
 @media (orientation: landscape) and (max-width: 760px) {
@@ -1142,7 +1229,6 @@ body.arcade .ward-strip .smallbtn {
     display: none;
   }
 }
-
 
 /* ==== v0.7 design pass: one card language for dashboards, dialogs and the arcade ====
    Rounded cards on the deep teal surface, cream / mint / coral accents, mono kickers over every
@@ -1273,7 +1359,7 @@ dialog.sheet .modal-note {
   }
 }
 
-/* Help: six cards, then one settings card. */
+/* Help: the how-to cards, then one settings card. */
 #helpDialog .help-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

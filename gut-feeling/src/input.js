@@ -521,22 +521,42 @@ joystick.addEventListener('pointermove', handleJoy);
   })
 );
 
-// The attack button hits on press and keeps hitting while held, like holding Space. Dragging it
-// aims the follow-up hits; letting go stops.
+// The attack button hits on press and keeps hitting while held, like holding Space (the press is what the
+// combo counts; held repeats are free swings). Dragging it aims the follow-up hits; letting go stops.
+// A quick sideways swipe across it (SWIPE_PX within SWIPE_SECONDS) changes weapons instead: right for the
+// next one, left for the one before.
+const SWIPE_PX = 40,
+  SWIPE_SECONDS = 0.35;
+
+function wardCycleWeapon(dir) {
+  equip((state.item + (dir > 0 ? 1 : 2)) % 3);
+  wardWeaponSync();
+}
+
 $('attackBtn').addEventListener('pointerdown', e => {
   if (attackPointer !== null || !pressStart($('attackBtn'), e)) return;
   attackPointer = e.pointerId;
   $('attackBtn').classList.add('pressed');
   if (roomAction('attack')) return;
-  attackOrigin = { x: e.clientX, y: e.clientY };
+  attackOrigin = { x: e.clientX, y: e.clientY, t: time, swiped: false };
   wardAim = { dx: 0, dy: 0 };
   heldAttack = true;
+  player.pressAt = time;
   attack();
 });
 
 $('attackBtn').addEventListener('pointermove', e => {
-  if (e.pointerId !== attackPointer || !attackOrigin) return;
-  wardAim = { dx: (e.clientX - attackOrigin.x) * 2, dy: (e.clientY - attackOrigin.y) * 2 };
+  if (e.pointerId !== attackPointer || !attackOrigin || attackOrigin.swiped) return;
+  const dx = e.clientX - attackOrigin.x,
+    dy = e.clientY - attackOrigin.y;
+  if (time - attackOrigin.t <= SWIPE_SECONDS && Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy) * 1.3) {
+    attackOrigin.swiped = true;
+    heldAttack = false;
+    wardAim = null;
+    wardCycleWeapon(dx);
+    return;
+  }
+  wardAim = { dx: dx * 2, dy: dy * 2 };
 });
 
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type =>
@@ -551,7 +571,9 @@ $('attackBtn').addEventListener('pointermove', e => {
 );
 
 $('attackBtn').addEventListener('click', e => {
-  if (!pressClick($('attackBtn'), e) && !roomAction('attack')) attack();
+  if (pressClick($('attackBtn'), e) || roomAction('attack')) return;
+  player.pressAt = time;
+  attack();
 });
 
 onPress($('jumpBtn'), () => roomAction('jump') || jump());
@@ -624,6 +646,8 @@ window.addEventListener('keydown', e => {
     return;
   }
   if (state.paused) return;
+  // A fresh Space is a press (the combo counts those); a held one keeps attacking.
+  if (k === ' ' && !e.repeat) player.pressAt = time;
   // An extra room (the hallway) gets the first say on Space; held Space then keeps attacking as usual.
   if (k === ' ' && !e.repeat && state.started && roomAction('attack')) {
     e.preventDefault();
@@ -677,7 +701,8 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) loseFocus();
 });
 
-// ---- Touch scheme: tap the room, or the joystick and buttons ----
+// ---- Touch scheme: the joystick and buttons, or tap the room ----
+// Phones and tablets start on the joystick (state.js picks it for a coarse pointer); a choice made here sticks.
 const CONTROL_NAMES = { tap: 'Tap the room', stick: 'Joystick' };
 
 function renderControls() {
@@ -690,6 +715,7 @@ function renderControls() {
 
 function setControlScheme(scheme) {
   state.controls = scheme === 'stick' ? 'stick' : 'tap';
+  state.controlsChosen = true;
   save();
   clearHeld();
   renderControls();
@@ -777,7 +803,7 @@ $('pauseStickers').addEventListener('click', stickerOpenSheet);
 $('pauseHelp').addEventListener('click', () => modalOpen($('helpDialog')));
 $('pauseSound').addEventListener('click', uiToggleSound);
 $('pauseFull').addEventListener('click', toggleArcade);
-$('turnHintClose').addEventListener('click', () => $('turnHint').classList.add('hidden'));
+onPress($('turnHintClose'), () => turnHintHide());
 
 $$('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
 

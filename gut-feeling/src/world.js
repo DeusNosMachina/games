@@ -15,6 +15,133 @@ const supplies = [
 const supplyAvailable = s =>
   s.room === state.room && !state.taken.includes(s.id) && stars() >= (s.unlock || 0);
 
+// ---- Health you can find ----
+// Besides the one-time supplies above: nutrients the ward drops on the floor (combat.js calls
+// wardDropNutrient for a cleared wave, every sixth eviction and a combo slam), and a snack cart in every
+// room (the lounge's is its vending machine) that hands out one nutrient, then restocks after a ward clear
+// there (snackRestock) or SNACK_RESTOCK seconds. Everything goes in the pocket (maxFood); EAT turns it into
+// a heart, as always. A drop waits WARD_DROP_SECONDS (blinking at the end) and leaves with the room.
+const WARD_DROP_SECONDS = 30,
+  WARD_DROP_MAX = 3,
+  WARD_DROP_REACH = 32,
+  WARD_DROP_TYPES = ['pudding', 'juice', 'shake'],
+  SNACK_RESTOCK = 120,
+  SNACK_REACH = 46,
+  SNACK_CARTS = {
+    0: { x: 640, y: 400 },
+    1: { x: 360, y: 420 },
+    2: { x: 95, y: 474, vending: true },
+    3: { x: 420, y: 420 },
+    4: { x: 430, y: 455 }
+  },
+  SNACK_LINES = {
+    cart: 'Snack cart: one nutrient, no questions asked. Back in stock after a ward clear or two minutes.',
+    vending: 'The vending machine owed you one. It restocks after a ward clear or two minutes.',
+    full: 'POCKETS FULL'
+  };
+
+let wardDrops = [],
+  wardDropSerial = 0,
+  snackFullShown = false;
+
+// Room key -> the ward time its cart restocks. Missing means stocked. Room 5 is room 0 after dark.
+const snackStock = {},
+  snackKey = (id = state.room) => (id === 5 ? 0 : id),
+  snackCartHere = () => SNACK_CARTS[snackKey()] || null,
+  snackReady = (id = state.room) => !!SNACK_CARTS[snackKey(id)] && !(snackStock[snackKey(id)] > time);
+
+function snackRestock(id = state.room) {
+  delete snackStock[snackKey(id)];
+}
+
+// A nutrient on open floor near (x, y). Past WARD_DROP_MAX on the floor, the oldest goes.
+function wardDropNutrient(x, y) {
+  let px = clamp(x, 60, roomWidth() - 60),
+    py = clamp(y, 200, 560);
+  if (px > roomWidth() - 140) py = Math.max(py, 240);
+  for (let i = 0; i < 16 && collides(px, py); i++) {
+    px += (500 - px) * 0.2;
+    py += (440 - py) * 0.2;
+  }
+  if (wardDrops.length >= WARD_DROP_MAX) wardDrops.shift();
+  const type = WARD_DROP_TYPES[wardDropSerial++ % WARD_DROP_TYPES.length],
+    d = { x: px, y: py, type, life: WARD_DROP_SECONDS, t: 0, near: false };
+  wardDrops.push(d);
+  floating('NUTRIENT', px, py - 52, '#b7e9b9');
+  emit(px, py - 16, '#e7f5b0', reduced ? 3 : 8, 70);
+  sfx('powerup', { vol: 0.45 });
+  return d;
+}
+
+function pocketNutrient(text, x, y) {
+  state.food++;
+  floating(text, x, y - 50, '#b7e6bd');
+  save();
+  hud();
+  sfx('pickup');
+}
+
+// Walking into a drop or up to a stocked cart pockets a nutrient while there is room.
+function wardPickups(dt) {
+  for (const d of wardDrops) {
+    d.life -= dt;
+    d.t += dt;
+    const near = d.life > 0 && player.z < 30 && dist(d, player) < WARD_DROP_REACH;
+    if (near && state.food < maxFood()) {
+      d.life = 0;
+      pocketNutrient('+1 ' + d.type.toUpperCase(), d.x, d.y);
+      if (!(state.stats && state.stats.dropTip)) {
+        (state.stats ||= {}).dropTip = 1;
+        toast(
+          wardCoarsePointer ? 'Pocketed. Tap EAT when a heart runs low.' : 'Pocketed. F eats it when a heart runs low.',
+          2.8
+        );
+      }
+    } else if (near && !d.near) floating(SNACK_LINES.full, d.x, d.y - 50, '#ffe4ec');
+    d.near = near;
+  }
+  wardDrops = wardDrops.filter(d => d.life > 0);
+  const cart = snackCartHere();
+  if (!cart || !snackReady() || deadDelay > 0) return;
+  const near = Math.hypot(player.x - cart.x, (player.y - cart.y) * 1.3) < SNACK_REACH;
+  if (!near) {
+    snackFullShown = false;
+    return;
+  }
+  if (state.food >= maxFood()) {
+    if (!snackFullShown) floating(SNACK_LINES.full, cart.x, cart.y - 74, '#ffe4ec');
+    snackFullShown = true;
+    return;
+  }
+  snackStock[snackKey()] = time + SNACK_RESTOCK;
+  pocketNutrient('+1 SNACK', cart.x, cart.y - 24);
+  toast(cart.vending ? SNACK_LINES.vending : SNACK_LINES.cart, 3.2);
+}
+
+// Floor layer: the drops, popping in, bobbing, blinking through their last five seconds.
+function drawWardDrops(g) {
+  for (const d of wardDrops) {
+    if (d.life < 5 && !reduced && Math.sin(d.t * 14) < -0.2) continue;
+    const pop = reduced ? 1 : Math.min(1, d.t / 0.25),
+      bob = reduced ? 0 : Math.sin(time * 3 + d.x) * 3;
+    ellipse(g, d.x, d.y, 22, 8, '#e7eea866');
+    nutrient(g, d.x, d.y + bob - (1 - pop) * 30, d.type, 1.15 * (0.6 + 0.4 * pop));
+    spark(g, d.x + 15, d.y - 38, '#fff0ad', 0.45);
+  }
+}
+
+// The room's snack cart (or the lounge's vending machine) as a depth-sorted piece.
+function snackRenderable() {
+  const cart = snackCartHere();
+  if (!cart || !isArcadeRoom(state.room)) return null;
+  const stocked = snackReady(),
+    wait = stocked ? 0 : Math.ceil((snackStock[snackKey()] - time) / 60);
+  return {
+    y: cart.y + (cart.vending ? 1 : 0),
+    draw: g => snackCartArt(g, cart.x, cart.y, stocked, time, cart.vending, wait)
+  };
+}
+
 // Ward-side state that only this file touches.
 // Macy is 5'10" and stands about 120 world units tall in the ward. Visual only: hitboxes, reach and
 // collisions do not change. The hallway sizes its cast from MACY_SCALE.
@@ -211,6 +338,8 @@ function loadRoom(id) {
   puddles = [];
   traps = [];
   floats = [];
+  wardDrops = [];
+  snackFullShown = false;
   deadDelay = 0;
   player.z = 0;
   player.vz = 0;
@@ -261,9 +390,11 @@ function begin() {
   state.paused = false;
   $('playStatus').textContent = 'EXPLORE / PLAY / GET HOME';
   loadRoom(state.room);
-  // First steps on a touch screen: the room is the controller.
+  // First steps on a touch screen: the room is the controller, or the joystick and the big buttons.
   if (wardCoarsePointer && tapScheme())
     toast('Tap to walk. Tap a gremlin to bonk it. Flick to dash. Two fingers: jump.', 4.5);
+  else if (wardCoarsePointer) toast('Left thumb walks. Smash SWING. Swipe it sideways for the next weapon.', 4.5);
+  turnHintCheck();
   canvas.focus({ preventScroll: true });
   sfx('ui');
 }
@@ -1659,6 +1790,8 @@ function wardTouchStep(dt) {
         range = state.item === 0 ? 86 : 300;
       if (d <= range) {
         const ready = player.attackCd <= 0;
+        // The first swing of a tap is a press (the combo counts it); a held finger's repeats are not.
+        if (ready && prey.swings === 0) player.pressAt = time;
         wardAimAt(e, d);
         attack();
         wardAim = null;
@@ -1823,6 +1956,7 @@ function updateWorld(dt) {
       hud();
       sfx('pickup');
     }
+  wardPickups(dt);
   // The "MAP →" corner: out to the hallway when it exists, else the map.
   if (player.x > roomWidth() - 105 && player.y < 202) {
     player.y = 225;
@@ -1833,6 +1967,7 @@ function updateWorld(dt) {
   macyIdleStep(dt);
   tvTick(dt);
   roomOpinionsTick(dt);
+  turnHintTick();
   $('dashBtn').style.opacity = player.dashCd > 0 ? '.45' : '1';
   $('useBtn').style.opacity = state.item && player.itemCd > 0 ? '.45' : '1';
 }
@@ -1908,6 +2043,7 @@ function drawWorld() {
     nutrient(c, s.x, s.y + Math.sin(time * 3) * 3, s.type, 1.2);
     spark(c, s.x + 15, s.y - 35, '#fff0ad', 0.4);
   }
+  drawWardDrops(c);
   for (let tr of traps) {
     brick(c, tr.x - 15, tr.y, '#e38878');
     brick(c, tr.x + 2, tr.y + 5, '#6faeab');
@@ -1915,6 +2051,8 @@ function drawWorld() {
   drawWardGoal(c);
   const renderables = (roomProps[state.room] || []).map(p => ({ y: p.y, draw: p.draw }));
   renderables.push(...roomCultRenderables());
+  const snack = snackRenderable();
+  if (snack) renderables.push(snack);
   if (typeof roomExtraRenderables === 'function') renderables.push(...(roomExtraRenderables() || []));
   renderables.push({
     y: player.y,
@@ -2117,6 +2255,40 @@ function hudBucket(px) {
   return px >= 52 ? 'l' : px >= 36 ? 'm' : px >= 28 ? 's' : 'xs';
 }
 
+// ---- Turn your phone ----
+// A phone held upright gets one gentle hint, once per save (state.stats.turnHint): the ward plays best
+// sideways. It is a pill over the room for a few seconds, never a block; turning the phone or ✕ clears it.
+const TURN_HINT_SECONDS = 8,
+  TURN_HINT_TEXT = 'Turn your phone sideways for the ward. Bigger room, bigger buttons.';
+
+let turnHintUntil = 0;
+
+function turnHintCheck() {
+  if (!wardCoarsePointer || !state.started || mini.open || (state.stats && state.stats.turnHint)) return false;
+  const w = window.innerWidth || 0,
+    h = window.innerHeight || 0;
+  if (!(w > 0 && h > w && w < 600)) return false;
+  (state.stats ||= {}).turnHint = 1;
+  save();
+  turnHintUntil = time + TURN_HINT_SECONDS;
+  const text = $('turnHint').querySelector('span');
+  if (text) text.textContent = TURN_HINT_TEXT;
+  document.body.classList.add('turn-hint-on');
+  return true;
+}
+
+function turnHintHide() {
+  turnHintUntil = 0;
+  document.body.classList.remove('turn-hint-on');
+}
+
+function turnHintTick() {
+  if (!turnHintUntil) return;
+  const w = window.innerWidth || 0,
+    h = window.innerHeight || 0;
+  if (time >= turnHintUntil || (w > 0 && w > h)) turnHintHide();
+}
+
 // A tall phone still sees at least this much of the room's 1000 px width.
 const WARD_MIN_VIEW_W = 540;
 
@@ -2136,6 +2308,7 @@ function resize() {
   if (mini.open) orientMini();
   else configureCanvas($('miniCanvas'), 800, 450);
   if (titleUp) titleFit();
+  turnHintCheck();
 }
 
 // Fixed small simulation steps keep 30, 60 and 120 Hz displays moving identically.
