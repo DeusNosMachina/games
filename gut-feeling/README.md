@@ -27,7 +27,7 @@ The game opens on a proper title screen: the hospital at dusk, gremlin eyes in t
 
 Each arcade is the canvas plus the minimum, on phones and on laptops: three pills for progress, time and lives along the canvas edge, the instructions as a short toast, and one row of controls under the canvas (or a column beside it when that leaves a bigger game).
 
-The map is a drawn floor plan of the seventh floor of Valley Hospital in Paramus (Pediatrics, Room 5): tap a room to go there, tap PLAY to start its arcade, and the Daily Dose, gift shop and exit sit where you would expect them. Walk the hallway between rooms and talk to the visitors (they keep arm's length and never wander onto her spot, and on a phone a tap only opens a talk when the TALK prompt is up over that visitor; every other tap walks): Dad (a fresh dad joke every single time, from a deck of 144), Riley, Mimi and Dodo, Presley, Norah and Taylor, cousin Casey, nurses Stephanie and Julez, Dr. Lori and Dr. Benedetto, Barb from Dietary with her Ensure, and Rowdy the Ram doing cheers by the nurses' station. Every visit pins a card to the get-well wall above her bed.
+The map is a drawn floor plan of the seventh floor of Valley Hospital in Paramus (Pediatrics, Room 5): every room names its arcade with its medal dots, tap a room to go there, tap a game's name or PLAY to start its arcade, LIGHTS OUT in your room for the night shift (Bedside Blaster), and the Daily Dose, gift shop and exit (which tells you what it still wants) sit where you would expect them. The restroom is occupied. Knock anyway. Walk the hallway between rooms and talk to the visitors (they keep arm's length and never wander onto her spot, and on a phone a tap only opens a talk when the TALK prompt is up over that visitor; every other tap walks): Dad (a fresh dad joke every single time, from a deck of 144), Riley, Mimi and Dodo, Presley, Norah and Taylor, cousin Casey, nurses Stephanie and Julez, Dr. Lori and Dr. Benedetto, Barb from Dietary with her Ensure, and Rowdy the Ram doing cheers by the nurses' station. Every visit pins a card to the get-well wall above her bed.
 
 ## The ward fights back
 
@@ -91,7 +91,7 @@ Arcade controls:
 
 **Steady hands** gives two assists per run. **Show-off shift** removes them and pays 25% more. The prescriptions are **Pillow Fort**, **Questionable Decisions** and **Absolute Gutastrophe**; they change speed, counts, windows and payouts.
 
-Medals are bronze, silver and gold, worth 1, 2 and 3 discharge stars. Discharge needs 12 stars, a medal in all six games, any level 2 medal, and Ralph beaten.
+Medals are bronze, silver and gold, worth 1, 2 and 3 discharge stars, on every level including Legendary. Discharge needs 21 stars, a medal in all six games, any level 2 medal, and Ralph beaten; the exit and the map list exactly what is still missing.
 
 - **Daily Dose:** the date picks a game and a level. Same run for everyone, local best per day, a streak, and a bonus the first time each day.
 - **Gift shop:** eight permanent upgrades (grippy socks, pillow reach, longer shield, thick skin, pocket snacks, Ralph repellent, arcade pass, a lucky scrunchie for a sixth heart) and three wardrobe looks for Macy.
