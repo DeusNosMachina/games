@@ -9,7 +9,7 @@ root = Path(__file__).resolve().parent
 src = root / 'src'
 SCRIPTS = [
     'state.js', 'art.js', 'rowdy.js', 'tvlate.js', 'dream.js', 'audio.js', 'world.js', 'combat.js', 'hallway.js', 'minigames.js', 'transitions.js',
-    'games/iv.js', 'games/magnet.js', 'games/bricks.js', 'games/race.js', 'games/slice.js', 'games/blaster.js',
+    'games/iv.js', 'games/pitch.js', 'games/magnet.js', 'games/bricks.js', 'games/race.js', 'games/slice.js', 'games/blaster.js',
     'map.js', 'stickers.js', 'input.js',
 ]
 html = (src / 'template.html').read_text().replace('/* V2_STYLES */', (src / 'v2.css').read_text())

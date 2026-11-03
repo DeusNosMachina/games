@@ -144,12 +144,12 @@ function recordDaily(score) {
 // shows a game that has one, and can flip mid-run when the phone turns; activeCanvas() is the size the
 // run draws at right now. Games should read it (or mini.portrait) when they lay out, not cache it.
 function activeCanvas() {
-  const def = games[mini.id];
+  const def = miniGame();
   return mini.portrait && def.portraitCanvas ? def.portraitCanvas : def.canvas;
 }
 
 function miniPortraitWanted() {
-  const def = games[mini.id],
+  const def = miniGame(),
     upright = window.innerHeight > window.innerWidth;
   return !!(mini.open && $('miniDialog').open && def && def.portraitCanvas && upright);
 }
@@ -274,6 +274,12 @@ function miniScene(g, id, w, h) {
 
 const MINI_RECOVERY_LINE = 'Finish one IV phase to get out of bed. Each collapse makes the next one harder.';
 
+// The definition the current run uses. A forced recovery runs the game registered as `recovery`
+// (games/iv.js) in place of the room's own arcade, when one is registered.
+function miniGame(id = mini.id) {
+  return mini.forced && games.recovery ? games.recovery : games[id];
+}
+
 function openMini(id, forced = false) {
   clearHeld();
   if ($('mapDialog').open) $('mapDialog').close();
@@ -301,7 +307,7 @@ function openMini(id, forced = false) {
 }
 
 function showLobby() {
-  const def = games[mini.id],
+  const def = miniGame(),
     info = def.info;
   mini.screen = 'lobby';
   mini.held = false;
@@ -364,7 +370,7 @@ function showLobby() {
 
 function startMini() {
   const { id, tier, forced, approach = 0, daily = false, dailyDate = '', dailySeed = 0 } = mini,
-    def = games[id];
+    def = miniGame();
   clearHeld();
   ceremonyStop();
   $('miniLivesLabel').textContent = 'OOPS ALLOWANCE';
@@ -490,7 +496,7 @@ function useAssist() {
   mini.helpUsed++;
   mini.quality -= 5;
   mini.combo = 0;
-  dailyScoped(() => games[mini.id].assist());
+  dailyScoped(() => miniGame().assist());
   updateMiniHUD();
 }
 
@@ -500,7 +506,7 @@ function miniAction(a) {
     useAssist();
     return;
   }
-  const def = games[mini.id];
+  const def = miniGame();
   if (def.action) dailyScoped(() => def.action(a));
 }
 
@@ -545,7 +551,7 @@ function updateMini(dt) {
   mini.total += dt;
   mini.phaseTime += dt;
   mini.hudClock -= dt;
-  dailyScoped(() => games[mini.id].update(dt));
+  dailyScoped(() => miniGame().update(dt));
   if (mini.hudClock <= 0) {
     updateMiniHUD();
     mini.hudClock = 0.08;
@@ -554,7 +560,7 @@ function updateMini(dt) {
 
 function updateMiniHUD() {
   if (!['play', 'briefing', 'intro'].includes(mini.screen)) return;
-  const def = games[mini.id];
+  const def = miniGame();
   $('miniStatLabel').textContent = def.statLabel();
   $('miniStat').textContent = def.stat();
   const left = Math.max(0, Math.ceil(mini.limit - mini.phaseTime));
@@ -580,7 +586,7 @@ function updateMiniHUD() {
 // 0–100 performance score that sets the medal. Games may replace it with def.quality().
 // A non-number (say, an average of no samples) counts as 0 so it can never reach the coin total.
 function qualityScore() {
-  const def = games[mini.id],
+  const def = miniGame(),
     q = def.quality ? def.quality() : arcadeQuality();
   return Number.isFinite(q) ? clamp(Math.round(q), 0, 100) : 0;
 }
@@ -615,7 +621,7 @@ function grantReward(id, tier, grade, quality, multiplier, arcadeScore = 0) {
 
 function resolveMiniResult(win, reason) {
   if (mini.screen !== 'outro') return;
-  const def = games[mini.id];
+  const def = miniGame();
   mini.screen = 'result';
   $('miniDialog').dataset.screen = 'result';
   $('miniClose').disabled = false;
@@ -741,7 +747,7 @@ function drawResultArt() {
   monitor(g, 533, 107);
   poster(g, 654, 12, 1);
   plant(g, 113, 201, 1.2);
-  const def = games[mini.id];
+  const def = miniGame();
   // A game may paint its own foreground over the shared bedside scene; the ceremony goes on top.
   if (!(def.resultArt && def.resultArt(g))) {
     if (mini.win) {
@@ -1145,7 +1151,7 @@ function drawMini() {
     return;
   }
   if (!['briefing', 'intro', 'play', 'outro'].includes(mini.screen)) return;
-  const def = games[mini.id],
+  const def = miniGame(),
     size = activeCanvas(),
     g = mc;
   g.clearRect(0, 0, size.w, size.h);
@@ -1165,12 +1171,12 @@ const ARCADE_QUOTA_MISSED =
 function initArcadeRun(limit) {
   Object.assign(mini, { limit, got: 0, shift: 0, notice: 3, fx: [], trail: [], pointer: null, slow: 0 });
   mini.rules.misses = state.difficulty === 0 ? 8 : state.difficulty === 1 ? 6 : 5;
-  setInstructions(games[mini.id].info.cue);
+  setInstructions(miniGame().info.cue);
 }
 
 // Per-frame wrapper for gesture games: shift escalation, the game step, particles, and the clock.
 function updateArcade(dt, step) {
-  const def = games[mini.id];
+  const def = miniGame();
   mini.slow = Math.max(0, mini.slow - dt);
   mini.notice = Math.max(0, mini.notice - dt);
   // Runs escalate through three shifts: by time by default, or by def.shiftLevel().
@@ -1230,14 +1236,14 @@ function arcadeDown(p) {
     startT: mini.total,
     stroke: ++strokeSerial
   };
-  const def = games[mini.id];
+  const def = miniGame();
   if (def.down) dailyScoped(() => def.down(p));
 }
 
 function arcadeMove(p) {
   if (mini.screen !== 'play' || mini.paused || !mini.pointer) return;
   const prev = { x: mini.pointer.lastX, y: mini.pointer.lastY },
-    def = games[mini.id];
+    def = miniGame();
   if (def.move) dailyScoped(() => def.move(p, prev));
   // A move hook can end the run (an oops that spends the last heart), which clears the pointer.
   if (!mini.pointer) return;
@@ -1247,7 +1253,7 @@ function arcadeMove(p) {
 
 // cancel = true when the pointer was lost or the run was interrupted; games must not act on it.
 function arcadeUp(cancel = false) {
-  const def = games[mini.id];
+  const def = miniGame();
   if (def.up) dailyScoped(() => def.up(cancel));
   mini.pointer = null;
 }
@@ -1273,7 +1279,7 @@ function drawArcadeOverlays(g) {
     label(
       g,
       (mini.shift === 2 ? 'FINAL ' : mini.shift === 1 ? 'SECOND ' : 'FIRST ') +
-        (games[mini.id].shiftName || 'SHIFT'),
+        (miniGame().shiftName || 'SHIFT'),
       cx,
       79,
       18,

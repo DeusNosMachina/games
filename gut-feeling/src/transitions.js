@@ -68,7 +68,7 @@ function launchMini() {
   $('miniCanvas').focus({ preventScroll: true });
   syncMiniTip();
   sfx('countdown');
-  music('game:' + mini.id);
+  music(miniGame().music || 'game:' + mini.id);
   updateMiniHUD();
 }
 

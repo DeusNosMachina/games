@@ -36,6 +36,9 @@ Each game file calls `const NAME = registerGame({...})`. Hooks are called as `de
 | `info` | `{game, genre, headline, desc}` for map, cards and lobby, plus `{goal, control, avoid, cue}` for gesture-game briefings. |
 | `tierNotes` | Three lobby strings, one per level. |
 | `shiftName` | Optional banner noun for `updateArcade` shifts (default `SHIFT`). |
+| `music` | Optional track key for the run (default `'game:' + id`). |
+
+A game registered with `id: 'recovery'` is the mandatory recovery run: `openMini(room, true)` opens it in place of the room's own arcade (`miniGame()` in minigames.js resolves the definition for the current run; use it, never `games[mini.id]`, in framework code). It is not an arcade: it is not on the map, in the Daily Dose or in the passport, and `ARCADE_COUNT` does not count it. Bots for it export `{id: 'recovery', room: 0, forced: true, policy}`.
 
 | Hook | Called | Default |
 | --- | --- | --- |

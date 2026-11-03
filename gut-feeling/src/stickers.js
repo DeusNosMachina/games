@@ -460,7 +460,7 @@ function stickerCountRun(run) {
   state.stats ||= {};
   const add = key => (state.stats[key] = stickerStat(state, key) + 1);
   if (!run.miss) add('flawless');
-  if (run.id === 0 && run.miss >= 2) add('ivClutch');
+  if ((run.forced || run.id === 0) && run.miss >= 2) add('ivClutch');
   if (run.forced) add('recovered');
 }
 
