@@ -489,7 +489,11 @@ $('miniCanvas').addEventListener('pointermove', e => {
     if (mini.screen === 'play' && !mini.paused) dailyScoped(() => multi.touch('move', miniPoint(e), e.pointerId));
     return;
   }
-  if (e.pointerId === arcadePointer) arcadeMove(miniPoint(e));
+  if (e.pointerId !== arcadePointer) return;
+  // Fast swipes on phones arrive coalesced: feed every sample so a blade trail gets its full resolution.
+  const samples = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [];
+  if (samples.length > 1) for (const c of samples) arcadeMove(miniPoint(c));
+  else arcadeMove(miniPoint(e));
 });
 
 function releaseArcade(e) {
