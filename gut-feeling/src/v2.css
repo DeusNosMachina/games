@@ -1719,86 +1719,357 @@ body:not(.arcade) #miniDialog:is([data-screen='lobby'], [data-screen='result']) 
   }
 }
 
-/* Lobby: pitch on the left, decisions on the right, one big start. */
+/* Lobby: one screen, no scrolling, in every orientation. The hook, the levels as one segmented row
+   with the chosen level's note under it, the nerve as a two-way switch, then START and BACK pinned at
+   the bottom. How to play holds the long copy, the best score and the prescription: an overlay on
+   phones and small windows, open beside the pitch on a roomy laptop window. */
+#miniDialog[data-screen='lobby'] .mini-body {
+  display: flex;
+  flex-direction: column;
+}
 #miniDialog .lobby {
-  display: grid;
-  gap: var(--sp-4);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 12px;
+  min-height: 0;
+}
+#miniDialog .lobby.hidden {
+  display: none;
 }
 #miniDialog .lobby-intro {
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: var(--sp-4);
+  display: block;
+}
+#miniDialog .lobby-intro canvas,
+#miniDialog .lobby-intro .genre {
+  display: none;
+}
+#miniDialog .lobby-intro h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+}
+#miniDialog .lobby-intro .lobby-reward {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #cfe3dc;
+}
+#miniDialog .lobby-intro .lobby-reward:empty {
+  display: none;
+}
+#miniDialog .lobby-how summary {
+  position: relative;
+  z-index: 4;
+  display: inline-flex;
   align-items: center;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid #ffffff2e;
+  border-radius: 16px;
+  background: #0b1c2766;
+  color: var(--cream);
+  font: 700 12px var(--mono);
+  cursor: pointer;
+  list-style: none;
 }
-#miniDialog .lobby-intro canvas {
-  width: 100%;
-  border-radius: var(--r-md);
+#miniDialog .lobby-how summary::-webkit-details-marker {
+  display: none;
 }
-.lobby-label {
-  margin: 0 0 var(--sp-2);
-  font: var(--kicker);
-  letter-spacing: 1.6px;
-  text-transform: uppercase;
-  color: var(--muted);
+#miniDialog .lobby-how summary::before {
+  content: '?';
+  margin-right: 7px;
+  color: var(--mint);
+}
+#miniDialog .lobby-how[open] summary::before {
+  content: '✕';
+}
+/* Phones and small windows: How to play opens over the lobby, under its own button. */
+#miniDialog .lobby-how-body {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  overflow: auto;
+  padding: 92px 16px 16px;
+  border-radius: 14px;
+  background: #142f3e;
+}
+#miniDialog .lobby-how-body #miniDescription {
+  display: block;
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #e3eedb;
+}
+#miniDialog .lobby-how-body .lobby-foot {
+  display: flex;
+  justify-content: flex-start;
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+#miniDialog .lobby-how-body .textbtn {
+  padding: 0;
+  font-size: 12px;
+}
+#miniDialog .lobby-pick {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 10px;
+  min-height: 0;
 }
 #miniDialog .lobby-pick .daily-banner {
-  margin: 0 0 var(--sp-3);
+  margin: 0;
+  padding: 7px 10px;
+  font-size: 11px;
 }
+/* Levels: one segmented row, LEVEL n over a big number and its stars. */
 #miniLobby .tier-grid {
-  gap: 10px;
-  margin: 0 0 var(--sp-4);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+#miniLobby .tier-grid[data-count='4'] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 #miniLobby .tier-card {
-  padding: 12px 14px;
-  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 7px 4px 6px;
+  border: 1px solid #47646b;
+  border-radius: 12px;
   background: var(--card);
+  text-align: center;
+}
+#miniLobby .tier-card small {
+  font: 700 9px var(--mono);
+  letter-spacing: 0.8px;
+  color: var(--muted);
+}
+#miniLobby .tier-card strong {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+#miniLobby .tier-card.legendary strong {
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: 1px;
+}
+#miniLobby .tier-card .medals {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--yellow);
 }
 #miniLobby .tier-card.selected {
   border-color: var(--mint);
   background: var(--card-hi);
   box-shadow: inset 0 0 0 1px var(--mint);
 }
+#miniLobby .tier-card:disabled {
+  opacity: 0.45;
+}
+#miniLobby .tier-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #e7efd8;
+}
+#miniLobby .tier-note small {
+  display: block;
+  margin-top: 2px;
+  font: 11px/1.4 var(--mono);
+  color: var(--muted);
+}
+/* Nerve: a two-way switch. */
 #miniLobby .approach-options {
-  gap: 10px;
-  margin: 0 0 var(--sp-4);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid #47646b;
+  border-radius: 14px;
+  background: #0b1c2755;
 }
 #miniLobby .approach {
-  padding: 12px 14px;
-  border-radius: var(--r-md);
-  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  text-align: center;
+}
+#miniLobby .approach strong {
+  font-size: 13px;
+}
+#miniLobby .approach small {
+  display: block;
+  margin: 1px 0 0;
+  font-size: 10px;
 }
 #miniLobby .approach.selected {
-  border-color: var(--mint);
   background: var(--card-hi);
+  box-shadow: inset 0 0 0 1px var(--mint);
 }
-#miniLobby .lobby-start {
+#miniLobby .approach:disabled {
+  opacity: 0.4;
+}
+/* START and BACK: big, at the bottom. */
+#miniLobby .lobby-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+#miniLobby .lobby-start,
+#miniLobby .lobby-back {
+  display: flex;
+  justify-content: center;
+  width: 100%;
   min-height: 54px;
   margin: 0;
-  border-radius: var(--r-md);
-  font-size: 16px;
+  border-radius: 14px;
+  font-size: 17px;
 }
-#miniLobby .lobby-foot {
-  margin-top: 10px;
+#miniLobby .lobby-back {
+  min-height: 48px;
+  font-size: 15px;
 }
-#miniLobby .lobby-foot span:empty {
+#miniLobby .lobby-back.hidden {
   display: none;
 }
-@media (min-width: 760px) {
+/* A tall phone has room for the game's preview card above the hook. */
+@media (max-width: 759px) and (min-height: 760px) {
+  #miniDialog .lobby-intro canvas {
+    display: block;
+    width: 100%;
+    max-height: 200px;
+    margin-bottom: 12px;
+    object-fit: cover;
+  }
+}
+/* Short screens (a phone on its side): levels and note on the left, the switch and the buttons right. */
+@media (max-height: 520px) and (min-width: 560px) {
+  #miniDialog[data-screen='lobby'] .mini-head {
+    min-height: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  #miniDialog[data-screen='lobby'] .mini-head h2 {
+    font-size: 17px;
+  }
+  #miniDialog[data-screen='lobby'] .mini-body {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  #miniDialog .lobby-pick .daily-banner {
+    padding: 5px 10px;
+  }
   #miniDialog .lobby {
-    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
-    column-gap: 28px;
+    gap: 6px;
+  }
+  #miniDialog .lobby-intro > div {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 4px 12px;
+  }
+  #miniDialog .lobby-intro h3 {
+    margin: 0;
+    font-size: 17px;
+  }
+  #miniDialog .lobby-intro .lobby-reward {
+    flex-basis: 100%;
+    order: 2;
+    margin: 0;
+  }
+  #miniDialog .lobby-how-body {
+    padding-top: 52px;
+  }
+  #miniDialog .lobby-pick {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    align-content: start;
+    column-gap: 16px;
+    row-gap: 8px;
+  }
+  #miniDialog .lobby-pick .daily-banner {
+    grid-area: 1 / 1 / 2 / -1;
+  }
+  #miniLobby .tier-grid {
+    grid-area: 2 / 1;
+  }
+  #miniLobby .tier-note {
+    grid-area: 3 / 1;
+  }
+  #miniLobby .approach-options {
+    grid-area: 2 / 2;
+    align-self: start;
+  }
+  #miniLobby .lobby-actions {
+    grid-area: 3 / 2;
+    align-self: end;
+    margin: 0;
+  }
+  #miniLobby .lobby-start {
+    min-height: 48px;
+  }
+  #miniLobby .lobby-back {
+    min-height: 42px;
+  }
+}
+/* A roomy laptop window: the preview and How to play beside the choices. */
+@media (pointer: fine) and (min-width: 900px) and (min-height: 640px) {
+  #miniDialog .lobby {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.2fr);
+    column-gap: 28px;
+    align-items: stretch;
     max-width: 1180px;
     margin: 0 auto;
   }
-  #miniDialog .lobby-intro {
-    grid-template-columns: 1fr;
+  #miniDialog .lobby-intro canvas {
+    display: block;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  #miniDialog .lobby-intro .genre {
+    display: block;
+    margin-bottom: 6px;
   }
   #miniDialog .lobby-intro h3 {
     font-size: 24px;
   }
-  #miniDialog .lobby-intro p {
+  #miniDialog .lobby-how-body {
+    position: static;
+    margin-top: 10px;
+    padding: 0;
+    background: none;
+  }
+  #miniDialog .lobby-how-body #miniDescription {
     font-size: 13px;
+  }
+  #miniLobby .tier-card {
+    padding: 10px 6px 8px;
+  }
+  #miniDialog .lobby-pick {
+    justify-content: center;
+  }
+  #miniLobby .lobby-actions {
+    margin-top: 6px;
   }
 }
 
@@ -1905,7 +2176,8 @@ body:not(.arcade) #miniDialog:is([data-screen='lobby'], [data-screen='result']) 
 /* ---- Run screens: the canvas plus the minimum, in every mode ---- */
 /* applyMiniFrame (minigames.js) sets --frame-w/-h, --fit-w/-h, --cv-l/-t, --hud-t/-h, --hud-pad-r,
    --top-x/-y, --ctl, --ctl-w, --ctl-btn and data-side ('row': controls under the canvas, 'col':
-   a column on the right). Outside arcade mode the dialog is exactly the frame. */
+   a column on the right, 'over': floating over the canvas on touch screens in arcade mode, with
+   data-place 'bottom' or 'sides'). Outside arcade mode the dialog is exactly the frame. */
 body:not(.arcade) #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) {
   width: calc(var(--frame-w) + 2px);
   height: calc(var(--frame-h) + 2px);
@@ -2137,6 +2409,82 @@ body:not(.arcade) #miniDialog:is([data-screen='briefing'], [data-screen='intro']
   min-height: 92px;
   font-size: 14px;
 }
+/* A 'sides' game with a mouse keeps one row, ordered LEFT, the assist, RIGHT. */
+#miniDialog[data-side='row'][data-place='sides'] #miniControls .assist {
+  order: 1;
+}
+#miniDialog[data-side='row'][data-place='sides'] #miniControls button:nth-child(2):not(.assist) {
+  order: 2;
+}
+/* Touch screens in arcade mode (data-side 'over'): the canvas fills the frame and the buttons float over
+   its bottom edge, 80% opaque. Only the buttons take touches, so a tap or drag between them still lands
+   on the canvas. --ctl-l/-t/-span and --ctl place the controls box. data-ctl 'strip' is one centered row;
+   'corners' puts the first two buttons in the bottom corners (--thumb-w × --thumb-h) and the rest, small,
+   centered between them (data-mid 'center') or stacked above the right corner (data-mid 'stack', when
+   the canvas leaves a gutter beside it). The assist keeps its small height wherever it lands. */
+#miniDialog[data-side='over'] #miniControls {
+  left: var(--ctl-l);
+  top: var(--ctl-t);
+  width: var(--ctl-span);
+  height: var(--ctl);
+  padding: var(--ctl-gap);
+  justify-content: center;
+  align-items: flex-end;
+  gap: 10px;
+  overflow: visible;
+  pointer-events: none;
+}
+#miniDialog[data-side='over'] #miniControls button {
+  flex: 0 1 var(--ctl-main);
+  height: var(--ctl-btn);
+  min-height: 0;
+  pointer-events: auto;
+  opacity: 0.8;
+  box-shadow: 0 4px 14px #0a1a2466;
+}
+#miniDialog[data-side='over'] #miniControls button.active {
+  opacity: 0.95;
+}
+#miniDialog[data-side='over'] #miniControls .assist {
+  flex: 0 1 var(--assist-w);
+  max-width: none;
+  height: var(--assist-h);
+  min-height: 0;
+  align-self: center;
+}
+#miniDialog[data-ctl='corners'] #miniControls button:nth-child(-n + 2) {
+  position: absolute;
+  bottom: var(--ctl-gap);
+  width: var(--thumb-w);
+  height: var(--thumb-h);
+  font-size: 15px;
+}
+#miniDialog[data-ctl='corners'] #miniControls button:nth-child(1) {
+  left: var(--ctl-gap);
+}
+#miniDialog[data-ctl='corners'] #miniControls button:nth-child(2) {
+  right: var(--ctl-gap);
+}
+#miniDialog[data-ctl='corners'] #miniControls button:nth-child(n + 3) {
+  flex: 0 1 var(--assist-w);
+  max-width: calc(var(--ctl-span) - 2 * var(--thumb-w) - 4 * var(--ctl-gap));
+  height: var(--assist-h);
+  align-self: flex-end;
+}
+#miniDialog[data-ctl='corners'][data-mid='stack'] #miniControls button:nth-child(n + 3) {
+  position: absolute;
+  right: var(--ctl-gap);
+  bottom: calc(var(--ctl-gap) * 2 + var(--thumb-h));
+  width: var(--thumb-w);
+  max-width: none;
+}
+#miniDialog[data-ctl='corners'][data-mid='stack'] #miniControls button:nth-child(4) {
+  bottom: calc(var(--ctl-gap) * 3 + var(--thumb-h) + var(--assist-h));
+}
+#miniDialog[data-ctl='corners'] #miniControls button.assist {
+  height: var(--assist-h);
+  font-size: 11px;
+}
 /* Briefing and GO cards cover the frame; pause and close stay on top. */
 #miniDialog .mini-briefing {
   position: absolute;
@@ -2167,10 +2515,14 @@ body.arcade #miniDialog:is([data-screen='lobby'], [data-screen='result']) .mini-
   display: flex;
   flex-direction: column;
 }
-body.arcade #miniDialog #miniLobby,
 body.arcade #miniDialog #miniResult {
   width: 100%;
   margin-block: auto;
+}
+body.arcade #miniDialog #miniLobby {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
 }
 body.arcade #miniDialog #miniLobby.hidden,
 body.arcade #miniDialog #miniResult.hidden {

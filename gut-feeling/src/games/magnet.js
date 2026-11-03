@@ -106,6 +106,8 @@ const MAGNET = registerGame({
   canvas: { w: 800, h: 600 },
   portraitCanvas: { w: 450, h: 820 },
   layout: 'gesture',
+  // LEFT in the bottom-left corner, RIGHT in the bottom-right, BALL SAVE small between them.
+  controlsPlace: 'sides',
   legendary: true,
   info: {
     game: 'Loud Donut Pinball',

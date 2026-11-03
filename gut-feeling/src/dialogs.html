@@ -12,15 +12,13 @@
 </div></dialog>
 <dialog id="miniDialog" class="mini-dialog"><div class="modal-head mini-head"><div class="mini-titles"><small id="miniDepartment" class="modal-kicker"></small><h2 id="miniTitle"></h2></div><div class="mini-topactions"><button class="smallbtn hidden" id="miniPauseBtn" aria-label="Pause arcade game">Ⅱ</button><button class="close" id="miniClose" aria-label="Leave arcade game"><svg><use href="#i-close"/></svg></button></div></div><div class="mini-body">
 <div id="miniLobby" class="lobby">
-<div class="lobby-intro"><canvas id="miniPreview" width="420" height="240"></canvas><div><span id="miniGenre" class="genre"></span><h3 id="miniHeadline"></h3><p id="miniDescription"></p></div></div>
+<div class="lobby-intro"><canvas id="miniPreview" width="420" height="240"></canvas><div class="lobby-pitch"><span id="miniGenre" class="genre"></span><h3 id="miniHeadline"></h3><p id="miniRewardInfo" class="lobby-reward"></p><details id="lobbyHow" class="lobby-how"><summary>How to play</summary><div class="lobby-how-body"><p id="miniDescription"></p><p class="lobby-foot"><span id="miniBest"></span></p><button class="textbtn" id="miniDifficulty"></button></div></details></div></div>
 <div class="lobby-pick">
 <p id="dailyBanner" class="daily-banner hidden"></p>
-<p class="lobby-label">Pick a level</p>
-<div id="tierGrid" class="tier-grid"></div>
-<p class="lobby-label">Pick your nerve</p>
-<div id="approachOptions" class="approach-options"></div>
-<button id="miniStart" class="primary coral lobby-start">Let’s make poor decisions →</button>
-<p class="lobby-foot"><span id="miniBest"></span> <span id="miniRewardInfo"></span> <button class="textbtn" id="miniDifficulty"></button></p>
+<div id="tierGrid" class="tier-grid" role="group" aria-label="Level"></div>
+<p id="tierNote" class="tier-note"></p>
+<div id="approachOptions" class="approach-options" role="group" aria-label="Nerve"></div>
+<div class="lobby-actions"><button id="miniStart" class="primary coral lobby-start">Start →</button><button id="miniLobbyBack" class="primary lobby-back">Back to the hospital</button></div>
 </div>
 </div>
 <div id="miniPlay" class="hidden"><div class="mini-rulebar"><strong id="miniRuleGoal"></strong><span id="miniRuleControl"></span></div><div class="mini-hud"><div><small id="miniStatLabel">PROGRESS</small><span id="miniStat">0</span></div><div><small>TIME LEFT</small><span id="miniTimer">0:00</span></div><div><small id="miniLivesLabel">OOPS ALLOWANCE</small><span id="miniLives">♥ ♥ ♥</span></div></div><div id="miniTactics" class="mini-tactics"></div><div class="mini-stage"><canvas id="miniCanvas" width="800" height="450" tabindex="0" aria-label="Arcade game"></canvas><div class="mini-pause hidden" id="miniPaused"><strong>Take a breather.</strong><button class="primary" id="miniResume">Resume the nonsense</button><button class="smallbtn" id="miniSound">Sound</button></div></div><p id="miniInstruction" class="mini-instruction" aria-live="polite"></p><div id="miniControls" class="mini-controls"></div>
