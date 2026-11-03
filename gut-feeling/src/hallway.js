@@ -1,7 +1,10 @@
 // The seventh-floor hallway at Valley Hospital (room 6): the long way between department doors, full of
-// people who like Macy. No combat, no damage. Visitors stroll, pause, turn to face her, and talk in a
-// typed speech box with voice blips; Barb from Dietary rides the elevator up every few minutes with a
-// tray of Ensure, and Rowdy the Ram (src/rowdy.js) cheers from the nurses' station. Every finished
+// people who like Macy. No combat, no damage. Visitors hang in their own spots, turn to face her, and
+// talk in a typed speech box with voice blips; nobody walks up to her except Barb from Dietary, who
+// rides the elevator up every few minutes with a tray of Ensure. Doctors and nurses work out of the
+// nurses' station and duck in and out of rooms; Rowdy the Ram (src/rowdy.js) cheers from the station
+// and now and then runs the hall. Stand next to someone for a moment and you get a greeting (a hug, a
+// fist bump, a selfie). Everyone's conversations come off a deck that remembers where it was. Every finished
 // conversation leaves a get-well card for the wall over Macy's bed (state.cards) and bumps the sticker
 // counters (state.stats); see "Get-well cards and counters" below.
 //
@@ -51,6 +54,27 @@ const HALLWAY_ID = 6,
   HALLWAY_SPACE = 48,
   HALLWAY_BARK_RANGE = 175,
   HALLWAY_LEAVE_RANGE = 150,
+  // Nobody but Barb walks toward Macy: inside this radius, a step that brings anyone else closer to her
+  // is not taken (staff on an errand wait for her to pass instead).
+  HALLWAY_APPROACH = 260,
+  // A visitor who has stood still this long (seconds) strolls to a new spot in their range; a visiting
+  // group waits longer and moves together.
+  HALLWAY_STROLL_IDLE = [60, 120],
+  HALLWAY_GROUP_IDLE = [90, 150],
+  // Doctors and nurses: hang at the station, then walk an errand into a room for a while.
+  HALLWAY_STAFF = ['stephanie', 'julez', 'lori', 'benedetto'],
+  HALLWAY_STAFF_HANG = [25, 55],
+  HALLWAY_STAFF_INSIDE = [15, 40],
+  HALLWAY_STATION_SPOTS = {
+    stephanie: [660, 290],
+    julez: [905, 296],
+    lori: [1000, 334],
+    benedetto: [745, 338]
+  },
+  // Greetings: stand by someone this long without talking and a little paired animation plays.
+  HALLWAY_GREET_RANGE = 70,
+  HALLWAY_GREET_WAIT = 2.5,
+  HALLWAY_GREET_COOLDOWN = 90,
   HALLWAY_TYPE_CPS = 44,
   HALLWAY_HOLD_GAP = 0.05,
   HALLWAY_DOOR_ZONE_X = 48,
@@ -112,7 +136,16 @@ const HALLWAY_LINES = {
   },
   brother: {
     whoa: 'Whoa! Rude.',
-    barks: ["Oh. It's you.", 'Sup.', 'Nice socks.', 'They have the good chips here.'],
+    barks: [
+      "Oh. It's you.",
+      'Sup.',
+      'Nice socks.',
+      'They have the good chips here.',
+      'Twenty-two is still the best number. I checked.',
+      "Don't tell Mom I'm out here.",
+      "Hey. Don't be weird.",
+      'Walking? Wow. Show-off.'
+    ],
     talks: [
       {
         say: [
@@ -138,6 +171,43 @@ const HALLWAY_LINES = {
         ]
       },
       { say: [['npc', "Dad keeps buying your cereal. Nobody eats it. It's just sitting there. Waiting."]] },
+      { say: [['npc', 'Mom made me bring you a book.'], ['macy', 'Which one?'], ['npc', "I don't know. It has a horse on it. You're welcome."]] },
+      {
+        say: [
+          ['npc', "I've been practicing my serve in the driveway."],
+          ['macy', 'How is it?'],
+          ['npc', "The garage door has a dent now. It's fine. Dad doesn't know."]
+        ]
+      },
+      {
+        say: [
+          ['npc', 'Everyone at school asks me how you are. I have a script now.'],
+          ['macy', "What's the script?"],
+          ['npc', "She's fine, she's tough, please stop asking me in the lunch line."]
+        ]
+      },
+      {
+        say: [
+          ['npc', 'Your feet hang off the end of that bed. It looks hilarious.'],
+          ['macy', "I'm five ten."],
+          ['npc', "Five ten and most of it's feet."]
+        ]
+      },
+      {
+        say: [
+          ['npc', "I'm not saying I miss you. I'm saying the Wi-Fi is faster when you're home."],
+          ['macy', "That's not how Wi-Fi works."],
+          ['npc', "Then I don't know why I said it."]
+        ]
+      },
+      {
+        say: [
+          ['npc', 'Mimi asked me to count how many bites you eat.'],
+          ['macy', "I'm on clear liquids. Zero bites."],
+          ['npc', "Okay. I'm telling her zero. She's going to cry."]
+        ]
+      },
+      { say: [['npc', "I wore your Ramsey hoodie to school. By accident. Twice. Don't make it a thing."]] },
       { when: hallwayWon, say: [['npc', "You're coming home? Cool."], ['npc', 'I mean. Whatever. Cool.']] },
       {
         when: hallwayGold,
@@ -149,45 +219,120 @@ const HALLWAY_LINES = {
       }
     ]
   },
+  // Mimi: almost eighty, quick on her feet, her hair done every few weeks and always up in a bun, her
+  // good monogram purse on her arm. She worries, mostly about whether Macy has eaten.
   mimi: {
     whoa: 'Whoa! My heart, sweetie.',
-    barks: ['My girl!', 'Have you eaten? Oh. Right.', 'You look taller!'],
+    barks: [
+      'My girl!',
+      'Did you eat?',
+      'Little sips, sweetheart!',
+      'I have crackers. For later.',
+      'You look thin. You look beautiful. Both.',
+      'Look at you walking! Now eat something.',
+      'Did they bring lunch? What was it?'
+    ],
     talks: [
       {
         say: [
-          ['npc', "I baked your favorite cookies. The nurse says you can't have them yet, so I'm holding them. For safety."],
+          ['npc', 'Did you eat? Tell me the truth. I can see it in your face.'],
+          ['macy', "I'm on clear liquids, Mimi."],
+          ['npc', 'Then did you drink? Show me the cup.']
+        ]
+      },
+      {
+        say: [
+          ['npc', "I asked the nurse how many sips you had. She said a good amount. What's a good amount? I want a number."],
+          ['macy', 'Mimi.'],
+          ['npc', "I'll find out. I have my ways."]
+        ]
+      },
+      {
+        say: [
+          ['npc', 'I have crackers in my purse. And a granola bar. And a little cheese. For when they say yes.'],
+          ['macy', 'Why is there cheese in your purse?'],
+          ['npc', 'Because someday they will say yes.']
+        ]
+      },
+      { say: [['npc', 'This purse has been to Paris and to every hospital in Bergen County. Either way, it carries snacks.']] },
+      {
+        say: [
+          ['npc', 'I count your bites, you know. Not out loud. In here.'],
+          ['macy', "There aren't any bites."],
+          ['npc', "That's why I'm counting, sweetheart."]
+        ]
+      },
+      {
+        say: [
+          ['npc', 'Your face is thinner. Your face is beautiful. Both things. Mostly the first thing.'],
+          ['macy', "I'm fine."],
+          ['npc', 'Fine is not a food group.']
+        ]
+      },
+      {
+        say: [
+          ['npc', 'The broth they give you is water with ambition. I could make better broth in my sleep. I did once. Dodo ate it at three in the morning.']
+        ]
+      },
+      {
+        say: [
+          ['npc', 'Seventy-nine years old and I beat Dodo up from the garage. Tell him. He thinks it was a tie.'],
+          ['dodo', 'It was a tie.'],
+          ['npc', 'It was not a tie.']
+        ]
+      },
+      { say: [['npc', 'I went to the hairdresser before I came. A little lighter, a little gold. She asked who it was for. I said my girl.']] },
+      {
+        say: [
+          ['npc', 'Promise me that when they let you eat, you eat. Real food. Not the little cups.'],
+          ['macy', 'I promise.'],
+          ['npc', "Good. I'm writing it down. It's going in the purse."]
+        ]
+      },
+      {
+        say: [
+          ['npc', "I baked your favorite cookies. They're at home, being patient. The nurse said not yet, so I'm holding them. For safety."],
           ['macy', 'Whose safety?'],
           ['npc', "The cookies'."]
         ]
       },
       { say: [['npc', 'Dodo proposed to me in a hospital cafeteria. Terrible Jell-O. Wonderful man.']] },
-      { say: [['npc', 'I lit a candle for you at church. And one for the Cubs. Yours is working better.']] },
-      { say: [['npc', "The nurses say you're brave and polite. Your father bit a nurse once. He was four."]] },
-      { say: [['npc', "Is there a cafeteria up here? I'd like to complain to someone in person."]] },
-      { say: [['npc', "Don't show me the video games, sweetheart. I'll just watch you be good at them."]] },
-      { when: hallwayWon, say: [['npc', "Home! I'll bring the cookies to the house. They've been very patient."]] },
+      {
+        say: [
+          ['npc', "I asked Nurse Stephanie if you're eating enough. She said you're on a plan. I said I'm also on a plan."],
+          ['macy', "What's your plan?"],
+          ['npc', 'Food.']
+        ]
+      },
+      { say: [['npc', "Dodo keeps taking my picture in this light. I said Dodo, it's hospital lighting. He said I look beautiful. Fine. He can stay."]] },
+      { when: hallwayWon, say: [['npc', "Home! I'm making soup. A pot the size of a car. You'll eat it slowly, and I'll watch."]] },
       {
         when: hallwayCleared,
         say: [
           ['npc', "Dodo says you're fighting monsters in here."],
           ['macy', 'I am.'],
-          ['npc', 'Good. Hit one for me.']
+          ['npc', 'Good. Then you need your strength. Have a cracker. Later.']
         ]
       }
     ]
   },
+  // Dodo: a photographer for fifty years, silver hair combed over with a high part, a short silver beard,
+  // and a serious camera on a strap that comes up whenever the light is good. Calm, dry, proud.
   dodo: {
-    whoa: 'Whoa there. Easy.',
-    barks: ['Atta girl.', 'Keep moving, kiddo.', "There's my slugger."],
+    whoa: 'Whoa there. Easy. I almost had the shot.',
+    barks: ['Atta girl.', 'Keep moving, kiddo.', "There's my slugger.", 'Hold that. Perfect.', 'Good light on this floor.', "Smile. Or don't. Both work."],
     talks: [
       {
         say: [
-          ['npc', 'When I had my appendix out they kept me a week. Food was terrible. Nurses were angels. Still are.']
+          ['npc', 'Hold still. The light from that window is perfect.'],
+          ['macy', "I'm in a hospital gown."],
+          ['npc', "Light doesn't care what you're wearing. First thing I ever learned."]
         ]
       },
+      { say: [['npc', "Fifty years behind a camera. You know what makes a good picture? Somebody who doesn't know how strong she looks."]] },
       {
         say: [
-          ['npc', "Mimi brought cookies. I've been guarding them."],
+          ['npc', "Mimi brought snacks in that purse. I've been guarding them."],
           ['macy', 'From who?'],
           ['npc', 'Mostly me.']
         ]
@@ -202,14 +347,44 @@ const HALLWAY_LINES = {
         ]
       },
       {
+        say: [
+          ['npc', 'I shot your first softball game. You were five. You stopped to pick a dandelion while the ball rolled right past you.'],
+          ['macy', "I don't remember that."],
+          ['npc', "I do. It's framed."]
+        ]
+      },
+      { say: [['npc', 'A good photographer waits. The moment comes when it comes. Getting better is the same job. You wait, and you stay ready.']] },
+      {
+        say: [
+          ['npc', 'I shot the whole volleyball season from the top row. Number twenty-two in every frame. The other parents keep asking for copies.'],
+          ['macy', 'Do you give them?'],
+          ['npc', 'For a fee. Cookies.']
+        ]
+      },
+      {
+        say: [
+          ['npc', "They let me photograph the nurses' station for the newsletter. Rowdy got into every shot."],
+          ['macy', 'Of course he did.'],
+          ['npc', 'He has one good side. The front.']
+        ]
+      },
+      { say: [['npc', "I trimmed the beard for this visit. Mimi said I look like a sea captain. I said thank you. She said it wasn't a compliment."]] },
+      { say: [['npc', "Fifty-four years married. The secret is she's right, and I take pictures of it."]] },
+      {
+        say: [
+          ['npc', 'Your Mimi asked the cafeteria for a menu. Not to order. To review.'],
+          ['mimi', 'Somebody has to.']
+        ]
+      },
+      {
         when: hallwayRalphWaiting,
         say: [
           ['npc', 'This Ralph fella in your room. Want me to have a word?'],
           ['macy', 'Dodo.'],
-          ['npc', 'A strongly worded word.']
+          ['npc', 'A strongly worded word. With a flash.']
         ]
       },
-      { when: hallwayWon, say: [['npc', 'Going home. Good. The house needs its slugger back.']] }
+      { when: hallwayWon, say: [['npc', 'Going home. Good. One picture at the door first. Then the house gets its slugger back.']] }
     ]
   },
   // The friends: Presley, Norah and Taylor visit together. Volleyball in the fall, softball in the spring,
@@ -217,7 +392,7 @@ const HALLWAY_LINES = {
   // who is 'presley', 'norah' or 'taylor' is spoken by that girl, with her own portrait and pitch.
   presley: {
     whoa: 'Whoa! Watch the ponytail!',
-    barks: ['{NAME}!', "Let's gooo!", 'Lap queen!', 'Ponytail check: still perfect.'],
+    barks: ['{NAME}!', "Let's gooo!", 'Lap queen!', 'Ponytail check: still perfect.', 'Twenty-two! Twenty-two!', 'Miss you at practice!', 'Ramsey loves you!'],
     talks: [
       {
         say: [
@@ -249,6 +424,36 @@ const HALLWAY_LINES = {
           ['npc', "That's commitment."]
         ]
       },
+      { say: [['npc', 'I made a highlight reel of your best digs. Coach played it at practice. People clapped. For a video.']] },
+      {
+        say: [
+          ['npc', 'Honest question. Is the hospital food bad, or is it hospital bad?'],
+          ['macy', "I'm not allowed to have any."],
+          ['npc', "So it's tragic. Got it."]
+        ]
+      },
+      { say: [['npc', "Spirit week is coming. I signed you up for pajama day. You're already dressed."]] },
+      {
+        say: [
+          ['npc', "We do a cheer for you before every game now. It's just your name, really loud."],
+          ['norah', 'Twelve times.'],
+          ['npc', 'It works, though.']
+        ]
+      },
+      {
+        say: [
+          ['npc', 'I tried to braid my hair like Norah. It became a situation.'],
+          ['norah', 'A knot. It became a knot.'],
+          ['npc', 'A situation.']
+        ]
+      },
+      {
+        say: [
+          ['npc', "My mom says I'm not allowed to make you laugh too hard. Something about your stomach."],
+          ['macy', 'So be less funny.'],
+          ['npc', "I don't know how."]
+        ]
+      },
       {
         when: hallwayMedals,
         say: [
@@ -268,7 +473,7 @@ const HALLWAY_LINES = {
   },
   norah: {
     whoa: 'Whoa! Safe!',
-    barks: ['Hey, you!', 'Swing, batter!', 'Looking good, {name}.'],
+    barks: ['Hey, you!', 'Swing, batter!', 'Looking good, {name}.', 'Rams on three!', "Glove's safe!", 'Hi hi hi!'],
     talks: [
       {
         say: [
@@ -285,7 +490,32 @@ const HALLWAY_LINES = {
         ]
       },
       { say: [['npc', 'Softball starts in March. Coach already has you batting second. No pressure. Some pressure.']] },
-      { say: [['npc', "Mimi tried to give me a cookie from your tin. I said no. I'm loyal. I'm also starving."]] },
+      { say: [['npc', "Mimi tried to give me a granola bar from her purse. I said no. I'm loyal. I'm also starving."]] },
+      { say: [['npc', "I've been working on my slap bunt. It's terrible. Come back and fix it."]] },
+      {
+        say: [
+          ['npc', 'Science class is doing the digestive system. I raised my hand and said my friend is living it.'],
+          ['macy', 'Norah.'],
+          ['npc', 'Extra credit.']
+        ]
+      },
+      { say: [['npc', "I'm keeping your seat in algebra. Nobody wanted it, but it's the principle."]] },
+      {
+        say: [
+          ['npc', 'My locker is number twenty-two now. I traded for it.'],
+          ['macy', 'Who did you trade?'],
+          ['npc', "A sophomore. Don't worry about it."]
+        ]
+      },
+      {
+        say: [
+          ['npc', 'Taylor cried in the car.'],
+          ['taylor', 'Allergies.'],
+          ['npc', 'In October.'],
+          ['taylor', 'Fall allergies.']
+        ]
+      },
+      { say: [['npc', 'Presley wanted to bring you a goldfish. I told her a pet is the opposite of a get-well gift.']] },
       { say: [['npc', "We lost Thursday. I'm not saying it's because you're in here. But you're in here."]] },
       {
         say: [
@@ -301,7 +531,7 @@ const HALLWAY_LINES = {
   },
   taylor: {
     whoa: 'Whoa! Easy, freshman.',
-    barks: ['Hey, superstar.', "Car's out front whenever you're ready.", 'There she is!'],
+    barks: ['Hey, superstar.', "Car's out front whenever you're ready.", 'There she is!', 'Senior says: hydrate.', 'Freshman! Looking good.', 'Keys are ready when you are.'],
     talks: [
       {
         say: [
@@ -333,6 +563,30 @@ const HALLWAY_LINES = {
       { say: [['npc', "You've got four years on this team. I've got one. Get better so I can brag about you."]] },
       {
         say: [
+          ['npc', 'College essay prompt: describe a person who inspires you. Guess who.'],
+          ['macy', 'Coach?'],
+          ['npc', 'Nope. Try again. Taller.']
+        ]
+      },
+      { say: [['npc', "I parked on level three. I will never find the car again. That's a later problem."]] },
+      {
+        say: [
+          ['npc', "Varsity jacket rule: you only lend it to someone who earned it. It's yours the day you're out."],
+          ['norah', "You've never lent it to me."],
+          ['npc', "You've never earned it."]
+        ]
+      },
+      { say: [['npc', 'Senior privilege: I get to tell freshmen what to do. So: rest. Walk. Listen to Stephanie.']] },
+      { say: [['npc', 'Car rules with me: you pick the music, Norah picks nothing, and nobody eats in the car. Yet.']] },
+      {
+        say: [
+          ['npc', "Everybody's asking about you. Even the boys' team. Even the one who never talks."],
+          ['presley', 'He talked!'],
+          ['npc', "He said 'is she okay.' That's a speech, for him."]
+        ]
+      },
+      {
+        say: [
           ['npc', "Presley's ponytail got a yellow card in warmups."],
           ['presley', 'It was a warning.'],
           ['npc', 'It hit the down ref.']
@@ -358,7 +612,7 @@ const HALLWAY_LINES = {
   // Casey: the fun older cousin. Thirty, drives, smuggles in gossip and the good Rams blanket.
   casey: {
     whoa: 'Whoa! Easy, slugger. You get that from me.',
-    barks: ['Cuz!', 'There she is!', "I brought gossip. Don't tell your dad."],
+    barks: ['Cuz!', 'There she is!', "I brought gossip. Don't tell your dad.", 'Blanket delivery!', 'The group chat says hi!', 'Looking strong, cuz!'],
     talks: [
       { say: [['npc', 'I brought you the Rams blanket. The good one. The one your dad thinks he lost.']] },
       {
@@ -384,6 +638,24 @@ const HALLWAY_LINES = {
       },
       { say: [['npc', "I drove an hour with snacks you can't eat yet. That's love. I also ate them. Also love."]] },
       { say: [['npc', 'Dodo learned voice-to-text. The group chat has not recovered.']] },
+      { say: [['npc', 'I took the whole day off for you. My boss said family emergency? I said worse. Family group chat.']] },
+      {
+        say: [
+          ['npc', 'When I was fourteen I broke my wrist on a trampoline. I told everyone it was a bear.'],
+          ['macy', 'Did anyone believe you?'],
+          ['npc', 'Your dad did. For two years.']
+        ]
+      },
+      { say: [['npc', 'Thirty is great, by the way. You get to drive to hospitals and nobody asks why you brought a blanket.']] },
+      { say: [['npc', "Riley's been wearing your old Ramsey hoodie. He thinks nobody noticed. Everybody noticed."]] },
+      {
+        say: [
+          ['npc', "Real talk, cuz. It's okay to be bored and sad and annoyed in here. I'd be climbing the walls."],
+          ['macy', 'I kind of am.'],
+          ['npc', "Good. Climb carefully. I'll spot you."]
+        ]
+      },
+      { say: [['npc', 'I made you a playlist called Get Out Of Here. Track one is just the sound of a car starting.']] },
       { when: hallwayCleared, say: [['npc', "You cleared a whole ward? I'm telling the group chat. Mimi will thumbs up it."]] },
       { when: hallwayWon, say: [['npc', "You're out! I'm driving. We're getting real food. Don't tell the doctors what kind."]] }
     ]
@@ -391,7 +663,7 @@ const HALLWAY_LINES = {
   // Dr. Lori: kind and direct. Real advice, then a deadpan joke when you least expect it.
   lori: {
     whoa: 'Whoa. Walk, please. Your gut asked me to say that.',
-    barks: ['Good to see you upright.', 'Laps count. Keep going.', 'Walking is medicine. Cheap medicine.'],
+    barks: ['Good to see you upright.', 'Laps count. Keep going.', 'Walking is medicine. Cheap medicine.', 'Small sips. Big laps.', 'Chart says: good.', 'Keep that pace.'],
     talks: [
       {
         say: [
@@ -415,6 +687,24 @@ const HALLWAY_LINES = {
         ]
       },
       { say: [['npc', "I don't say soon unless I mean it."], ['npc', 'Soon.']] },
+      { say: [['npc', "Here's the honest version. You're healing. It's slower than you want and faster than I expected."]] },
+      {
+        say: [
+          ['npc', 'I have a softball player at home too. She is eight. She plays mostly for the snacks.'],
+          ['macy', 'Respect.'],
+          ['npc', 'I told her about you. Now she wants to bat second.']
+        ]
+      },
+      { say: [['npc', "Pain is information. If it changes, tell us. Don't be polite about it. Polite gets you discharged later."]] },
+      { say: [['npc', 'Your dad asked me twelve questions this morning. Eleven were good. One was about pudding.']] },
+      { say: [['npc', 'Sleep is part of the treatment. I know they wake you every four hours. I know. I wrote the order. Sorry.']] },
+      {
+        say: [
+          ['npc', "Fourteen and stuck in a hospital is a lot. If you want to talk about the part that isn't medical, I'm good at that too."],
+          ['macy', 'Maybe later.'],
+          ['npc', "Later works. I'm here till seven."]
+        ]
+      },
       { when: hallwayWon, say: [['npc', "Discharge papers are signed. Please don't come back. Kindly."]] },
       {
         when: hallwayRalphWaiting,
@@ -429,7 +719,7 @@ const HALLWAY_LINES = {
   // Dr. Benedetto: formal, a little theatrical, finds everything excellent. The mustache is load-bearing.
   benedetto: {
     whoa: 'Whoa! Excellent speed. Terrible idea.',
-    barks: ['Excellent.', 'Excellent posture. Excellent socks.', 'Ah. The patient of the hour. Excellent.'],
+    barks: ['Excellent.', 'Excellent posture. Excellent socks.', 'Ah. The patient of the hour. Excellent.', 'Excellent gait.', 'Most excellent laps.', 'Carry on. Excellently.'],
     talks: [
       {
         say: [
@@ -455,6 +745,24 @@ const HALLWAY_LINES = {
         ]
       },
       { say: [['npc', 'Behold. The hallway. The stage upon which you will walk three laps today. Excellent.']] },
+      { say: [['npc', 'In medical school they told me to be calm, precise and brief. I have mastered two of the three.']] },
+      { say: [['npc', 'Your vital signs this morning were so stable I showed them to a resident. As an example. Of excellence.']] },
+      {
+        say: [
+          ['npc', 'Do you know why I wear a bow tie?'],
+          ['macy', 'Style?'],
+          ['npc', 'Hygiene. A long tie dangles on patients. But also style.']
+        ]
+      },
+      {
+        say: [
+          ['npc', 'Your father told me a joke about a gurney. I laughed. Professionally.'],
+          ['macy', 'Was it funny?'],
+          ['npc', 'It was not excellent.']
+        ]
+      },
+      { say: [['npc', 'Rowdy the Ram asked me for a physical. I said no. He asked again, with a cheer. I said no with more conviction.']] },
+      { say: [['npc', 'I once walked these halls for thirty-six hours straight. I do not recommend it. Your three laps, however, I prescribe.']] },
       { when: hallwayGold, say: [['npc', 'A gold medal. Excellent. I will tell the mustache.']] },
       { when: hallwayWon, say: [['npc', 'Discharged! Excellent. Truly. I would applaud, but I am holding a clipboard.']] }
     ]
@@ -462,7 +770,7 @@ const HALLWAY_LINES = {
   // Stephanie: young, warm, quick. Your vitals take her ninety seconds and she still has time to chat.
   stephanie: {
     whoa: 'Whoa! Walking feet!',
-    barks: ['Look at you go!', 'Lap queen!', 'Bravest on seven.', "That's my favorite patient. Don't tell Room 6."],
+    barks: ['Look at you go!', 'Lap queen!', 'Bravest on seven.', "That's my favorite patient. Don't tell Room 6.", 'Vitals at four, hon!', 'Walking queen!'],
     talks: [
       { say: [['npc', 'Vitals look good. Attitude is a little spicy. Also good.']] },
       { say: [['npc', "Almost done. I know everyone says that. I'm saying it with data."]] },
@@ -488,6 +796,23 @@ const HALLWAY_LINES = {
           ['npc', 'This. Talking to you. Obviously.']
         ]
       },
+      { say: [['npc', 'My little brother plays volleyball. He serves underhand. I told him about you. He is now in training.']] },
+      { say: [['npc', 'Mimi asked me how many sips you had. I said a good amount. She wrote it down and frowned at it.']] },
+      {
+        say: [
+          ['npc', 'I got your IV in on the first try. I want that on my headstone.'],
+          ['macy', 'That is dark.'],
+          ['npc', 'Nurse humor. You get used to it.']
+        ]
+      },
+      {
+        say: [
+          ['npc', 'Night shift says you sleep with one sock off. Every night. Same foot.'],
+          ['macy', 'It regulates my temperature.'],
+          ['npc', "That's what everyone says."]
+        ]
+      },
+      { say: [['npc', "Rowdy tried to borrow my stethoscope to hear your heart from the hallway. That's not how it works. I let him try."]] },
       {
         when: () => !!hallwayMachine(),
         say: [
@@ -506,7 +831,7 @@ const HALLWAY_LINES = {
   // Julez: fifties, the one who has seen everything. Drops the title. Unflappable, bone dry.
   julez: {
     whoa: 'Whoa. I have seen faster. Not often.',
-    barks: ['Keep walking.', 'Looking good, kid.', "Seen worse. You're not it.", 'Hydrate. Within reason.'],
+    barks: ['Keep walking.', 'Looking good, kid.', "Seen worse. You're not it.", 'Hydrate. Within reason.', 'Lap three. Noted.', 'Steady.', 'Sit if you need to.'],
     talks: [
       { say: [['npc', "You're the bravest one on the floor and I've seen a biker cry at a shot."]] },
       { say: [['npc', "I've had grown men complain more about one blood draw than you have all week."]] },
@@ -520,13 +845,31 @@ const HALLWAY_LINES = {
       { say: [['npc', 'Keep walking. Every lap is one less day in here.']] },
       { say: [['npc', "It's just Julez. Nurse Julez is what my mother calls me when she wants a free consult."]] },
       { say: [['npc', 'People ask how I stay calm. I have seen everything twice. The third time is boring.']] },
+      { say: [['npc', "Barb asked me to make you drink an Ensure. I said I don't make anybody do anything. Then I came out here and didn't."]] },
+      { say: [['npc', 'I started here when the monitors were green and the coffee was worse. One of those things changed.']] },
+      {
+        say: [
+          ['npc', "Want the secret to getting out early? Walk, sip, sleep, and don't google anything."],
+          ['macy', 'I googled something.'],
+          ['npc', 'Mm-hm. Stop.']
+        ]
+      },
+      {
+        say: [
+          ['npc', 'Dr. Benedetto said my charting was excellent.'],
+          ['macy', 'He says that about everything.'],
+          ['npc', 'I know. I framed it anyway.']
+        ]
+      },
+      { say: [['npc', 'Your dad tells the station a joke every time he walks by. We score them. He is averaging a four.']] },
+      { say: [['npc', 'Kids are tougher than adults in here. Adults know what to worry about. You just get up and walk.']] },
       { when: hallwayRalphWaiting, say: [['npc', 'A gremlin named Ralph is in your room. Sure. That is a Wednesday.']] },
       { when: hallwayWon, say: [['npc', 'Discharged. Good. Go home. Do not come back. I mean that with love.']] }
     ]
   },
   ensure: {
     whoa: 'Whoa! Watch the tray!',
-    barks: ['Ensure delivery!', 'Shake time, hon!', 'Got your Ensure!'],
+    barks: ['Ensure delivery!', 'Shake time, hon!', 'Got your Ensure!', 'Coming through with protein!', 'Tray on the move!', 'Fresh Ensure, hon!'],
     talks: [
       {
         say: [
@@ -566,6 +909,11 @@ const HALLWAY_LINES = {
       {
         say: [['npc', 'Same tray. Same offer. Ensure?'], ['macy', 'Same answer.'], ['npc', 'Same leaving it right here.']]
       },
+      { say: [['npc', 'I brought a straw this time. A bendy one.'], ['macy', 'I still cannot have it.'], ['npc', "It bends, hon. That's a compromise."]] },
+      { say: [['npc', 'My mother lived to ninety-seven on these.'], ['macy', 'I believe you. Still no.'], ['npc', 'She would be disappointed. Kindly.']] },
+      { say: [['npc', 'I kept it cold the whole elevator ride.'], ['macy', "That's nice. No."], ['npc', 'Seven floors of cold, hon.']] },
+      { say: [['npc', 'Ensure, or Ensure in a different color?'], ['macy', 'Neither.'], ['npc', 'Bold. I respect bold.']] },
+      { say: [['npc', "I told the kitchen you'd say yes today."], ['macy', 'Why would you do that?'], ['npc', 'Optimism, hon. I run on it. And Ensure.']] },
       // The more no's, the more creative she gets (hallwayCult.n, read on entry).
       {
         when: () => hallwayCultAt(5),
@@ -632,8 +980,9 @@ const HALLWAY_LINES = {
 };
 
 // ---- Dad ----
-// Every Dad talk is one encouragement, one dad joke (two bubbles for the shaggy-dog ones) and, half the
-// time, a groan from Macy. Jokes come off a shuffled deck that never repeats until it runs out, then
+// Seven Dad talks in ten are one encouragement, one dad joke (two bubbles for the shaggy-dog ones) and,
+// half the time, a groan from Macy. The other three are a deep thought and a one-liner
+// (HALLWAY_DAD_DEEP, below). Jokes come off a shuffled deck that never repeats until it runs out, then
 // reshuffles so the next joke is never the one just told. The deck order, its position and the
 // encouragement and groan rotations live in localStorage, so a reload carries on where Dad left off.
 const HALLWAY_DAD_KEY = 'gut-feeling-dad';
@@ -900,6 +1249,194 @@ const HALLWAY_DAD_GROANS = [
   'Dodo told it better.'
 ];
 
+// About three talks in ten, Dad skips the joke and says the thing he has actually been thinking about in
+// the chair by her bed at 2 a.m., then lands it with a one-liner before it gets too heavy. Never two in a
+// row, never the first talk, and never when something just happened (the reactive lines win). The pairs
+// come off their own shuffled deck, kept with the joke deck under the same storage key.
+const HALLWAY_DAD_DEEP_ODDS = 3 / 7; // after a regular talk; with no two in a row, that is 30% of all talks
+const HALLWAY_DAD_DEEP = [
+  [
+    'Emerson said the years teach much that the days never know. In that bed the days feel wasted. They are not. They are the years, doing their homework.',
+    'Anyway. Nurse says no pudding before noon.'
+  ],
+  [
+    'Thoreau went to the woods to live deliberately, to face only the essential facts of life. You got a hospital room instead of a cabin. Same assignment: find out what matters when everything extra is gone.',
+    'He also had his mom do his laundry. Look it up.'
+  ],
+  [
+    'Thoreau said heaven is under our feet as well as over our heads. I never got that until I watched you take your first steps on this floor. Plain linoleum. Felt like heaven.',
+    'Sticky linoleum. Still counts.'
+  ],
+  [
+    'Thoreau said the cost of a thing is the amount of life you trade for it. Every lap out here costs you something. Every one buys a day back.',
+    'Best exchange rate in the building. Way better than the gift shop.'
+  ],
+  [
+    'Emerson said trust yourself, every heart vibrates to that iron string. You know your body better than anyone with a clipboard. When you tell them what you feel, they listen. They should.',
+    'Iron string. Emerson would have been a great hype man.'
+  ],
+  [
+    'Emerson said finish each day and be done with it. Some days in here go sideways. You did what you could. Tomorrow starts clean, with a new nurse and a fresh whiteboard.',
+    'And the same breakfast. Some things are eternal.'
+  ],
+  [
+    'Whitman said I contain multitudes. You are a hitter, a setter, a freshman, a sister, a pain in Riley\'s neck. A patient is one of the multitudes. It is not the whole crowd.',
+    "Riley's neck has filed a formal complaint."
+  ],
+  [
+    "Kant said act only by a rule you'd want everyone to follow. You thank every nurse who wakes you at three in the morning. If everybody did that, the world would be a better hospital.",
+    'Kant never left his hometown. You have at least seen the CT scanner.'
+  ],
+  [
+    'Kant said two things filled him with awe: the starry sky above and the moral law within. I would add a third. A fourteen-year-old who still says please to the person drawing her blood.',
+    'Kant did not have a fourteen-year-old. It shows.'
+  ],
+  [
+    "Kant said growing up means daring to think for yourself. That's what fourteen is for. Arguing with me is part of the curriculum. Keep it up.",
+    'Within reason. Bedtime is not a philosophy.'
+  ],
+  [
+    'Spinoza said freedom is not doing whatever you want. It is understanding why things happen, so they stop pushing you around. Knowing what your gut is doing does not fix it. It does mean it cannot scare you.',
+    'He ground lenses for a living. Real job. Unlike philosopher.'
+  ],
+  [
+    'Spinoza said every living thing strives to go on being itself. Your body has spent this whole week doing exactly that, without a single instruction from you.',
+    'Your body: one. Gremlins: zero.'
+  ],
+  [
+    'Spinoza thought happiness is not the reward for doing well. It is the doing well itself. You do not have to wait until you get home to be okay. You can be okay a little, here, today.',
+    'Here meaning this hallway. It is growing on me.'
+  ],
+  [
+    "Plato told a story about people chained in a cave who only ever saw shadows on the wall and took them for the world. A hospital week is a cave. The real world is still out there, full of sun and softball and people who miss you.",
+    'Also the cafeteria. Plato would not have eaten there either.'
+  ],
+  [
+    "Plato said the beginning is the most important part of the work. You're at the beginning of getting better. That's the hard part, and you're already in it.",
+    'The middle part is mostly naps.'
+  ],
+  [
+    'Socrates said wisdom starts with knowing what you do not know. Every season starts that way. Nobody knows who steps up. Sometimes it is the one who spent October in a hospital.',
+    'Socrates never played volleyball. Robbed.'
+  ],
+  [
+    "Heraclitus said you can't step in the same river twice. It's not the same river and you're not the same person. The kid who walks out of here won't be the one who came in. She'll be a little more you.",
+    'And she will have better socks.'
+  ],
+  [
+    'Heraclitus said character is destiny. Not luck, not talent. How you treat the guy mopping the floor at midnight. You are going to be fine, kid, because of who you are.',
+    "The guy mopping told me. He's a fan."
+  ],
+  [
+    'Aristotle figured courage is a habit. You get brave the way you get good at serving: one rep at a time. This week has been a lot of reps.',
+    'Your coach would like this guy.'
+  ],
+  [
+    'Jung said there is no coming to consciousness without pain. Growing up hurts in ways nobody warns you about. This week is one of them. It is also how people find out who they are.',
+    'He also built a stone tower by hand. Big hobby guy.'
+  ],
+  [
+    'Jung said the parts of us we hide do not go away. They just run things from the basement. So if you are scared, say so. Out loud. Scared said out loud is half the size.',
+    'That is the whole lecture. No quiz.'
+  ],
+  [
+    "Jung's idea was that you are not what happened to you. You are what you choose to become. This happened to you. What you become is still all yours.",
+    'I vote taller. Somehow.'
+  ],
+  [
+    'Jung thought the answers are mostly inside, and we waste years staring at the scoreboard. Every good coach says the same thing. The game slows down when you stop looking up at the clock.',
+    'Jung would have been a decent shortstop. Calm hands.'
+  ],
+  [
+    'Marcus Aurelius ran an empire and still wrote himself notes about getting out of bed in the morning. Even emperors argued with the blanket. Getting up is the win.',
+    'His bed did not fold in half, though. Advantage: you.'
+  ],
+  [
+    'Marcus Aurelius said what stands in the way becomes the way. You cannot go around this week. So you go through it. Through is a direction.',
+    'Next stop: through. Mind the IV pole.'
+  ],
+  [
+    "Marcus Aurelius said you have power over your mind, not over what happens. You can't control your gut. You can control how you talk to the nurse at six in the morning. You've been nailing that part.",
+    'I control nothing. Including the remote.'
+  ],
+  [
+    'Seneca said we suffer more in imagination than in reality. The worst version of tomorrow lives in your head at two in the morning. The real one is usually Jell-O and a blood draw.',
+    'Seneca never had the Jell-O. Points for bravery anyway.'
+  ],
+  [
+    "Epictetus started out enslaved and became a philosopher. He said it's not what happens to you, it's how you answer it. You got handed a terrible week and you answered with jokes. That's the whole philosophy.",
+    'Granted, they were my jokes. Teamwork.'
+  ],
+  [
+    'Sagan looked at a picture of Earth from four billion miles out. One pale blue pixel. Everyone who ever lived, on one pixel. And here you are, mattering enormously to a whole floor of it.',
+    "Carl, buddy. She's a lot more than a pixel."
+  ],
+  [
+    'Sagan said we are made of star stuff. The iron in your blood was cooked in a star that blew up before the sun was born. That is what they keep checking in those blood draws. Old starlight.',
+    'Tell the lab to be gentle with it.'
+  ],
+  [
+    'Sagan said the universe is under no obligation to make sense to us. Getting sick is like that. It did not happen because you did something wrong. It just happened. Your job is not to deserve it. It is to get through it.',
+    'The universe also owes me a parking refund.'
+  ],
+  [
+    'Sagan said we are a way for the cosmos to know itself. Which means somewhere in all that, the universe is learning what it feels like to sip broth very carefully.',
+    'The universe gives the broth two stars.'
+  ],
+  [
+    'Feynman said the first rule is you must not fool yourself, and you are the easiest person to fool. So when you feel better, say so. When you do not, say that too. Honest is the fastest way out of here.',
+    'He also played the bongos. Strong energy.'
+  ],
+  [
+    "Feynman said he'd rather have questions that can't be answered than answers that can't be questioned. Ask the doctors everything. Why this, why now, why the tube. It's your body. Be curious about it.",
+    'Do not ask me. I know nothing about tubes.'
+  ],
+  [
+    'Feynman said nobody really understands quantum mechanics. I find that comforting. The smartest people alive are allowed to be confused. So are you. So am I, constantly.',
+    'Mostly by the parking garage.'
+  ],
+  [
+    'Camus said that in the middle of winter he found in himself an invincible summer. You have had a winter week. I have watched the summer come back in you, a little every day.',
+    'The thermostat in here is still set to winter. Different problem.'
+  ],
+  [
+    'Camus said we have to imagine Sisyphus happy, pushing his rock up the hill forever. I think about him every lap you walk. Same hallway, same laps, and you are still smiling.',
+    'His rock had no wheels. Your IV pole does. Advantage: you.'
+  ],
+  [
+    'Camus said real generosity toward the future means giving everything to the present. You cannot do anything about next week from that bed. You can walk this lap. That is the gift to future you.',
+    'Future you says thanks. Also wants fries.'
+  ],
+  [
+    'Lao Tzu said water is the softest thing there is, and it still wears down stone. You do not have to be hard to win this. You just have to keep going.',
+    'Also drink water. When they say. Small sips.'
+  ],
+  [
+    "Lao Tzu said the journey of a thousand miles begins beneath your feet. Not with a step. With where you're standing. You're standing. That's the start.",
+    'A thousand miles is a lot of laps. Pace yourself.'
+  ],
+  [
+    "Lao Tzu said nature does not hurry, yet everything gets done. Your gut is healing on nature's schedule. Not mine, not the doctors'. It gets there.",
+    'Nature has clearly never waited on discharge paperwork.'
+  ],
+  [
+    'Lao Tzu said mastering others is strength and mastering yourself is real power. Any pitcher can throw hard. Throwing strikes while you are tired and scared is the other thing.',
+    'Which you do. In a gown.'
+  ],
+  [
+    'Kierkegaard said life can only be understood backwards, but it has to be lived forwards. Someday this week will make sense. Right now you just have to walk forward.',
+    'Forward is that way. Past the vending machine.'
+  ],
+  [
+    'Pascal said all of our troubles come from not being able to sit quietly in a room alone. You have been sitting in a room for a week. You might be the most advanced human on this floor.',
+    'I lasted four minutes. Then I checked the vending machine.'
+  ],
+  [
+    'Here is the thing nobody tells you about raising a kid. You spend years teaching them to be brave, and then one day they teach it back to you from a hospital bed.',
+    'Okay. That one got me. Somebody find me a tissue. A dry one.'
+  ]
+];
+
 let hallwayDad = null;
 
 function hallwayDadValid(d) {
@@ -917,7 +1454,7 @@ function hallwayDadShuffle(last, keep = {}) {
     order[0] = order[j];
     order[j] = last;
   }
-  return {
+  const out = {
     n: HALLWAY_DAD_JOKES.length,
     order,
     pos: 0,
@@ -925,6 +1462,37 @@ function hallwayDadShuffle(last, keep = {}) {
     cheer: Number.isInteger(keep.cheer) ? keep.cheer : 0,
     groan: Number.isInteger(keep.groan) ? keep.groan : 0
   };
+  // The deep-thought deck and the cadence ride along untouched.
+  for (const k of ['deepN', 'deepOrder', 'deepPos', 'deepLast', 'wasDeep', 'talks']) if (k in keep) out[k] = keep[k];
+  return out;
+}
+
+// The deep-thought deck: valid as stored, or a fresh shuffle that never opens with the last one told.
+function hallwayDadDeepCheck(d) {
+  const n = HALLWAY_DAD_DEEP.length,
+    ok =
+      d.deepN === n &&
+      Array.isArray(d.deepOrder) &&
+      d.deepOrder.length === n &&
+      new Set(d.deepOrder).size === n &&
+      d.deepOrder.every(i => Number.isInteger(i) && i >= 0 && i < n) &&
+      Number.isInteger(d.deepPos) &&
+      d.deepPos >= 0 &&
+      d.deepPos <= n;
+  if (!Number.isInteger(d.talks) || d.talks < 0) d.talks = 0;
+  d.wasDeep = !!d.wasDeep;
+  if (!Number.isInteger(d.deepLast) || d.deepLast < -1 || d.deepLast >= n) d.deepLast = -1;
+  if (ok && d.deepPos < n) return d;
+  const order = hallwayShuffle(HALLWAY_DAD_DEEP.map((_, i) => i));
+  if (order.length > 1 && order[0] === d.deepLast) {
+    const j = 1 + Math.floor(rand(0, order.length - 1));
+    order[0] = order[j];
+    order[j] = d.deepLast;
+  }
+  d.deepN = n;
+  d.deepOrder = order;
+  d.deepPos = 0;
+  return d;
 }
 
 function hallwayDadDeck() {
@@ -957,8 +1525,24 @@ function hallwayDadConvo(npc) {
     deck = hallwayDadShuffle(deck.last, deck);
     hallwayDad = deck;
   }
-  const joke = deck.order[deck.pos],
-    reactive = HALLWAY_DAD_REACTIVE.find(r => r.when() && !npc.heard.includes(r.id));
+  hallwayDadDeepCheck(deck);
+  const reactive = HALLWAY_DAD_REACTIVE.find(r => r.when() && !npc.heard.includes(r.id)),
+    deep = !reactive && deck.talks > 0 && !deck.wasDeep && rand(0, 1) < HALLWAY_DAD_DEEP_ODDS;
+  deck.talks++;
+  deck.wasDeep = deep;
+  if (deep) {
+    // A deep thought, then the one-liner that lands it. The joke deck and the rotations wait.
+    const k = deck.deepOrder[deck.deepPos++],
+      [thought, quip] = HALLWAY_DAD_DEEP[k];
+    deck.deepLast = k;
+    npc.count++;
+    hallwayDadSave();
+    return [
+      { who: 'npc', text: hallwayFill(thought), deep: k },
+      { who: 'npc', text: hallwayFill(quip), quip: k }
+    ];
+  }
+  const joke = deck.order[deck.pos];
   deck.pos++;
   deck.last = joke;
   let cheer;
@@ -1239,6 +1823,7 @@ function npcLook(over) {
     item: '',
     glasses: '',
     mustache: '',
+    beard: '',
     band: '',
     number: '',
     stetho: false,
@@ -1321,11 +1906,12 @@ const HALLWAY_LOOKS = {
       head: 12.2,
       skin: '#f6d2b8',
       skinShade: '#e2ad92',
-      hair: '#dcd8d2',
-      hairDark: '#b3aea8',
+      // Almost eighty and still colored every few weeks: a light blondish brown, always up in a bun.
+      hair: '#c9a57c',
+      hairDark: '#9e7b55',
       hairStyle: 'bun',
       eyes: '#6f8a9a',
-      brows: '#a9a39c',
+      brows: '#a58866',
       age: 1,
       top: 'cardigan',
       topA: '#b49acb',
@@ -1334,7 +1920,8 @@ const HALLWAY_LOOKS = {
       pants: '#7d6f8e',
       shoes: 'flat',
       shoeColor: '#6b5a52',
-      item: 'tin',
+      // Her good purse: brown monogram canvas, tan leather trim, snacks inside.
+      item: 'purse',
       glasses: '#8a6d5a',
       pearls: true
     }),
@@ -1349,13 +1936,12 @@ const HALLWAY_LOOKS = {
       head: 12.5,
       skin: '#f4cfb2',
       skinShade: '#dda88b',
-      hair: '#eceae5',
-      hairDark: '#c4c0b8',
-      hairStyle: 'cap',
-      hat: '#8b7b63',
-      hatDark: '#6c5e4a',
+      // A full head of silver hair, straight, combed over from a high part. No hat.
+      hair: '#dcdcd8',
+      hairDark: '#a9aaa8',
+      hairStyle: 'side',
       eyes: '#5a6e7c',
-      brows: '#d8d4cc',
+      brows: '#c9c8c3',
       age: 1,
       top: 'vest',
       topA: '#6f8a5f',
@@ -1364,8 +1950,10 @@ const HALLWAY_LOOKS = {
       pants: '#6e6655',
       shoes: 'loafer',
       shoeColor: '#5a3f30',
-      glasses: '#3c3c3c',
-      mustache: '#ecebe6'
+      // A short silver beard and mustache, and a serious camera on a strap.
+      mustache: '#d4d3ce',
+      beard: '#cfcec9',
+      item: 'camera'
     }),
   // The friends wear Ramsey Rams blue and gold. Presley: freshman, blond, a high ponytail that never
   // stops moving, the fall volleyball jersey and kneepads, the team ball.
@@ -1674,26 +2262,60 @@ function hallwayNpc(id, name, voice, look, x, y, range, speed, extra = {}) {
     moving: false,
     stuck: 0,
     heard: [],
+    primed: [],
     count: 0,
     last: -1,
     bark: null,
     barkN: Math.floor(rand(0, 3)),
     barkCd: rand(0, 3),
     whoa: 0,
-    whoaCd: 0
+    whoaCd: 0,
+    // Standing still: how long, and how long until a stroll (see hallwayStandStep).
+    idle: 0,
+    restless: rand(...(extra.group ? HALLWAY_GROUP_IDLE : HALLWAY_STROLL_IDLE)),
+    glance: rand(5, 12),
+    // Doctors and nurses: hang at the station, run errands into rooms.
+    staff: !!extra.staff,
+    spot: extra.spot ? extra.spot.slice() : [x, y],
+    errand: null,
+    inside: 0,
+    // Greetings (hallwayGreetStep) and little solo bits like Dodo's camera: act is {kind, t, max, ...}.
+    act: null,
+    near: 0,
+    greeted: false,
+    greetCd: 0,
+    snapIn: rand(14, 30)
   };
 }
 
 function hallwayResetCast() {
   hallwayCast = [
-    hallwayNpc('dad', 'Dad', 'dad', HALLWAY_LOOKS.dad(), 700, 300, [420, 1050], 48, { tag: '#f3d38b' }),
-    hallwayNpc('stephanie', 'Nurse Stephanie', 'nurse', HALLWAY_LOOKS.stephanie(), 880, 280, [620, 1200], 72, {
+    // Dad holds down the stretch between Macy's door and the station, by the coffee.
+    hallwayNpc('dad', 'Dad', 'dad', HALLWAY_LOOKS.dad(), 470, 330, [360, 640], 48, { tag: '#f3d38b' }),
+    // The doctors and nurses belong to the nurses' station (hallwayStaffStep).
+    hallwayNpc('stephanie', 'Nurse Stephanie', 'nurse', HALLWAY_LOOKS.stephanie(), ...HALLWAY_STATION_SPOTS.stephanie, [600, 1060], 72, {
       pitch: 2,
-      tag: '#f5b9ae'
+      tag: '#f5b9ae',
+      staff: true,
+      spot: HALLWAY_STATION_SPOTS.stephanie
     }),
-    hallwayNpc('lori', 'Dr. Lori', 'doctor', HALLWAY_LOOKS.lori(), 1260, 390, [1000, 1700], 58, { pitch: 2, tag: '#e4d4ee' }),
-    hallwayNpc('mimi', 'Mimi', 'grandma', HALLWAY_LOOKS.mimi(), 1500, 330, [1350, 1800], 32, { tag: '#ddc8ec' }),
-    hallwayNpc('dodo', 'Dodo', 'grandpa', HALLWAY_LOOKS.dodo(), 1650, 365, [1300, 1850], 30, { tag: '#cfe0b4' }),
+    hallwayNpc('lori', 'Dr. Lori', 'doctor', HALLWAY_LOOKS.lori(), ...HALLWAY_STATION_SPOTS.lori, [600, 1060], 58, {
+      pitch: 2,
+      tag: '#e4d4ee',
+      staff: true,
+      spot: HALLWAY_STATION_SPOTS.lori
+    }),
+    // Mimi and Dodo visit as a pair: Dodo picks the spot (the light is better there), Mimi keeps up easily.
+    hallwayNpc('dodo', 'Dodo', 'grandpa', HALLWAY_LOOKS.dodo(), 1640, 360, [1360, 1820], 40, {
+      tag: '#cfe0b4',
+      group: 'family',
+      lead: true
+    }),
+    hallwayNpc('mimi', 'Mimi', 'grandma', HALLWAY_LOOKS.mimi(), 1584, 340, [1360, 1820], 40, {
+      tag: '#ddc8ec',
+      group: 'family',
+      slot: [-56, -20]
+    }),
     // The friends travel as one loose cluster: Taylor leads (she drove), Presley and Norah keep their slots.
     hallwayNpc('taylor', 'Taylor', 'cousin', HALLWAY_LOOKS.taylor(), 2180, 330, [1850, 2450], 50, {
       pitch: -2,
@@ -1713,12 +2335,19 @@ function hallwayResetCast() {
       group: 'friends',
       slot: [44, 22]
     }),
-    hallwayNpc('julez', 'Julez', 'nurse', HALLWAY_LOOKS.julez(), 2250, 450, [1800, 2600], 58, { pitch: -2, tag: '#9fb6d6' }),
+    hallwayNpc('julez', 'Julez', 'nurse', HALLWAY_LOOKS.julez(), ...HALLWAY_STATION_SPOTS.julez, [600, 1060], 58, {
+      pitch: -2,
+      tag: '#9fb6d6',
+      staff: true,
+      spot: HALLWAY_STATION_SPOTS.julez
+    }),
     hallwayNpc('brother', 'Riley', 'brother', HALLWAY_LOOKS.brother(), 2560, 262, [2350, 2800], 55, { tag: '#f2bf8f' }),
     hallwayNpc('casey', 'Casey', 'cousin', HALLWAY_LOOKS.casey(), 2800, 340, [2550, 3050], 56, { pitch: -4, tag: '#bfe0cf' }),
-    hallwayNpc('benedetto', 'Dr. Benedetto', 'doctor', HALLWAY_LOOKS.benedetto(), 2980, 430, [2650, 3120], 46, {
+    hallwayNpc('benedetto', 'Dr. Benedetto', 'doctor', HALLWAY_LOOKS.benedetto(), ...HALLWAY_STATION_SPOTS.benedetto, [600, 1060], 46, {
       pitch: -4,
-      tag: '#cfe3ee'
+      tag: '#cfe3ee',
+      staff: true,
+      spot: HALLWAY_STATION_SPOTS.benedetto
     }),
     hallwayNpc('barb', 'Barb · Dietary', 'ensure', HALLWAY_LOOKS.barb(), HALLWAY_ELEVATOR_X, HALLWAY_TOP + 6, [80, 3120], 108, {
       lines: 'ensure',
@@ -1737,6 +2366,10 @@ function hallwayResetCast() {
     }
     npc.tx = npc.x;
     npc.ty = npc.y;
+    // Staff stagger their first errand, so the station never empties all at once.
+    if (npc.staff) npc.wait = rand(8, 45);
+    // Who said what last time: the rotation carries on across visits and reloads.
+    hallwayConvoRestore(npc);
   }
   hallwayTalk = null;
   hallwayTarget = null;
@@ -1758,6 +2391,11 @@ function hallwayInstall() {
 }
 
 // ---- Movement ----
+// Nobody chases Macy but Barb. Everyone else has a spot: they turn to face her when she comes near, talk
+// when she talks to them, and otherwise stay put. After 60 to 120 s standing still a visitor strolls to a
+// new spot in their range (always one that is not closer to her); a visiting group waits longer and moves
+// together. Doctors and nurses hang at the nurses' station and now and then walk the hallway into a
+// room, vanish for a while, and come back out. Rowdy runs on his own brain (src/rowdy.js).
 function hallwayBlocked(x, y, self) {
   if (x < HALLWAY_LEFT || x > HALLWAY_RIGHT || y < HALLWAY_TOP || y > HALLWAY_BOTTOM) return true;
   for (const p of HALLWAY_PROPS) {
@@ -1771,12 +2409,13 @@ function hallwayBlocked(x, y, self) {
       next = Math.hypot(o.x - x, o.y - y);
     if (next < 24 && next < now) return true;
   }
-  // Nobody walks onto Macy: a step that brings a visitor inside arm's length of her is blocked, so a
-  // crowd never closes around her. (Rowdy moves on his own rules and stops short on his own.)
+  // Nobody walks onto Macy, and nobody but Barb walks toward her: inside HALLWAY_APPROACH, a step that
+  // brings a visitor closer is not taken. (Rowdy moves on his own rules.)
   if (self && !self.rowdy && Number.isFinite(self.x) && typeof player === 'object' && player) {
     const now = Math.hypot(player.x - self.x, player.y - self.y),
       next = Math.hypot(player.x - x, player.y - y);
     if (next < HALLWAY_SPACE && next < now) return true;
+    if (!self.ensure && now < HALLWAY_APPROACH && next < now - 1e-9) return true;
   }
   return false;
 }
@@ -1832,11 +2471,15 @@ function hallwayWalkTo(npc, tx, ty, speed, dt) {
   return false;
 }
 
+// A new spot to stroll to: inside the range, a real move (60 to 420 px), never beside Macy, and never
+// toward her: the walk's direction points away from her or across, so the distance only grows.
 function hallwayPickTarget(npc) {
-  for (let i = 0; i < 8; i++) {
-    const tx = rand(npc.range[0], npc.range[1]),
-      ty = rand(HALLWAY_TOP + 20, HALLWAY_BOTTOM - 10);
-    // Never a spot on top of her, or just beside her.
+  for (let i = 0; i < 12; i++) {
+    const tx = clamp(npc.x + rand(-420, 420), npc.range[0], npc.range[1]),
+      ty = rand(HALLWAY_TOP + 40, HALLWAY_BOTTOM - 10),
+      hop = Math.hypot(tx - npc.x, ty - npc.y),
+      away = (tx - npc.x) * (npc.x - player.x) + (ty - npc.y) * (npc.y - player.y);
+    if (hop < 60 || away < 0) continue;
     if (hallwayBlocked(tx, ty, npc) || Math.hypot(tx - player.x, ty - player.y) < HALLWAY_SPACE * 2) continue;
     npc.tx = tx;
     npc.ty = ty;
@@ -1852,27 +2495,37 @@ function hallwayFace(npc) {
   if (npc.rowdy) npc.face = npc.dir;
 }
 
+// Standing around with nobody near: a look one way, then the other, every few seconds.
+function hallwayGlance(npc, dt) {
+  npc.glance -= dt;
+  if (npc.glance > 0) return;
+  npc.glance = rand(5, 12);
+  npc.dir = -npc.dir || 1;
+}
+
 function hallwaySay(npc, text, life = 2.6) {
   npc.bark = { text: hallwayFill(text), life, max: life };
   if (typeof sfx === 'function') sfx('talk', { voice: npc.voice, count: npc.barkN, combo: npc.pitch, vol: 0.8 });
 }
 
+// Barks go round in order and never repeat until every one has been said; the place is remembered.
 function hallwayMaybeBark(npc, d) {
-  if (d > HALLWAY_BARK_RANGE || npc.barkCd > 0 || hallwayBarkGap > 0 || hallwayTalk || npc.bark) return;
+  if (d > HALLWAY_BARK_RANGE || npc.barkCd > 0 || hallwayBarkGap > 0 || hallwayTalk || npc.bark || npc.act) return;
   const barks = HALLWAY_LINES[npc.lines].barks;
   hallwaySay(npc, barks[npc.barkN % barks.length]);
-  npc.barkN++;
+  npc.barkN = (npc.barkN + 1) % barks.length;
   npc.barkCd = rand(30, 55);
   hallwayBarkGap = 2.2;
+  hallwayConvoRemember(npc);
   // A group calls out once per pass, not three times in a row.
   if (npc.group) for (const o of hallwayCast) if (o !== npc && o.group === npc.group) o.barkCd = Math.max(o.barkCd, 14);
 }
 
-// ---- The friends ----
-// Presley, Norah and Taylor move as one loose cluster. The lead (Taylor) wanders like anyone else; the
-// others walk to their slot off her, a little looser each time she sets off, and stop when they get
-// there. When Macy comes near any of them, or talks to one, all three stop and turn to her together.
-// Standing around on their own, they turn in to talk to each other.
+// ---- Visiting groups: the friends, and Mimi and Dodo ----
+// Presley, Norah and Taylor move as one loose cluster, and so do Mimi and Dodo. They hang in their spot;
+// after a long idle the lead (Taylor, who drove; Dodo, who picks the light) sets off and the others walk
+// to their slot off her, a little looser each time. When Macy comes near any of them, or talks to one,
+// they all turn to her together. Standing around on their own, they turn in to talk to each other.
 function hallwayCrew(group) {
   return hallwayCast.filter(n => n.group === group && n.present);
 }
@@ -1895,8 +2548,7 @@ function hallwayGroupStep(npc, dt) {
   if (hallwayGroupNear(npc.group)) {
     npc.moving = false;
     npc.walk = 0;
-    npc.mode = 'idle';
-    if (npc === lead) npc.wait = Math.max(npc.wait, 0.8);
+    if (npc === lead) npc.idle += dt;
     hallwayFace(npc);
     return;
   }
@@ -1904,20 +2556,21 @@ function hallwayGroupStep(npc, dt) {
     if (npc.mode !== 'walk') {
       npc.moving = false;
       npc.walk = 0;
-      npc.wait -= dt;
-      // She waits for the others to catch up (three seconds at most) before setting off again.
+      npc.idle += dt;
       const together = crew.every(o => o === npc || Math.hypot(o.x - npc.x - o.slot[0], o.y - npc.y - o.slot[1]) < 40);
-      if (npc.wait > 0 || (!together && npc.wait > -3)) hallwayGroupTurnIn(npc, crew);
-      else {
-        hallwayPickTarget(npc);
-        if (npc.mode === 'walk')
-          for (const o of crew) if (o !== npc) o.slot = [o.home[0] + rand(-8, 8), o.home[1] + rand(-6, 6)];
-      }
+      hallwayGroupTurnIn(npc, crew);
+      if (npc.idle < npc.restless || !together) return;
+      hallwayPickTarget(npc);
+      if (npc.mode === 'walk') {
+        npc.idle = 0;
+        npc.restless = rand(...HALLWAY_GROUP_IDLE);
+        for (const o of crew) if (o !== npc) o.slot = [o.home[0] + rand(-8, 8), o.home[1] + rand(-6, 6)];
+      } else npc.restless = npc.idle + rand(2, 5);
       return;
     }
     if (hallwayWalkTo(npc, npc.tx, npc.ty, npc.speed, dt) || npc.stuck > 0.6) {
       npc.mode = 'idle';
-      npc.wait = rand(2.5, 6);
+      npc.idle = 0;
       npc.moving = false;
       npc.walk = 0;
     }
@@ -1941,6 +2594,122 @@ function hallwayGroupStep(npc, dt) {
   hallwayGroupTurnIn(npc, crew);
 }
 
+// ---- Standing in a spot ----
+function hallwayStandStep(npc, dt, d) {
+  if (d < HALLWAY_FACE_RANGE) {
+    // She is here: turn to her and stay put (a stroll in progress waits for her to move on).
+    npc.moving = false;
+    npc.walk = 0;
+    hallwayFace(npc);
+    return;
+  }
+  if (npc.mode !== 'walk') {
+    npc.moving = false;
+    npc.walk = 0;
+    npc.idle += dt;
+    hallwayGlance(npc, dt);
+    if (npc.idle < npc.restless) return;
+    hallwayPickTarget(npc);
+    if (npc.mode === 'walk') {
+      npc.idle = 0;
+      npc.restless = rand(...HALLWAY_STROLL_IDLE);
+    } else npc.restless = npc.idle + rand(2, 5);
+    return;
+  }
+  if (hallwayWalkTo(npc, npc.tx, npc.ty, npc.speed, dt) || npc.stuck > 0.6) {
+    npc.mode = 'idle';
+    npc.idle = 0;
+    npc.moving = false;
+    npc.walk = 0;
+  }
+}
+
+// ---- Doctors and nurses ----
+// Home is a spot at the nurses' station. After 25 to 55 s there, an errand: walk the hallway to one of
+// the doors, go in, stay 15 to 40 s, come back out, and either head home or (one time in three) on to
+// another door. Macy near: they stop and turn to her. Macy in the way: they wait (never walking toward
+// her), and after a while give up and take another route.
+const HALLWAY_STAFF_DOOR_Y = 232;
+
+function hallwayStaffErrand(npc) {
+  const doors = HALLWAY_DOORS.filter(d => !npc.errand || d !== npc.errand.door),
+    door = doors[Math.floor(rand(0, doors.length))];
+  npc.errand = { door, tries: 0 };
+  npc.mode = 'walk';
+  npc.tx = door.x;
+  npc.ty = HALLWAY_STAFF_DOOR_Y + 14;
+  npc.stuck = 0;
+}
+
+function hallwayStaffHome(npc) {
+  npc.errand = null;
+  npc.mode = 'walk';
+  npc.tx = npc.spot[0];
+  npc.ty = npc.spot[1];
+  npc.stuck = 0;
+}
+
+function hallwayStaffStep(npc, dt, d) {
+  if (npc.mode === 'inside') {
+    npc.inside -= dt;
+    if (npc.inside > 0) return;
+    // Back out of the door, then home to the station or on to the next room.
+    const door = npc.errand.door;
+    npc.present = true;
+    npc.x = door.x;
+    npc.y = HALLWAY_STAFF_DOOR_Y + 8;
+    npc.dir = npc.vdir = npc.spot[0] >= door.x ? 1 : -1;
+    if (rand(0, 1) < 1 / 3) hallwayStaffErrand(npc);
+    else hallwayStaffHome(npc);
+    return;
+  }
+  if (d < HALLWAY_FACE_RANGE) {
+    npc.moving = false;
+    npc.walk = 0;
+    hallwayFace(npc);
+    return;
+  }
+  if (npc.mode !== 'walk') {
+    npc.moving = false;
+    npc.walk = 0;
+    npc.wait -= dt;
+    hallwayGlance(npc, dt);
+    if (npc.wait <= 0) hallwayStaffErrand(npc);
+    return;
+  }
+  const errand = npc.errand,
+    there = hallwayWalkTo(npc, npc.tx, npc.ty, npc.speed, dt);
+  if (errand && !errand.inDoor && there) {
+    // At the door: step up into it.
+    errand.inDoor = true;
+    npc.ty = HALLWAY_STAFF_DOOR_Y - 18;
+    return;
+  }
+  if (errand && errand.inDoor && (there || npc.stuck > 0.4)) {
+    npc.present = false;
+    npc.bark = null;
+    npc.moving = false;
+    npc.walk = 0;
+    npc.mode = 'inside';
+    npc.inside = rand(...HALLWAY_STAFF_INSIDE);
+    return;
+  }
+  if (!errand && there) {
+    npc.mode = 'idle';
+    npc.wait = rand(...HALLWAY_STAFF_HANG);
+    return;
+  }
+  // Waiting on Macy (or a crowd): a few seconds, then another route.
+  if (npc.stuck > 3) {
+    if (errand && ++errand.tries < 3) hallwayStaffErrand(npc);
+    else if (errand) hallwayStaffHome(npc);
+    else {
+      npc.mode = 'idle';
+      npc.wait = rand(4, 8);
+    }
+  }
+}
+
 function hallwayNpcStep(npc, dt) {
   if (npc.rowdy) {
     hallwayRowdyStep(npc, dt);
@@ -1954,6 +2723,11 @@ function hallwayNpcStep(npc, dt) {
     if (npc.bark.life <= 0) npc.bark = null;
   }
   npc.vdir += (npc.dir - npc.vdir) * (1 - Math.exp(-dt * 12));
+  // A nurse or doctor inside a room keeps her own clock.
+  if (npc.staff && npc.mode === 'inside') {
+    hallwayStaffStep(npc, dt, Infinity);
+    return;
+  }
   if (!npc.present) return;
   const d = dist(npc, player);
   // A dash through someone gets a "whoa" and a little hop.
@@ -1969,36 +2743,38 @@ function hallwayNpcStep(npc, dt) {
     hallwayFace(npc);
     return;
   }
+  // Mid-greeting: hold still, facing her.
+  if (npc.act && npc.act.greet) {
+    npc.moving = false;
+    npc.walk = 0;
+    hallwayFace(npc);
+    return;
+  }
   if (npc.ensure) {
     hallwayEnsureMove(npc, dt, d);
     return;
   }
   hallwayMaybeBark(npc, d);
+  hallwaySnapStep(npc, dt, d);
   if (npc.group) {
     hallwayGroupStep(npc, dt);
     return;
   }
-  if (d < HALLWAY_FACE_RANGE) {
-    npc.moving = false;
-    npc.walk = 0;
-    npc.mode = 'idle';
-    npc.wait = Math.max(npc.wait, 0.8);
-    hallwayFace(npc);
+  if (npc.staff) {
+    hallwayStaffStep(npc, dt, d);
     return;
   }
-  if (npc.mode !== 'walk') {
-    npc.moving = false;
-    npc.walk = 0;
-    npc.wait -= dt;
-    if (npc.wait <= 0) hallwayPickTarget(npc);
-    return;
-  }
-  if (hallwayWalkTo(npc, npc.tx, npc.ty, npc.speed, dt) || npc.stuck > 0.6) {
-    npc.mode = 'idle';
-    npc.wait = rand(1.4, 4.4);
-    npc.moving = false;
-    npc.walk = 0;
-  }
+  hallwayStandStep(npc, dt, d);
+}
+
+// Dodo raises the camera now and then (a shutter, a flash), whenever he is standing still.
+function hallwaySnapStep(npc, dt, d) {
+  if (npc.look.item !== 'camera' || npc.act || npc.moving) return;
+  npc.snapIn -= dt;
+  if (npc.snapIn > 0) return;
+  npc.snapIn = rand(16, 34);
+  npc.act = { kind: 'camera', t: 0, max: 1.4 };
+  if (d < 520 && typeof sfx === 'function') sfx('lock', { vol: clamp(0.5 - d / 1200, 0.1, 0.4) });
 }
 
 // ---- Barb from Dietary ----
@@ -2226,9 +3002,11 @@ function hallwayEnsureTrophy(npc) {
 
 // ---- Rowdy the Ram ----
 // Ramsey's mascot (src/rowdy.js) works the nurses' station. His own brain (spec.tick) runs his day:
-// bouncing at home, a cheer every 40 to 70 s whether or not anyone is watching (one bark and one pose
-// per bubble), a gallop and a wave the first time Macy comes into the hallway each visit, and a sulk
-// then a farewell if she walks off mid-cheer. Talking to him pauses the brain and runs one of his
+// bouncing at home and turning to face Macy, cheers on a timer whether or not anyone is watching (one
+// bark and one pose per bubble), a run-through every so often (wall to wall, screaming a cheer, then a
+// jog home; the first comes a little after each entry, which npc.entered starts), and a sulk then a
+// farewell if she walks off mid-cheer. He never comes to her. The hallway hands the brain its bounds
+// and his home, clamps him to the floor, and holds a hug pose for two seconds when she greets him. Talking to him pauses the brain and runs one of his
 // cheers or lines through the speech box, a pose per bubble. The first cheer after Ralph turns up at
 // the exit, from either path, is the Ralph cheer.
 const HALLWAY_ROWDY_HOME = [812, 270],
@@ -2332,7 +3110,14 @@ function hallwayRowdyStep(npc, dt) {
       y: clamp(player.y, HALLWAY_TOP, HALLWAY_BOTTOM)
     },
     cheering = npc.mode === 'cheer' && !!npc.cheer;
-  let said = spec.tick(npc, dt, { macy, entered: npc.entered, st: state });
+  // The brain gets the hallway's ends and his home: his run-through goes wall to wall, never at her.
+  let said = spec.tick(npc, dt, {
+    macy,
+    entered: npc.entered,
+    st: state,
+    bounds: [HALLWAY_LEFT, HALLWAY_RIGHT],
+    home: HALLWAY_ROWDY_HOME
+  });
   npc.entered = false;
   // Past twenty no's, the first timer cheer of a visit becomes the Ensure cheer.
   if (said && !cheering && npc.mode === 'cheer' && npc.bubble === 0 && npc.cheer && npc.cheer.id !== 'ralph')
@@ -2362,6 +3147,14 @@ function hallwayRowdyStep(npc, dt) {
   npc.ensurePoms = npc.mode === 'cheer' && !!npc.cheer && npc.cheer.id === 'ensure';
   npc.x = clamp(npc.x, HALLWAY_LEFT, HALLWAY_RIGHT);
   npc.y = clamp(npc.y, HALLWAY_TOP, HALLWAY_BOTTOM);
+  // A greeting hug: two seconds of 'hug' while he is at home, facing her.
+  if (npc.greetPose > 0) {
+    npc.greetPose -= dt;
+    if (npc.mode === 'idle') {
+      npc.pose = 'hug';
+      hallwayFace(npc);
+    }
+  }
   npc.dir = npc.face;
   npc.vdir = npc.face;
   npc.moving = npc.pose === 'gallop';
@@ -2390,9 +3183,165 @@ function hallwayRowdyConvo(npc) {
   return [{ who: 'npc', text, pose: pick(HALLWAY_ROWDY_POSES) }];
 }
 
+// ---- Conversation memory ----
+// Every visitor works through a deck: nothing repeats until every open conversation has been heard, and
+// the bark rotation goes round the same way. Where each visitor is in the deck survives leaving the
+// hallway and reloading the page: { [id]: { n, count, heard, last, primed, bark, bn } } under its own
+// storage key, like Dad's joke deck. (state.stats only keeps numbers through a reload, so it cannot hold
+// this.) n and bn are the deck and bark-list sizes; a library that changed size starts that visitor over.
+const HALLWAY_CONVO_KEY = 'gut-feeling-convos';
+let hallwayConvos = null;
+
+function hallwayConvoStore() {
+  if (hallwayConvos) return hallwayConvos;
+  let stored = null;
+  try {
+    stored = JSON.parse(localStorage.getItem(HALLWAY_CONVO_KEY) || 'null');
+  } catch {
+    stored = null;
+  }
+  hallwayConvos = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+  return hallwayConvos;
+}
+
+function hallwayConvoSave() {
+  try {
+    localStorage.setItem(HALLWAY_CONVO_KEY, JSON.stringify(hallwayConvos || {}));
+  } catch {
+    // No storage: the rotation still works, it just starts over on reload.
+  }
+}
+
+const hallwayConvoLib = npc => (npc && !npc.rowdy ? HALLWAY_LINES[npc.lines] : null);
+
+// hallwayResetCast: pick up where this visitor left off.
+function hallwayConvoRestore(npc) {
+  const lib = hallwayConvoLib(npc),
+    e = lib && hallwayConvoStore()[npc.id];
+  if (!lib || !e || typeof e !== 'object') return;
+  const n = lib.talks.length,
+    idx = v => (Array.isArray(v) ? [...new Set(v.filter(i => Number.isInteger(i) && i >= 0 && i < n))] : []);
+  if (e.n === n && n > 0) {
+    npc.heard = idx(e.heard);
+    npc.primed = idx(e.primed);
+    npc.count = Number.isInteger(e.count) && e.count >= 0 ? e.count : 0;
+    npc.last = Number.isInteger(e.last) && e.last >= -1 && e.last < n ? e.last : -1;
+  }
+  if (e.bn === lib.barks.length && Number.isInteger(e.bark) && e.bark >= 0 && e.bark < lib.barks.length) npc.barkN = e.bark;
+}
+
+function hallwayConvoRemember(npc) {
+  const lib = hallwayConvoLib(npc);
+  if (!lib) return;
+  const ints = a => a.filter(i => Number.isInteger(i));
+  hallwayConvoStore()[npc.id] = {
+    n: lib.talks.length,
+    count: npc.count,
+    heard: ints(npc.heard),
+    last: npc.last,
+    primed: ints(npc.primed || []),
+    bark: npc.barkN % Math.max(1, lib.barks.length),
+    bn: lib.barks.length
+  };
+  hallwayConvoSave();
+}
+
+// ---- Greetings ----
+// Stand within about 70 px of someone for 2.5 s without opening a talk and a little paired moment plays:
+// once per visitor per hallway visit, and not again for 90 s even across visits. The visitor's side
+// (arms, phone, camera, flash) is drawn here; Macy's side is macyGreet(pose, seconds, dir) in world.js
+// when it is there. A sound and a one-word caption sell it. A group greets as one.
+// Each entry: [Macy's pose, the visitor's act, seconds, caption, sfx]. Riley flicks one time in three.
+const HALLWAY_GREETS = {
+  dad: ['hug', 'hug', 1.8, 'HUG', 'pickup'],
+  brother: ['fistbump', 'fistbump', 1.2, 'BOOP', 'catch'],
+  brotherFlick: ['flinch', 'flick', 1.0, 'FLICK', 'hit'],
+  friends: ['selfie', 'selfie', 2.2, 'CHEESE', 'lock'],
+  family: ['hug', 'hug', 1.9, 'SQUEEZE', 'pickup'],
+  casey: ['highfive', 'highfive', 1.1, 'FIVE', 'catch'],
+  stephanie: ['wave', 'thumbs', 1.6, 'HEY', 'ui'],
+  julez: ['wave', 'thumbs', 1.6, 'NOTED', 'ui'],
+  lori: ['wave', 'clipboard', 1.6, 'CHECK', 'ui'],
+  benedetto: ['fistbump', 'handshake', 1.5, 'EXCELLENT', 'catch'],
+  barb: ['wave', 'bottle', 1.6, 'NOPE', 'back'],
+  rowdy: ['hug', 'hug', 2, 'HUG', 'pickup']
+};
+
+// Can this visitor be greeted right now?
+function hallwayGreetable(npc) {
+  if (!npc.present || npc.greeted || npc.greetCd > 0 || npc.act) return false;
+  if (npc.rowdy) return npc.mode === 'idle';
+  if (npc.ensure) return hallwayEnsure.phase === 'out';
+  return !npc.moving;
+}
+
+// Every ward step, in or out of the hallway: cooldowns and acts tick down.
+function hallwayGreetTick(dt) {
+  for (const npc of hallwayCast) {
+    npc.greetCd = Math.max(0, (npc.greetCd || 0) - dt);
+    if (!npc.act) continue;
+    npc.act.t += dt;
+    if (npc.act.t < npc.act.max) continue;
+    npc.act = npc.act.then ? { ...npc.act.then, t: 0 } : null;
+  }
+}
+
+function hallwayGreetStep(dt) {
+  let best = null,
+    bestD = HALLWAY_GREET_RANGE;
+  for (const npc of hallwayCast) {
+    if (!npc.present) continue;
+    const d = dist(npc, player);
+    if (d < bestD) {
+      best = npc;
+      bestD = d;
+    }
+  }
+  for (const npc of hallwayCast) if (npc !== best) npc.near = 0;
+  const busy = hallwayTalk || hallwayCast.some(n => n.act && n.act.greet);
+  if (!best || busy || !hallwayGreetable(best)) {
+    if (best) best.near = 0;
+    return;
+  }
+  best.near += dt;
+  if (best.near >= HALLWAY_GREET_WAIT) hallwayGreet(best);
+}
+
+function hallwayGreet(npc) {
+  const crew = npc.group ? hallwayCrew(npc.group) : [npc],
+    flick = npc.id === 'brother' && rand(0, 1) < 1 / 3,
+    [pose, kind, secs, word, sound] = HALLWAY_GREETS[flick ? 'brotherFlick' : npc.group || npc.id] || HALLWAY_GREETS.casey,
+    dir = npc.x >= player.x ? 1 : -1;
+  for (const o of crew) {
+    o.greeted = true;
+    o.greetCd = HALLWAY_GREET_COOLDOWN;
+    o.near = 0;
+    hallwayFace(o);
+    // The friends crowd in around whoever has the phone; Mimi and Dodo both step in for the hug.
+    o.act = { kind: npc.group === 'friends' && o.id !== 'presley' ? 'lean' : kind, t: 0, max: secs, greet: true };
+  }
+  // Dodo sometimes gets the camera up right after.
+  const dodo = crew.find(o => o.look && o.look.item === 'camera');
+  if (dodo && rand(0, 1) < 0.6) dodo.act.then = { kind: 'camera', max: 1.3 };
+  if (npc.rowdy) npc.greetPose = 2;
+  player.dir = dir;
+  if (typeof macyGreet === 'function') {
+    try {
+      macyGreet(pose, secs, dir);
+    } catch {
+      // Macy's side is optional: the visitor still does theirs.
+    }
+  }
+  if (typeof sfx === 'function') sfx(sound, { vol: 0.55 });
+  if (typeof floating === 'function') floating(word, (npc.x + player.x) / 2, Math.min(npc.y, player.y) - 130, '#fff1c2');
+  return true;
+}
+
 // ---- Conversations ----
-// Next conversation: a state-reactive one the first time it applies, then any unheard one (nurses start
-// at different points), then the rotation, never the same one twice in a row.
+// Next conversation, off the visitor's deck: a state-reactive one the first time it applies; the very
+// first talk is the first in the list (nurses start at different points); after that, any open one she
+// has not heard yet, at random. Once every open one has been heard, the deck starts over, never with the
+// one just told. The position is remembered (hallwayConvoRemember).
 function hallwayNextConvo(npc) {
   if (npc.rowdy) return hallwayRowdyConvo(npc);
   if (npc.lines === 'dad') return hallwayDadConvo(npc);
@@ -2403,14 +3352,24 @@ function hallwayNextConvo(npc) {
   const talks = HALLWAY_LINES[npc.lines].talks,
     open = talks.map((_, i) => i).filter(i => !talks[i].when || talks[i].when()),
     shift = open.length ? npc.offset % open.length : 0,
-    order = open.slice(shift).concat(open.slice(0, shift)),
-    fresh = order.filter(i => !npc.heard.includes(i)),
-    reactive = fresh.filter(i => talks[i].when);
-  let i = reactive[0] ?? fresh[0] ?? order[npc.count % Math.max(1, order.length)];
-  if (i === npc.last && order.length > 1) i = order[(order.indexOf(i) + 1) % order.length];
+    order = open.slice(shift).concat(open.slice(0, shift));
+  if (!npc.primed) npc.primed = [];
+  let pool = order.filter(i => !npc.heard.includes(i));
+  if (!pool.length) {
+    // The deck is spent: start over, minus the one just told.
+    npc.heard = [];
+    pool = order.length > 1 ? order.filter(i => i !== npc.last) : order;
+  }
+  const reactive = pool.filter(i => talks[i].when && !npc.primed.includes(i));
+  let i;
+  if (reactive.length) i = reactive[0];
+  else if (npc.count === 0) i = pool[0];
+  else i = pool[Math.floor(rand(0, pool.length))];
+  if (talks[i].when && !npc.primed.includes(i)) npc.primed.push(i);
   npc.count++;
   npc.last = i;
   if (!npc.heard.includes(i)) npc.heard.push(i);
+  hallwayConvoRemember(npc);
   return talks[i].say.map(([who, text]) => ({ who, text: hallwayFill(text) }));
 }
 
@@ -2544,7 +3503,7 @@ function hallwayFindTarget() {
   let best = null,
     bestD = HALLWAY_TALK_RANGE;
   for (const npc of hallwayCast) {
-    if (!npc.present) continue;
+    if (!npc.present || (npc.rowdy && npc.mode === 'run')) continue;
     const d = dist(npc, player);
     if (d < bestD) {
       best = npc;
@@ -2637,6 +3596,7 @@ function hallwayTap(p) {
 function updateRoomExtras(dt) {
   if (!Number.isFinite(dt) || dt <= 0 || !hallwayCast.length) return;
   if (state.room !== HALLWAY_ID) {
+    hallwayGreetTick(dt);
     hallwayLastRoom = state.room;
     hallwayTalk = null;
     hallwayInside = false;
@@ -2644,6 +3604,7 @@ function updateRoomExtras(dt) {
     return;
   }
   if (hallwayBusy()) return;
+  hallwayGreetTick(dt);
   hallwayClock += dt;
   hallwayArrival = Math.max(0, hallwayArrival - dt);
   hallwayPaStep(dt);
@@ -2652,6 +3613,7 @@ function updateRoomExtras(dt) {
   hallwayElevator.open += ((hallwayElevator.hold > 0 ? 1 : 0) - hallwayElevator.open) * (1 - Math.exp(-dt * 7));
   hallwayEnsureTick(dt, true);
   for (const npc of hallwayCast) hallwayNpcStep(npc, dt);
+  hallwayGreetStep(dt);
   hallwayTalkStep(dt);
   hallwayTarget = hallwayFindTarget();
   // Walking fully into a door (pushing up against it) goes through.
@@ -2712,18 +3674,18 @@ function onRoomLoaded(id) {
   }
   if (!hallwayCast.length) hallwayResetCast();
   // A fresh entry (not a repeated load of the same visit) reads the Ensure count and dresses the floor.
-  if (!hallwayInside) hallwayCultRead();
+  const fresh = !hallwayInside;
+  if (fresh) hallwayCultRead();
   hallwayInside = true;
   // Remember the door, so a second onRoomLoaded(6) for the same visit lands in the same place.
   const from = hallwayFrom ?? hallwayLastRoom;
   hallwayFrom = null;
   hallwayLastRoom = from;
   hallwayPlace(from);
-  // A new visit: Rowdy gallops over to say hi once.
+  // A new visit: Rowdy's run-through clock starts, and everyone can be greeted once more.
   for (const npc of hallwayCast) {
-    if (!npc.rowdy) continue;
-    npc.greeted = false;
-    npc.entered = true;
+    if (npc.rowdy) npc.entered = true;
+    if (fresh) npc.greeted = false;
   }
   hallwayArrival = 0.5;
   hallwayTalk = null;
@@ -2742,7 +3704,7 @@ function onRoomLoaded(id) {
 // In girl()'s style: origin at the feet, drawn facing +x, then flipped by dir. A fractional dir is the
 // mid-turn squash when someone turns to face Macy.
 function npcTop(k) {
-  const extra = { wavy: 9, bun: 9, cap: 5, pony: 4, net: 6, curly: 6 }[k.hairStyle] || 4;
+  const extra = { wavy: 9, bun: 9, cap: 5, pony: 4, net: 6, curly: 6, side: 6 }[k.hairStyle] || 4;
   return k.leg + k.torso + 5 + k.head * 2.24 - 3 + extra;
 }
 
@@ -2782,7 +3744,8 @@ function npcFigure(g, x, y, s, k, pose = 0, dir = 1, t = 0, opts = {}) {
     walk = Math.sin(pose),
     bob = pose ? Math.abs(walk) * 1.6 : Math.sin(t * 2.1 + k.seed) * 0.45,
     flip = Math.abs(dir) < 0.16 ? (dir < 0 ? -0.16 : 0.16) : dir,
-    both = k.item === 'tray' || k.item === 'tin';
+    act = opts.act && NPC_GESTURES.includes(opts.act.kind) ? opts.act : null,
+    both = !act && (k.item === 'tray' || k.item === 'tin');
   g.save();
   g.translate(x, y);
   g.scale(s, s);
@@ -2790,16 +3753,162 @@ function npcFigure(g, x, y, s, k, pose = 0, dir = 1, t = 0, opts = {}) {
   g.translate(0, -bob - (opts.hop || 0));
   g.scale(flip, 1);
   npcBackHair(g, k, hy, hr, hry, t);
-  if (!both) npcArm(g, k, -1, shY, walk);
+  if (act && (act.kind === 'hug' || act.kind === 'camera')) npcGestureBack(g, k, shY, hy, hr, act);
+  else if (!both) npcArm(g, k, -1, shY, walk);
   npcLegs(g, k, hipY, walk);
   npcTorso(g, k, shY, hipY, flip);
   rr(g, -3.2, shY - 6, 6.4, 8, 3, k.skinShade);
   npcCollar(g, k, shY);
-  if (both) npcHoldBoth(g, k, shY, t);
+  if (act) {
+    // The front arm belongs to the gesture, drawn over the head below.
+  } else if (both) npcHoldBoth(g, k, shY, t);
   else if (k.item) npcHold(g, k, shY, t);
   else npcArm(g, k, 1, shY, walk);
   npcHead(g, k, hy, hr, hry, t, opts.speak);
+  if (act) npcGesture(g, k, shY, hy, hr, act, t);
   g.restore();
+}
+
+// ---- Gestures: greetings, and Dodo's camera ----
+// act: {kind, t, max}. Drawn in the figure's own frame (facing +x, toward Macy during a greeting).
+const NPC_GESTURES = ['hug', 'lean', 'selfie', 'fistbump', 'flick', 'handshake', 'highfive', 'thumbs', 'clipboard', 'bottle', 'camera'];
+
+// 0 to 1 and back over the act: quick in, hold, quick out.
+const npcActEase = act => clamp(Math.min((act.t / act.max) * 5, (1 - act.t / act.max) * 5, 1), 0, 1);
+
+// An arm from the shoulder on side (1 front, -1 back) to a hand at (hx, hy), sleeve and all.
+function npcReach(g, k, side, shY, hx, hy, hand = true) {
+  const sx = side * (k.shoulder - 2.5),
+    sy = shY + 5,
+    sleeve = npcSleeve(k),
+    mx = (sx + hx) / 2 + 2.5,
+    my = Math.max(sy, hy) + 4;
+  path(
+    g,
+    p => {
+      p.moveTo(sx, sy);
+      p.quadraticCurveTo(mx, my, hx, hy);
+    },
+    null,
+    k.shortSleeve ? k.skinShade : sleeve,
+    k.armW
+  );
+  if (k.shortSleeve)
+    path(
+      g,
+      p => {
+        p.moveTo(sx, sy);
+        p.quadraticCurveTo(sx + (mx - sx) * 0.4, sy + (my - sy) * 0.3, sx + (hx - sx) * 0.3, sy + (hy - sy) * 0.3);
+      },
+      null,
+      sleeve,
+      k.armW + 1.2
+    );
+  npcCuff(g, k, hx, hy);
+  if (hand) ellipse(g, hx, hy, 3.1, 3.7, k.skin);
+}
+
+// Rest to target by e: where a gesture hand sits this frame.
+function npcActHand(k, shY, tx, ty, e) {
+  const rx = k.shoulder + 3.5,
+    ry = shY + k.torso * 0.86;
+  return [rx + (tx - rx) * e, ry + (ty - ry) * e];
+}
+
+// The back arm in a hug or behind the camera: it reaches forward too, behind the body.
+function npcGestureBack(g, k, shY, hy, hr, act) {
+  const e = npcActEase(act),
+    [tx, ty] = act.kind === 'camera' ? [hr + 3, hy + 6] : [k.shoulder + 11, shY + 15],
+    rx = -(k.shoulder + 3.5),
+    ry = shY + k.torso * 0.86;
+  npcReach(g, k, -1, shY, rx + (tx - rx) * e, ry + (ty - ry) * e);
+}
+
+function npcGesture(g, k, shY, hy, hr, act, t) {
+  const S = k.shoulder,
+    T = k.torso,
+    e = npcActEase(act),
+    u = clamp(act.t / act.max, 0, 1),
+    flash = (x, y) => {
+      const f = 1 - Math.abs(u - 0.52) / 0.07;
+      if (f > 0) glow(g, x, y, 30 * f + 6, '#ffffffd0');
+    };
+  let hx, hy2;
+  switch (act.kind) {
+    case 'hug':
+      [hx, hy2] = npcActHand(k, shY, S + 15, shY + 12, e);
+      npcReach(g, k, 1, shY, hx, hy2);
+      break;
+    case 'lean': {
+      // Crowding into the selfie: an arm up, two fingers.
+      [hx, hy2] = npcActHand(k, shY, S + 6, shY - 9, e);
+      npcReach(g, k, 1, shY, hx, hy2);
+      if (e > 0.6) line(g, [[hx - 1, hy2 - 2], [hx - 2.4, hy2 - 8]], k.skin, 1.6), line(g, [[hx + 1, hy2 - 2], [hx + 2.2, hy2 - 8]], k.skin, 1.6);
+      break;
+    }
+    case 'selfie':
+      // Phone up and out, screen toward the group, one flash.
+      [hx, hy2] = npcActHand(k, shY, S + 10, hy - hr - 8, e);
+      npcReach(g, k, 1, shY, hx, hy2);
+      rr(g, hx - 3.8, hy2 - 13, 7.6, 12.5, 1.8, '#2b2f3a');
+      rr(g, hx - 2.8, hy2 - 12, 5.6, 10.5, 1, '#9ad7e0');
+      flash(hx, hy2 - 8);
+      break;
+    case 'fistbump':
+    case 'flick':
+      [hx, hy2] = npcActHand(k, shY, S + 16, shY + T * (act.kind === 'flick' ? 0.32 : 0.45), e);
+      npcReach(g, k, 1, shY, hx, hy2, false);
+      ellipse(g, hx, hy2, 3.8, 3.6, k.skin);
+      if (act.kind === 'flick' && e > 0.6) line(g, [[hx + 2.5, hy2 - 1], [hx + 7 * e, hy2 - 3.5]], npcShade(k.skin, 0.9), 1.6);
+      break;
+    case 'handshake':
+      [hx, hy2] = npcActHand(k, shY, S + 15, shY + T * 0.55 + Math.sin(t * 16) * 1.6 * e, e);
+      npcReach(g, k, 1, shY, hx, hy2, false);
+      ellipse(g, hx + 0.8, hy2, 4.4, 3, k.skin);
+      break;
+    case 'highfive':
+      [hx, hy2] = npcActHand(k, shY, S + 8, shY - 16, e);
+      npcReach(g, k, 1, shY, hx, hy2, false);
+      ellipse(g, hx, hy2 - 1, 3.8, 4.6, k.skin);
+      for (const fx of [-2.4, 0, 2.4]) line(g, [[hx + fx, hy2 - 4], [hx + fx * 1.3, hy2 - 8.5]], k.skin, 1.5);
+      break;
+    case 'thumbs':
+      // A wave, then a thumbs-up.
+      if (u < 0.5) [hx, hy2] = npcActHand(k, shY, S + 5 + Math.sin(t * 14) * 3, shY - 13, e);
+      else [hx, hy2] = npcActHand(k, shY, S + 9, shY + 4, e);
+      npcReach(g, k, 1, shY, hx, hy2);
+      if (u >= 0.5) rr(g, hx - 1, hy2 - 8, 2.4, 6, 1.1, k.skin);
+      break;
+    case 'clipboard':
+      // Up to eye level, a quick read, a check mark.
+      [hx, hy2] = npcActHand(k, shY, S + 7, shY + 1, e);
+      npcReach(g, k, 1, shY, hx, hy2, false);
+      npcItem(g, 'clipboard', hx + 3, hy2 - 1, t);
+      if (u > 0.45) line(g, [[hx - 1, hy2 - 6], [hx + 1.4, hy2 - 3.6], [hx + 6, hy2 - 10]], '#3e9a5c', 1.6);
+      ellipse(g, hx + 1.5, hy2, 3.1, 3.7, k.skin);
+      break;
+    case 'bottle':
+      // Barb holds one out. Hope springs eternal.
+      [hx, hy2] = npcActHand(k, shY, S + 15, shY + T * 0.4, e);
+      npcReach(g, k, 1, shY, hx, hy2, false);
+      hallwayBottle(g, hx + 2, hy2 + 6, 1, 0.72, false);
+      ellipse(g, hx, hy2 + 1, 3.1, 3.7, k.skin);
+      break;
+    case 'camera': {
+      // Dodo: camera to the eye, a shutter, a flash.
+      [hx, hy2] = npcActHand(k, shY, hr + 6, hy + 4, e);
+      npcReach(g, k, 1, shY, hx, hy2, false);
+      const cx = hx - 6 + (1 - e) * 4,
+        cy = hy2 - 9;
+      rr(g, cx, cy, 15, 10.5, 2, '#25272c', '#0f1012', 0.6);
+      rr(g, cx + 2, cy - 2.4, 5, 3, 1, '#25272c');
+      ellipse(g, cx + 15, cy + 5.2, 4.2, 4.6, '#34373e');
+      ellipse(g, cx + 15.6, cy + 5.2, 2.6, 3, '#5f7f9e');
+      ellipse(g, hx, hy2, 3.1, 3.7, k.skin);
+      flash(cx + 18, cy + 5);
+      break;
+    }
+  }
 }
 
 function npcArm(g, k, side, shY, walk) {
@@ -3144,6 +4253,11 @@ function npcCollar(g, k, shY) {
       k.topB
     );
   }
+  if (k.item === 'camera') {
+    // The camera strap, around the neck and down to the camera.
+    line(g, [[-4.6, shY - 0.6], [k.shoulder - 1, shY + k.torso * 0.48]], '#2b2b2e', 1.5);
+    line(g, [[4.6, shY - 0.6], [k.shoulder + 1.5, shY + k.torso * 0.46]], '#2b2b2e', 1.5);
+  }
   if (k.pearls) for (let i = 0; i < 7; i++) ellipse(g, -4.5 + i * 1.5, shY + 1.4 + Math.sin((i / 6) * Math.PI) * 2.4, 0.9, 0.9, '#fbf6ea');
   if (k.stetho) {
     path(
@@ -3372,6 +4486,27 @@ function npcItem(g, item, x, y, t) {
     rr(g, 1.6, 4.6, 5.6, 7, 2, '#2f5fb3', '#f0c94a', 0.7);
     ellipse(g, 4.4, 8.1, 1.3, 1.3, '#f0c94a');
     g.restore();
+  } else if (item === 'camera') {
+    // A serious camera at rest on the strap: body, grip, a big lens pointing ahead.
+    rr(g, x - 6, y - 5, 13, 9.5, 2, '#25272c', '#0f1012', 0.6);
+    rr(g, x - 4, y - 7.4, 5, 3, 1, '#25272c');
+    ellipse(g, x + 7.5, y - 0.3, 3.8, 4.2, '#34373e');
+    ellipse(g, x + 8, y - 0.3, 2.3, 2.7, '#5f7f9e');
+    ellipse(g, x + 8.6, y - 1.2, 0.8, 0.9, '#ffffffaa');
+  } else if (item === 'purse') {
+    // Mimi's good purse on her forearm: brown monogram canvas (a small repeating flower and diamond
+    // print), tan leather trim and handles.
+    path(g, p => p.arc(x, y + 3.5, 5.2, Math.PI, Math.PI * 2), null, '#c99b63', 1.6);
+    rr(g, x - 8, y + 3, 16, 12, 2.5, '#6e4a2c', '#43291a', 0.7);
+    for (let i = 0; i < 4; i++)
+      for (let j = 0; j < 2; j++) {
+        const px = x - 5.6 + i * 3.8,
+          py = y + 7.4 + j * 4.2;
+        if ((i + j) % 2) poly(g, [[px, py - 1.3], [px + 1.1, py], [px, py + 1.3], [px - 1.1, py]], '#d8b46c');
+        else ellipse(g, px, py, 0.9, 0.9, '#d8b46c');
+      }
+    rr(g, x - 8, y + 3, 16, 2.2, 1, '#c99b63');
+    rr(g, x - 1.4, y + 4.2, 2.8, 2.4, 0.6, '#e4c27a');
   } else if (item === 'cup') {
     poly(
       g,
@@ -3437,6 +4572,20 @@ function npcHead(g, k, hy, hr, hry, t, speak) {
         p.closePath();
       },
       '#4b302214'
+    );
+  if (k.beard)
+    // A short, trimmed beard along the jaw and chin; the mouth sits on top of it.
+    path(
+      g,
+      p => {
+        p.moveTo(fx - hr + 1.2, hy + 0.5);
+        p.quadraticCurveTo(fx - hr + 1, hy + hry + 2, fx + 0.5, hy + hry + 2.6);
+        p.quadraticCurveTo(fx + hr - 0.5, hy + hry + 2, fx + hr - 1, hy + 0.5);
+        p.lineTo(fx + hr - 3.2, hy + 3.4);
+        p.quadraticCurveTo(fx + 1, hy + 7.2, fx - hr + 3.4, hy + 3.4);
+        p.closePath();
+      },
+      k.beard
     );
   for (const ex of [-4.4, 5.4]) {
     const x = fx + ex * es,
@@ -3615,6 +4764,33 @@ function npcHair(g, k, hy, hr, hry, fx) {
     );
     ellipse(g, -hr + 0.5, hy - 1, 3, 3.4, k.hair);
     ellipse(g, hr + 0.8, hy - 1.5, 2.8, 3.2, k.hair);
+  } else if (style === 'side') {
+    // Dodo: straight silver hair with a high part, combed over to one side, short at the ears.
+    path(
+      g,
+      p => {
+        p.moveTo(-hr - 0.6, hy + 2);
+        p.bezierCurveTo(-hr - 2.4, top - 6, hr + 3, top - 6.5, hr + 1.6, hy + 0.5);
+        p.quadraticCurveTo(hr - 1, hy - 6.2, fx + 5, hy - 8.6);
+        p.quadraticCurveTo(fx - 2, hy - 10, -hr + 2, hy - 4);
+        p.lineTo(-hr + 1.2, hy + 3);
+        p.closePath();
+      },
+      fill
+    );
+    line(g, [[fx - 6.2, top - 0.6], [fx - 5, top + 3.2]], k.hairDark, 1);
+    for (let i = 0; i < 3; i++)
+      path(
+        g,
+        p => {
+          p.moveTo(fx - 4.6, top + 0.4 + i * 1.7);
+          p.quadraticCurveTo(fx + 2, top - 2.4 + i * 1.7, hr - 0.5, hy - 6.4 + i * 1.6);
+        },
+        null,
+        i === 1 ? '#ffffff4a' : k.hairDark + '88',
+        0.9
+      );
+    rr(g, -hr + 0.4, hy - 2, 2.4, 5, 1.2, k.hairDark);
   } else if (style === 'cap') {
     // Dodo: white fringe over the ears under a tweed flat cap.
     ellipse(g, -hr + 1, hy - 1, 3.2, 4.5, k.hair);
@@ -4420,8 +5596,11 @@ function hallwayDrawNpc(g, npc) {
   const tk = hallwayTalk,
     line = tk ? tk.lines[tk.i] : null,
     speak = (line && hallwaySpeaker(tk, line) === npc && tk.shown < line.text.length) || (npc.bark && npc.bark.life > npc.bark.max - 0.45),
-    hop = npc.whoa > 0 ? Math.sin((npc.whoa / 0.45) * Math.PI) * 9 : 0;
-  npcFigure(g, npc.x, npc.y, hallwayNpcScale(), npc.look, npc.moving ? npc.walk : 0, npc.vdir, hallwayClock, { hop, speak });
+    hop = npc.whoa > 0 ? Math.sin((npc.whoa / 0.45) * Math.PI) * 9 : 0,
+    act = npc.act,
+    // A hug or a selfie leans in toward Macy: drawn only, the visitor's spot never moves.
+    lean = act && act.greet && ['hug', 'lean', 'selfie'].includes(act.kind) ? npcActEase(act) * 10 * (player.x >= npc.x ? 1 : -1) : 0;
+  npcFigure(g, npc.x + lean, npc.y, hallwayNpcScale(), npc.look, npc.moving ? npc.walk : 0, npc.vdir, hallwayClock, { hop, speak, act });
 }
 
 function roomExtraRenderables(all = false) {

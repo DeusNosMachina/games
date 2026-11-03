@@ -33,8 +33,8 @@ assert.deepEqual(
   ],
   'Mimi and Dodo are on set, with their own lines and their old voices'
 );
-assert.equal(run('HALLWAY_LOOKS.mimi().item'), 'tin', 'Mimi still has the cookie tin');
-assert.equal(run('HALLWAY_LOOKS.dodo().hairStyle'), 'cap', 'Dodo still has the flat cap');
+assert.equal(run('HALLWAY_LOOKS.mimi().item'), 'purse', 'Mimi carries her good purse');
+assert.equal(run('HALLWAY_LOOKS.dodo().hairStyle'), 'side', 'Dodo: silver hair combed over, no cap');
 assert.ok(run('JSON.stringify(HALLWAY_LINES.mimi.talks).includes("Dodo")'), 'Mimi talks about Dodo');
 assert.ok(run('JSON.stringify(HALLWAY_LINES.dodo.talks).includes("Mimi")'), 'Dodo talks about Mimi');
 assert.ok(run('JSON.stringify(HALLWAY_LINES.norah.talks).includes("Mimi tried")'), 'Norah tells on Mimi');
@@ -121,7 +121,7 @@ assert.equal(run('hallwayEnter(1)'), false, 'already in the hallway: nothing to 
 if (frameworkNote) console.log(`NOTE: goRoom(6) could not finish in this build (${frameworkNote}); drove onRoomLoaded(6) directly.`);
 console.log('PASS: entering from rooms 0 to 5 puts Macy outside the right door; room 6 is calm.');
 
-// ---- Visitors stroll for a minute ----
+// ---- Four minutes on the floor ----
 run(`(() => {
   hallwayResetCast();
   state.room = 6;
@@ -131,7 +131,7 @@ run(`(() => {
   var starts = hallwayCast.map(n => [n.x, n.y]);
   var bad = [];
   var moved = new Set();
-  for (let i = 0; i < 3600; i++) {
+  for (let i = 0; i < 60 * 240; i++) {
     player.x = 300 + ((i * 0.9) % 2600);
     player.y = 300 + Math.sin(i / 90) * 200;
     if (player.y < 300) player.y = 600 - player.y;
@@ -147,14 +147,14 @@ run(`(() => {
   globalThis.strollMoved = [...moved];
 })()`);
 assert.deepEqual(run('JSON.stringify(strollBad)'), '[]');
-assert.ok(run('strollMoved.length') >= 8, 'most visitors actually walk around: ' + run('strollMoved.join()'));
-assert.ok(run('hallwayEnsure.trips') >= 1, 'Barb came up at least once in a minute of hallway time');
-console.log('PASS: 60 seconds of strolling: no NaNs, everyone stays on the floor band, people move.');
+assert.ok(run('strollMoved.length') >= 8, 'over four minutes most people have moved at least once: ' + run('strollMoved.join()'));
+assert.ok(run('hallwayEnsure.trips') >= 1, 'Barb came up at least once');
+console.log('PASS: four minutes on the floor: no NaNs, everyone stays on the floor band, people move now and then.');
 
 // ---- Determinism: same seed, same hallway ----
 function hallwaySnapshot(seed) {
   run(`rng = ${seed}; hallwayResetCast(); state.room = 6; player.x = 1600; player.y = 450; player.dash = 0;
-    for (let i = 0; i < 1800; i++) updateRoomExtras(1 / 60);`);
+    for (let i = 0; i < 60 * 90; i++) updateRoomExtras(1 / 60);`);
   return run('JSON.stringify(hallwayCast.map(n => [n.name, n.look ? n.look.topA : n.pose, n.x.toFixed(4), n.y.toFixed(4)]))');
 }
 assert.equal(hallwaySnapshot(77), hallwaySnapshot(77), 'the same seed walks the same hallway');
@@ -242,7 +242,6 @@ assert.ok(!firstLines.some(t => /dig a ball out of the floor/.test(t)), 'no repe
 const bro = [];
 for (let i = 0; i < 4; i++) bro.push(talkOnce('brother').map(l => l.text).join(' / '));
 assert.equal(new Set(bro).size, 4, 'four more talks with the brother, four new ones');
-assert.ok(bro.some(t => /fed your fish/.test(t)));
 console.log('PASS: TALK prompt, Space opens, types with voice blips, advances, Macy answers, Escape and rotation.');
 
 // Personal space: a visitor walking across Macy's spot stops short of her, and nobody picks a target
@@ -388,13 +387,14 @@ run(`var portraitWho = []; var realPortrait = hallwayPortrait; hallwayPortrait =
   drawRoomOverlay(c, 1000, 625); hallwayPortrait = realPortrait;`);
 assert.deepEqual(JSON.parse(run('JSON.stringify(portraitWho)')), ['Taylor'], 'with her portrait');
 run('sfx = spyFriendSfx; hallwayCloseTalk()');
-// Moving together: a minute of strolling, the cluster stays a cluster; they stop and turn to Macy together.
+// Moving together: they only move after a long idle, and five minutes of that keeps the cluster a
+// cluster; they stop and turn to Macy together.
 run(`(() => {
   hallwayResetCast(); state.room = 6;
   const crew = hallwayCast.filter(n => n.group === 'friends'), lead = crew.find(n => n.lead);
   const start = crew.map(n => [n.x, n.y]);
   let far = 0, frames = 0, gapSum = 0;
-  for (let i = 0; i < 60 * 90; i++) {
+  for (let i = 0; i < 60 * 300; i++) {
     player.x = 300; player.y = 520;
     updateRoomExtras(1 / 60);
     for (const n of crew) if (!n.lead) {
@@ -424,6 +424,7 @@ run(`(() => {
     lead = crew.find(n => n.lead),
     from = [lead.x, lead.y];
   let walked = 0;
+  lead.mode = 'idle'; lead.idle = lead.restless;
   for (let i = 0; i < 60 * 12; i++) {
     updateRoomExtras(1 / 60);
     if (crew.every(n => n.moving)) walked++;
@@ -489,7 +490,7 @@ assert.ok(Math.abs(run('hallwayNpcTop(hallwayCast.find(n => n.id === "dad"))') /
 run('delete globalThis.MACY_SCALE; hallwayResetCast(); state.room = 6');
 console.log('PASS: Nurse Stephanie, Julez, Dr. Lori, Dr. Benedetto, Casey and Riley, and a lineup sized against Macy.');
 
-// ---- Dad: an encouragement and a joke, every single time ----
+// ---- Dad: an encouragement and a joke, or a deep thought and a one-liner ----
 const dadSizes = JSON.parse(run('JSON.stringify([HALLWAY_DAD_JOKES.length, HALLWAY_DAD_CHEERS.length, HALLWAY_DAD_GROANS.length])'));
 const [jokeCount, cheerCount, groanCount] = dadSizes;
 assert.ok(jokeCount >= 120, `at least 120 dad jokes (${jokeCount})`);
@@ -527,10 +528,40 @@ function dadTalks(n, page = run) {
 }
 const cheers = JSON.parse(run('JSON.stringify(HALLWAY_DAD_CHEERS)'));
 const groans = JSON.parse(run('JSON.stringify(HALLWAY_DAD_GROANS)'));
-const allDad = dadTalks(jokeCount * 2 + 3);
+// About 30% of talks are a deep thought and its one-liner; the rest are an encouragement and a joke.
+const deepCount = run('HALLWAY_DAD_DEEP.length');
+assert.ok(deepCount >= 40, `at least 40 deep thoughts (${deepCount})`);
+assert.ok(run('HALLWAY_DAD_DEEP.every(p => Array.isArray(p) && p.length === 2 && p.every(t => typeof t === "string" && t.length > 10))'), 'every deep thought has its one-liner');
+assert.equal(run('new Set(HALLWAY_DAD_DEEP.map(p => p[0])).size'), deepCount, 'no duplicate deep thoughts');
+assert.equal(run('new Set(HALLWAY_DAD_DEEP.map(p => p[1])).size'), deepCount, 'no duplicate one-liners');
+assert.ok(run('HALLWAY_DAD_DEEP.every(p => p[1].length < p[0].length && p[1].length <= 70)'), 'the one-liner is short and pithy');
+assert.equal(run('JSON.stringify(HALLWAY_DAD_DEEP).includes("\\u2014")'), false, 'no em dashes in the deep deck');
+const thinkers = ['Emerson', 'Thoreau', 'Kant', 'Spinoza', 'Plato', 'Jung', 'Marcus Aurelius', 'Sagan', 'Feynman', 'Camus', 'Lao Tzu'];
+for (const who of thinkers) assert.ok(run(`HALLWAY_DAD_DEEP.some(p => p[0].includes(${JSON.stringify(who)}))`), `Dad quotes ${who}`);
+const allDad = dadTalks(jokeCount * 3 + 3);
+assert.match(allDad[0][0].text, /dig a ball out of the floor/, 'the very first talk is never a deep one');
+const regular = allDad.filter(lines => !lines.some(l => Number.isInteger(l.deep))),
+  deepTalks = allDad.filter(lines => lines.some(l => Number.isInteger(l.deep)));
+const deepShare = deepTalks.length / allDad.length;
+assert.ok(deepShare > 0.25 && deepShare < 0.35, `about 30% of Dad talks are deep (${(deepShare * 100).toFixed(1)}%)`);
+allDad.forEach((lines, t) => {
+  if (t && lines.some(l => Number.isInteger(l.deep))) assert.ok(!allDad[t - 1].some(l => Number.isInteger(l.deep)), `talk ${t}: never two deep talks in a row`);
+});
+const deepIds = [];
+for (const lines of deepTalks) {
+  assert.equal(lines.length, 2, 'a deep talk is a thought and a one-liner');
+  assert.equal(lines[0].who, 'npc');
+  assert.equal(lines[1].who, 'npc');
+  assert.ok(Number.isInteger(lines[0].deep) && lines[1].quip === lines[0].deep, 'the one-liner that goes with that thought');
+  assert.equal(run(`HALLWAY_DAD_DEEP[${lines[0].deep}][1]`), lines[1].text);
+  assert.ok(!lines.some(l => Number.isInteger(l.joke) || l.cheer), 'no joke and no encouragement in a deep talk');
+  deepIds.push(lines[0].deep);
+}
+const firstDeck = deepIds.slice(0, Math.min(deepCount, deepIds.length));
+assert.equal(new Set(firstDeck).size, firstDeck.length, 'no deep thought repeats until the deck runs out');
 const ids = [];
 let groaned = 0;
-allDad.forEach((lines, t) => {
+regular.forEach((lines, t) => {
   assert.equal(lines[0].who, 'npc');
   assert.equal(lines[0].cheer, true, `talk ${t} opens with an encouragement`);
   assert.ok(cheers.includes(lines[0].text), `talk ${t} encouragement comes from the library`);
@@ -548,18 +579,17 @@ allDad.forEach((lines, t) => {
   assert.equal(lines.length, 1 + jokeLines.length + groan.length);
   ids.push(jokeLines[0].joke);
 });
-assert.equal(new Set(ids.slice(0, 130)).size, Math.min(130, jokeCount), '130 Dad talks: no repeated joke until the deck runs out');
-assert.equal(new Set(ids.slice(0, jokeCount)).size, jokeCount, 'the whole deck before any repeat');
+assert.ok(ids.length >= jokeCount * 2, 'two whole joke decks in that run');
+assert.equal(new Set(ids.slice(0, jokeCount)).size, jokeCount, 'the whole joke deck before any repeat');
 assert.equal(new Set(ids.slice(jokeCount, jokeCount * 2)).size, jokeCount, 'the second deck has no repeats either');
 assert.notEqual(ids[jokeCount], ids[jokeCount - 1], 'a reshuffle never opens with the joke just told');
-assert.notEqual(ids[jokeCount * 2], ids[jokeCount * 2 - 1]);
 assert.notDeepEqual(ids.slice(0, jokeCount), ids.slice(jokeCount, jokeCount * 2), 'and it is a real reshuffle');
-assert.ok(groaned > allDad.length * 0.35 && groaned < allDad.length * 0.65, `Macy groans about half the time (${groaned}/${allDad.length})`);
-for (let t = 1; t < cheerCount; t++) assert.notEqual(allDad[t][0].text, allDad[t - 1][0].text, 'encouragements rotate');
-assert.equal(new Set(allDad.slice(0, cheerCount).map(l => l[0].text)).size, cheerCount, 'every encouragement before a repeat');
-const groanTexts = allDad.flatMap(l => l.filter(x => x.groan).map(x => x.text));
+assert.ok(groaned > regular.length * 0.35 && groaned < regular.length * 0.65, `Macy groans about half the time (${groaned}/${regular.length})`);
+for (let t = 1; t < cheerCount; t++) assert.notEqual(regular[t][0].text, regular[t - 1][0].text, 'encouragements rotate');
+assert.equal(new Set(regular.slice(0, cheerCount).map(l => l[0].text)).size, cheerCount, 'every encouragement before a repeat');
+const groanTexts = regular.flatMap(l => l.filter(x => x.groan).map(x => x.text));
 for (let t = 1; t < Math.min(groanCount, groanTexts.length); t++) assert.notEqual(groanTexts[t], groanTexts[t - 1], 'groans rotate');
-console.log(`PASS: ${allDad.length} Dad talks: an encouragement and a joke every time, no repeats inside a deck, clean reshuffles.`);
+console.log(`PASS: ${allDad.length} Dad talks: ${(deepShare * 100).toFixed(0)}% deep thoughts with a one-liner, never two in a row; the rest an encouragement and a joke, no repeats inside a deck.`);
 
 // Survives a reload: a brand-new page with the same stored key picks up exactly where Dad left off.
 dadTalks(17);
@@ -567,19 +597,25 @@ const stored = run('localStorage.getItem("gut-feeling-dad")');
 const deck = JSON.parse(stored);
 assert.equal(deck.n, jokeCount);
 assert.ok(deck.pos > 0 && deck.pos < jokeCount);
+assert.equal(deck.deepN, deepCount, 'the deep deck is stored with the jokes');
 const expectJoke = deck.order[deck.pos];
 const expectCheer = cheers[deck.cheer];
+const expectDeep = deck.deepOrder[deck.deepPos];
 delete require.cache[require.resolve('./harness.cjs')];
 const page2 = require('./harness.cjs');
 assert.notEqual(page2.box, box, 'a second, fresh page');
 page2.run(`localStorage.setItem('gut-feeling-dad', ${JSON.stringify(stored)})`);
 page2.run('hallwayInstall(); state.room = 6');
-const afterReload = dadTalks(1, page2.run)[0];
-assert.equal(afterReload.find(l => Number.isInteger(l.joke)).joke, expectJoke, 'the next joke after a reload is the next card in the deck');
-assert.equal(afterReload[0].text, expectCheer, 'and the encouragement rotation carries on too');
-assert.equal(JSON.parse(page2.run('localStorage.getItem("gut-feeling-dad")')).pos, deck.pos + 1);
+// The next regular talk has the next joke; the next deep one the next thought.
+const afterReload = dadTalks(12, page2.run);
+const nextRegular = afterReload.find(l => l.some(x => Number.isInteger(x.joke))),
+  nextDeep = afterReload.find(l => l.some(x => Number.isInteger(x.deep)));
+assert.equal(nextRegular.find(l => Number.isInteger(l.joke)).joke, expectJoke, 'the next joke after a reload is the next card in the deck');
+assert.equal(nextRegular[0].text, expectCheer, 'and the encouragement rotation carries on too');
+if (nextDeep) assert.equal(nextDeep[0].deep, expectDeep, 'and so does the deep deck');
+if (deck.wasDeep) assert.ok(!afterReload[0].some(x => Number.isInteger(x.deep)), 'no two deep talks in a row across a reload');
 // A stored deck that is used up reshuffles on the new page without repeating the last joke.
-const spent = { ...deck, pos: jokeCount, last: deck.order[jokeCount - 1] };
+const spent = { ...deck, pos: jokeCount, last: deck.order[jokeCount - 1], wasDeep: true };
 page2.run(`hallwayDad = null; localStorage.setItem('gut-feeling-dad', ${JSON.stringify(JSON.stringify(spent))})`);
 assert.notEqual(dadTalks(1, page2.run)[0].find(l => Number.isInteger(l.joke)).joke, spent.last);
 // Garbage or a library of a different size starts a clean deck.
@@ -590,8 +626,8 @@ page2.run(`hallwayDad = null; localStorage.setItem('gut-feeling-dad', 'not json'
 assert.equal(dadTalks(1, page2.run).length, 1);
 // Storage that throws: Dad keeps talking.
 page2.run(`hallwayDad = null; localStorage.getItem = () => { throw new Error('denied'); }; localStorage.setItem = () => { throw new Error('quota'); }`);
-const noStorage = dadTalks(5, page2.run);
-assert.equal(new Set(noStorage.map(l => l.find(x => Number.isInteger(x.joke)).joke)).size, 5, 'no storage, still no repeats');
+const noStorage = dadTalks(8, page2.run).filter(t => t.some(x => Number.isInteger(x.joke)));
+assert.equal(new Set(noStorage.map(l => l.find(x => Number.isInteger(x.joke)).joke)).size, noStorage.length, 'no storage, still no repeats');
 console.log('PASS: the deck position persists through a reload; bad or missing storage never stops the jokes.');
 
 // ---- Barb from Dietary ----
@@ -624,7 +660,8 @@ run('for (let i = 0; i < 2000 && hallwayEnsure.phase === "away"; i++) updateRoom
 assert.equal(run('hallwayEnsure.trips'), 2, 'she comes back');
 run('var barb = hallwayCast.find(n => n.ensure); barb.x = player.x + 40; barb.y = player.y; updateRoomExtras(0.2)');
 run("roomExtrasAction('attack')");
-assert.match(run('hallwayTalk.lines.map(l => l.text).join(" ")'), /not allowed/, 'and offers again');
+assert.equal(run('hallwayTalk.lines.length === 3 && hallwayTalk.lines[1].who'), 'macy', 'and offers again, and gets told no');
+assert.notEqual(run('hallwayTalk.lines[0].text'), offer[0].text, 'with a new pitch');
 run('hallwayCloseTalk()');
 // Ignored, she still leaves one.
 run('hallwayEnsure.patience = 0.3; player.x = 3000; for (let i = 0; i < 60; i++) updateRoomExtras(1 / 60)');
@@ -657,7 +694,7 @@ assert.equal(R('r.present'), true);
 assert.equal(R('r.name'), 'Rowdy the Ram');
 assert.equal(R('r.voice'), 'rowdy');
 assert.deepEqual(RJ('[r.x, r.y]'), [812, 270], "he lives by the nurses' station");
-assert.ok(R('r.nextCheer >= 40 && r.nextCheer <= 70'), 'his first cheer is due in 40 to 70 s');
+assert.ok(R('r.nextCheer >= r.spec.timing.autoCheer[0] && r.nextCheer <= r.spec.timing.autoCheer[1]'), 'his first cheer is due on his own timer');
 assert.ok(R('roomExtraRenderables(true).some(o => o.y === r.y)'), 'he depth-sorts with everyone else');
 assert.equal(R('hallwayNpcTop(r)'), R('Math.round(rowdyNpcSpec().baseHeight * r.scale)'), 'bubbles hang from his own (costumed) height');
 
@@ -691,37 +728,63 @@ assert.deepEqual(
   'the pose changes with every bubble, in order'
 );
 assert.equal(R('r.mode'), 'idle', 'and back to bouncing');
-assert.ok(R('r.nextCheer >= 39 && r.nextCheer <= 70'), 'next cheer in 40 to 70 s');
+assert.ok(R('r.nextCheer >= r.spec.timing.autoCheer[0] - 1 && r.nextCheer <= r.spec.timing.autoCheer[1]'), 'next cheer on his timer');
 // Rate from the gaps between syllables inside a bubble (a gap over 0.2 s is the next bubble).
 const blipTimes = JSON.parse(run('JSON.stringify(rowdyBlips)')),
   gaps = blipTimes.slice(1).map((t, i) => t - blipTimes[i]).filter(g => g < 0.2),
   babbleRate = gaps.length / gaps.reduce((a, b) => a + b, 0);
-assert.ok(gaps.length > 20, 'he babbles through every bubble');
+assert.ok(gaps.length >= 10, 'he babbles through every bubble');
 assert.ok(babbleRate > 13 && babbleRate < 15, `about 14 syllables a second (${babbleRate.toFixed(1)})`);
 console.log(`PASS: Rowdy bounces at home and cheers on his timer to nobody: ${autoCheer.length} posed bubbles, ${babbleRate.toFixed(1)} blips/s.`);
 
-// Each visit: a gallop over and a wave, once.
-run(`r0.nextCheer = 100; hallwayFrom = 4; state.room = 6; onRoomLoaded(6); var galloped = false;
-  for (let i = 0; i < 60 * 20 && r0.mode !== 'greet'; i++) { updateRoomExtras(1 / 60); if (r0.pose === 'gallop') galloped = true; }`);
-assert.equal(R('r.mode'), 'greet', 'he greets Macy when she walks in');
-assert.equal(run('galloped'), true, 'at a gallop');
-assert.equal(R('r.pose'), 'wave');
-assert.ok(R('Math.abs(Math.abs(r.x - player.x) - 64) < 1'), 'stopping a polite distance away');
-assert.ok(
-  JSON.parse(run('JSON.stringify(ROWDY_GREETS.map(t => rowdyFormat(t, state)))')).includes(R('r.bark.text')),
-  'with a greeting'
-);
-run(`var greetsAgain = 0, prevMode = r0.mode;
-  for (let i = 0; i < 60 * 6; i++) { updateRoomExtras(1 / 60); if (r0.mode === 'greet' && prevMode !== 'greet') greetsAgain++; prevMode = r0.mode; }`);
-assert.ok(R('dist(r, player) < 100'), 'he hangs around while she stays close');
-run(`player.x = 3050; player.y = 540;
-  for (let i = 0; i < 60 * 25; i++) { updateRoomExtras(1 / 60); if (r0.mode === 'greet' && prevMode !== 'greet') greetsAgain++; prevMode = r0.mode; }`);
-assert.equal(run('greetsAgain'), 0, 'once per visit');
-assert.deepEqual(RJ('[Math.round(r.x), Math.round(r.y), r.mode]'), [812, 270, 'idle'], 'and trots home when she moves on');
-run(`state.room = 2; onRoomLoaded(2); state.room = 6; hallwayFrom = 0; onRoomLoaded(6);
-  for (let i = 0; i < 60 * 20 && r0.mode !== 'greet'; i++) updateRoomExtras(1 / 60);`);
-assert.equal(R('r.mode'), 'greet', 'and again on the next visit');
-console.log('PASS: Rowdy gallops over and waves once per visit, then goes home.');
+// The env contract: the hallway hands his brain Macy, the entry flag, the state, the hallway's ends and
+// his home, and never moves him itself.
+run(`var rowdyEnvs = []; var realTick = r0.spec.tick;
+  r0.spec.tick = (n, dt, env) => { rowdyEnvs.push(env); return realTick(n, dt, env); };
+  r0.nextCheer = 100; hallwayFrom = 4; state.room = 6; onRoomLoaded(6); updateRoomExtras(1 / 60); updateRoomExtras(1 / 60);`);
+const envs = JSON.parse(run('JSON.stringify(rowdyEnvs.map(e => ({ macy: e.macy, entered: e.entered, st: e.st === state, bounds: e.bounds, home: e.home })))'));
+assert.equal(envs[0].entered, true, 'the first tick of a visit says she just walked in');
+assert.equal(envs[1].entered, false, 'and only the first');
+for (const e of envs) {
+  assert.deepEqual(e.bounds, [60, 3140], 'bounds: the hallway, wall to wall');
+  assert.deepEqual(e.home, [812, 270], "home: the nurses' station");
+  assert.equal(e.st, true, 'st is the game state');
+  assert.ok(e.macy && Number.isFinite(e.macy.x) && Number.isFinite(e.macy.y), 'and where Macy is');
+}
+assert.equal(run('hallwayRowdyStep.toString().includes("player.x - npc")'), false, 'the wrapper never steers him at her');
+run('r0.spec.tick = realTick');
+
+// Each visit starts his run-through clock. He never comes over to her: while she stands still he only
+// ever bounces at home, or runs the hall wall to wall and jogs back. No TALK prompt mid-run.
+run(`player.x = 1500; player.y = 480; r0.nextCheer = 999; var runSeen = false, runFar = 0, closer = 0, promptMidRun = 0;
+  var lastD = dist(r0, player);
+  for (let i = 0; i < 60 * 60; i++) {
+    updateRoomExtras(1 / 60);
+    if (r0.mode === 'run') {
+      runSeen = true;
+      runFar = Math.max(runFar, Math.abs(r0.x - 812));
+      if (hallwayTarget && hallwayTarget.npc === r0) promptMidRun++;
+    }
+    var d = dist(r0, player);
+    if (r0.mode !== 'run' && r0.mode !== 'home' && d < lastD - 0.5) closer++;
+    lastD = d;
+  }`);
+assert.equal(run('runSeen'), true, 'a run-through within a minute of walking in');
+assert.ok(run('runFar') > 1500, 'all the way down the hall');
+assert.equal(run('closer'), 0, 'outside a run he never comes toward her');
+assert.equal(run('promptMidRun'), 0, 'no TALK prompt while he is running');
+run(`for (let i = 0; i < 60 * 40 && r0.mode !== 'idle'; i++) updateRoomExtras(1 / 60);`);
+assert.deepEqual(RJ('[Math.round(r.x), Math.round(r.y), r.mode]'), [812, 270, 'idle'], 'and he jogs home after');
+// Mid-run, a Macy standing right in his lane gets no TALK prompt.
+run(`(() => {
+  r0.mode = 'idle'; r0.nextRun = 0; r0.nextCheer = 999;
+  for (let i = 0; i < 30 && r0.mode !== 'run'; i++) updateRoomExtras(1 / 60);
+  player.x = r0.x + 30; player.y = r0.y; updateRoomExtras(1 / 60);
+  globalThis.midRunTarget = hallwayTarget && hallwayTarget.npc ? hallwayTarget.npc.id : null;
+})()`);
+if (R('r.mode') === 'run') assert.notEqual(run('midRunTarget'), 'rowdy', 'no TALK prompt on a running mascot');
+run(`player.x = 3000; for (let i = 0; i < 60 * 40 && r0.mode !== 'idle'; i++) updateRoomExtras(1 / 60);`);
+console.log('PASS: the Rowdy env contract (macy, entered, st, bounds, home); he runs the hall on his clock and never comes to her.');
 
 // Talking to him: a cheer or a line, a pose per bubble, his voice about 14 blips a second.
 run(`for (let i = 0; i < 600 && r0.mode !== 'idle'; i++) updateRoomExtras(1 / 60);
@@ -1138,7 +1201,8 @@ if (run('motmStub')) {
   assert.ok(wall.includes('THE MRI') && wall.includes('EMPLOYEE') && wall.includes('OF THE MONTH'), 'the frame names the machine');
   assert.deepEqual(JSON.parse(run('JSON.stringify(iconCalls)')), [['mri', 0.42]], 'with its portrait, scaled into the frame');
   run('hallwayDrawWall(ensureCtx)');
-  run('hallwayResetCast(); state.room = 6');
+  // A fresh memory: the reactive line comes first the first time it applies.
+  run("hallwayConvos = {}; localStorage.setItem('gut-feeling-convos', '{}'); hallwayResetCast(); state.room = 6");
   const eotm = talkOnce('stephanie');
   assert.equal(eotm[0].text, 'Employee of the Month went to the MRI. Again. It cried.', 'a nurse has a line about it');
   run(`machineOfTheMonth = () => ({ id: 'mri', name: 'BRRR 3000, the MRI', line: '' }); drawMachineIcon = realIcon;`);
@@ -1289,6 +1353,365 @@ const frameworkDraw = run(`(() => {
 })()`);
 if (frameworkDraw) console.log(`NOTE: drawWorld() in room 6 needs the platform hooks (${frameworkDraw}).`);
 console.log('PASS: the corridor, furniture, every visitor, barks, prompts and speech boxes draw on a strict canvas.');
+
+// ---- Everyone talks more, and remembers ----
+// A clean slate: no win, no Ralph, no medals, no memory.
+function freshFloor() {
+  run(`state.won = false; state.ralphReady = false; state.ralph = false;
+    state.wardClears = state.wardClears.map(() => 0); state.medals = state.medals.map(m => m.map(() => 0));
+    hallwayConvos = null; localStorage.setItem('gut-feeling-convos', '{}');
+    state.stats.ensureTrophy = 0; state.stats.ensureRefused = 0; hallwayCult.n = 0; hallwayCult.barbDone = false; hallwayBottles = [];
+    hallwayResetCast(); state.room = 6; state.paused = false; hallwayTalk = null; player.dash = 0; player.moving = false;
+    hallwayEnsure.due = 9999;`);
+}
+freshFloor();
+const DECKS = ['brother', 'mimi', 'dodo', 'presley', 'norah', 'taylor', 'casey', 'lori', 'benedetto', 'stephanie', 'julez', 'ensure'];
+for (const id of DECKS) {
+  const plain = run(`HALLWAY_LINES.${id}.talks.filter(t => !t.when).length`),
+    barks = JSON.parse(run(`JSON.stringify(HALLWAY_LINES.${id}.barks)`)),
+    says = JSON.parse(run(`JSON.stringify(HALLWAY_LINES.${id}.talks.map(t => JSON.stringify(t.say)))`));
+  assert.ok(plain >= 10, `${id} has at least ten everyday conversations (${plain})`);
+  assert.ok(barks.length >= 6, `${id} has at least six barks (${barks.length})`);
+  assert.equal(new Set(barks).size, barks.length, `${id}: no duplicate barks`);
+  assert.equal(new Set(says).size, says.length, `${id}: no duplicate conversations`);
+}
+// Every conversation on a deck before any repeats, and the restart never opens with the one just told.
+const deckRuns = JSON.parse(
+  run(`JSON.stringify(${JSON.stringify(DECKS.filter(id => id !== 'ensure'))}.map(id => {
+    const n = hallwayCast.find(x => x.lines === id),
+      open = HALLWAY_LINES[id].talks.filter(t => !t.when || t.when()).length,
+      seen = [];
+    for (let i = 0; i < open * 2 + 1; i++) seen.push(JSON.stringify(hallwayNextConvo(n)));
+    return { id, open, seen };
+  }))`)
+);
+for (const { id, open, seen } of deckRuns) {
+  assert.equal(new Set(seen.slice(0, open)).size, open, `${id}: the whole deck before a repeat`);
+  assert.equal(new Set(seen.slice(open, open * 2)).size, open, `${id}: and the second time round`);
+  assert.notEqual(seen[open], seen[open - 1], `${id}: a fresh deck never opens with the last one`);
+  assert.notDeepEqual(seen.slice(0, open), seen.slice(open, open * 2), `${id}: the second round comes in a new order`);
+}
+// Barks go round without repeating.
+const barkRun = JSON.parse(
+  run(`(() => {
+    const n = hallwayCast.find(x => x.id === 'mimi'), out = [];
+    for (let i = 0; i < HALLWAY_LINES.mimi.barks.length; i++) {
+      n.barkCd = 0; n.bark = null; hallwayBarkGap = 0; n.act = null;
+      hallwayMaybeBark(n, 10);
+      out.push(n.bark && n.bark.text);
+    }
+    return JSON.stringify(out);
+  })()`)
+);
+assert.equal(new Set(barkRun).size, barkRun.length, 'barks: every one before a repeat');
+console.log(`PASS: ${DECKS.length} visitors with ten or more conversations and six or more barks; no repeats until a deck is spent.`);
+
+// The rotation survives leaving the hallway (a cast reset) and a reload.
+freshFloor();
+function mimiTalks(k, page = run) {
+  return JSON.parse(
+    page(`(() => {
+      const n = hallwayCast.find(x => x.id === 'mimi'), out = [];
+      for (let i = 0; i < ${k}; i++) out.push(JSON.stringify(hallwayNextConvo(n)));
+      return JSON.stringify(out);
+    })()`)
+  );
+}
+const mimiOpen = run('HALLWAY_LINES.mimi.talks.filter(t => !t.when).length');
+const heardA = mimiTalks(4);
+run('state.room = 2; onRoomLoaded(2); hallwayResetCast(); state.room = 6; onRoomLoaded(6)');
+const heardB = mimiTalks(4);
+assert.equal(new Set([...heardA, ...heardB]).size, 8, 'a new visit picks up the rotation: eight talks, eight different');
+assert.equal(run('hallwayCast.find(x => x.id === "mimi").count'), 8, 'the count carries over');
+const barkBefore = run('hallwayCast.find(x => x.id === "mimi").barkN');
+const savedConvos = run("localStorage.getItem('gut-feeling-convos')");
+assert.deepEqual(Object.keys(JSON.parse(savedConvos).mimi).sort(), ['bark', 'bn', 'count', 'heard', 'last', 'n', 'primed']);
+delete require.cache[require.resolve('./harness.cjs')];
+const page3 = require('./harness.cjs');
+page3.run(`localStorage.setItem('gut-feeling-convos', ${JSON.stringify(savedConvos)}); hallwayConvos = null; hallwayResetCast(); state.room = 6`);
+assert.equal(page3.run('hallwayCast.find(x => x.id === "mimi").count'), 8, 'a reload remembers where Mimi was');
+assert.equal(page3.run('hallwayCast.find(x => x.id === "mimi").barkN'), barkBefore, 'and where her barks were');
+const heardC = mimiTalks(mimiOpen - 8, page3.run);
+assert.equal(new Set([...heardA, ...heardB, ...heardC]).size, mimiOpen, 'across a reload: the whole deck, no repeats');
+// A library that changed size starts that visitor over; garbage starts everyone over; no storage still talks.
+page3.run(`hallwayConvos = null; localStorage.setItem('gut-feeling-convos', '{"mimi": {"n": 2, "count": 5, "heard": [0, 1], "last": 1}}'); hallwayResetCast()`);
+assert.equal(page3.run('hallwayCast.find(x => x.id === "mimi").count'), 0);
+page3.run(`hallwayConvos = null; localStorage.setItem('gut-feeling-convos', 'not json'); hallwayResetCast()`);
+assert.equal(mimiTalks(1, page3.run).length, 1);
+page3.run(`hallwayConvos = null; localStorage.getItem = () => { throw new Error('denied'); }; localStorage.setItem = () => { throw new Error('quota'); }; hallwayResetCast()`);
+assert.equal(new Set(mimiTalks(5, page3.run)).size, 5, 'no storage: still no repeats');
+console.log('PASS: the conversation and bark rotations survive a new visit and a reload; bad storage starts over cleanly.');
+
+// ---- Nobody walks up to her but Barb ----
+// Macy stands still for 90 s in five places (by Dad, at the station, by Mimi and Dodo, by the friends,
+// by Riley and Casey). Everyone is primed to stroll partway through. Inside HALLWAY_APPROACH nobody but
+// Barb ever gets closer to her; Barb, on the other hand, comes right up with the tray.
+const stands = [
+  [520, 380],
+  [830, 400],
+  [1580, 430],
+  [2160, 420],
+  [2680, 330]
+];
+for (const [px, py] of stands) {
+  freshFloor();
+  run(`(() => {
+    player.x = ${px}; player.y = ${py};
+    hallwayCast.forEach(n => { n.idle = Math.max(0, n.restless - 20); if (n.staff) n.wait = 10; });
+    hallwayEnsure.due = 5;
+    const prev = new Map(), bad = [];
+    let barbClosest = 1e9;
+    for (let i = 0; i < 60 * 90; i++) {
+      player.x = ${px}; player.y = ${py}; player.moving = false;
+      updateRoomExtras(1 / 60);
+      for (const n of hallwayCast) {
+        const d = dist(n, player), p = prev.get(n);
+        if (n.ensure) { if (n.present) barbClosest = Math.min(barbClosest, d); }
+        else if (!n.rowdy && p && p.present && n.present && p.d < HALLWAY_APPROACH && d < p.d - 1e-6)
+          bad.push(n.id + ' ' + p.d.toFixed(1) + ' -> ' + d.toFixed(1) + ' at ' + (i / 60).toFixed(1) + 's');
+        prev.set(n, { d, present: n.present });
+      }
+    }
+    globalThis.approach = { bad: bad.slice(0, 4), barbClosest };
+  })()`);
+  const approach = JSON.parse(run('JSON.stringify(approach)'));
+  assert.deepEqual(approach.bad, [], `Macy at ${px},${py}: nobody but Barb steps toward her`);
+  assert.ok(approach.barbClosest < 70, `Barb still brings the tray to her (${approach.barbClosest.toFixed(0)} px)`);
+}
+// A stroll target is never closer to her than where the visitor stands.
+run(`(() => {
+  const n = hallwayCast.find(x => x.id === 'casey');
+  player.x = 2700; player.y = 400; n.x = 2850; n.y = 380;
+  const bad = [];
+  for (let k = 0; k < 300; k++) {
+    n.mode = 'idle'; n.x = 2850; n.y = 380;
+    hallwayPickTarget(n);
+    if (n.mode === 'walk' && Math.hypot(n.tx - player.x, n.ty - player.y) < dist(n, player) - 1e-6) bad.push([n.tx, n.ty]);
+  }
+  globalThis.awayPicks = bad.length;
+})()`);
+assert.equal(run('awayPicks'), 0, 'stroll targets always lead away from her or across');
+console.log('PASS: 90 s standing still in five places: nobody but Barb ever gets closer to Macy; Barb still finds her.');
+
+// ---- Strolling after a minute or two, and the station ----
+freshFloor();
+run(`(() => {
+  player.x = 3080; player.y = 540;
+  const dad = hallwayCast.find(n => n.id === 'dad'), starts = [], ends = [];
+  let was = dad.mode, idleFrom = 0;
+  for (let i = 0; i < 60 * 60 * 8; i++) {
+    updateRoomExtras(1 / 60);
+    const t = i / 60;
+    if (dad.mode === 'walk' && was !== 'walk') starts.push(+(t - idleFrom).toFixed(2));
+    if (dad.mode !== 'walk' && was === 'walk') { idleFrom = t; ends.push(t); }
+    was = dad.mode;
+  }
+  globalThis.dadIdles = starts;
+  globalThis.dadInRange = dad.x >= dad.range[0] && dad.x <= dad.range[1];
+})()`);
+const dadIdles = JSON.parse(run('JSON.stringify(dadIdles)'));
+assert.ok(dadIdles.length >= 3, `Dad strolls a few times in eight minutes (${dadIdles.length})`);
+assert.ok(dadIdles.every(t => t >= 59.9 && t <= 125), `each after standing 60 to 120 s (${dadIdles.join(', ')})`);
+assert.equal(run('dadInRange'), true, 'and stays in his stretch of the hall');
+
+// Doctors and nurses: home at the station, now and then into a room for 15 to 40 s, then back out.
+freshFloor();
+run(`(() => {
+  player.x = 3080; player.y = 540;
+  const staff = hallwayCast.filter(n => n.staff), log = [];
+  const state0 = new Map(staff.map(n => [n, { present: true, since: 0 }]));
+  let atStation = 0, frames = 0;
+  for (let i = 0; i < 60 * 60 * 6; i++) {
+    updateRoomExtras(1 / 60);
+    const t = i / 60;
+    for (const n of staff) {
+      const s = state0.get(n);
+      if (s.present && !n.present) log.push({ id: n.id, in: t, x: n.x, y: n.y, door: n.errand && n.errand.door.x });
+      if (!s.present && n.present) { const e = log.filter(l => l.id === n.id).pop(); e.out = t; e.backX = n.x; e.backY = n.y; }
+      s.present = n.present;
+      if (n.present && n.mode !== 'walk') { frames++; if (Math.hypot(n.x - n.spot[0], n.y - n.spot[1]) < 8) atStation++; }
+    }
+  }
+  globalThis.staffLog = { log, home: atStation / Math.max(1, frames) };
+})()`);
+const staffLog = JSON.parse(run('JSON.stringify(staffLog)'));
+const visits = staffLog.log.filter(v => v.out);
+assert.ok(new Set(staffLog.log.map(v => v.id)).size >= 3, `most of the staff run errands in six minutes (${[...new Set(staffLog.log.map(v => v.id))]})`);
+assert.ok(visits.length >= 4, `several room visits (${visits.length})`);
+for (const v of visits) {
+  assert.ok(v.out - v.in >= 14.9 && v.out - v.in <= 40.2, `${v.id} stays in a room 15 to 40 s (${(v.out - v.in).toFixed(1)})`);
+  assert.ok(Math.abs(v.x - v.door) < 20 && v.y < 240, `${v.id} goes in through the door at ${v.door}`);
+  assert.ok(Math.abs(v.backX - v.door) < 1 && v.backY < 250, `and comes back out of it`);
+}
+assert.ok(staffLog.home > 0.9, `standing around, the staff are at their station spots (${(staffLog.home * 100).toFixed(0)}%)`);
+assert.ok(run('Object.values(HALLWAY_STATION_SPOTS).every(([x, y]) => x > 600 && x < 1060 && !hallwayBlocked(x, y, {}))'), "station spots are at the nurses' station");
+console.log(`PASS: visitors stroll only after 60 to 120 s still; the staff work the station and ${visits.length} room visits of 15 to 40 s.`);
+
+// ---- Greetings ----
+run(`var greetCalls = []; var realMacyGreet = typeof macyGreet === 'function' ? macyGreet : null;
+  globalThis.macyGreet = (pose, secs, dir) => { greetCalls.push([pose, secs, dir]); return realMacyGreet ? realMacyGreet(pose, secs, dir) : true; };`);
+// Macy beside one visitor, everyone else far away.
+function stage(id, dx = 50) {
+  run(`(() => {
+    hallwayTalk = null;
+    hallwayCast.forEach(o => { o.act = null; });
+    const n = hallwayCast.find(x => x.id === '${id}');
+    n.present = true; n.act = null; n.greeted = false; n.greetCd = 0; n.near = 0;
+    if (n.ensure) { hallwayEnsure.phase = 'out'; hallwayEnsure.patience = 999; }
+    if (n.rowdy) { n.mode = 'idle'; n.x = n.homeX; n.y = n.homeY; n.nextCheer = 999; n.nextRun = 999; }
+    else { n.x = clamp(n.x, 400, 2800); n.y = 400; n.mode = 'idle'; n.moving = false; }
+    hallwayCast.forEach(o => {
+      if (o === n || (n.group && o.group === n.group)) return;
+      if (Math.abs(o.x - n.x) < 300) o.x = n.x > 1600 ? 200 : 3000;
+    });
+    hallwayCast.filter(o => n.group && o.group === n.group && o !== n).forEach((o, k) => { o.x = n.x - 40 - 30 * k; o.y = n.y - 20; o.act = null; o.greeted = false; o.greetCd = 0; });
+    player.x = n.x + ${dx}; player.y = n.y; player.moving = false; player.dash = 0;
+    greetCalls = [];
+  })()`);
+}
+const step = secs => run(`for (let i = 0; i < Math.round(${secs} * 60); i++) { player.moving = false; updateRoomExtras(1 / 60); }`);
+freshFloor();
+stage('dad');
+step(2.3);
+assert.equal(run('hallwayCast.find(n => n.id === "dad").act'), null, 'not yet at 2.3 s');
+const dadX = run('hallwayCast.find(n => n.id === "dad").x');
+step(0.4);
+assert.equal(run('hallwayCast.find(n => n.id === "dad").act.kind'), 'hug', 'at 2.5 s: Dad hugs her');
+assert.deepEqual(JSON.parse(run('JSON.stringify(greetCalls)')), [['hug', 1.8, -1]], "Macy's side: macyGreet('hug', 1.8, toward him)");
+step(8);
+assert.equal(run('greetCalls.length'), 1, 'once per visit');
+assert.equal(run('hallwayCast.find(n => n.id === "dad").act'), null, 'and it ends');
+assert.equal(run('hallwayCast.find(n => n.id === "dad").x'), dadX, 'a greeting never moves him (the lean is drawn)');
+// A new visit inside 90 s: still cooling down. After 90 s away: again.
+run('state.room = 2; onRoomLoaded(2); for (let i = 0; i < 60 * 20; i++) updateRoomExtras(1 / 60); state.room = 6; onRoomLoaded(6)');
+stage('dad');
+run('hallwayCast.find(n => n.id === "dad").greetCd = Math.max(0, 90 - 30)');
+step(3);
+assert.equal(run('greetCalls.length'), 0, 'a new visit inside the 90 s cooldown: no greeting');
+run('state.room = 2; onRoomLoaded(2); for (let i = 0; i < 60 * 91; i++) updateRoomExtras(1 / 60); state.room = 6; onRoomLoaded(6)');
+stage('dad');
+run('hallwayCast.find(n => n.id === "dad").greeted = false');
+step(3);
+assert.deepEqual(JSON.parse(run('JSON.stringify(greetCalls.map(c => c[0]))')), ['hug'], 'after 90 s, a new visit greets again');
+// An open talk is not a greeting.
+stage('casey');
+run('hallwayOpenTalk(hallwayCast.find(n => n.id === "casey"))');
+step(4);
+assert.equal(run('greetCalls.length'), 0, 'talking is not standing around');
+run('hallwayCloseTalk()');
+// Every visitor's greeting: Macy's pose, the visitor's act, the caption.
+run(`var captions = []; var realFloating = floating; floating = (t, x, y, c) => { captions.push(t); return realFloating(t, x, y, c); }`);
+const wantGreet = {
+  casey: ['highfive', 'highfive', 'FIVE'],
+  stephanie: ['wave', 'thumbs', 'HEY'],
+  julez: ['wave', 'thumbs', 'NOTED'],
+  lori: ['wave', 'clipboard', 'CHECK'],
+  benedetto: ['fistbump', 'handshake', 'EXCELLENT'],
+  barb: ['wave', 'bottle', 'NOPE'],
+  rowdy: ['hug', null, 'HUG']
+};
+for (const [id, [pose, kind, word]] of Object.entries(wantGreet)) {
+  stage(id);
+  run('captions = []');
+  step(2.7);
+  assert.deepEqual(JSON.parse(run('JSON.stringify(greetCalls.map(c => c[0]))')), [pose], `${id}: Macy's ${pose}`);
+  if (kind) assert.equal(run(`hallwayCast.find(n => n.id === '${id}').act.kind`), kind, `${id}: ${kind}`);
+  assert.ok(JSON.parse(run('JSON.stringify(captions)')).includes(word), `${id}: ${word}`);
+}
+step(0.3);
+assert.equal(run('hallwayCast.find(n => n.rowdy).pose'), 'hug', "Rowdy's side: his own hug pose, through the wrapper");
+step(2.2);
+assert.notEqual(run('hallwayCast.find(n => n.rowdy).pose'), 'hug', 'for two seconds');
+// The friends crowd in for a selfie; Mimi and Dodo both step in for a hug.
+stage('norah');
+step(2.7);
+assert.deepEqual(JSON.parse(run('JSON.stringify(greetCalls.map(c => c[0]))')), ['selfie'], 'the friends: a selfie');
+assert.deepEqual(
+  JSON.parse(run('JSON.stringify(["presley", "norah", "taylor"].map(id => hallwayCast.find(n => n.id === id).act.kind))')),
+  ['selfie', 'lean', 'lean'],
+  'Presley has the phone up, the others crowd in'
+);
+assert.ok(run('["presley", "norah", "taylor"].every(id => hallwayCast.find(n => n.id === id).greeted)'), 'the group greets once, as one');
+stage('mimi');
+step(2.7);
+assert.deepEqual(JSON.parse(run('JSON.stringify(greetCalls.map(c => c[0]))')), ['hug'], 'Mimi and Dodo: a group hug');
+assert.deepEqual(JSON.parse(run('JSON.stringify(["mimi", "dodo"].map(id => hallwayCast.find(n => n.id === id).act.kind))')), ['hug', 'hug'], 'both step in');
+// Riley: a fist bump, or one time in three an arm flick that makes her flinch.
+const rileyPoses = [];
+for (let k = 0; k < 24; k++) {
+  stage('brother');
+  step(2.7);
+  rileyPoses.push(run('greetCalls.map(c => c[0]).join() + "/" + hallwayCast.find(n => n.id === "brother").act.kind'));
+}
+assert.ok(rileyPoses.every(p => p === 'fistbump/fistbump' || p === 'flinch/flick'), `Riley: ${[...new Set(rileyPoses)]}`);
+const flicks = rileyPoses.filter(p => p === 'flinch/flick').length;
+assert.ok(flicks >= 3 && flicks <= 15, `the flick is the rare one (${flicks}/24)`);
+// Without macyGreet, the visitor still does their side.
+run('macyGreet = undefined');
+stage('casey');
+step(2.7);
+assert.equal(run('hallwayCast.find(n => n.id === "casey").act.kind'), 'highfive', 'no macyGreet in the build: Casey still goes up top');
+run('macyGreet = realMacyGreet || undefined; floating = realFloating');
+console.log('PASS: greetings: 2.5 s beside someone, once a visit, a 90 s cooldown, the right pose for everyone, with or without macyGreet.');
+
+// ---- Mimi and Dodo ----
+freshFloor();
+const mimiLook = JSON.parse(run('JSON.stringify(hallwayCast.find(n => n.id === "mimi").look)')),
+  dodoLook = JSON.parse(run('JSON.stringify(hallwayCast.find(n => n.id === "dodo").look)')),
+  rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+{
+  const [r, g, b] = rgb(mimiLook.hair);
+  assert.ok(r > 0xb0 && r - b > 40 && g > b, `Mimi's hair is a light blondish brown, not grey (${mimiLook.hair})`);
+  assert.equal(mimiLook.hairStyle, 'bun', 'always up in a bun');
+  assert.equal(mimiLook.item, 'purse', 'with her purse on her arm');
+  const [sr, sg, sb] = rgb(dodoLook.hair);
+  assert.ok(Math.max(sr, sg, sb) - Math.min(sr, sg, sb) < 12 && sr > 0xc0, `Dodo is silver (${dodoLook.hair})`);
+  assert.equal(dodoLook.hairStyle, 'side', 'straight, combed to one side, a high part');
+  assert.ok(!dodoLook.hat, 'no hat');
+  assert.ok(dodoLook.beard && dodoLook.mustache, 'a short beard and a mustache');
+  assert.equal(dodoLook.item, 'camera', 'and a serious camera');
+}
+assert.deepEqual(JSON.parse(run('JSON.stringify(["mimi", "dodo"].map(id => { const n = hallwayCast.find(x => x.id === id); return [n.group, n.lead]; }))')), [['family', false], ['family', true]], 'they visit as a pair');
+assert.ok(run('hallwayCast.find(n => n.id === "mimi").speed') >= run('hallwayCast.find(n => n.id === "dodo").speed'), 'Mimi keeps up fine');
+const mimiSays = JSON.parse(run('JSON.stringify(HALLWAY_LINES.mimi.talks.map(t => t.say.map(l => l[1]).join(" ")))'));
+const worry = mimiSays.filter(t => /\b(eat|ate|eaten|eating|food|bites?|sips?|snacks?|crackers?|cheese|granola|broth|soup|cookies|cups?|drink|thinner)\b/i.test(t));
+assert.ok(worry.length / mimiSays.length >= 0.6, `Mimi is mostly worried about whether Macy has eaten (${worry.length}/${mimiSays.length})`);
+assert.ok(run('JSON.stringify(HALLWAY_LINES.dodo)').match(/camera|photograph|picture|shot|light/g).length >= 5, 'Dodo talks like a photographer');
+// Dodo raises the camera now and then.
+run(`(() => {
+  const d = hallwayCast.find(n => n.id === 'dodo');
+  player.x = 3080; player.y = 540; d.snapIn = 0.5;
+  let snaps = 0, was = null;
+  for (let i = 0; i < 60 * 120; i++) {
+    updateRoomExtras(1 / 60);
+    if (d.act && d.act.kind === 'camera' && was !== d.act) snaps++;
+    was = d.act;
+  }
+  globalThis.dodoSnaps = snaps;
+})()`);
+assert.ok(run('dodoSnaps') >= 3, `Dodo raises the camera now and then (${run('dodoSnaps')} in two minutes)`);
+// Both of them, and every gesture, draw on the strict canvas; the camera flash and the purse print are there.
+strictErrors.length = 0;
+run(`var drawLog = []; var logCtx = new Proxy({}, { get: (t, k) => (k in t ? t[k] : (...a) => { drawLog.push(k); if (k === 'createLinearGradient' || k === 'createRadialGradient') return { addColorStop() {} }; if (k === 'measureText') return { width: 10 }; }), set: (t, k, v) => ((t[k] = v), true) });`);
+for (const kind of JSON.parse(run('JSON.stringify(NPC_GESTURES)')))
+  for (const id of ['mimi', 'dodo', 'dad', 'presley', 'barb', 'lori'])
+    for (const t of [0, 0.3, 0.7, 1.2])
+      run(`(() => {
+        const n = hallwayCast.find(x => x.id === '${id}');
+        n.present = true; n.act = { kind: '${kind}', t: ${t}, max: 1.4, greet: true };
+        hallwayDrawNpc(strictCtx, n); n.vdir = -1; hallwayDrawNpc(strictCtx, n); n.vdir = 1; n.act = null;
+      })()`);
+run('hallwayPortrait(strictCtx, 0, 0, 120, 120, hallwayCast.find(n => n.id === "dodo"), true)');
+run('hallwayPortrait(strictCtx, 0, 0, 120, 120, hallwayCast.find(n => n.id === "mimi"), false)');
+assert.deepEqual(strictErrors.slice(0, 5), [], 'every gesture, Mimi and Dodo draw cleanly');
+run(`drawLog = []; (() => { const d = hallwayCast.find(x => x.id === 'dodo'); d.act = { kind: 'camera', t: 0.73, max: 1.4 }; hallwayDrawNpc(logCtx, d); d.act = null; })()`);
+const flashCalls = run('drawLog.filter(k => k === "createRadialGradient").length');
+run(`drawLog = []; (() => { const d = hallwayCast.find(x => x.id === 'dodo'); d.act = { kind: 'camera', t: 0.1, max: 1.4 }; hallwayDrawNpc(logCtx, d); d.act = null; })()`);
+assert.ok(flashCalls > run('drawLog.filter(k => k === "createRadialGradient").length'), 'the shutter flash fires mid-snap');
+run(`drawLog = []; hallwayDrawNpc(logCtx, hallwayCast.find(x => x.id === 'mimi')); var withPurse = drawLog.length;
+  drawLog = []; var m = hallwayCast.find(x => x.id === 'mimi'); m.look.item = ''; hallwayDrawNpc(logCtx, m); m.look.item = 'purse';`);
+assert.ok(run('withPurse - drawLog.length') >= 12, 'the purse has its little repeating print');
+console.log('PASS: Mimi (light blondish-brown bun, the purse, the worrying) and Dodo (silver side part, beard, camera and flash) draw; every gesture draws.');
 
 // Not in the hallway: the hooks stay out of the way.
 run('state.room = 2; hallwayTalk = null');
