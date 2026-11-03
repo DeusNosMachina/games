@@ -1,81 +1,71 @@
-// Gurney Grand Prix controller: reads the next slice of traffic, picks the best safe lane
-// (stunts until the stunt quota is met, then coins), and times jumps, slides, slams, throws,
-// gunk dodges and curve counter-steers. Input actions only; it reads state and pure helpers.
+// Gurney Grand Prix controller, input only: one finger held on the canvas steers by where it sits
+// (raceSteerAt), BOOST and THROW go through miniAction. It reads the road and the traffic: for each
+// line across the road it adds up who it would meet there and how soon, picks the cheapest line,
+// steers for it with the curve's outward push fed forward, boosts on clear straights, and throws at
+// Ralph or at anything boxing it in.
 module.exports = {
   id: 3,
   policy: `
-const sp = mini.raceSpeedNow || 150;
-const lane = raceCartLane();
-const ev = [];
-for (const r of mini.rows)
-  for (const o of r.objects) {
-    if (o.done) continue;
-    const t = raceEta(r, o, sp);
-    if (t < -0.05) continue;
-    const lanes = o.kind === 'nurse'
-      ? [raceNurseLaneAt(o, Math.max(0, t - 0.15)), raceNurseLaneAt(o, t), raceNurseLaneAt(o, t + 0.12)]
-      : [o.lane];
-    ev.push({ o, r, t, lanes });
-  }
-const gunk = mini.raceGunk.filter(k => !k.done).map(k => ({ lane: k.lane, t: (RACE_LINE - k.y) / k.vy }));
-const c = mini.raceCurve;
-if (c && c.warn > 0) miniAction(c.dir > 0 ? 'right' : 'left');
-if (ev.length) {
-  const t0 = Math.min(...ev.map(e => e.t));
-  const slice = ev.filter(e => e.t <= t0 + 0.15);
-  const info = L => {
-    let hazard = false, stunt = 0, reward = 0;
-    for (const e of slice) {
-      if (!e.lanes.includes(L)) continue;
-      const k = e.o.kind;
-      if (k === 'coin') reward += 2;
-      else if (k === 'boost') reward += 3;
-      else if (k === 'ramp') stunt += 2;
-      else if (k === 'crate') { if (e.t < 0.1 && mini.jump < 25) hazard = true; else stunt += 1; }
-      else if (k === 'bar') { if (e.t < 0.1 && mini.jump > 0) hazard = true; else stunt += 1; }
-      else if (k === 'gremlin' || k === 'iv') {
-        if (e.o.hp <= 0) continue;
-        if (e.t > e.o.hp * 0.38 + (L === lane ? 0.2 : 0.35)) stunt += 1;
-        else hazard = true;
-      } else if (k === 'wall' || k === 'nurse') hazard = true;
+const C = activeCanvas(), top = mini.raceTop, z = mini.raceZ, x = mini.raceX, v = Math.max(1, mini.raceV);
+const pct = v / top, seg = raceSeg(z);
+const lines = [-0.88, -0.62, -0.31, 0, 0.31, 0.62, 0.88];
+const live = mini.raceCars.filter(c => !c.out && !c.knocked && c.z - z > -2 && c.z - z < 120);
+// Where a car will be in t seconds, and how soon we reach it.
+const xAt = (c, t) => {
+  let tx = c.tx !== undefined ? c.tx : RACE_LANES[c.blink > 0 ? c.nextLane : c.lane];
+  if (c.kind === 'ralph' && c.blocking) tx = x;
+  const lat = c.kind === 'ralph' ? 0.8 : c.racer ? 1 : 0.55;
+  return c.x + Math.max(-lat * t, Math.min(lat * t, tx - c.x));
+};
+const meet = c => {
+  const dz = c.z - z, close = v - c.v;
+  if (dz < RACE_LEN + 0.4) return 0;
+  return close > 0.3 ? (dz - RACE_LEN) / close : Infinity;
+};
+const cost = L => {
+  let k = Math.abs(L - x) * 2 + Math.abs(L) * 0.6 + (Math.abs(L) > 0.8 ? 3 : 0);
+  const travel = Math.abs(L - x) / (RACE_STEER * 0.95);
+  for (const c of live) {
+    const t = meet(c);
+    if (t > 3.2) continue;
+    const room = c.w + RACE_PW + 0.1;
+    // On the way over: anything we pass while still crossing.
+    if (t < travel + 0.15) {
+      const f = t / Math.max(travel, 0.01), xm = x + (L - x) * Math.min(1, f);
+      if (Math.abs(xAt(c, t) - xm) < room) k += 400 / (t + 0.2);
     }
-    for (const g of gunk) if (g.lane === L && (g.t < 0.45 || Math.abs(g.t - t0) < 0.35)) hazard = true;
-    return { hazard, stunt, reward };
-  };
-  const wantStunts = mini.stunts < mini.stuntGoal;
-  let best = mini.lane, bestScore = -1e9;
-  for (const L of [0, 1, 2]) {
-    const i = info(L);
-    if (i.hazard) continue;
-    let score = wantStunts ? i.stunt * 10 + i.reward : i.reward * 10 + i.stunt * 3;
-    score -= Math.abs(L - mini.lane) * 0.5;
-    if (Math.abs(L - lane) === 2 && t0 < 0.25) score -= 50;
-    if (score > bestScore) { bestScore = score; best = L; }
+    if (Math.abs(xAt(c, t) - L) < room || Math.abs(xAt(c, t + 0.25) - L) < room) k += 160 / (t + 0.25);
   }
-  // Gunk about to land in our lane: sidestep to a neighbour that is clear when it lands.
-  const threat = gunk.find(g => g.lane === mini.lane && g.t < 0.45);
-  const live = e => !['coin', 'boost', 'ramp'].includes(e.o.kind) && !(['gremlin', 'iv'].includes(e.o.kind) && e.o.hp <= 0);
-  if (threat) {
-    const busy = L => ev.some(e => live(e) && e.lanes.includes(L) && e.t > -0.05 && e.t < threat.t + 0.3);
-    const side = [mini.lane - 1, mini.lane + 1].find(L => L >= 0 && L <= 2 && !busy(L));
-    if (side !== undefined) miniAction(side < mini.lane ? 'left' : 'right');
-  } else if (best !== mini.lane) {
-    // Never step into (or through) a lane where gunk is about to land.
-    const next = mini.lane + Math.sign(best - mini.lane);
-    if (!gunk.some(g => g.lane === next && g.t < 0.5)) miniAction(best > mini.lane ? 'right' : 'left');
+  return k;
+};
+let best = x, bestK = Infinity;
+for (const L of lines.concat([x])) {
+  const k = cost(L);
+  if (k < bestK) { bestK = k; best = L; }
+}
+// Ralph, or a wall of traffic close ahead: throw.
+const ralph = live.find(c => c.kind === 'ralph' && c.blocking && c.z - z < 26 && c.z - z > 3);
+const ralphAhead = mini.raceRivals.some(c => c.kind === 'ralph' && c.z > z);
+if (mini.raceBalls > 0 && !mini.raceShots.length) {
+  if (ralph && Math.abs(ralph.x - x) < 0.5) miniAction('throw');
+  else if (bestK > 120 && mini.raceBalls > (ralphAhead ? 1 : 0)) {
+    const t = live.filter(c => Math.abs(c.x - x) < 0.5 && c.z - z > 4 && c.z - z < 40).sort((a, b) => a.z - b.z)[0];
+    if (t) miniAction('throw');
   }
-  for (const e of slice) {
-    if (!e.lanes.includes(lane) || mini.lane !== lane) continue;
-    const k = e.o.kind;
-    if (k === 'crate' && e.t <= 0.4 && e.t > 0.08 && mini.jump === 0) miniAction('jump');
-    if (k === 'bar' && e.t <= 0.3 && (mini.jump > 0 || mini.slide < e.t + 0.05)) miniAction('slide');
-  }
-  const block = ev
-    .filter(e => e.lanes.includes(lane) && ['gremlin', 'iv', 'wall', 'nurse'].includes(e.o.kind))
-    .filter(e => !(['gremlin', 'iv'].includes(e.o.kind) && e.o.hp <= 0))
-    .sort((a, b) => a.t - b.t)[0];
-  if (block && ['gremlin', 'iv'].includes(block.o.kind) && block.t > 0.1 && block.r.y + (block.o.dy || 0) > 40)
-    miniAction('throw');
+}
+// Steer: close the gap fast and cancel the curve's push.
+const push = seg.curve * RACE_CENT * Math.min(1.44, pct * pct);
+const vxWant = Math.max(-RACE_STEER, Math.min(RACE_STEER, (best - x) * 6)) + push;
+const s = Math.max(-1, Math.min(1, vxWant / (RACE_STEER * (0.3 + 0.7 * Math.min(1, pct)))));
+const px = C.w / 2 + (Math.abs(s) < 0.02 ? 0 : (Math.sign(s) * (Math.abs(s) >= 1 ? 0.6 : Math.max(0.035, Math.abs(s) / 2.5))) * C.w / 2);
+if (!bot.down || !mini.pointer) { arcadeDown({ x: px, y: C.h * 0.9 }); bot.down = true; }
+else arcadeMove({ x: px, y: C.h * 0.9 });
+// Boost on a clear, gentle stretch; spend whatever is left on the last leg.
+if (mini.raceBoosts > 0 && mini.raceBoostT <= 0 && mini.raceSpin <= 0) {
+  let bend = 0;
+  for (let i = 0; i < 90; i++) bend = Math.max(bend, Math.abs(raceSeg(z + i).curve));
+  const clear = !live.some(c => c.z - z < 90 && Math.abs(c.x - best) < 0.55 && c.v < v * 1.3);
+  if (clear && (bend < 2.6 || (raceProgress() > 0.8 && bend < 4))) miniAction('boost');
 }
 `
 };
