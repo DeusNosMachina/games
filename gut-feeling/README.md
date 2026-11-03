@@ -31,6 +31,10 @@ Four departments have gremlins. Each has three waves, and the first wave of your
 
 Hitting a gremlin staggers it. Stuns come only from the third hit of a combo, the spin, a brick, a stomp or a trap, so mashing one button no longer works. Hit a gremlin twice in a row and it hops out of reach, angry.
 
+Three landed attacks in a row (each within four seconds, no whiff, no hit taken) charge a COMBO: a gold ring fills around the attack button and three pips show over Macy. The next attack with a gremlin in reach is a slam that hits everything within 150 px, knocks it back, stuns it for 0.9 s and cancels its wind-up. A slam pays five coins; the first one each room drops a nutrient, then every third.
+
+First clears are paced: waves 2 and 3 keep at most three gremlins up at once (four on Absolute Gutastrophe), the rest come out one at a time, and spit, charge and lob wind-ups run a quarter longer. Rematches have no cap and no longer tells.
+
 - **Nibblers** hunt in pairs, flank, crouch and lunge.
 - **Spitters** strafe, lead their shots, back off when you close in, and spread-shoot on wave 3. A pillow swing sends blobs back at them.
 - **Bruisers** charge. A charge into furniture or a wall leaves them dizzy, which is when you hit them. From the front they shrug off pillow pokes.
@@ -49,22 +53,22 @@ Jump over low attacks; swing in the air to stomp on landing. Dash through a grem
 
 ## Phone, tablet and desktop controls
 
-On phones and tablets the room is the controller ("Tap the room", the default). A joystick and a full button column are one switch away in the pause menu or the help, and the choice is saved.
+On phones and tablets the joystick scheme is the default: a joystick bottom left, a big smashable SWING / THROW / LOB button bottom right with JUMP beside it, DASH and the ability around them, EAT with its count above, and the weapon strip top right. In landscape the room fills the screen and the controls float over it; in portrait they sit under the room, and a phone held upright gets a one-time "turn your phone sideways" pill. "Tap the room" (the floor is the controller) is one switch away in the pause menu or the settings, and a chosen scheme is kept.
 
-| Action | Tap the room | Joystick scheme | Keyboard |
+| Action | Joystick scheme | Tap the room | Keyboard |
 | --- | --- | --- | --- |
-| Move | Tap the floor; drag to steer | Left joystick | WASD / arrows |
-| Attack | Tap a gremlin (hold to keep swinging) | SWING / THROW / LOB; hold to repeat, drag to aim | Space |
-| Jump | Two-finger tap, or JUMP | JUMP | Shift / J |
-| Dash | Flick | DASH | Q |
-| Ability | Long-press the floor, or the ability button | SPIN / SHIELD / TRAP | E |
-| Equip | Weapon strip | Weapon strip | 1 / 2 / 3, C for the next one |
+| Move | Left joystick | Tap the floor; drag to steer | WASD / arrows |
+| Attack | SWING / THROW / LOB; hold to repeat, drag to aim | Tap a gremlin (hold to keep swinging) | Space |
+| Jump | JUMP | Two-finger tap, or JUMP | Shift / J |
+| Dash | DASH | Flick | Q |
+| Ability | SPIN / SHIELD / TRAP | Long-press the floor, or the ability button | E |
+| Equip | Swipe sideways across SWING, or the weapon strip | Weapon strip | 1 / 2 / 3, C for the next one |
 | Nutrient | EAT (shows how many you carry) | EAT | F |
 | Map | Map button | Map button | M |
-| Nearby arcade | Tap the beacon, or the play button | Same | Enter |
+| Nearby arcade | Play button, or tap the beacon | Same | Enter |
 | Pause | Pause button | Pause button | Escape |
 
-Every touch button acts the moment your finger lands, so JUMP works with a thumb on the joystick. The buttons ride the right edge of the screen: the weapon strip at the top (the canvas flashes the new weapon when you switch), then EAT, the ability, DASH, JUMP and the big attack at the bottom. In portrait they sit under the room.
+Every touch button acts the moment your finger lands, so JUMP works with a thumb on the joystick. The attack button is 104 px on a phone and 128 on a tablet; a sideways swipe across it of 40 px within a third of a second changes weapons (the canvas flashes the new one), a slow or vertical drag aims.
 
 Fullscreen ("arcade mode") pins the game to the screen, and phones and tablets enter it when you press START. iPad Safari uses the real fullscreen API; iPhones use a CSS fallback because Safari has none for pages. Tablets get bigger buttons, and the lobby and results use the width.
 
@@ -88,7 +92,7 @@ Medals are bronze, silver and gold, worth 1, 2 and 3 discharge stars. Discharge 
 - **Gift shop:** eight permanent upgrades (grippy socks, pillow reach, longer shield, thick skin, pocket snacks, Ralph repellent, arcade pass, a lucky scrunchie for a sixth heart) and three wardrobe looks for Macy.
 - **Hall of Nonsense:** gremlins evicted, best chain, ward clears, lifetime coins, runs played, daily streak.
 
-Nutrients restore one heart. Zero hearts sends Macy to one IV phase; each time it is harder, until a medal elsewhere resets the count. Failing it is where the organs come out. All medical mechanics are fictional arcade jokes.
+Nutrients restore one heart and go in the pocket (three, or five with Pocket snacks). Every room has a snack cart (the lounge has its SNAX machine) that hands out one nutrient and restocks after a ward clear there or two minutes of ward time; a first clear of wave 1 or 2 drops one; every sixth eviction drops one; combo slams drop them too. Floor drops last 30 seconds and leave with you. Zero hearts sends Macy to one gentle IV phase; failing it is where the organs come out, and the nurses patch her up for a few coins either way. All medical mechanics are fictional arcade jokes.
 
 ## Her room, and the rest of the hospital
 
