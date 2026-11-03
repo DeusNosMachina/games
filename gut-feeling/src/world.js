@@ -301,6 +301,9 @@ function clearHeld() {
   keys.clear();
   joy.x = joy.y = 0;
   heldAttack = false;
+  // Nothing holds the bubble up through a pause or a dialog.
+  player.shieldHeld = false;
+  shieldPointer = null;
   mini.held = false;
   mini.fireHeld = false;
   joyPointer = null;
@@ -320,20 +323,24 @@ function isModal() {
 function roomToast(id) {
   if (!isArcadeRoom(id)) return rooms[id].toast || 'Hallway. Be nice to the nurses. They know where the pudding is.';
   if (id === 0 && state.ralphReady && !state.ralph) return 'Ralph is in your room. He is not here to visit.';
-  if (id === 5) return 'After hours. Bedside Blaster is up. Ralph brought friends.';
-  if (id === 0) return 'Home base. Snack cart by the door. Fastpitch Fever from the bed.';
+  if (id === 5) return 'Lights out. Bedside Blaster is up. The switch by the bed brings the day back.';
+  if (id === 0) return 'Home base. Fastpitch Fever from the bed. The light switch by the bed means Bedside Blaster.';
   return arcadeBlocked(id)
     ? 'Three waves stand between you and this arcade. Make them regret it.'
     : 'Grab supplies, then find the glowing arcade beacon.';
 }
 
-function loadRoom(id) {
+// at: where Macy stands once the room is loaded (the light switch leaves her where she is, with no iris).
+// Without it she starts in the middle of the room.
+function loadRoom(id, at = null) {
   hitStop = 0;
   state.room = id;
-  player.x = 505;
-  player.y = 470;
-  player.inv = 1.5;
+  player.x = at ? at.x : 505;
+  player.y = at ? at.y : 470;
+  player.inv = at ? player.inv : 1.5;
   player.shield = 0;
+  player.shieldHeld = false;
+  player.vx = player.vy = 0;
   player.vomit = 0;
   projectiles = [];
   particles = [];
@@ -371,7 +378,7 @@ function loadRoom(id) {
   renderMap();
   if ($('mapDialog').open && typeof hospitalMapInvalidate === 'function') hospitalMapInvalidate();
   if (state.started) {
-    wardIris = reduced ? 0 : ROOM_IRIS_SECONDS;
+    wardIris = reduced || at ? 0 : ROOM_IRIS_SECONDS;
     // Combat may announce its own wave or boss on entry; the room line only fills silence.
     // Rooms without an arcade (the hallway) do their own greeting.
     if (toastSerial === toastsBefore && !rooms[id].noArcade) toast(roomToast(id), 3);
@@ -395,7 +402,7 @@ function begin() {
   // First steps on a touch screen: the room is the controller, or the joystick and the big buttons.
   if (wardCoarsePointer && tapScheme())
     toast('Tap to walk. Tap a gremlin to bonk it. Flick to dash. Two fingers: jump.', 4.5);
-  else if (wardCoarsePointer) toast('Left thumb walks. Smash SWING. Swipe it sideways for the next weapon.', 4.5);
+  else if (wardCoarsePointer) toast('Left thumb walks. Smash SWING. Hold SHIELD, lob a BRICK, set a TRAP.', 4.5);
   turnHintCheck();
   canvas.focus({ preventScroll: true });
   sfx('ui');
@@ -490,9 +497,19 @@ const MACY_IDLE_MIN = 4,
     'The only E-Type that fits on a nightstand.',
     'Built one brick at a time. Like a comeback.'
   ],
-  // zone: where Macy stands to use it; tap: what a finger or a click can hit; tip: the prompt.
+  // zone: where Macy stands to use it; tap: what a finger or a click can hit; tip: the prompt; verb: its
+  // word, or a function for a spot whose word changes (the light switch).
   ROOM_SPOTS = {
     0: [
+      {
+        // Macy stands in the gap between the bed and the nightstand, under the switch.
+        id: 'switch',
+        zone: [234, 196, 40, 100],
+        at: [255, 250],
+        tip: [LIGHT_SWITCH.x, LIGHT_SWITCH.y + 33],
+        verb: () => (state.room === 5 ? 'LIGHTS ON' : 'LIGHTS OUT'),
+        tap: [LIGHT_SWITCH.x - 18, LIGHT_SWITCH.y - 22, 36, 46]
+      },
       { id: 'wall', zone: [40, 170, 200, 165], at: [160, 296], tip: [167, 140], verb: 'READ', tap: [86, 66, 162, 62] },
       { id: 'etype', zone: [240, 170, 130, 150], at: [307, 282], tip: [307, 130], verb: 'ADMIRE', tap: [266, 138, 82, 36] },
       { id: 'tv', zone: [596, 170, 228, 125], at: [705, 236], tip: [705, 142], verb: 'CHANNEL', tap: [620, 24, 170, 100] }
@@ -806,6 +823,7 @@ function roomFloat(lines, x, y, col, life) {
 function roomSpotUse(s) {
   macyWake();
   if (Math.abs(s.at[0] - player.x) > 8) player.dir = s.at[0] > player.x ? 1 : -1;
+  if (s.id === 'switch') return roomLights();
   if (s.id === 'tv') return tvChange();
   if (s.id === 'etype') {
     if (roomBark && roomBark.id === 'etype') roomBark = null;
@@ -844,14 +862,47 @@ function drawRoomSpotPrompt(g) {
   if (roomSpotsBlocked()) return;
   const s = roomSpotNear();
   if (!s) return;
-  const text = (wardCoarsePointer ? 'TAP' : 'SPACE') + ' · ' + s.verb,
+  const text = (wardCoarsePointer ? 'TAP' : 'SPACE') + ' · ' + (typeof s.verb === 'function' ? s.verb() : s.verb),
     w = text.length * 6.4 + 18,
     // The 3 AM subtitle sits under the screen; the prompt steps down out of its way.
     late = s.id === 'tv' && tvChannel() === 3 && tvLateHere(),
-    x = s.tip[0],
+    x = clamp(s.tip[0], w / 2 + 6, roomWidth() - w / 2 - 6),
     y = s.tip[1] + (late ? 24 : 0);
   rr(g, x - w / 2, y - 10, w, 20, 10, '#173847e6', '#ffe29b', 1.5);
   label(g, text, x, y + 4, 10, '#ffe29b', 'center');
+}
+
+// ---- The light switch ----
+// Her room with the lights on is room 0 (Fastpitch Fever); with them out it is room 5 (Bedside Blaster,
+// the night art). The switch on the wall by the bed flips between the two and leaves Macy standing where
+// she is. The gamebar's play button and the map follow the room. A quick fade sells the click.
+const ROOM_LIGHTS_FADE = 0.35;
+
+let roomLightsFade = 0,
+  roomLightsDark = false;
+
+function roomLights() {
+  const off = state.room !== 5;
+  loadRoom(off ? 5 : 0, { x: player.x, y: player.y });
+  roomLightsFade = reduced ? 0 : ROOM_LIGHTS_FADE;
+  roomLightsDark = off;
+  if (off) {
+    const stats = (state.stats ||= {});
+    stats.lightsOut = (Number(stats.lightsOut) || 0) + 1;
+    save();
+  }
+  toast(off ? 'Lights out. Bedside Blaster is up.' : 'Lights on. Fastpitch Fever is back.', 2.6);
+  sfx(off ? 'lock' : 'unlock', { vol: 0.7 });
+  return true;
+}
+
+// The flip: dark settling in, or daylight flooding back, over the whole view.
+function drawRoomLightsFade(vw, vh) {
+  if (roomLightsFade <= 0) return;
+  c.globalAlpha = (roomLightsFade / ROOM_LIGHTS_FADE) * (roomLightsDark ? 0.8 : 0.55);
+  rect(c, 0, 0, vw, vh, roomLightsDark ? '#050b16' : '#fff6dc');
+  c.globalAlpha = 1;
+  roomLightsFade = Math.max(0, roomLightsFade - renderDelta);
 }
 
 // A mouse click on a hotspot (touches arrive through roomAction('tap') in input.js).
@@ -985,7 +1036,10 @@ function roomWallLayer(g) {
   roomMotes(g, id);
   roomCurtains(g, id);
   roomNurse(g, id);
-  if (id === 0 || id === 5) roomWallCards(g, id === 5);
+  if (id === 0 || id === 5) {
+    roomWallCards(g, id === 5);
+    lightSwitchArt(g, LIGHT_SWITCH.x, LIGHT_SWITCH.y, id === 5, time);
+  }
   roomCultWall(g, id);
   tvDraw(g, id);
 }
@@ -1589,64 +1643,10 @@ function titleEyes(g, x, y, ww, t) {
   }
 }
 
-// ---- Weapon changes ----
-// equip() (combat.js) swaps the buttons. This notices any change (strip, keys, sidebar), slides the
-// strip highlight and flashes the weapon over Macy for a second, so a swap is never a surprise.
-const WEAPON_FLASH_SECONDS = 1,
-  WEAPON_ICON_PATHS = {
-    pillow: 'm4 3 3 2h10l3-2 1 3-2 3v7l2 4-4-1H7l-4 2 1-5V8L2 4zM8 8h8m-9 7h9',
-    bag: 'M7 3h10l-1 5 3 13H5L8 8zM7 6h10m-7 8h4m-2-2v4',
-    brick: 'm3 10 9-5 9 5v8l-9 5-9-5zM3 10l9 5 9-5m-9 5v8M7 7V4l3-2 3 2v3m0-1V3l3-2 3 2v5'
-  };
-
-let wardWeaponSeen = state.item,
-  wardWeaponFlash = 0;
-
-// Returns true when the weapon changed since the last call.
-function wardWeaponSync() {
-  if (state.item === wardWeaponSeen) return false;
-  wardWeaponSeen = state.item;
-  wardWeaponFlash = WEAPON_FLASH_SECONDS;
-  const strip = $('weaponStrip');
-  strip.dataset.active = String(state.item);
-  // Alternating names restart the CSS pop on every change.
-  strip.dataset.pop = strip.dataset.pop === 'a' ? 'b' : 'a';
-  sfx('select');
-  return true;
-}
-
-function drawWeaponFlash(vw, vh) {
-  if (wardWeaponFlash <= 0) return;
-  const w = weapons[state.item],
-    text = w.name.toUpperCase() + ' · ' + w.verb,
-    boxW = 74 + text.length * 11.5,
-    age = WEAPON_FLASH_SECONDS - wardWeaponFlash,
-    fade = Math.min(1, wardWeaponFlash / 0.3),
-    pop = reduced ? 1 : 1 + Math.max(0, 0.16 - age) * 1.6,
-    x = clamp(player.x - cameraX, boxW / 2 + 8, vw - boxW / 2 - 8),
-    y = clamp(player.y - wardCameraY - player.z - 150 * MACY_TALL, 70, vh - 40);
-  wardWeaponFlash = Math.max(0, wardWeaponFlash - renderDelta);
-  c.save();
-  c.globalAlpha = fade;
-  c.translate(x, y);
-  c.scale(pop, pop);
-  rr(c, -boxW / 2, -25, boxW, 50, 25, '#173847ee', '#ffe29b', 2.5);
-  c.save();
-  c.translate(-boxW / 2 + 16, -16);
-  c.scale(1.35, 1.35);
-  c.strokeStyle = '#ffe29b';
-  c.lineWidth = 1.9;
-  c.lineCap = 'round';
-  c.lineJoin = 'round';
-  c.stroke(new Path2D(WEAPON_ICON_PATHS[w.icon]));
-  c.restore();
-  label(c, text, 22, 7, 20, '#ffe29b', 'center');
-  c.restore();
-}
-
 // ---- Tap the room ----
 // On touch screens the floor is the controller: tap to walk there, tap a gremlin to go and hit it (hold
-// to keep swinging), flick to dash, tap with two fingers to jump, long-press the floor for the ability.
+// to keep swinging), flick to dash, tap with two fingers to jump, long-press the floor to hold the
+// barf-bag shield up until the finger lifts. TRAP, SHIELD, BRICK, JUMP and EAT stay on screen as buttons.
 // state.controls === 'stick' swaps this for the joystick and the full button column. Mice never use it.
 const TAP_ARRIVE = 12,
   TAP_SLOP = 12,
@@ -1672,12 +1672,15 @@ function tapScheme() {
 }
 
 function wardTouchReset() {
+  // A finger holding the shield up lets go of it with everything else.
+  for (const f of wardTouches.values()) if (f.shield) shieldHold(false);
   wardTouches.clear();
   wardGoal = null;
   wardPrey = null;
 }
 
-// The live gremlin nearest a tap, within TAP_GREMLIN_RADIUS of its feet or its body.
+// The live gremlin nearest a tap, within TAP_GREMLIN_RADIUS of its feet or its body. In the lounge a tap
+// on the TV remote counts too: Macy goes over and whacks it.
 function wardGremlinAt(p) {
   let best = null,
     bestD = Infinity;
@@ -1688,7 +1691,7 @@ function wardGremlinAt(p) {
       bestD = d;
     }
   }
-  return best;
+  return best || wardTvTargetAt(p);
 }
 
 function wardSetGoal(p) {
@@ -1752,6 +1755,7 @@ function wardTouchUp(id, cx, cy, cancel = false) {
   if (!f) return;
   wardTouches.delete(id);
   if (f.kind === 'prey' && wardPrey) wardPrey.held = false;
+  if (f.shield) shieldHold(false);
   if (cancel || f.kind === 'jump' || f.long) return;
   const dx = cx - f.x0,
     dy = cy - f.y0,
@@ -1769,18 +1773,17 @@ function wardTouchUp(id, cx, cy, cancel = false) {
 }
 
 function wardAimAt(e, d) {
-  // The brick lands where it is aimed, so its aim length sets the distance (attack() reads it as power).
-  const k = state.item === 2 ? clamp(d / 230, 0.65, 1.35) : 1;
-  wardAim = { dx: ((e.x - player.x) / d) * 65 * k, dy: ((e.y - player.y) / d) * 65 * k };
+  wardAim = { dx: ((e.x - player.x) / d) * 65, dy: ((e.y - player.y) / d) * 65 };
 }
 
 // One simulation step of the tap scheme. Returns the steering vector for this step.
 function wardTouchStep(dt) {
+  // A still finger on the floor for LONG_PRESS_SECONDS raises the shield (or uses a hotspot) and holds it.
   for (const f of wardTouches.values())
     if (f.kind === 'walk' && !f.moved && !f.long && wardTouches.size === 1 && time - f.t0 >= LONG_PRESS_SECONDS) {
       f.long = true;
       wardGoal = null;
-      if (!roomAction('use')) useItem();
+      if (!roomAction('use')) f.shield = shieldHold(true);
     }
   if (wardPrey) {
     const prey = wardPrey,
@@ -1788,8 +1791,9 @@ function wardTouchStep(dt) {
     prey.idle += dt;
     if (e.hp <= 0 || e.gone || (!prey.held && (prey.swings > 0 || prey.idle > TAP_PREY_GIVE_UP))) wardPrey = null;
     else {
+      // A twist target (the lounge remote) wants her right at the couch, not at arm's length.
       const d = Math.max(1, dist(player, e)),
-        range = state.item === 0 ? 86 : 300;
+        range = e.twist ? 40 : 86;
       if (d <= range) {
         const ready = player.attackCd <= 0;
         // The first swing of a tap is a press (the combo counts it); a held finger's repeats are not.
@@ -1887,7 +1891,6 @@ function updateWorld(dt) {
     'shield',
     'attack',
     'attackCd',
-    'itemCd',
     'dash',
     'dashCd',
     'vomit',
@@ -1939,7 +1942,18 @@ function updateWorld(dt) {
     dy = player.lastDy;
     speed = 530;
   }
-  moveEntity(player, dx * speed * dt, dy * speed * dt);
+  // Her footing follows the stick at once, except on slippery floor (the ultrasound gel), where it only
+  // catches up at the floor's grip per second: she slides past where she meant to stop. A dash always bites.
+  const grip = player.dash > 0 ? 0 : wardGrip(player);
+  if (grip > 0) {
+    const k = 1 - Math.exp(-dt * grip);
+    player.vx += (dx * speed - player.vx) * k;
+    player.vy += (dy * speed - player.vy) * k;
+  } else {
+    player.vx = dx * speed;
+    player.vy = dy * speed;
+  }
+  moveEntity(player, player.vx * dt, player.vy * dt);
   if (keys.has(' ') || heldAttack) attack();
   updateCombat(dt);
   if (typeof updateRoomExtras === 'function') updateRoomExtras(dt);
@@ -1973,7 +1987,6 @@ function updateWorld(dt) {
   roomOpinionsTick(dt);
   turnHintTick();
   $('dashBtn').style.opacity = player.dashCd > 0 ? '.45' : '1';
-  $('useBtn').style.opacity = state.item && player.itemCd > 0 ? '.45' : '1';
 }
 
 function updateEffects(dt) {
@@ -2057,15 +2070,19 @@ function drawWorld() {
   renderables.push(...roomCultRenderables());
   const snack = snackRenderable();
   if (snack) renderables.push(snack);
+  // Combat's floor pieces: bricks to find, the MRI's bedpans, the CT donut, the lounge remote.
+  renderables.push(...wardRenderables());
   if (typeof roomExtraRenderables === 'function') renderables.push(...(roomExtraRenderables() || []));
   renderables.push({
     y: player.y,
     draw: g => {
       if (player.z > 0) shadow(g, player.x, player.y, 22, 6);
       if (player.shield > 0) {
+        // The bubble thins out as its meter runs down.
+        const left = clamp((player.shieldMeter || 0) / wardShieldCap(), 0, 1);
         ellipse(g, player.x, player.y - 37 * MACY_TALL, 43 * MACY_TALL, 56 * MACY_TALL, '#ace8b047');
-        g.strokeStyle = '#c1f2cc';
-        g.lineWidth = 3;
+        g.strokeStyle = left < 0.3 && !reduced && Math.sin(time * 30) > 0 ? '#ffffff' : '#c1f2cc';
+        g.lineWidth = 1.5 + 3 * left;
         g.beginPath();
         g.ellipse(player.x, player.y - 37 * MACY_TALL, 43 * MACY_TALL, 56 * MACY_TALL, 0, 0, Math.PI * 2);
         g.stroke();
@@ -2113,9 +2130,6 @@ function drawWorld() {
       c.rotate(p.age * 9);
       brick(c, -14, 5, '#ed9d87');
       c.restore();
-    } else if (p.kind === 'bag') {
-      rr(c, p.x - 10, p.y - 12, 20, 24, 5, '#f8d9a1', '#9d8578', 1);
-      label(c, '!', p.x, p.y + 5, 16, '#729a68', 'center');
     } else {
       ellipse(c, p.x - p.vx * 0.035, p.y - p.vy * 0.035, 12, 6, p.friendly ? '#ffe7a488' : '#b2c65f88');
       ellipse(c, p.x, p.y, 9, 8, p.friendly ? '#ffe394' : '#b9d56b');
@@ -2141,8 +2155,9 @@ function drawWorld() {
     }
   }
   c.globalAlpha = 1;
-  drawRoomSpotPrompt(c);
+  // The machines' bubbles first, so a hotspot's prompt is never hidden under one.
   drawRoomOpinions(c);
+  drawRoomSpotPrompt(c);
   if (typeof drawCombatFx === 'function') drawCombatFx(c);
   drawWardTaps(c);
   rect(c, 0, 603, roomWidth(), 22, '#244856');
@@ -2150,8 +2165,7 @@ function drawWorld() {
   c.restore();
   if (typeof drawRoomOverlay === 'function') drawRoomOverlay(c, vw, vh);
   if (typeof drawCombatOverlay === 'function') drawCombatOverlay(c, vw);
-  wardWeaponSync();
-  drawWeaponFlash(vw, vh);
+  drawRoomLightsFade(vw, vh);
   if (state.paused) rect(c, 0, 0, vw, vh, '#102734aa');
   if (wardIris > 0) drawRoomIris(vw, vh);
   const dreaming = typeof dreamActive === 'function' && dreamActive();

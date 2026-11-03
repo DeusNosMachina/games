@@ -26,7 +26,6 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 .mini-head{position:sticky;top:0;z-index:6;background:#1b3646}
 /* v0.5: gestures need a real playfield and controls that stay within reach. */
 .ward-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 14px;background:#244550;color:#d8e9d1;font:700 10px/1.4 var(--mono)}
-.weapon-readout{padding:8px 14px 0;background:#203740;color:#e6d49d;font:10px/1.5 var(--mono)}
 .ward-strip .smallbtn{min-height:36px;font-size:10px}
 .mini-dialog[data-arcade=gesture]{width:min(1040px,97vw)}
 .mini-dialog[data-arcade=gesture] #miniPlay{display:grid;grid-template-columns:minmax(300px,1fr) 250px;column-gap:20px;align-content:start;min-height:0}
@@ -40,7 +39,7 @@ body{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"S
 .mini-dialog[data-arcade=gesture] .mini-briefing{grid-column:1/3;z-index:5}.control-demo.aim b{transform:translate(20px,-15px) rotate(-30deg)}.control-demo.slice b{width:70%;height:5px;transform:rotate(-18deg);background:#b8e7d1}.control-demo.magnet b{border:6px solid #b8e7d1;border-top:0;background:transparent;border-radius:0 0 30px 30px}
 @media(max-width:700px){
  .mini-dialog[data-arcade=gesture] #miniPlay{display:flex;flex-direction:column;gap:0}.mini-dialog[data-arcade=gesture] .mini-rulebar{order:0;padding:8px 10px;display:block}.mini-dialog[data-arcade=gesture] .mini-rulebar strong{font-size:11px}.mini-dialog[data-arcade=gesture] .mini-rulebar span{font-size:10px;line-height:1.5;margin:5px 0 0}.mini-dialog[data-arcade=gesture] .mini-hud{order:1;flex-wrap:nowrap;margin:8px 0 5px}.mini-dialog[data-arcade=gesture] .mini-hud>div,.mini-dialog[data-arcade=gesture] .mini-hud>div:first-child{min-width:0;flex:1;flex-basis:0;font-size:11px;padding:7px}.mini-dialog[data-arcade=gesture] .mini-tactics{order:2;padding:3px 0 7px;font-size:9px}.mini-dialog[data-arcade=gesture] .mini-stage{order:3;width:min(100%,calc(97dvh - 340px));min-width:min(100%,290px)}.mini-dialog[data-arcade=gesture] .mini-instruction{order:4;font-size:10px;line-height:1.5;margin:8px 0}.mini-dialog[data-arcade=gesture] .mini-controls{order:5;flex-wrap:wrap;gap:7px}.mini-dialog[data-arcade=gesture] .mini-controls button{min-height:46px;min-width:70px;font-size:10px;flex:1;padding:9px}.mini-dialog[data-arcade=gesture] .mini-controls .assist{flex-basis:auto}.mini-dialog[data-arcade=gesture] .mini-briefing{order:6}.mini-dialog[data-arcade=gesture] #miniControls[data-game="3"] button{flex-basis:27%}
- .weapon-readout{font-size:9px;padding-top:8px}.ward-strip{font-size:9px}.key-guide{flex-wrap:wrap}.controlbar{padding:10px 12px}.mini-head h2{font-size:18px}
+ .ward-strip{font-size:9px}.key-guide{flex-wrap:wrap}.controlbar{padding:10px 12px}.mini-head h2{font-size:18px}
 }
 @media(prefers-reduced-motion:reduce){.control-demo *{animation:none!important}}
 
@@ -549,24 +548,22 @@ body.returning .game-layout {
   background: var(--mint);
 }
 
-/* ---- Touch controls (v0.8) ----
-   A joystick for the left thumb and a cluster for the right: the big attack button in the corner (hold it
-   to keep swinging, drag it to aim, swipe it sideways for the next weapon), JUMP beside it, DASH and the
-   ability around it, EAT above them, and the weapon strip on its own (top right in landscape, over the
-   joystick in portrait). One geometry for every screen: the buttons sit at fixed offsets from the
-   bottom-right corner of .touch-controls, all sized from --atk. The --edge-* tokens are the margins to
-   the screen edges (safe areas included in landscape). Tap-the-room (body.tap-controls) hides the
-   joystick, DASH and the attack, and lines JUMP, the ability and EAT up along the bottom instead. */
+/* ---- Touch controls (v0.9) ----
+   A joystick for the left thumb and, for the right, one button per action in rings around the big SWING
+   button in the corner (hold it to keep swinging, drag it to aim): JUMP beside it, DASH and SHIELD (hold)
+   in the first ring, BRICK and TRAP in the second with a badge saying how many are left, EAT on top. The
+   right thumb pivots on the corner, so the busiest buttons sit closest to it. One geometry for every
+   screen: each button sits at a fixed offset from the bottom-right corner of .touch-controls, all sized
+   from --atk. The --edge-* tokens are the margins to the screen edges (safe areas included in landscape).
+   Tap-the-room (body.tap-controls) hides the joystick, DASH and SWING, and packs JUMP, SHIELD, BRICK, TRAP
+   and EAT into the corner instead. */
 :root {
   --atk: 104px;
   --jmp: calc(var(--atk) * 0.68);
   --sm: calc(var(--atk) * 0.56);
   --gap: 10px;
   --joy: 132px;
-  --slot: 48px;
-  --strip-gap: 4px;
-  --strip-w: calc(var(--slot) * 3 + var(--strip-gap) * 2);
-  --cluster-h: calc(var(--atk) * 2.06);
+  --cluster-h: calc(var(--atk) * 2.34);
   --edge-t: 0px;
   --edge-r: 0px;
   --edge-b: 0px;
@@ -578,7 +575,6 @@ body.returning .game-layout {
     --atk: 128px;
     --gap: 12px;
     --joy: 164px;
-    --slot: 58px;
   }
 }
 /* Small phones held upright. */
@@ -587,7 +583,6 @@ body.returning .game-layout {
     --atk: 92px;
     --gap: 8px;
     --joy: 116px;
-    --slot: 44px;
   }
 }
 @media (pointer: coarse) {
@@ -646,10 +641,8 @@ body.returning .game-layout {
 #touchActions > * {
   position: absolute;
 }
-#touchActions .weapon-strip {
-  left: var(--edge-l);
-  top: var(--edge-t);
-}
+/* Offsets in --atk units, worked out from the ring around SWING (centres 0.875 --atk apart, the outer
+   ring 1.54 out) so neighbours keep at least --gap between them. */
 #touchActions .attack {
   right: var(--edge-r);
   bottom: var(--edge-b);
@@ -659,98 +652,26 @@ body.returning .game-layout {
   bottom: var(--edge-b);
 }
 #touchActions #dashBtn {
-  right: calc(var(--edge-r) + var(--atk) * 0.92);
-  bottom: calc(var(--edge-b) + var(--atk) * 0.79);
+  right: calc(var(--edge-r) + var(--atk) * 0.89);
+  bottom: calc(var(--edge-b) + var(--atk) * 0.78);
 }
-#touchActions #useBtn {
-  right: calc(var(--edge-r) + var(--atk) * 0.1);
-  bottom: calc(var(--edge-b) + var(--atk) + var(--gap));
+#touchActions #shieldBtn {
+  right: calc(var(--edge-r) + var(--atk) * 0.33);
+  bottom: calc(var(--edge-b) + var(--atk) * 1.09);
+}
+#touchActions #brickBtn {
+  right: calc(var(--edge-r) + var(--atk) * 1.58);
+  bottom: calc(var(--edge-b) + var(--atk) * 0.94);
+}
+#touchActions #trapBtn {
+  right: calc(var(--edge-r) + var(--atk) * 0.99);
+  bottom: calc(var(--edge-b) + var(--atk) * 1.55);
 }
 #touchActions .eat {
-  right: calc(var(--edge-r) + var(--atk) * 0.68);
-  bottom: calc(var(--edge-b) + var(--atk) * 1.5);
+  right: calc(var(--edge-r) + var(--atk) * 0.22);
+  bottom: calc(var(--edge-b) + var(--atk) * 1.76);
 }
-.weapon-strip {
-  display: flex;
-  gap: var(--strip-gap);
-  padding: 0;
-  border-radius: 14px;
-  background: #0f222cd9;
-  box-shadow: 0 3px 10px #0006, inset 0 0 0 1px #ffffff1f;
-}
-.weapon-strip::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: var(--slot);
-  height: var(--slot);
-  border-radius: 13px;
-  background: var(--yellow);
-  box-shadow: 0 0 0 2px #fff7d6aa, 0 4px 14px #ffe08a55;
-  transform: translateX(calc(var(--slot-i, 0) * (var(--slot) + var(--strip-gap))));
-  transition: transform 0.2s cubic-bezier(0.3, 1.5, 0.5, 1);
-}
-.weapon-strip[data-active='1'] {
-  --slot-i: 1;
-}
-.weapon-strip[data-active='2'] {
-  --slot-i: 2;
-}
-#touchActions .wslot {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: var(--slot);
-  height: var(--slot);
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 13px;
-  box-shadow: none;
-  background: transparent;
-  color: #d5e8df;
-  touch-action: none;
-}
-#touchActions .wslot svg {
-  width: 26px;
-  height: 26px;
-  stroke-width: 2;
-}
-#touchActions .wslot.selected {
-  color: var(--ink);
-}
-.weapon-strip[data-pop='a'] .wslot.selected svg {
-  animation: wslotPopA 0.42s ease-out;
-}
-.weapon-strip[data-pop='b'] .wslot.selected svg {
-  animation: wslotPopB 0.42s ease-out;
-}
-@keyframes wslotPopA {
-  0% {
-    transform: scale(0.6) rotate(-14deg);
-  }
-  60% {
-    transform: scale(1.25) rotate(6deg);
-  }
-  100% {
-    transform: none;
-  }
-}
-@keyframes wslotPopB {
-  0% {
-    transform: scale(0.6) rotate(-14deg);
-  }
-  60% {
-    transform: scale(1.25) rotate(6deg);
-  }
-  100% {
-    transform: none;
-  }
-}
-/* JUMP, DASH, the ability and EAT: round, translucent, thumb-sized. */
+/* JUMP, DASH, SHIELD, BRICK, TRAP and EAT: round, translucent, thumb-sized. */
 #touchActions .act {
   display: flex;
   flex-direction: column;
@@ -785,18 +706,11 @@ body.returning .game-layout {
   font-size: 26px;
 }
 #touchActions .act small {
-  font-size: 10px;
+  font-size: 9px;
 }
 #touchActions .act svg {
   width: 22px;
   height: 22px;
-}
-#touchActions #useBtn {
-  background: #b5e8c5d9;
-  color: var(--ink);
-}
-#touchActions #useBtn span {
-  font-size: 9px;
 }
 #touchActions .eat {
   background: #f3a69cd9;
@@ -818,8 +732,45 @@ body.returning .game-layout {
   box-shadow: 0 2px 6px #0006;
   font: 800 12px/22px var(--mono);
 }
+/* The kit. BRICK and TRAP wear their count on the outer side (clear of their neighbours) and go dim at
+   zero; SHIELD drains a ring (--meter, set by combat.js) while it is held and dims while the bag dries. */
+#touchActions .kit.brick {
+  background: #e6a58fd9;
+  color: var(--ink);
+}
+#touchActions .kit.trap {
+  background: #f1c27ad9;
+  color: var(--ink);
+}
+#touchActions .kit.shield {
+  background: #b5e8c5d9;
+  color: var(--ink);
+}
+#touchActions .kit .act-badge {
+  right: auto;
+  left: -6px;
+}
+#touchActions .kit.empty {
+  opacity: 0.45;
+}
+#touchActions .kit.empty .act-badge {
+  background: #c9d3d6;
+}
+#touchActions .kit.shield::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: conic-gradient(#c1f2cc calc(var(--meter, 1) * 1turn), #ffffff26 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  pointer-events: none;
+}
+#touchActions .kit.shield.up {
+  box-shadow: 0 0 0 3px #e8fff0, 0 0 22px #c1f2cccc;
+}
 /* The big one. A ring around it fills a third per landed hit (--combo, set by combat.js) and the whole
-   button glows gold when the slam is charged. The chevrons say it swipes. */
+   button glows gold when the slam is charged. */
 #touchActions .attack {
   display: flex;
   flex-direction: column;
@@ -854,21 +805,6 @@ body.returning .game-layout {
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
   mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
   pointer-events: none;
-}
-#touchActions .attack .swipe-hint {
-  position: absolute;
-  top: 50%;
-  margin-top: -12px;
-  font: 800 20px/24px var(--mono);
-  font-style: normal;
-  opacity: 0.45;
-  pointer-events: none;
-}
-#touchActions .attack .swipe-hint:first-child {
-  left: 9px;
-}
-#touchActions .attack .swipe-hint:last-child {
-  right: 9px;
 }
 #touchActions .attack .combo-tag {
   display: none;
@@ -905,29 +841,34 @@ body.returning .game-layout {
   transform: scale(0.92);
   filter: brightness(1.15);
 }
-/* Tap the room: the floor walks, hits and dashes, so those controls step aside. JUMP takes the corner,
-   the ability and EAT line up beside it, and the strip waits on the left. */
+/* Tap the room: the floor walks, hits and dashes, so the joystick, DASH and SWING step aside. JUMP takes
+   the corner with SHIELD and EAT beside it and BRICK and TRAP above, all within one thumb. */
 body.tap-controls #joystick,
 body.tap-controls #touchActions #dashBtn,
 body.tap-controls #touchActions .attack {
   display: none;
 }
 body.tap-controls .touch-controls {
-  height: calc(var(--jmp) + var(--edge-t) + var(--edge-b));
-}
-body.tap-controls #touchActions .weapon-strip {
-  top: calc(var(--edge-t) + (var(--jmp) - var(--slot)) / 2);
+  height: calc(var(--jmp) + var(--sm) + var(--gap) + var(--edge-t) + var(--edge-b));
 }
 body.tap-controls #touchActions #jumpBtn {
   right: var(--edge-r);
 }
-body.tap-controls #touchActions #useBtn {
+body.tap-controls #touchActions #shieldBtn {
   right: calc(var(--edge-r) + var(--jmp) + var(--gap));
   bottom: calc(var(--edge-b) + (var(--jmp) - var(--sm)) / 2);
 }
 body.tap-controls #touchActions .eat {
   right: calc(var(--edge-r) + var(--jmp) + var(--sm) + var(--gap) * 2);
   bottom: calc(var(--edge-b) + (var(--jmp) - var(--sm)) / 2);
+}
+body.tap-controls #touchActions #brickBtn {
+  right: calc(var(--edge-r) + (var(--jmp) - var(--sm)) / 2);
+  bottom: calc(var(--edge-b) + var(--jmp) + var(--gap));
+}
+body.tap-controls #touchActions #trapBtn {
+  right: calc(var(--edge-r) + var(--jmp) + var(--gap));
+  bottom: calc(var(--edge-b) + var(--jmp) + var(--gap));
 }
 /* Outside arcade mode the controls sit under the room in the page. */
 body:not(.arcade) .controlbar {
@@ -972,8 +913,7 @@ body.arcade .sidebar,
 body.arcade .below,
 body.arcade .world-section,
 body.arcade footer,
-body.arcade .supplybar,
-body.arcade .weapon-readout {
+body.arcade .supplybar {
   display: none;
 }
 body.arcade .cabinet {
@@ -1053,9 +993,55 @@ body.arcade .ward-strip .smallbtn {
   padding: 4px 10px;
   font-size: 9px;
 }
+/* Over the room the strip's words let taps through to the floor; only REMATCH takes a press. It needs two
+   (combat.js): the first arms it and turns it gold for a few seconds. */
+body.arcade .ward-strip {
+  pointer-events: none;
+}
+body.arcade .ward-strip .smallbtn {
+  pointer-events: auto;
+}
+#rematchBtn.armed {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: var(--ink);
+}
+/* REMATCH in the pause menu gets a row of its own. The strip steps aside while the menu is up, and on a
+   short landscape phone the menu goes four across so Quit to title still fits without scrolling. */
+.ward-pause-grid .pause-rematch {
+  grid-column: 1 / -1;
+  background: #ffa48e;
+  border-color: #ffa48e;
+  color: var(--ink);
+}
+body.ward-paused .ward-strip {
+  visibility: hidden;
+}
+@media (orientation: landscape) and (max-height: 430px) {
+  .ward-pause-card {
+    width: min(600px, 100%);
+    padding: 12px 16px;
+  }
+  .ward-pause-card p {
+    margin-bottom: 8px;
+  }
+  .ward-pause-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .ward-pause-grid .smallbtn {
+    min-height: 38px;
+  }
+}
+/* The arsenal lists four tools now: two by two where it used to fit three across. */
+.items {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.item:nth-of-type(4) .item-icon {
+  background: #cfe6c0;
+}
 
-/* Portrait: the room on top, the controls under it. Joystick bottom left with the weapon strip over
-   it; the attack cluster in the bottom-right corner. */
+/* Portrait: the room on top, the controls under it. Joystick bottom left; the action rings in the
+   bottom-right corner. */
 @media (orientation: portrait) {
   /* The room takes every pixel the controls leave. A tall room zooms in and the camera follows Macy. */
   body.arcade .stage {
@@ -1091,7 +1077,7 @@ body.turn-hint-on .turn-hint {
 }
 
 /* Landscape on touch screens: the room fills the screen and the controls float over it, translucent.
-   Joystick bottom left; the attack cluster bottom right; the weapon strip top right. */
+   Joystick bottom left; the action rings bottom right; the bar of icons top right. */
 @media (orientation: landscape) and (pointer: coarse), (orientation: landscape) and (max-height: 540px) {
   body.arcade .cabinet {
     display: block;
@@ -1106,7 +1092,7 @@ body.turn-hint-on .turn-hint {
     position: absolute;
     z-index: 6;
     top: calc(env(safe-area-inset-top) + 6px);
-    right: calc(env(safe-area-inset-right) + 26px + var(--strip-w));
+    right: calc(env(safe-area-inset-right) + 10px);
     max-width: 46vw;
     height: auto;
     gap: 6px;
@@ -1183,20 +1169,20 @@ body.turn-hint-on .turn-hint {
     box-shadow: inset 0 0 0 10px #1d374177;
     opacity: 0.9;
   }
-  body.arcade #touchActions .weapon-strip {
-    left: auto;
-    right: var(--edge-r);
-    top: var(--edge-t);
-    background: #0f222cb3;
-  }
   body.arcade #touchActions .act {
     background: #132c37b3;
   }
   body.arcade #touchActions #jumpBtn {
     background: #2c5f6bc4;
   }
-  body.arcade #touchActions #useBtn {
+  body.arcade #touchActions .kit.shield {
     background: #b5e8c5c4;
+  }
+  body.arcade #touchActions .kit.brick {
+    background: #e6a58fc4;
+  }
+  body.arcade #touchActions .kit.trap {
+    background: #f1c27ac4;
   }
   body.arcade #touchActions .eat {
     background: #f3a69cc4;
@@ -1207,21 +1193,17 @@ body.turn-hint-on .turn-hint {
   body.arcade #touchActions .attack[data-combo='ready'] {
     background: #ffd36ee6;
   }
-  body.arcade.tap-controls #touchActions .weapon-strip {
-    top: var(--edge-t);
-  }
   /* The floating controls step aside while the pause menu is up. */
   body.arcade.ward-paused .controlbar {
     visibility: hidden;
   }
 }
-/* Short landscape phones (most of them): a touch smaller so the cluster clears the strip. */
+/* Short landscape phones (most of them): a touch smaller so the whole cluster fits under the top bar. */
 @media (orientation: landscape) and (max-height: 430px) {
   :root {
     --atk: 96px;
     --gap: 8px;
     --joy: 124px;
-    --slot: 44px;
   }
 }
 @media (orientation: landscape) and (max-width: 760px) {
@@ -2206,18 +2188,13 @@ body.arcade #miniDialog #miniResult.hidden {
   #miniDialog .mini-instruction {
     font-size: 15px;
   }
-  #touchActions .act small,
-  #touchActions #useBtn span {
-    font-size: 11px;
+  #touchActions .act small {
+    font-size: 10px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .weapon-strip::before,
   #miniDialog .mini-instruction {
     transition: none;
-  }
-  .weapon-strip .wslot svg {
-    animation: none !important;
   }
 }
 

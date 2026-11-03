@@ -1,12 +1,15 @@
-// Ward combat: weapons, gremlin breeds, waves, Ralph's boss fight, damage, and every enemy and combat effect.
-// Also the ward half of Barb's Ensure gag (ensure*): it reads state.stats.ensureRefused, writes
-// state.stats.ensureSeen and ensureKicked, and never changes the odds. See ENSURE_AT for the thresholds.
+// Ward combat: Macy's kit, gremlin breeds, waves, each department's twist, Ralph's boss fight, damage, and
+// every enemy and combat effect. Also the ward half of Barb's Ensure gag (ensure*): it reads
+// state.stats.ensureRefused, writes state.stats.ensureSeen and ensureKicked, and never changes the odds. See
+// ENSURE_AT for the thresholds.
 //
 // Hooks other files use: updateCombat(dt) runs every ward step; drawEnemy(g, e) draws one entry of
-// `enemies` (world.js depth-sorts them by e.y); drawPillowSwing(g, player) draws Macy's swing; wardLocked(id)
-// says whether a department arcade is still locked behind its first ward clear. Health the ward hands out
-// goes through world.js: wardDropNutrient(x, y) puts a nutrient on the floor, snackRestock(room) refills a
-// room's snack cart (both guarded).
+// `enemies` (world.js depth-sorts them by e.y); wardRenderables() hands world.js the floor pieces combat
+// owns (bricks to find, bedpans, the CT donut, the lounge remote) for the same depth sort; drawPillowSwing(g,
+// player) draws Macy's swing; wardLocked(id) says whether a department arcade is still locked behind its first
+// ward clear; wardGrip(who) says how slippery the floor under Macy is (the ultrasound gel). Health the ward
+// hands out goes through world.js: wardDropNutrient(x, y) puts a nutrient on the floor, snackRestock(room)
+// refills a room's snack cart (both guarded).
 // `enemies` holds fighters, gremlins still emerging (e.emerge > 0) and corpses playing their death pop
 // (e.hp <= 0 with e.deadT set). wardFighters() returns only the ones that can fight or be hit.
 // Optional world.js draw hooks, all world-space except the last: drawCombatGround(g) after floor puddles,
@@ -14,10 +17,41 @@
 // restored. Until world.js calls them, drawEnemy draws those layers itself from the first and last gremlin.
 
 // ---- Tables ----
-const weapons = [
-  { name: 'Pillow', verb: 'SWING', icon: 'pillow', cool: 0.42, ability: 'SPIN' },
-  { name: 'Barf bag', verb: 'THROW', icon: 'bag', cool: 0.6, ability: 'SHIELD' },
-  { name: 'Brick', verb: 'LOB', icon: 'brick', cool: 0.95, ability: 'TRAP' }
+// Macy's kit: one button per tool, nothing to switch. The pillow is the swing (hold to keep swinging; the
+// third swing of a held run is a SPIN once spinCool has passed). The barf bag is a bubble she holds up while
+// its meter lasts. Bricks are lobs with ammo: `bricks` per fight plus the extras hidden around the room.
+// The trap is one per wave.
+const WARD_KIT = {
+  swingCool: 0.42,
+  finisherCool: 0.56,
+  spinCool: 6,
+  spinPower: 2,
+  bricks: 3,
+  brickMax: 5,
+  brickCool: 0.55,
+  // Extra bricks: one per wave (and one per Ralph phase), brickShow seconds after the wave pops, at a spot
+  // from WARD_BRICK_SPOTS at least brickAway from Macy. They glint until she walks over them.
+  brickShow: 3.5,
+  brickAway: 220,
+  brickReach: 32,
+  traps: 1,
+  trapLife: 30,
+  trapMax: 3,
+  // The bubble: shieldCap seconds on a full meter (shieldCapDeluxe with the Deluxe dignity bubble), refilling
+  // shieldRefill a second while it is down. Held to empty, it pops and needs shieldMin back and a fresh press.
+  shieldCap: 2.5,
+  shieldCapDeluxe: 3.5,
+  shieldRefill: 0.55,
+  shieldMin: 0.75
+};
+
+// Where extra bricks turn up, by room: tucked behind furniture or in a corner, always on open floor.
+const WARD_BRICK_SPOTS = [
+  [[358, 200], [758, 200], [780, 400], [60, 560], [940, 470]],
+  [[240, 210], [600, 200], [760, 190], [60, 560], [940, 560], [80, 380]],
+  [[490, 310], [290, 195], [152, 440], [940, 470], [60, 565], [712, 195]],
+  [[230, 220], [592, 205], [768, 220], [165, 440], [940, 560], [60, 560]],
+  [[472, 225], [256, 200], [742, 195], [875, 420], [60, 560], [940, 560]]
 ];
 
 // speed is px/s on the normal prescription; size scales the art; pal is [body, shade, highlight].
@@ -189,6 +223,46 @@ const ENSURE_AT = { bottles: 10, shields: 20, sponsor: 30, ralph: 50 },
     ralph: 'They got to me too.'
   };
 
+// Each department bends its fights one way, telegraphed and taught once (WARD_TWIST_HINTS):
+//   1 MRI: the magnet pulls every few seconds. Loose bedpans and the bruisers' bedpan helmets fly at the
+//     scanner, bowling over whatever is in the way; every other gremlin slides toward it. Kick bedpans out.
+//   2 Lounge: the TV remote on the couch. Hit it and everything standing in front of the screen zones out.
+//   3 CT: Donut II rolls a lit lane across the room and bowls gremlins over (Macy too, unless she jumps it).
+//   4 Ultrasound: gel puddles. Everyone slides, Macy too; a gremlin knocked across gel skids into the wall.
+// Positions are room coordinates. A twist only runs in a live fight, from the moment the first gremlin of
+// the encounter climbs out (wardTwist.live), so the rooms stay calm once they are cleared.
+const WARD_TWIST = {
+    mri: {
+      first: 7,
+      every: 13,
+      warn: 2.2,
+      pull: 1.1,
+      // Inside the scanner's box, so whatever it pulls fetches up against the machine.
+      bore: { x: 481, y: 262 },
+      scanner: [387, 166, 188, 129],
+      slide: 90,
+      helmet: 420,
+      clang: 300,
+      clangHit: 1,
+      clangDizzy: 0.8,
+      // Gremlins this close to Macy are busy with her and keep their footing.
+      grip: 140,
+      pan: 560,
+      pans: [[300, 470], [690, 470], [210, 380]],
+      kick: 430,
+      panReach: 30
+    },
+    tv: { remote: { x: 826, y: 258 }, front: { x: 826, y: 290 }, reach: 72, zone: [600, 288, 300, 190], stun: 2.6, recharge: 12 },
+    donut: { first: 6, every: 12, warn: 2.4, speed: 560, r: 44, lanes: [350, 425, 545], band: 32, hit: 2, stun: 1.2, knock: 700 },
+    gel: { puddles: [[270, 400, 80], [560, 470, 92], [705, 352, 66], [420, 556, 70]], grip: 2.4, skid: 2.6, splat: 260 }
+  },
+  WARD_TWIST_HINTS = {
+    1: ['MAGNET! Bedpans and bruiser helmets fly at the MRI. Stay out of their way.', 'MAGNET!'],
+    2: ['The TV remote is on the couch. Whack it: anything in front of the screen zones out.', 'REMOTE!'],
+    3: ['Donut II has no brakes. Lure them into the lit lane, then get out (or JUMP).', 'DONUT INBOUND'],
+    4: ['Gel! Everyone slides, you too. Knock a gremlin across it into a wall.', 'SLIPPERY']
+  };
+
 // ---- Combat state ----
 let encounter = { room: -1, wave: 0, rest: 0, complete: true, calm: true, grudge: 0, pace: 1, boss: false },
   enemySerial = 0,
@@ -205,10 +279,19 @@ let encounter = { room: -1, wave: 0, rest: 0, complete: true, calm: true, grudge
   wardPrev = null,
   wardDashSerial = 0,
   wardRematchAsked = false,
+  // A rematch takes two presses: the first arms it for this many seconds, the second starts it.
+  wardRematchArm = 0,
   wardLastKill = null,
   wardAttackSerial = 0,
   wardQueueT = 0,
-  wardComboShown = '';
+  wardComboShown = '',
+  // What is left in Macy's kit (bricks in the pocket, the trap for this wave), extra bricks lying on the
+  // floor waiting to be found, and the seconds until the next one turns up (-1: none due).
+  wardKit = { bricks: WARD_KIT.bricks, trap: WARD_KIT.traps },
+  wardKitShown = '',
+  wardBrickDrops = [],
+  wardBrickDue = -1,
+  wardBrickSeq = 0;
 
 // The combo meter. n: landed attacks so far; t: seconds left to land the next; ready: the slam is charged;
 // landed: recent attacks (by serial) that hit something, so one attack counts once however many it hits;
@@ -223,7 +306,17 @@ function wardComboFresh() {
 // Dropped Ensure bottles on the floor: harmless props Macy kicks on the way past.
 let ensureProps = [];
 
-const wardProgress = {},
+// The room's twist in this encounter (see WARD_TWIST). Fresh on every startEncounter.
+let wardTwist = wardTwistFresh();
+
+function wardTwistFresh(room = -1) {
+  return { room, live: false, t: 0, phase: 'idle', pt: 0, next: 0, pans: [], cool: 0, zap: 0, donut: null, lane: 0, dir: -1 };
+}
+
+// Fights in progress, by room: { wave, teach, left } where left lists the gremlins still standing in that
+// wave as [type] or [type, 1] for a split-pea half. It is state.wardFights, so it is saved: leaving a room
+// or reloading the page brings back exactly who was left, never the ones already evicted.
+const wardProgress = state.wardFights,
   wardHintsShown = new Set(),
   wardVel = { x: 0, y: 0 },
   wardHook = { ground: false, fx: false, overlay: false };
@@ -403,27 +496,62 @@ function wardTaunt(e, text) {
   e.taunt = { text: Array.isArray(text) ? pick(text) : text, t: 2.6 };
 }
 
-// ---- Equipment and the ward strip ----
-function equip(i) {
-  state.item = clamp(i, 0, 2);
-  const w = weapons[state.item];
-  $$('[data-item]').forEach(b => {
-    const on = +b.dataset.item === state.item;
-    b.classList.toggle('selected', on);
-    b.setAttribute('aria-pressed', String(on));
-  });
-  $('useIcon').innerHTML = '<use href="#i-' + w.icon + '"/>';
-  // The swipe chevrons say the big button also changes weapons; the tag lights up when the combo is charged.
-  $('attackBtn').innerHTML =
-    '<i class="swipe-hint" aria-hidden="true">‹</i><svg><use href="#i-' + w.icon + '"/></svg><span>' + w.verb +
-    '</span><b class="combo-tag" aria-hidden="true">COMBO</b><i class="swipe-hint" aria-hidden="true">›</i>';
-  $('attackBtn').setAttribute(
-    'aria-label',
-    w.name + ' ' + w.verb.toLowerCase() + '. Hold to keep going, drag to aim, swipe sideways for the next weapon.'
-  );
-  $('useBtn').querySelector('span').textContent = w.ability;
-  $('weaponReadout').textContent =
-    `${state.item + 1} / ${w.name} · Space / tap ${w.verb.toLowerCase()} · E ${w.ability.toLowerCase()}`;
+// A room's twist is taught the first time Macy meets it, once per save (bit `room` of stats.twistTaught),
+// rematch or not: older saves meet the twists in rooms they cleared before there were any.
+function wardTwistTeach(room, at) {
+  const stats = (state.stats ||= {}),
+    seen = Number(stats.twistTaught) || 0,
+    bit = 1 << room,
+    hint = WARD_TWIST_HINTS[room];
+  if (!hint || seen & bit) return false;
+  stats.twistTaught = seen | bit;
+  wardHint = { text: hint[0], t: 0, life: 4.6 };
+  floating(hint[1], (at || player).x, (at || player).y - 120, '#bfe6ff');
+  save();
+  return true;
+}
+
+// ---- The kit on the buttons ----
+// Nothing is equipped any more: every tool has its own button. equip() stays for older callers and only
+// refreshes the buttons.
+function equip() {
+  wardKitShown = '';
+  wardKitSync();
+}
+
+const wardShieldCap = () => (wardHas('bag') ? WARD_KIT.shieldCapDeluxe : WARD_KIT.shieldCap);
+
+// BRICK and TRAP show what is left as a badge (and dim at zero); SHIELD drains a ring (--meter) while held.
+function wardKitSync() {
+  const cap = wardShieldCap(),
+    meter = Math.round(clamp((player.shieldMeter ?? cap) / cap, 0, 1) * 20) / 20,
+    up = player.shield > 0,
+    key = [wardKit.bricks, wardKit.trap, meter, player.shieldBroken ? 1 : 0, up ? 1 : 0].join('|');
+  if (key === wardKitShown) return;
+  wardKitShown = key;
+  $('brickCount').textContent = String(wardKit.bricks);
+  $('brickBtn').classList.toggle('empty', wardKit.bricks <= 0);
+  $('brickBtn').setAttribute('aria-label', `Throw a brick. ${wardKit.bricks} left.`);
+  $('trapCount').textContent = String(wardKit.trap);
+  $('trapBtn').classList.toggle('empty', wardKit.trap <= 0);
+  $('trapBtn').setAttribute('aria-label', wardKit.trap > 0 ? 'Set a trap. One per wave.' : 'Trap set. A new one comes with the next wave.');
+  const shield = $('shieldBtn');
+  shield.classList.toggle('empty', !!player.shieldBroken);
+  shield.classList.toggle('up', up);
+  if (shield.style && typeof shield.style.setProperty === 'function') shield.style.setProperty('--meter', String(meter));
+}
+
+// The kit changed: the buttons show it now, not on the next step.
+function wardKitDirty() {
+  wardKitShown = '';
+  wardKitSync();
+}
+
+// A fresh fight: three bricks in the pocket and a trap ready.
+function wardKitFill() {
+  wardKit.bricks = Math.max(wardKit.bricks, WARD_KIT.bricks);
+  wardKit.trap = WARD_KIT.traps;
+  wardKitDirty();
 }
 
 function updateWardHUD() {
@@ -449,20 +577,62 @@ function updateWardHUD() {
   }
   if (wardCombatRoom(room) && (encounter.ensure || 0) >= ENSURE_AT.sponsor) text += ENSURE_LINES.sponsor;
   $('wardStatus').textContent = text;
-  const btn = $('rematchBtn');
-  btn.classList.toggle('hidden', !wardCombatRoom(room) || !encounter.complete);
-  btn.textContent = `Ralph's grudge LV ${grudge} · +${wardPayout(grudge)} ↻`;
+  // REMATCH lives in the strip and the pause menu, named with the grudge level and what it pays.
+  const ready = wardRematchReady(),
+    pay = wardPayout(grudge),
+    armed = ready && wardRematchArm > 0,
+    btn = $('rematchBtn');
+  if (!ready) wardRematchArm = 0;
+  btn.classList.toggle('hidden', !ready);
+  btn.classList.toggle('armed', armed);
+  btn.textContent = armed ? `Sure? Tap again · LV ${grudge} · +${pay}` : `Rematch ↻ · grudge LV ${grudge} · +${pay}`;
+  btn.setAttribute(
+    'aria-label',
+    armed ? `Press again to start Ralph's grudge match, level ${grudge}` : `Rematch: Ralph's grudge level ${grudge}, pays ${pay}`
+  );
+  const paused = $('pauseRematch');
+  paused.classList.toggle('hidden', !ready);
+  paused.textContent = `Rematch ↻ · Ralph's grudge LV ${grudge} · +${pay}`;
+}
+
+// ---- Rematches ----
+// A cleared department stays calm (startEncounter never re-arms it) until Macy asks for Ralph's grudge.
+// The strip's button takes two presses (the first arms it for a few seconds) so a thumb or a tap meant for
+// the floor never starts a fight; the pause menu's button is deliberate already and starts it at once.
+const WARD_REMATCH_ARM = 3;
+
+function wardRematchReady() {
+  return wardCombatRoom(state.room) && encounter.room === state.room && encounter.complete && !encounter.boss;
+}
+
+// The strip's REMATCH. Returns true when the press started the match.
+function wardRematchPress() {
+  if (!wardRematchReady() || isModal() || state.paused) return false;
+  if (wardRematchArm > 0) {
+    wardRematchArm = 0;
+    wardRematch();
+    return true;
+  }
+  wardRematchArm = WARD_REMATCH_ARM;
+  sfx('ui');
+  updateWardHUD();
+  return false;
 }
 
 // ---- Encounters and waves ----
-// Called by loadRoom() on every room entry and by the rematch button. Cleared rooms stay calm until a
-// rematch; a fight left half-way resumes at the same wave; home base hosts Ralph once he is ready.
+// Called by loadRoom() on every room entry and by wardRematch(). Cleared rooms stay calm until a rematch;
+// a fight left half-way resumes at the same wave with exactly the gremlins still standing (wardProgress,
+// saved); home base hosts Ralph once he is ready.
 function startEncounter() {
   const room = state.room,
     rematch =
       wardRematchAsked && wardCombatRoom(room) && encounter.room === room && encounter.complete && !encounter.boss,
     n = ensureLevel();
   wardRematchAsked = false;
+  wardRematchArm = 0;
+  wardTwist = wardTwistFresh(room);
+  wardBrickDrops = [];
+  wardBrickDue = -1;
   enemies = [];
   combatFx = [];
   ensureProps = [];
@@ -497,13 +667,14 @@ function startEncounter() {
   }
   ensureNotice(n);
   const grudge = wardGrudge(room),
-    resume = rematch ? 0 : wardProgress[room] || 0;
-  if (!rematch && !resume && grudge > 0) {
+    fight = rematch ? null : wardFight(room);
+  if (rematch) delete wardProgress[room];
+  if (!rematch && !fight && grudge > 0) {
     encounter = calm(grudge);
     updateWardHUD();
     return;
   }
-  const wave = resume || 1;
+  const wave = fight ? fight.wave : 1;
   encounter = {
     room,
     wave,
@@ -511,18 +682,42 @@ function startEncounter() {
     complete: false,
     calm: false,
     grudge,
-    teach: grudge === 0 && wave === 1,
+    teach: fight ? !!fight.teach : grudge === 0 && wave === 1,
     pace: 1,
     boss: false,
     ensure: n
   };
-  spawnWave(WARD.firstRest);
+  wardKitFill();
+  wardTwistSetup();
+  spawnWave(WARD.firstRest, fight && fight.left);
+  const left = enemies.length;
   if (rematch) wardSetBanner(`RALPH'S GRUDGE · LV ${grudge}`, 'they remember you. vaguely', 2.8);
-  else if (resume) wardSetBanner('WAVE ' + wave, 'round two. they kept your seat warm');
+  else if (fight) wardSetBanner('WAVE ' + wave, left ? `${left} left. they kept your seat warm` : 'that was the last of them');
   else wardSetBanner('WAVE 1', encounter.teach ? 'a gentle warm-up. allegedly' : wardWaveLines[1]);
   ensureBannerTail();
   sfx('wave');
   updateWardHUD();
+}
+
+// The saved fight in a room, or null. Tolerates a bare wave number (no roster: the whole wave).
+function wardFight(room) {
+  const f = wardProgress[room];
+  if (typeof f === 'number' && f >= 1) return { wave: clamp(Math.floor(f), 1, 3), teach: false, left: null };
+  if (!f || typeof f !== 'object' || !(f.wave >= 1)) return null;
+  return { wave: clamp(Math.floor(f.wave), 1, 3), teach: !!f.teach, left: Array.isArray(f.left) ? f.left : null };
+}
+
+// Writes down who is still standing in this room's wave, and saves. Runs whenever that changes: a wave
+// spawning, an eviction, a split or a re-merge.
+function wardRecord() {
+  const room = state.room;
+  if (!wardCombatRoom(room) || encounter.room !== room || encounter.complete || encounter.boss) return;
+  wardProgress[room] = {
+    wave: encounter.wave,
+    teach: !!encounter.teach,
+    left: enemies.filter(e => e.hp > 0 && !e.gone && !e.minion).map(e => (e.small ? [e.type, 1] : [e.type]))
+  };
+  save();
 }
 
 // An explicit rematch ("Ralph's grudge") in a cleared room. Re-entering the room or changing the
@@ -531,11 +726,6 @@ function wardRematch() {
   wardRematchAsked = true;
   startEncounter();
 }
-
-// input.js starts the encounter from the rematch button; this listener runs first and marks it a rematch.
-$('rematchBtn')?.addEventListener('click', () => {
-  wardRematchAsked = true;
-});
 
 // The gremlin list for one wave, after prescription, grudge and upgrades.
 function wardPlan(room, wave, grudge, teach) {
@@ -556,20 +746,24 @@ function wardPlan(room, wave, grudge, teach) {
 }
 
 // Puts the wave's gremlins in hiding. They watch from the dark, telegraph for a second, then pop out.
-function spawnWave(popIn = WARD.breather) {
+// roster: who is left of a wave Macy walked out of (wardFight), instead of the whole plan. Split-pea halves
+// come back as a pair that can still re-merge.
+function spawnWave(popIn = WARD.breather, roster = null) {
   const room = state.room,
-    plan = wardPlan(room, encounter.wave, encounter.grudge || 0, encounter.teach);
+    plan = roster
+      ? roster.filter(r => Array.isArray(r) && breeds[r[0]] && r[0] !== 5).map(r => ({ type: r[0], small: !!r[1] && r[0] === 3 }))
+      : wardPlan(room, encounter.wave, encounter.grudge || 0, encounter.teach).map(type => ({ type, small: false }));
   encounter.pace = encounter.teach ? 0.75 : 1 + 0.07 * Math.min(encounter.grudge || 0, 4);
   encounter.rest = popIn;
   encounter.ensure = ensureLevel();
-  wardProgress[room] = encounter.wave;
   const used = [],
     wave = [],
     cap = wardCap();
-  let lone = null;
+  let lone = null,
+    half = null;
   wardQueueT = 0;
-  plan.forEach((type, i) => {
-    const e = makeEnemy(type, 0, 0);
+  plan.forEach(({ type, small }, i) => {
+    const e = makeEnemy(type, 0, 0, small);
     wave.push(e);
     wardLurk(e, popIn + i * 0.18, used);
     // Past the cap on a first clear, it waits in hiding until the room thins out.
@@ -583,9 +777,19 @@ function spawnWave(popIn = WARD.breather) {
         lone = null;
       } else lone = e;
     }
+    if (small) {
+      e.pod = half ? half.pod : 'pod-' + e.id;
+      e.calm = 0;
+      half = half ? null : e;
+    }
     enemies.push(e);
   });
   ensureArm(wave, encounter.ensure);
+  // A trap for every wave, and an extra brick turns up somewhere a little after the wave does.
+  wardKit.trap = WARD_KIT.traps;
+  wardKitDirty();
+  wardBrickDue = popIn + WARD_KIT.brickShow;
+  wardRecord();
   updateWardHUD();
 }
 
@@ -895,7 +1099,7 @@ function aimDirection() {
     if (d > 8) return { x: dx / d, y: dy / d };
   }
   const nearest = wardFighters()
-    .filter(e => dist(player, e) < (state.item ? 440 : 130 + (e.boss ? 40 : 0)))
+    .filter(e => dist(player, e) < 130 + (e.boss ? 40 : 0))
     .sort((a, b) => dist(a, player) - dist(b, player))[0];
   if (nearest) {
     const d = Math.max(1, dist(player, nearest));
@@ -905,76 +1109,89 @@ function aimDirection() {
   return { x: player.lastDx / d, y: player.lastDy / d };
 }
 
+// SWING: the pillow, always. Airborne it spikes, in the landing window it stomps, with a charged combo and
+// a gremlin close it slams, and the third swing of a held run (not a press) is a SPIN when it is ready.
+// Inside the bubble nothing gets out.
 function attack() {
-  if (isModal() || state.paused || deadDelay > 0 || player.vomit > 0.55 || player.attackCd > 0) return;
+  if (isModal() || state.paused || deadDelay > 0 || player.vomit > 0.55 || player.attackCd > 0 || player.shield > 0)
+    return;
   if (!state.started) begin();
-  // A charged combo turns the next attack with a gremlin close into the slam, whatever is in her hands.
   if (wardCombo.ready && player.z <= 0 && wardSlamTargets().length) {
     wardSlam();
     return;
   }
-  const w = weapons[state.item],
-    a = aimDirection();
+  const a = aimDirection();
   player.dir = a.x >= 0 ? 1 : -1;
   player.aimX = a.x;
   player.aimY = a.y;
-  player.attackKind = state.item;
-  if (state.item === 0) {
-    // Airborne swings become a spike that lands as a stomp; a late press inside the landing window too.
-    if (player.z > 0) {
-      if (!player.spike) {
-        player.spike = true;
-        player.swingHit = true;
-        player.attack = player.attackDuration = 0.6;
-        player.attackCd = 0.2;
-        sfx('swing', { combo: 2 });
-      }
-      return;
+  player.attackKind = 0;
+  // Airborne swings become a spike that lands as a stomp; a late press inside the landing window too.
+  if (player.z > 0) {
+    if (!player.spike) {
+      player.spike = true;
+      player.swingHit = true;
+      player.attack = player.attackDuration = 0.6;
+      player.attackCd = 0.2;
+      sfx('swing', { combo: 2 });
     }
-    if (player.landT > 0) {
-      wardStomp();
-      return;
-    }
-    player.swingHit = false;
-    player.swingSerial = wardPressSerial();
-    player.combo = player.comboTime > 0 ? (player.combo + 1) % 3 : 0;
-    player.comboTime = 1.1;
-    const cool = player.combo === 2 ? 0.56 : w.cool;
-    player.attackDuration = cool;
-    player.attack = cool;
-    player.attackCd = cool;
-    sfx('swing', { combo: player.combo });
     return;
   }
-  player.attackDuration = w.cool;
-  player.attack = w.cool;
-  player.attackCd = w.cool;
-  const power = wardAim ? clamp(Math.hypot(wardAim.dx, wardAim.dy) / 65, 0.65, 1.35) : 1;
-  if (state.item === 1) {
-    projectiles.push({
-      x: player.x + a.x * 25,
-      y: player.y - 32 + a.y * 25,
-      z: player.z,
-      age: 0,
-      vx: a.x * 430 * power,
-      vy: a.y * 430 * power,
-      life: 1.3,
-      kind: 'bag',
-      friendly: true,
-      bounces: 0,
-      serial: wardPressSerial()
-    });
-    sfx('throw');
+  if (player.landT > 0) {
+    wardStomp();
     return;
   }
-  // The brick lobs over furniture and lands where it was aimed, leading a target it auto-aimed at.
-  let tx = player.x + a.x * 230 * power,
-    ty = player.y + a.y * 230 * power;
-  const target = !wardAim
-    ? wardFighters()
-        .filter(e => dist(player, e) < 440)
-        .sort((p, q) => dist(p, player) - dist(q, player))[0]
-    : null;
+  player.swingHit = false;
+  player.swingSerial = wardPressSerial();
+  player.combo = player.comboTime > 0 ? (player.combo + 1) % 3 : 0;
+  player.comboTime = 1.1;
+  if (player.combo === 2 && !(player.spinCd > 0) && wardCombo.free.has(player.swingSerial)) {
+    wardSpin();
+    return;
+  }
+  const cool = player.combo === 2 ? WARD_KIT.finisherCool : WARD_KIT.swingCool;
+  player.attackDuration = cool;
+  player.attack = cool;
+  player.attackCd = cool;
+  sfx('swing', { combo: player.combo });
+}
+
+// The held swing's SPIN: the pillow all the way round, everything close hit for two and stunned. It never
+// counts toward the combo (held swings are free), and it waits WARD_KIT.spinCool before the next one.
+function wardSpin() {
+  player.spinCd = WARD_KIT.spinCool;
+  player.combo = 2;
+  player.attackKind = 0;
+  player.attack = player.attackDuration = 0.55;
+  player.attackCd = 0.55;
+  player.swingHit = true;
+  player.spinT = 0.55;
+  pillowHit(true, player.swingSerial);
+  wardFx({ kind: 'ring', ground: true, x: player.x, y: player.y, r0: 30, r1: 130, life: 0.35, col: '#fff6de', w: 5 });
+  floating('SPIN!', player.x, player.y - 120 * MACY_TALL, '#fff3cf');
+  sfx('swing', { combo: 3 });
+  wardTeach('spin', 'Holding SWING winds up a SPIN on the third swing: all the way round.');
+}
+
+// BRICK: a lob over the furniture with an area burst that stuns. It leads the nearest gremlin in range and
+// lands short of it when there is none. Ammo: WARD_KIT.bricks a fight plus whatever she finds.
+function throwBrick() {
+  if (isModal() || state.paused || deadDelay > 0 || player.vomit > 0.55 || player.shield > 0) return false;
+  if (!state.started) begin();
+  if (player.brickCd > 0) return false;
+  if (wardKit.bricks <= 0) {
+    floating('OUT OF BRICKS', player.x, player.y - 115 * MACY_TALL, '#f5c5ab');
+    sfx('miss');
+    if (wardBrickDrops.length) wardTeach('brickHunt', 'Out of bricks. One is glinting somewhere in the room.');
+    return false;
+  }
+  wardKit.bricks--;
+  wardKitDirty();
+  const a = aimDirection(),
+    target = wardFighters()
+      .filter(e => dist(player, e) < 440)
+      .sort((p, q) => dist(p, player) - dist(q, player))[0];
+  let tx = player.x + a.x * 230,
+    ty = player.y + a.y * 230;
   if (target) {
     tx = target.x + (target.vx || 0) * 0.35;
     ty = target.y + (target.vy || 0) * 0.35;
@@ -984,8 +1201,15 @@ function attack() {
       ty = player.y + ((ty - player.y) / d) * 330;
     }
   }
-  tx = clamp(tx, 50, 950);
+  tx = clamp(tx, 50, roomWidth() - 50);
   ty = clamp(ty, 182, 566);
+  // The throw pose, unless a swing is still on its way (the throw never cancels a swing's hit).
+  if (!(player.attack > 0 && player.attackKind === 0 && !player.swingHit)) {
+    player.dir = tx >= player.x ? 1 : -1;
+    player.attackKind = 2;
+    player.attack = player.attackDuration = 0.35;
+  }
+  player.brickCd = WARD_KIT.brickCool;
   projectiles.push({
     x: player.x,
     y: player.y - 32,
@@ -998,9 +1222,70 @@ function attack() {
     friendly: true,
     tx,
     ty,
-    serial: wardPressSerial()
+    serial: ++wardAttackSerial
   });
+  // A thrown brick is a deliberate press: it counts toward the combo when it lands.
   sfx('throw');
+  return true;
+}
+
+// TRAP: set at Macy's feet. One a wave (the next wave brings another); it waits for whoever steps on it.
+function layTrap() {
+  if (isModal() || state.paused || deadDelay > 0) return false;
+  if (!state.started) begin();
+  if (wardKit.trap <= 0) {
+    floating('NEXT WAVE', player.x, player.y - 115 * MACY_TALL, '#ffcfb0');
+    sfx('miss');
+    return false;
+  }
+  wardKit.trap--;
+  wardKitDirty();
+  traps.push({ x: player.x, y: player.y + 8, life: WARD_KIT.trapLife, serial: ++wardAttackSerial });
+  while (traps.length > WARD_KIT.trapMax) traps.shift();
+  floating('TRAP SET', player.x, player.y - 115 * MACY_TALL, '#ffcfb0');
+  sfx('trap');
+  return true;
+}
+
+// SHIELD: the barf-bag bubble stays up while it is held (the button, R, a long-press on the floor) and the
+// meter lasts. Released, it drops; emptied, it pops and wants a fresh press once shieldMin is back.
+function shieldHold(on) {
+  if (!on) {
+    player.shieldHeld = false;
+    return false;
+  }
+  if (isModal() || state.paused || deadDelay > 0) return false;
+  if (!state.started) begin();
+  if (player.shieldHeld) return true;
+  if (player.shieldBroken) {
+    floating('BAG STILL DRYING', player.x, player.y - 115 * MACY_TALL, '#c1f2cc');
+    sfx('miss');
+    return false;
+  }
+  player.shieldHeld = true;
+  floating('DIGNITY BUBBLE', player.x, player.y - 115 * MACY_TALL, '#c1f2cc');
+  sfx('shield');
+  wardShieldStep(0);
+  return true;
+}
+
+function wardShieldStep(dt) {
+  const cap = wardShieldCap();
+  if (!(player.shieldMeter >= 0)) player.shieldMeter = cap;
+  if (player.shieldHeld && !player.shieldBroken && player.shieldMeter > 0) {
+    player.shieldMeter = Math.max(0, player.shieldMeter - dt);
+    player.shield = Math.max(player.shield, 0.08);
+    if (player.shieldMeter > 0) return;
+    player.shieldBroken = true;
+    player.shieldHeld = false;
+    player.shield = 0;
+    floating('POP!', player.x, player.y - 115 * MACY_TALL, '#c1f2cc');
+    emit(player.x, player.y - 40, '#c1f2cc', reduced ? 4 : 12, 120);
+    sfx('split');
+    return;
+  }
+  player.shieldMeter = Math.min(cap, player.shieldMeter + dt * WARD_KIT.shieldRefill);
+  if (player.shieldBroken && player.shieldMeter >= WARD_KIT.shieldMin) player.shieldBroken = false;
 }
 
 // The pillow's hit frame: a front arc, wider on the finisher, all the way round on the spin.
@@ -1017,7 +1302,7 @@ function pillowHit(spin = false, serial = player.swingSerial) {
       reachE = reach + (e.boss ? 45 : (wardSize(e) - 1.2) * 18),
       dot = ((e.x - player.x) * ax + (e.y - player.y) * ay) / Math.max(1, d);
     if (d < reachE && dot > arc) {
-      const power = spin || finisher ? 2 : 1,
+      const power = spin ? WARD_KIT.spinPower : finisher ? 2 : 1,
         knock = spin ? 60 : finisher ? 70 : 30,
         stun = spin ? WARD.spinStun : finisher ? WARD.finisherStun : 0;
       if (hitEnemy(e, power, knock, { kind, stun, serial })) landed++;
@@ -1036,6 +1321,8 @@ function pillowHit(spin = false, serial = player.swingSerial) {
     }
   }
   wardComboResolve(serial);
+  // A swing at the lounge couch whacks the TV remote.
+  wardTvStrike(player.x, player.y, WARD_TWIST.tv.reach);
   const fx = player.x + ax * 70,
     fy = player.y - 35 + ay * 60;
   if (!reduced)
@@ -1090,6 +1377,7 @@ function wardStomp() {
   for (const p of projectiles)
     if (!p.friendly && p.kind === 'blob' && Math.hypot(p.x - player.x, p.y + 32 - player.y) < r) wardDeflect(p);
   wardComboResolve(serial);
+  wardTvStrike(player.x, player.y, r);
   wardFx({ kind: 'ring', ground: true, x: player.x, y: player.y, r0: 18, r1: r, life: 0.42, col: '#fff3cf', w: 7 });
   wardFx({ kind: 'puff', x: player.x, y: player.y, life: 0.5, n: 8, r: r * 0.7 });
   floating('SPIKE!', player.x, player.y - 100);
@@ -1098,36 +1386,9 @@ function wardStomp() {
   sfx('hit');
 }
 
-function useItem() {
-  if (isModal() || state.paused || deadDelay > 0 || player.itemCd > 0) return;
-  if (!state.started) begin();
-  if (state.item === 0) {
-    player.itemCd = 4;
-    player.combo = 2;
-    player.attackKind = 0;
-    player.attack = player.attackDuration = 0.55;
-    player.swingHit = true;
-    player.spinT = 0.55;
-    pillowHit(true, ++wardAttackSerial);
-    player.inv = Math.max(player.inv, 0.25);
-    wardFx({ kind: 'ring', ground: true, x: player.x, y: player.y, r0: 30, r1: 130, life: 0.35, col: '#fff6de', w: 5 });
-    sfx('swing', { combo: 3 });
-  }
-  if (state.item === 1) {
-    player.shield = wardHas('bag') ? 3.4 : 2.5;
-    player.itemCd = 7;
-    floating('DIGNITY BUBBLE', player.x, player.y - 115, '#c1f2cc');
-    sfx('shield');
-  }
-  if (state.item === 2) {
-    traps.push({ x: player.x, y: player.y + 8, life: 12, serial: ++wardAttackSerial });
-    player.itemCd = 3;
-    sfx('trap');
-  }
-}
-
 // ---- Hits, kills and splits ----
-// opt.kind: pillow | finisher | spin | stomp | bag | brick | trap | returned | dash. opt.from: hit origin.
+// opt.kind: pillow | finisher | spin | stomp | combo | brick | trap | returned | magnet | bedpan | donut.
+// opt.from: hit origin.
 function hitEnemy(e, power = 1, knock = 36, opt = {}) {
   if (!e || e.hp <= 0 || e.emerge > 0 || e.iframes > 0) return false;
   if (e.z > 16) return false;
@@ -1185,7 +1446,7 @@ function hitEnemy(e, power = 1, knock = 36, opt = {}) {
       col: '#cfeaff',
       n: 5
     });
-    wardTeach('shrug', 'Bruisers shrug off pokes. Hit the back, wait for dizzy, or LOB a brick.', 'SHRUGGED');
+    wardTeach('shrug', 'Bruisers shrug off pokes. Hit the back, wait for dizzy, or throw a BRICK.', 'SHRUGGED');
     sfx('shield');
     wardPoise(e);
     wardComboMark(wardCombo.touched, opt.serial);
@@ -1409,6 +1670,7 @@ function wardSlam() {
     if (hitEnemy(e, WARD.slamHit, WARD.slamKnock, { kind: 'combo', stun: WARD.slamStun, serial })) landed++;
   for (const p of projectiles)
     if (!p.friendly && p.kind === 'blob' && Math.hypot(p.x - player.x, p.y + 32 - player.y) < r) wardDeflect(p);
+  wardTvStrike(player.x, player.y, r);
   wardFx({ kind: 'ring', ground: true, x: player.x, y: player.y, r0: 24, r1: r, life: 0.5, col: '#ffd36e', w: 10 });
   wardFx({ kind: 'ring', ground: true, x: player.x, y: player.y, r0: 10, r1: r * 0.6, life: 0.35, col: '#fff3cf', w: 6 });
   wardFx({ kind: 'puff', x: player.x, y: player.y, life: 0.6, n: 12, r: r * 0.7 });
@@ -1476,6 +1738,7 @@ function wardKill(e) {
   wardShake(e.boss ? 0.6 : 0.1);
   sfx(e.boss ? 'bossDie' : 'enemyDie');
   if (e.boss) wardRalphDefeat(e);
+  else if (!e.minion) wardRecord();
   updateWardHUD();
 }
 
@@ -1505,6 +1768,7 @@ function wardSplit(e) {
   floating('MITOSIS. RUDE.', e.x, e.y - 70, '#b9edff');
   wardTeach('split', 'Finish both halves fast. Left alone for 4 seconds, they re-merge.', 'SPLIT!');
   sfx('split');
+  wardRecord();
   updateWardHUD();
 }
 
@@ -1534,6 +1798,7 @@ function wardMerge(dt) {
     emit(pea.x, pea.y - 24, breeds[3].color, reduced ? 6 : 14, 120);
     floating('RE-MERGED. GROSS.', pea.x, pea.y - 80, '#b9edff');
     sfx('squelch');
+    wardRecord();
     updateWardHUD();
   }
 }
@@ -1571,7 +1836,9 @@ function damage(source, from) {
     charge: 'FLATTENED.',
     gunk: 'GUNKED.',
     slam: 'RALPH-QUAKE.',
-    bump: 'BELLY CHECK.'
+    bump: 'BELLY CHECK.',
+    donut: 'DONUTTED.',
+    bedpan: 'BEDPANNED.'
   };
   floating(lines[source] || 'BLERGH!', player.x, player.y - 105, '#def281');
   sfx('hurt');
@@ -1600,6 +1867,7 @@ function brickBurst(p) {
     if (dist({ x, y }, e) < WARD.brickRadius + (e.boss ? 35 : 0))
       if (hitEnemy(e, 2, 40, { kind: 'brick', stun: WARD.brickStun, from: { x, y }, serial: p.serial })) hits++;
   if (hits > 1) floating('BRICK-SHAPED OPINION', x, y - 70, '#f5c5ab');
+  wardTvStrike(x, y, WARD.brickRadius);
   wardShake(0.2);
   hitStop = Math.max(hitStop, 0.05);
   sfx('explode');
@@ -1620,12 +1888,18 @@ function gunkSplash(p) {
 // ---- The ward step ----
 function updateCombat(dt) {
   wardRematchAsked = false;
+  if (wardRematchArm > 0 && (wardRematchArm -= dt) <= 0) {
+    wardRematchArm = 0;
+    updateWardHUD();
+  }
   wardPlayer(dt);
   wardEncounter(dt);
   wardQueueStep(dt);
+  wardTwistStep(dt);
   for (const e of [...enemies]) wardEnemy(e, dt);
   wardMerge(dt);
   wardProjectiles(dt);
+  wardBrickStep(dt);
   ensureUpdate(dt);
   wardFxUpdate(dt);
   enemies = enemies.filter(
@@ -1633,6 +1907,7 @@ function updateCombat(dt) {
   );
   projectiles = projectiles.filter(p => p.life > 0);
   wardComboTick(dt);
+  wardKitSync();
   $('jumpBtn').style.opacity = player.jumpCd > 0 ? '.5' : '1';
 }
 
@@ -1640,7 +1915,10 @@ function wardPlayer(dt) {
   player.jumpCd = Math.max(0, player.jumpCd - dt);
   player.landT = Math.max(0, (player.landT || 0) - dt);
   player.spinT = Math.max(0, (player.spinT || 0) - dt);
+  player.spinCd = Math.max(0, (player.spinCd || 0) - dt);
+  player.brickCd = Math.max(0, (player.brickCd || 0) - dt);
   player.stompT = Math.max(0, (player.stompT || 0) - dt);
+  wardShieldStep(dt);
   if (player.z > 0) {
     player.vz -= 780 * dt;
     player.z = Math.max(0, player.z + player.vz * dt);
@@ -1739,10 +2017,18 @@ function wardEnemy(e, dt) {
       my = e.ky * dt,
       ox = e.x,
       oy = e.y,
-      fast = Math.hypot(e.kx, e.ky);
+      fast = Math.hypot(e.kx, e.ky),
+      // On the ultrasound gel a knock turns into a long skid, and a skid that meets a wall splats.
+      gel = wardOnGel(e);
     moveEntity(e, mx, my);
-    if (fast > 800 && Math.hypot(e.x - ox, e.y - oy) < Math.hypot(mx, my) * 0.4) wardWallSplat(e);
-    const f = Math.exp(-dt * 14);
+    if (fast > (gel ? WARD_TWIST.gel.splat : 800) && Math.hypot(e.x - ox, e.y - oy) < Math.hypot(mx, my) * 0.4) {
+      // A bruiser skidding off the gel into a wall gets the full charge-into-furniture treatment.
+      if (gel && e.type === 2 && !e.boss) {
+        e.kx = e.ky = 0;
+        wardCrash(e, ox + mx * 4, oy + my * 4);
+      } else wardWallSplat(e);
+    }
+    const f = Math.exp(-dt * (gel ? WARD_TWIST.gel.skid : 14));
     e.kx *= f;
     e.ky *= f;
     if (Math.hypot(e.kx, e.ky) < 6) e.kx = e.ky = 0;
@@ -1813,6 +2099,8 @@ function wardEmerge(e, dt) {
   wardFx({ kind: 'puff', x: e.x, y: e.y, life: 0.45, n: e.boss ? 14 : 6, r: e.boss ? 70 : 26 });
   sfx(e.boss ? 'boss' : 'blob');
   if (e.boss) wardShake(0.3);
+  // The room's twist wakes up with the first gremlin out.
+  else wardTwist.live = true;
   if (encounter.teach)
     wardTeach(
       'swing',
@@ -1925,6 +2213,7 @@ function wardLunge(e, dt, speed, reach) {
   }
   if (e.charge > 0) return;
   e.charge = 0;
+  wardGelCarry(e, speed);
   // A biter that connects backs off to gloat; a miss recovers faster.
   e.cool = (e.bit ? 2.2 : 1) * wardCoolScale();
   wardLull();
@@ -2116,6 +2405,7 @@ function wardCharge(e, dt, speed, reach) {
   }
   if (e.charge > 0) return;
   e.charge = 0;
+  wardGelCarry(e, speed);
   e.recover = Math.max(e.recover, e.boss ? 0.9 : 0.8);
   e.cool = (e.boss ? 0.6 : 1.8) * wardCoolScale();
   e.bit = false;
@@ -2337,6 +2627,9 @@ function startRalph() {
     ensure: n
   };
   ensureNotice(n);
+  // Ralph gets the full kit thrown at him: three bricks, a trap a phase, and a brick turning up each phase.
+  wardKitFill();
+  wardBrickDue = r.emerge + WARD_KIT.brickShow;
   wardSetBanner('RALPH', 'has entered the chat', 3);
   wardTaunt(r, r.ensureCrown ? ENSURE_LINES.ralph : RALPH_LINES.intro);
   r.taunt.t = 4.4;
@@ -2551,6 +2844,9 @@ function wardRalphPhase(e) {
   e.cool = 0.4;
   e.act = null;
   e.minionT = next === 2 ? 0.2 : 8;
+  wardKit.trap = WARD_KIT.traps;
+  wardKitDirty();
+  wardBrickDue = WARD_KIT.brickShow;
   wardSetBanner('PHASE ' + next, next === 2 ? 'Ralph discovers cardio' : 'Ralph is not okay', 2.6);
   wardTaunt(e, next === 2 ? RALPH_LINES.phase2 : RALPH_LINES.phase3);
   wardShake(0.5);
@@ -2641,17 +2937,9 @@ function wardProjectiles(dt) {
     const nx = p.x + p.vx * dt,
       ny = p.y + p.vy * dt;
     if (collides(nx, ny + 32)) {
-      if (p.kind === 'bag' && !p.bounces) {
-        if (collides(nx, p.y + 32)) p.vx *= -1;
-        if (collides(p.x, ny + 32)) p.vy *= -1;
-        p.bounces = 1;
-        wardFx({ kind: 'spark', x: p.x, y: p.y, life: 0.35, col: '#fff2a8', n: 7 });
-        sfx('bounce');
-      } else {
-        p.life = 0;
-        emit(p.x, p.y, p.kind === 'bag' ? '#f8d9a1' : p.ensure ? ENSURE_BEIGE[0] : '#b9d56b', reduced ? 2 : 6, 70);
-        continue;
-      }
+      p.life = 0;
+      emit(p.x, p.y, p.ensure ? ENSURE_BEIGE[0] : '#b9d56b', reduced ? 2 : 6, 70);
+      continue;
     } else {
       p.x = nx;
       p.y = ny;
@@ -2661,9 +2949,7 @@ function wardProjectiles(dt) {
         e => e.z <= 16 && Math.hypot(e.x - p.x, e.y - 30 * wardSize(e) - p.y) < (e.boss ? 58 : 22 + 6 * wardSize(e))
       );
       if (e) {
-        const from = { x: e.x - p.vx, y: e.y - p.vy };
-        if (p.kind === 'bag') hitEnemy(e, 1, 26, { kind: 'bag', from, serial: p.serial });
-        else hitEnemy(e, 3, 40, { kind: 'returned', from, serial: p.bonusSerial });
+        hitEnemy(e, 3, 40, { kind: 'returned', from: { x: e.x - p.vx, y: e.y - p.vy }, serial: p.bonusSerial });
         p.life = 0;
       }
     } else if (Math.hypot(player.x - p.x, player.y - 32 - p.y) < 25 && player.z < 25) {
@@ -2676,7 +2962,7 @@ function wardProjectiles(dt) {
       p.life = 0;
     }
   }
-  // A thrown bag or a lobbed brick that is done: one that hit nothing breaks the combo run.
+  // A lobbed brick that is done: one that hit nothing breaks the combo run.
   for (const p of projectiles)
     if (p.life <= 0 && p.serial && !p.resolved) {
       p.resolved = true;
@@ -2705,6 +2991,539 @@ function wardFxUpdate(dt) {
     if (wardHint.t >= wardHint.life) wardHint = null;
   }
   wardChainPop = Math.max(0, wardChainPop - dt);
+}
+
+// ---- Bricks to find ----
+// One turns up a few seconds into each wave (and each Ralph phase), tucked behind furniture or in a corner,
+// glinting until Macy walks over it. They stay for the fight and leave with the room.
+function wardBrickStep(dt) {
+  if (wardBrickDue > 0 && !encounter.complete && encounter.room === state.room) {
+    wardBrickDue -= dt;
+    if (wardBrickDue <= 0) {
+      wardBrickDue = -1;
+      wardBrickPlace();
+    }
+  }
+  for (const b of wardBrickDrops) {
+    b.t += dt;
+    const near = player.z < 30 && Math.hypot(player.x - b.x, (player.y - b.y) * 1.2) < WARD_KIT.brickReach;
+    if (near && wardKit.bricks < WARD_KIT.brickMax) {
+      b.taken = true;
+      wardKit.bricks++;
+      wardKitDirty();
+      floating('+1 BRICK', b.x, b.y - 40, '#f5c5ab');
+      emit(b.x, b.y - 10, '#e8a091', reduced ? 3 : 8, 80);
+      sfx('pickup');
+    } else if (near && !b.near) floating('POCKETS FULL', b.x, b.y - 40, '#ffe4ec');
+    b.near = near;
+  }
+  wardBrickDrops = wardBrickDrops.filter(b => !b.taken);
+}
+
+// The next spot along the room's list (a fixed rotation, no dice) that is clear of Macy and free.
+function wardBrickPlace() {
+  const spots = WARD_BRICK_SPOTS[state.room];
+  if (!spots || wardBrickDrops.length >= 3) return null;
+  for (let i = 0; i < spots.length; i++) {
+    const [x, y] = spots[(wardBrickSeq + i) % spots.length];
+    if (Math.hypot(x - player.x, y - player.y) < WARD_KIT.brickAway) continue;
+    if (wardBrickDrops.some(b => b.x === x && b.y === y)) continue;
+    wardBrickSeq += i + 2;
+    const b = { x, y, t: 0, near: false };
+    wardBrickDrops.push(b);
+    sfx('lock', { vol: 0.5 });
+    wardTeach('brickDrop', 'Something glints behind the furniture. A brick! Walk over it.', 'CLINK', b);
+    return b;
+  }
+  return null;
+}
+
+// ---- Rooms with character ----
+// The twist runs while the room's fight does, from its first gremlin out (wardTwist.live).
+const wardFightHere = () =>
+  wardTwist.room === state.room && encounter.room === state.room && !encounter.complete && !encounter.boss && wardCombatRoom(state.room);
+
+const wardTwistOn = () => wardTwist.live && wardFightHere();
+
+function wardTwistStep(dt) {
+  if (wardTwist.room !== state.room) return;
+  if (state.room === 1) wardMriStep(dt);
+  else if (state.room === 2) wardTvStep(dt);
+  else if (state.room === 3) wardDonutStep(dt);
+  else if (state.room === 4 && wardTwist.live && wardFightHere() && !wardTwist.shown) {
+    wardTwist.shown = true;
+    wardTwistTeach(4, { x: WARD_TWIST.gel.puddles[1][0], y: WARD_TWIST.gel.puddles[1][1] });
+  }
+}
+
+// A fight in the MRI room puts three loose bedpans on the floor.
+function wardTwistSetup() {
+  if (wardTwist.room === 1)
+    wardTwist.pans = WARD_TWIST.mri.pans.map(([x, y], i) => ({ x, y, vx: 0, vy: 0, rot: i * 1.3, spin: 0, near: false, hit: new Set() }));
+}
+
+// The MRI: idle, then 'warn' (the bore glows, every bedpan and helmet shows its lane), then 'pull'. Bedpans
+// fly at the bore and bowl over whatever they cross; a bruiser's bedpan helmet drags it in face first
+// (CLANG: hurt and dizzy); everyone else slides toward the scanner. Macy has no metal on her, but anything
+// flying at the scanner flattens her too if she stands in its lane.
+function wardMriStep(dt) {
+  const T = WARD_TWIST.mri,
+    tw = wardTwist;
+  for (const p of tw.pans) wardPanStep(p, dt);
+  if (!wardTwistOn()) {
+    tw.phase = 'idle';
+    tw.pt = 0;
+    return;
+  }
+  tw.t += dt;
+  if (tw.phase === 'idle') {
+    if (tw.t < (tw.next || T.first)) return;
+    tw.phase = 'warn';
+    tw.pt = 0;
+    wardTwistTeach(1, { x: T.bore.x, y: 250 });
+    sfx('powerup', { vol: 0.5 });
+  } else if (tw.phase === 'warn') {
+    tw.pt += dt;
+    if (tw.pt < T.warn) return;
+    tw.phase = 'pull';
+    tw.pt = 0;
+    for (const e of enemies) e.clanged = e.ranOver = false;
+    for (const p of tw.pans) {
+      p.hit = new Set();
+      p.ranOver = false;
+    }
+    floating('CLUNK', T.bore.x, 128, '#bfe6ff');
+    wardShake(0.12);
+    sfx('lock');
+  } else {
+    tw.pt += dt;
+    wardMriPull(dt, tw.pt);
+    if (tw.pt < T.pull) return;
+    tw.phase = 'idle';
+    tw.next = tw.t + T.every / Math.max(0.75, cfg().speed);
+  }
+}
+
+function wardMriPull(dt, t) {
+  const T = WARD_TWIST.mri,
+    ramp = Math.min(1, t / 0.25);
+  for (const e of wardFighters()) {
+    // Mid-attack (a wind-up or a charge) a gremlin has its feet planted: the magnet never saves Macy from
+    // what is already coming. It only drags the ones standing around.
+    if (e.boss || e.z > 16 || e.hopT > 0 || e.wind > 0 || e.charge > 0 || dist(e, player) < T.grip) continue;
+    const dx = T.bore.x - e.x,
+      dy = T.bore.y - e.y,
+      d = Math.hypot(dx, dy);
+    if (d < 6) continue;
+    const helmet = e.type === 2,
+      sp = (helmet ? T.helmet : T.slide) * ramp,
+      ox = e.x,
+      oy = e.y;
+    if (helmet) e.yank = time + 0.2;
+    moveEntity(e, (dx / d) * sp * dt, (dy / d) * sp * dt);
+    const moved = Math.hypot(e.x - ox, e.y - oy);
+    if (helmet && !e.clanged && sp >= T.clang && moved < sp * dt * 0.35 && wardNearBox(e, T.scanner, 34)) {
+      e.clanged = true;
+      wardMriClang(e);
+    }
+    // A bruiser flying at the scanner flattens whoever is in its way. Macy included.
+    if (helmet && sp >= T.clang && !e.ranOver && dist(e, player) < 40) {
+      e.ranOver = true;
+      damage('charge', e);
+    }
+  }
+  for (const p of wardTwist.pans) {
+    const dx = T.bore.x - p.x,
+      dy = T.bore.y - p.y,
+      d = Math.hypot(dx, dy);
+    if (d < 10) continue;
+    p.vx = (dx / d) * T.pan * ramp;
+    p.vy = (dy / d) * T.pan * ramp;
+    p.spin = (dx >= 0 ? 1 : -1) * 12;
+    p.pulled = true;
+  }
+}
+
+function wardNearBox(p, box, m) {
+  const [x, y, w, h] = box;
+  return p.x > x - m && p.x < x + w + m && p.y > y - m && p.y < y + h + m;
+}
+
+// Face first into the scanner: a clang, a knock to the head (clangHit) and WARD_TWIST.mri.clangDizzy of stars.
+function wardMriClang(e) {
+  const T = WARD_TWIST.mri;
+  e.iframes = 0;
+  if (T.clangHit > 0) hitEnemy(e, T.clangHit, 0, { kind: 'magnet', from: T.bore });
+  if (e.hp > 0) e.dizzy = Math.max(e.dizzy, T.clangDizzy);
+  floating('CLANG!', e.x, e.y - 60 * wardSize(e) - 30, '#bfe6ff');
+  wardFx({ kind: 'impact', x: e.x, y: e.y - 40, life: 0.22, r: 34, col: '#bfe6ff' });
+  wardShake(0.15);
+  sfx('wallSplat');
+}
+
+// A bedpan on the floor: it slides and bounces off furniture; flung by the magnet it bowls over every
+// gremlin in its path. Macy kicks it on her way past, which is how she lines one up for the next pull.
+function wardPanStep(p, dt) {
+  const T = WARD_TWIST.mri,
+    fast = Math.hypot(p.vx, p.vy);
+  if (fast > 0) {
+    const nx = p.x + p.vx * dt,
+      ny = p.y + p.vy * dt;
+    let bonk = false;
+    if (collides(nx, p.y)) {
+      p.vx *= -0.25;
+      bonk = true;
+    } else p.x = nx;
+    if (collides(p.x, ny)) {
+      p.vy *= -0.25;
+      bonk = true;
+    } else p.y = ny;
+    if (bonk && fast > 280) sfx('bounce', { vol: 0.4 });
+    p.rot += p.spin * dt;
+    const f = Math.exp(-dt * 2.6);
+    p.vx *= f;
+    p.vy *= f;
+    p.spin *= f;
+    if (Math.hypot(p.vx, p.vy) < 8) p.vx = p.vy = p.spin = 0;
+    // Only a pan the magnet threw bowls anything over; a kicked one just slides into position.
+    if (p.pulled && fast > 200)
+      for (const e of wardFighters()) {
+        if (e.boss || e.z > 16 || p.hit.has(e.id)) continue;
+        if (Math.hypot(e.x - p.x, (e.y - p.y) * 1.3) > T.panReach + 8 * wardSize(e)) continue;
+        p.hit.add(e.id);
+        e.iframes = 0;
+        hitEnemy(e, 1, 0, { kind: 'bedpan', stun: 0.8, from: { x: p.x - p.vx * 0.1, y: p.y - p.vy * 0.1 } });
+        floating('BEDPANNED', e.x, e.y - 70 * wardSize(e), '#e7eef6');
+      }
+    // ...and Macy, if she is standing in its lane (a jump clears it).
+    if (p.pulled && fast > 200 && !p.ranOver && Math.hypot(player.x - p.x, (player.y - p.y) * 1.3) < T.panReach) {
+      p.ranOver = true;
+      damage('bedpan', p);
+    }
+    if (Math.hypot(p.vx, p.vy) < 100) p.pulled = false;
+  }
+  const near = player.z <= 0 && Math.hypot(player.x - p.x, (player.y - p.y) * 1.4) < 26;
+  if (near && !p.near && Math.hypot(p.vx, p.vy) < 200) {
+    const walking = player.moving && Math.hypot(player.lastDx, player.lastDy) > 0.1,
+      dx = p.x - player.x,
+      dy = p.y - player.y,
+      l = Math.hypot(dx, dy) || 1,
+      wl = Math.hypot(player.lastDx, player.lastDy) || 1,
+      ux = walking ? player.lastDx / wl : dx / l,
+      uy = walking ? player.lastDy / wl : dy / l;
+    p.vx = ux * T.kick;
+    p.vy = uy * T.kick * 0.7;
+    p.spin = (ux >= 0 ? 1 : -1) * 10;
+    p.pulled = false;
+    sfx('bounce', { vol: 0.5 });
+  }
+  p.near = near;
+}
+
+// The lounge: whack the remote on the couch and every gremlin in front of the screen zones out. It needs
+// WARD_TWIST.tv.recharge seconds before it works again; its button glows when it is ready.
+function wardTvStep(dt) {
+  const tw = wardTwist;
+  tw.cool = Math.max(0, tw.cool - dt);
+  tw.zap = Math.max(0, tw.zap - dt);
+  if (wardTwistOn() && !tw.shown) {
+    tw.shown = true;
+    wardTwistTeach(2, { x: WARD_TWIST.tv.remote.x, y: WARD_TWIST.tv.remote.y + 40 });
+  }
+}
+
+const wardTvReady = () => state.room === 2 && wardTwist.room === 2 && wardTwistOn() && wardTwist.cool <= 0;
+
+// A hit (a swing, a stomp, a slam, a brick) at (x, y) reaching r: does it whack the remote?
+function wardTvStrike(x, y, r) {
+  if (!wardTvReady()) return false;
+  const f = WARD_TWIST.tv.front;
+  if (Math.hypot(x - f.x, y - f.y) > r) return false;
+  wardTvZap();
+  return true;
+}
+
+// Tap the room: a tap on the remote is something to go and hit, like a gremlin.
+function wardTvTargetAt(p) {
+  if (!wardTvReady()) return null;
+  const T = WARD_TWIST.tv;
+  if (Math.hypot(p.x - T.remote.x, p.y - T.remote.y) > 44) return null;
+  return (wardTwist.prey ||= { id: 'tv-remote', x: T.front.x, y: T.front.y - 4, z: 0, hp: 1, twist: true });
+}
+
+function wardInTvZone(e) {
+  const [x, y, w, h] = WARD_TWIST.tv.zone,
+    k = (e.y - y) / h,
+    half = w / 2 + k * 60;
+  return k >= 0 && k <= 1 && Math.abs(e.x - (x + w / 2)) < half;
+}
+
+function wardTvZap() {
+  const T = WARD_TWIST.tv;
+  wardTwist.cool = T.recharge;
+  wardTwist.zap = 1.2;
+  if (wardTwist.prey) wardTwist.prey.hp = 0;
+  wardTwist.prey = null;
+  let n = 0;
+  for (const e of wardFighters()) {
+    if (e.boss || e.z > 30 || !wardInTvZone(e)) continue;
+    e.stun = Math.max(e.stun, T.stun);
+    e.wind = 0;
+    e.charge = 0;
+    e.volleys = 0;
+    e.act = null;
+    e.poise = 0;
+    e.poisePending = false;
+    floating('ZONED OUT', e.x, e.y - 80 * wardSize(e), '#bfe6ff');
+    n++;
+  }
+  // The TV jumps to the cat cam. Nobody, gremlin or otherwise, can look away from the cat cam.
+  tvChannels[2] = 0;
+  tvFlash = reduced ? 0 : 0.3;
+  tvOsd = 1.8;
+  floating(n ? 'CAT VIDEOS!' : 'NOBODY WATCHING', 750, 150, '#ffe2a8');
+  wardShake(0.08);
+  sfx('powerup');
+}
+
+// The CT: Donut II rolls a lane across the room every so often. The lane lights up WARD_TWIST.donut.warn
+// seconds first (the lane nearest Macy, alternating sides), then the donut bowls over every gremlin in it.
+// Macy too, unless she jumps it, shields or gets out of the lane.
+function wardDonutStep(dt) {
+  const T = WARD_TWIST.donut,
+    tw = wardTwist,
+    d = tw.donut;
+  if (d) {
+    d.x += d.dir * T.speed * dt;
+    d.spin += (d.dir * T.speed * dt) / T.r;
+    for (const e of wardFighters()) {
+      if (e.boss || e.z > 30 || d.hit.has(e.id)) continue;
+      if (Math.abs(e.y - d.y) > T.band + 6 * wardSize(e) || Math.abs(e.x - d.x) > T.r + 10 * wardSize(e)) continue;
+      d.hit.add(e.id);
+      e.iframes = 0;
+      if (hitEnemy(e, T.hit, 0, { kind: 'donut', stun: T.stun, from: { x: d.x - d.dir * 60, y: d.y } }) && e.hp > 0) {
+        e.kx = d.dir * T.knock;
+        e.ky = (e.y >= d.y ? 1 : -1) * 160;
+      }
+      floating('BOWLED!', e.x, e.y - 80 * wardSize(e), '#ffe2a8');
+    }
+    if (!d.macy && Math.abs(player.y - d.y) < T.band - 4 && Math.abs(player.x - d.x) < T.r + 4) {
+      d.macy = true;
+      if (player.z > 22) floating('OLÉ!', player.x, player.y - 120, '#ffe29b');
+      else damage('donut', { x: d.x - d.dir * 60, y: d.y });
+    }
+    if (d.x < -T.r * 3 || d.x > roomWidth() + T.r * 3) tw.donut = null;
+  }
+  if (!wardTwistOn()) {
+    if (tw.phase === 'warn') tw.phase = 'idle';
+    return;
+  }
+  tw.t += dt;
+  if (tw.phase === 'idle') {
+    if (tw.donut || tw.t < (tw.next || T.first)) return;
+    tw.phase = 'warn';
+    tw.pt = 0;
+    tw.lane = T.lanes.reduce((a, b) => (Math.abs(b - player.y) < Math.abs(a - player.y) ? b : a));
+    tw.dir = -tw.dir;
+    wardTwistTeach(3, { x: tw.dir > 0 ? 140 : roomWidth() - 140, y: tw.lane });
+    sfx('lock', { vol: 0.6 });
+  } else if (tw.phase === 'warn') {
+    tw.pt += dt;
+    if (tw.pt < T.warn) return;
+    tw.phase = 'idle';
+    tw.next = tw.t + T.every / Math.max(0.75, cfg().speed);
+    tw.donut = { x: tw.dir > 0 ? -T.r - 10 : roomWidth() + T.r + 10, y: tw.lane, dir: tw.dir, spin: 0, hit: new Set(), macy: false };
+    wardShake(0.1);
+    sfx('dash');
+  }
+}
+
+// The ultrasound: gel puddles for the length of the fight. On gel, Macy's steps carry (wardGrip, read by
+// world.js), knocks become long skids that splat into walls, and charges and lunges overshoot.
+function wardOnGel(p) {
+  if (state.room !== 4 || !wardFightHere() || !p || p.z > 0) return false;
+  for (const [x, y, r] of WARD_TWIST.gel.puddles) {
+    const dx = (p.x - x) / r,
+      dy = (p.y - y) / (r * 0.42);
+    if (dx * dx + dy * dy < 1) return true;
+  }
+  return false;
+}
+
+// How fast Macy's footing catches up with the stick (per second): 0 is ordinary floor, a number is gel.
+function wardGrip(p = player) {
+  return wardOnGel(p) ? WARD_TWIST.gel.grip : 0;
+}
+
+function wardGelCarry(e, speed) {
+  if (e.boss || !wardOnGel(e)) return;
+  e.kx += e.chargeX * speed * 0.75;
+  e.ky += e.chargeY * speed * 0.75;
+}
+
+// ---- Floor pieces for the depth sort (world.js) ----
+function wardRenderables() {
+  const out = wardBrickDrops.map(b => ({ y: b.y, draw: g => wardDrawBrickDrop(g, b) }));
+  if (wardTwist.room !== state.room) return out;
+  for (const p of wardTwist.pans) out.push({ y: p.y, draw: g => wardDrawPan(g, p) });
+  if (wardTwist.donut) {
+    const d = wardTwist.donut;
+    out.push({ y: d.y + 1, draw: g => wardDrawDonut(g, d) });
+  }
+  if (state.room === 2) out.push({ y: 290.5, draw: g => wardDrawRemote(g) });
+  return out;
+}
+
+// ---- Drawing: the kit and the twists ----
+function wardDrawBrickDrop(g, b) {
+  const pop = reduced ? 1 : Math.min(1, b.t / 0.3),
+    bob = reduced ? 0 : Math.sin(time * 3 + b.x) * 1.5;
+  shadow(g, b.x, b.y + 2, 14, 4);
+  brick(g, b.x - 10.5, b.y - 2 + bob - (1 - pop) * 26, '#e19a83', 1);
+}
+
+// The bedpan: white enamel, navy rim, the handle pointing the way it last spun.
+function wardDrawPan(g, p) {
+  shadow(g, p.x, p.y + 2, 21, 5);
+  g.save();
+  g.translate(p.x, p.y - 5);
+  g.scale(Math.cos(p.rot) >= 0 ? 1 : -1, 1);
+  rr(g, 14, -3, 15, 6, 3, '#f4f6f8', '#27406a', 1.5);
+  ellipse(g, 0, 0, 19, 8.5, '#27406a');
+  ellipse(g, 0, -0.5, 17, 7, '#f4f6f8');
+  ellipse(g, -2, -1, 10, 3.6, '#d5dee7');
+  g.restore();
+}
+
+// Donut II on its edge, rolling: the white gantry, the dark bore, the blue light band.
+function wardDrawDonut(g, d) {
+  const r = WARD_TWIST.donut.r;
+  shadow(g, d.x, d.y + 2, r * 0.95, 8);
+  g.save();
+  g.translate(d.x, d.y - r);
+  g.rotate(d.spin);
+  ellipse(g, 0, 0, r, r, '#e9eff0');
+  g.strokeStyle = '#7d9aa5';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(0, 0, r, 0, Math.PI * 2);
+  g.stroke();
+  g.strokeStyle = '#6cc3e0';
+  g.lineWidth = 4;
+  g.beginPath();
+  g.arc(0, 0, r * 0.76, 0, Math.PI * 2);
+  g.stroke();
+  for (let i = 0; i < 6; i++) {
+    const a = (i * Math.PI) / 3;
+    ellipse(g, Math.cos(a) * r * 0.88, Math.sin(a) * r * 0.88, 2.4, 2.4, '#7d9aa5');
+  }
+  ellipse(g, 0, 0, r * 0.5, r * 0.5, '#24414c');
+  ellipse(g, 0, 0, r * 0.36, r * 0.36, '#2f5868');
+  g.restore();
+}
+
+// The remote on the couch; its power button glows while it is ready to use.
+function wardDrawRemote(g) {
+  const T = WARD_TWIST.tv,
+    ready = wardTvReady(),
+    pulse = reduced ? 1 : 0.6 + 0.4 * Math.sin(time * 6);
+  g.save();
+  g.translate(T.remote.x, T.remote.y);
+  g.rotate(-0.22);
+  rr(g, -14, -5, 28, 10, 4, '#2a2f3a', '#11151c', 1);
+  for (let i = 0; i < 3; i++) ellipse(g, -8 + i * 5, 0, 1.3, 1.3, '#9aa7b5');
+  if (ready) {
+    g.globalAlpha = 0.35 * pulse;
+    ellipse(g, 9, 0, 7, 7, '#ff6b6b');
+    g.globalAlpha = 1;
+  }
+  ellipse(g, 9, 0, 2.3, 2.3, ready ? '#ff6b6b' : '#6a4a4a');
+  g.restore();
+}
+
+// Floor layer: the gel, the TV's patch of floor, the donut's lane, the magnet's arrows.
+function wardTwistDrawGround(g) {
+  if (wardTwist.room !== state.room || !wardFightHere()) return;
+  const tw = wardTwist,
+    pulse = reduced ? 0.7 : 0.5 + 0.5 * Math.sin(time * 9);
+  if (state.room === 4)
+    for (const [x, y, r] of WARD_TWIST.gel.puddles) {
+      g.globalAlpha = 0.5;
+      ellipse(g, x, y, r, r * 0.42, '#9fe3d6');
+      g.globalAlpha = 0.45;
+      ellipse(g, x - r * 0.12, y - 2, r * 0.7, r * 0.26, '#c9f4ea');
+      g.globalAlpha = 0.8;
+      ellipse(g, x - r * 0.35, y - r * 0.14, r * 0.16, r * 0.05, '#ffffff');
+      ellipse(g, x + r * 0.3, y + r * 0.1, r * 0.08, r * 0.03, '#ffffff');
+      g.globalAlpha = 1;
+    }
+  if (state.room === 2 && tw.live) {
+    const [x, y, w, h] = WARD_TWIST.tv.zone,
+      lit = tw.zap > 0 ? 0.32 * tw.zap : wardTvReady() ? 0.08 + 0.05 * pulse : 0.04;
+    g.globalAlpha = lit;
+    poly(g, [[x, y], [x + w, y], [x + w + 60, y + h], [x - 60, y + h]], '#a9d2ff');
+    g.globalAlpha = 1;
+  }
+  if (state.room === 3 && tw.phase === 'warn') {
+    const T = WARD_TWIST.donut,
+      w = roomWidth(),
+      k = tw.pt / T.warn;
+    g.globalAlpha = 0.16 + 0.16 * pulse;
+    rect(g, 40, tw.lane - T.band, w - 80, T.band * 2, '#ffd36e');
+    g.globalAlpha = 0.75;
+    for (let i = 0; i < 9; i++) {
+      const cx = 80 + ((i * 110 + tw.dir * k * 220 + 2200) % 880),
+        s = tw.dir * 9;
+      line(g, [[cx - s, tw.lane - 10], [cx + s, tw.lane], [cx - s, tw.lane + 10]], '#fff3cf', 3);
+    }
+    g.globalAlpha = 1;
+  }
+  if (state.room === 1 && tw.phase !== 'idle') {
+    const B = WARD_TWIST.mri.bore,
+      pull = tw.phase === 'pull',
+      flow = reduced ? 0 : ((time * (pull ? 2.4 : 1)) % 1) * 30;
+    g.globalAlpha = pull ? 0.7 : 0.25 + 0.3 * pulse;
+    for (let i = 0; i < 10; i++) {
+      const a = Math.PI * (0.08 + (0.84 * i) / 9),
+        rr0 = 330 - flow,
+        x = B.x - Math.cos(a) * rr0,
+        y = B.y + Math.sin(a) * rr0 * 0.6,
+        ux = (B.x - x) / rr0,
+        uy = (B.y - y) / rr0;
+      line(g, [[x - uy * 9, y + ux * 9 * 0.6], [x + ux * 14, y + uy * 14], [x + uy * 9, y - ux * 9 * 0.6]], '#bfe6ff', 3);
+    }
+    g.globalAlpha = 1;
+  }
+}
+
+// Over everything: the glints that say where a brick is, the MRI bore glowing up to the pull, the donut's
+// countdown at the lane's start.
+function wardTwistDrawFx(g) {
+  for (const b of wardBrickDrops) {
+    const k = reduced ? 0.6 : (time * 0.9 + b.x * 0.01) % 1,
+      s = k < 0.25 ? Math.sin((k / 0.25) * Math.PI) : 0;
+    if (s > 0.02) spark(g, b.x + 6, b.y - 16, '#fff6c2', 0.35 + 0.55 * s);
+  }
+  if (wardTwist.room !== state.room || !wardFightHere()) return;
+  const tw = wardTwist;
+  if (state.room === 1 && tw.phase !== 'idle') {
+    const pull = tw.phase === 'pull',
+      glow = pull ? 0.55 : 0.15 + 0.3 * (tw.pt / WARD_TWIST.mri.warn);
+    g.globalAlpha = glow;
+    ellipse(g, 486, 142, 54, 62, '#8fd6ff');
+    g.globalAlpha = 1;
+    // The countdown sits on the floor in front of the scanner, clear of the HUD and the toasts up top.
+    const left = Math.ceil(WARD_TWIST.mri.warn - tw.pt),
+      text = pull ? 'MAGNET' : 'MAGNET ' + left;
+    rr(g, 481 - 52, 318, 104, 22, 11, '#0f2c3ae6', '#8fd6ff', 1.5);
+    label(g, text, 481, 333, 11, '#e8f7ff', 'center');
+  }
+  if (state.room === 3 && tw.phase === 'warn') {
+    const x = tw.dir > 0 ? 70 : roomWidth() - 70,
+      left = Math.ceil(WARD_TWIST.donut.warn - tw.pt);
+    rr(g, x - 48, tw.lane - 52, 96, 22, 11, '#3a2a10e6', '#ffd36e', 1.5);
+    label(g, 'DONUT ' + left, x, tw.lane - 37, 11, '#ffd36e', 'center');
+  }
 }
 
 // ---- Drawing: Macy's pillow ----
@@ -3185,6 +4004,8 @@ function wardPose(e) {
   if (e.bottle && e.wind > 0) o.bottleWave = true;
   if (e.hit > 0) return Object.assign(o, { eyes: 'shut', mouth: 'open', arms: 'wide' });
   if (e.stun > 0 || e.dizzy > 0) return Object.assign(o, { eyes: 'spiral', mouth: 'wobble', arms: 'wide' });
+  // Dragged by the helmet toward the MRI.
+  if (e.yank > time) return Object.assign(o, { eyes: 'wide', mouth: 'open', arms: 'reach', brow: 1, lookX: -1 });
   if (e.glugT > 0)
     return Object.assign(o, { glug: true, eyes: 'shut', mouth: 'puff', cheek: 0.5 + 0.5 * Math.sin(time * 18) });
   if (e.charge > 0 || e.slam) return Object.assign(o, { eyes: 'wide', mouth: 'open', arms: 'reach', brow: 1 });
@@ -3671,6 +4492,7 @@ function wardDrawCorpse(g, e) {
 
 // ---- Drawing: effects and overlay ----
 function wardDrawGround(g) {
+  wardTwistDrawGround(g);
   for (const p of puddles) {
     if (!p.gunk) continue;
     const r = p.r;
@@ -3697,6 +4519,7 @@ function wardDrawGround(g) {
 function wardDrawFx(g) {
   ensureDrawBlobs(g);
   for (const f of combatFx) if (!f.ground) wardDrawEffect(g, f);
+  wardTwistDrawFx(g);
   wardDrawCombo(g);
 }
 

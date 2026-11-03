@@ -181,6 +181,42 @@ assert.equal(run('tvChannel()'), 2, 'a mouse click on the TV changes it too');
 run('tvChannels[0] = 0');
 console.log('PASS: the E-Type and the TV answer Space, E, Enter, taps and clicks; channels cycle.');
 
+// ---- The light switch: her room by day (0) and with the lights out (5) ----
+const seenTexts = () => run('var seen=[];c.fillText=t=>seen.push(t);drawWorld();c.fillText=undefined;seen');
+run('state.stats = {}; state.ralphReady = false; loadRoom(0); enemies = []; player.x = 255; player.y = 250; floats = []');
+assert.equal(run('roomSpotNear().id'), 'switch', 'the switch by the bed is a hotspot');
+assert.equal(run('collides(255, 250) || collides(255, 300)'), false, 'and Macy can walk up to it, between the bed and the nightstand');
+assert.ok(seenTexts().some(t => /LIGHTS OUT$/.test(t)), 'its prompt says LIGHTS OUT');
+key(' ');
+assert.equal(run('state.room'), 5, 'Space at the switch turns the lights out');
+assert.equal(run('player.x + "," + player.y'), '255,250', 'Macy stays where she stands');
+assert.equal(nodes.roomTitle.textContent, 'Your room · lights out');
+assert.match(nodes.arcadeBtn.innerHTML, /Bedside Blaster/, 'the gamebar now plays Bedside Blaster');
+assert.match(nodes.toast.textContent, /Lights out/);
+assert.equal(run('state.stats.lightsOut'), 1, 'lights out is counted');
+assert.equal(run('roomImages.get(5) ? roomImages.get(5).daypart : "night"'), 'night');
+assert.ok(seenTexts().some(t => /LIGHTS ON$/.test(t)), 'in the dark the prompt says LIGHTS ON');
+run('roomAction("use")');
+assert.equal(run('state.room'), 0, 'E flips it back');
+assert.match(nodes.arcadeBtn.innerHTML, /Fastpitch Fever/, 'and Fastpitch Fever is back on the gamebar');
+run('player.x = 600; player.y = 450');
+assert.equal(run('roomAction("tap", { x: LIGHT_SWITCH.x, y: LIGHT_SWITCH.y })'), true, 'a tap on the switch works from anywhere');
+assert.equal(run('state.room'), 5);
+assert.equal(run('tryOpenArcade()'), true, 'the beacon opens Bedside Blaster after dark');
+assert.equal(run('mini.id'), 5);
+run('mini.open = false; mini.screen = "lobby"; for (const d of $$("dialog")) d.close(); state.paused = false');
+run('roomSpotClick({ clientX: LIGHT_SWITCH.x, clientY: LIGHT_SWITCH.y, detail: 0 })');
+assert.equal(run('state.room'), 0, 'and a mouse click on it');
+run('goRoom(5)');
+assert.equal(run('state.room'), 5, 'the map still goes straight to either one');
+run('goRoom(0)');
+// Ralph waiting in her room: hotspots (the switch too) wait out the fight.
+run('state.ralphReady = true; state.ralph = false; loadRoom(1); loadRoom(0); player.x = 255; player.y = 250');
+assert.equal(run('roomSpotAction("use")'), false, 'no switching the lights with Ralph in the room');
+assert.equal(run('state.room'), 0);
+run('state.ralphReady = false; loadRoom(1); loadRoom(0); enemies = []; state.stats = {}');
+console.log('PASS: the light switch flips her room to lights out (Bedside Blaster) and back, from Space, E, a tap or a click; the map and the gamebar follow.');
+
 // ---- The cat cam and the cats' card ----
 run('state.stats = {}; state.cards = []; loadRoom(0); enemies = []; player.x = 505; player.y = 470');
 step(2.5);

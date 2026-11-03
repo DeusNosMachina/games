@@ -1,6 +1,6 @@
 // Cross-cutting rules: saves, nutrients, run lifecycle, frame-rate independence, idle failure, discharge,
 // briefings and countdown, Daily Dose, the gift shop, hearts, ward gating, both touch schemes (the joystick
-// default, the swipe, tap the room), and the health the ward hands out (snack carts, floor drops).
+// default, one button per action, tap the room), and the health the ward hands out (snack carts, floor drops).
 // Game-specific mechanics live in game-<name>.cjs; ward combat in combat.cjs.
 const { run, nodes, events, close, assert } = require('./harness.cjs');
 const saved = () => JSON.parse(run('localStorage.getItem(STORE)'));
@@ -299,7 +299,7 @@ const touch = (id, x = 500, y = 312, extra = {}) => ({
 const tapButton = (id, pointer) => nodes[id].events.pointerdown(touch(pointer));
 close();
 run('state.controls="stick";state.hp=3;state.food=0;state.paused=false;deadDelay=0;keys.clear();loadRoom(0)');
-run('player.z=0;player.vz=0;player.jumpCd=0;player.dashCd=0;player.dash=0;player.itemCd=0;hitStop=0');
+run('player.z=0;player.vz=0;player.jumpCd=0;player.dashCd=0;player.dash=0;hitStop=0');
 nodes.joystick.events.pointerdown(touch(1, 700, 312));
 assert.equal(run('joyPointer'), 1);
 assert.ok(run('joy.x') > 0.5, 'the joystick finger steers right');
@@ -313,8 +313,22 @@ nodes.dashBtn.events.click({ detail: 1 });
 assert.equal(run('player.dash'), 0, 'the click that follows a press is ignored');
 nodes.dashBtn.events.click({ detail: 0 });
 assert.ok(run('player.dash') > 0, 'Enter or Space on a focused button still acts');
-tapButton('useBtn', 4);
-assert.ok(run('player.itemCd') > 0, 'the ability button acts on pointerdown');
+// The kit, one button each, all with the joystick still held: TRAP, BRICK, and SHIELD for as long as it is held.
+run('traps=[];projectiles=[];wardKit.trap=1;wardKit.bricks=3;player.brickCd=0;player.shield=0;player.shieldBroken=false;player.shieldMeter=wardShieldCap()');
+tapButton('trapBtn', 4);
+assert.equal(run('traps.length'), 1, 'TRAP sets a trap on pointerdown');
+tapButton('brickBtn', 31);
+assert.equal(run('projectiles.filter(p=>p.kind==="brick"&&p.friendly).length'), 1, 'BRICK throws on pointerdown');
+assert.equal(nodes.brickCount.textContent, '2', 'and its badge counts down');
+nodes.shieldBtn.events.pointerdown(touch(32));
+run('updateWorld(1/60)');
+assert.ok(run('player.shield') > 0, 'SHIELD raises the bubble on pointerdown');
+assert.equal(run('joyPointer'), 1, 'with the joystick still held');
+run('for(let i=0;i<30;i++)updateWorld(1/60)');
+assert.ok(run('player.shield') > 0, 'it stays up while the finger stays down');
+nodes.shieldBtn.events.pointerup(touch(32));
+run('for(let i=0;i<12;i++)updateWorld(1/60)');
+assert.equal(run('player.shield'), 0, 'and drops when the finger lifts');
 nodes.joystick.events.pointerup(touch(1, 700, 312));
 assert.equal(run('joyPointer'), null);
 run('player.attackCd=0;player.attack=0;player.z=0;player.vz=0;hitStop=0');
@@ -325,23 +339,20 @@ nodes.attackBtn.events.pointerup(touch(5));
 assert.equal(run('heldAttack'), false);
 console.log('PASS: ward buttons act on pointerdown (JUMP with the joystick held), and the follow-up click is ignored.');
 
-// The weapon strip equips on press and the highlight follows; the canvas names the new weapon.
-run('equip(0);wardWeaponSync();wardWeaponFlash=0');
-tapButton('wslot2', 6);
-assert.equal(run('state.item'), 2);
-assert.equal(nodes.weaponStrip.dataset.active, '2', 'the strip highlight moves to the brick');
-assert.ok(run('wardWeaponFlash') > 0, 'the canvas flashes the new weapon');
-const flashed = run('var seenFlash=[];c.fillText=t=>seenFlash.push(t);drawWorld();c.fillText=undefined;seenFlash');
-assert.ok(flashed.includes('BRICK · LOB'), 'the flash names the weapon and its attack');
-tapButton('wslot1', 7);
-assert.equal(run('state.item'), 1);
-assert.equal(nodes.weaponStrip.dataset.active, '1');
-key('c');
-assert.equal(run('state.item'), 2, 'C cycles to the next weapon');
-run('drawWorld()');
-assert.equal(nodes.weaponStrip.dataset.active, '2', 'keyboard swaps move the strip too');
-run('equip(0);drawWorld()');
-console.log('PASS: the weapon strip equips on press, the highlight moves, and the canvas flashes the weapon.');
+// What is left shows on the buttons: BRICK and TRAP badges (dim at zero), SHIELD's ring drains while held.
+run('wardKit.bricks=0;wardKit.trap=0;wardKitDirty()');
+assert.equal(nodes.brickCount.textContent, '0');
+assert.equal(nodes.trapCount.textContent, '0');
+run('player.shieldMeter=wardShieldCap();player.shieldBroken=false;shieldHold(true);for(let i=0;i<60;i++)updateWorld(1/60)');
+const ring = Number(nodes.shieldBtn.style['--meter']);
+assert.ok(ring > 0.4 && ring < 0.8, 'the SHIELD ring drains while it is held: ' + ring);
+run('shieldHold(false);for(let i=0;i<300;i++)updateWorld(1/60)');
+assert.equal(Number(nodes.shieldBtn.style['--meter']), 1, 'and refills while it is down');
+assert.equal(nodes.weaponStrip, undefined, 'there is no weapon strip to switch with');
+assert.match(nodes.keyGuide.innerHTML, /HOLD R<\/b> shield/, 'the key guide names one key per action');
+assert.match(nodes.helpKeys.innerHTML, /B: brick/, 'and so does How to play');
+run('wardKit.bricks=3;wardKit.trap=1;wardKitDirty();drawWorld()');
+console.log('PASS: the kit buttons show what is left (badges and the shield ring); the key guide and help list one key per action.');
 
 // EAT: a count badge, off when empty or at full hearts, on after a pickup, eats on press.
 run('state.food=0;state.hp=3;hud()');
@@ -499,16 +510,25 @@ assert.equal(run('wardGoal'), null, 'a two-finger tap is not a walk');
 finger.up(15, 300, 500);
 finger.up(16, 360, 500);
 assert.equal(run('wardGoal'), null);
-// Long-press on the floor: the ability.
-run('player.itemCd=0;player.z=0;player.vz=0;equip(1)');
+// Long-press on the floor: the barf-bag shield, held up for as long as the finger stays down.
+run('player.z=0;player.vz=0;player.shieldMeter=wardShieldCap();player.shieldBroken=false');
 finger.down(17, 700, 520);
 steps(20);
 assert.equal(run('player.shield'), 0, 'not yet');
 steps(10);
 assert.ok(run('player.shield') > 0, 'a long-press raises the barf-bag shield');
 assert.equal(run('wardGoal'), null, 'and stops the walk');
+steps(60);
+assert.ok(run('player.shield') > 0, 'it stays up while the finger does');
 finger.up(17, 700, 520);
-run('equip(0)');
+steps(10);
+assert.equal(run('player.shield'), 0, 'lifting the finger drops it');
+// The kit buttons stay on screen in this scheme and act on press as always.
+run('traps=[];wardKit.trap=1;player.brickCd=0;wardKit.bricks=2;projectiles=[]');
+tapButton('trapBtn', 61);
+tapButton('brickBtn', 62);
+assert.ok(run('traps.length===1&&projectiles.some(p=>p.kind==="brick")'), 'TRAP and BRICK work under tap the room too');
+run('traps=[];projectiles=[]');
 // The beacon still opens its arcade, once; the click that follows is not a second tap.
 run('var gateBefore=wardLocked;wardLocked=()=>false;loadRoom(1);enemies=[]');
 finger.tap(18, run('rooms[1].station[0]'), run('rooms[1].station[1]'));
@@ -697,7 +717,7 @@ assert.equal(flat.fitH, 390);
 run('delete window.innerWidth;delete window.innerHeight;resize()');
 console.log('PASS: run screens size the canvas to the window, row or column, with no dead panels.');
 
-// ---- The joystick scheme: the default on phones, a swipe for weapons ----
+// ---- The joystick scheme: the default on phones, one button per action ----
 // A finger as the main pointer starts on the joystick and the big buttons; a scheme the player picked
 // stays picked. Older saves wrote 'tap' without anyone choosing it, so those move to the joystick too.
 const COARSE = 'matchMedia = q => ({ matches: /coarse/.test(q) });';
@@ -707,7 +727,7 @@ freshPage(
   `assert.equal(run('state.controls'), 'stick', 'a phone starts on the joystick');
 assert.equal(run('state.controlsChosen'), false);
 run('begin()');
-assert.match(nodes.toast.textContent, /Swipe it sideways/, 'the first toast teaches the stick and the swipe');
+assert.match(nodes.toast.textContent, /Smash SWING. Hold SHIELD, lob a BRICK, set a TRAP/, 'the first toast teaches the stick and the buttons');
 assert.equal(run('state.stats.turnHint'), 1, 'a phone held upright gets the turn-sideways hint');
 assert.ok(run('turnHintUntil') > 0);
 assert.match(nodes.turnHintchild.textContent, /sideways/);
@@ -729,44 +749,38 @@ freshPage(
 );
 freshPage({ GF_PRELUDE: withSave({ controls: 'stick' }) }, `assert.equal(run('state.controls'), 'stick', 'an old joystick pick stays');`);
 freshPage({}, `assert.equal(run('state.controls'), 'tap', 'a mouse keeps tap the room as the touch scheme');`);
-// A quick sideways swipe across the attack button changes weapons: right for the next, left for the one
-// before. It swung on the press, as always; a slow drag aims instead.
+// The attack button only ever swings: it swung on the press, a drag aims the follow-ups, and a quick
+// sideways swipe (which used to change weapons) is just an aim now.
 close();
-run('setControlScheme("stick");state.hp=5;keys.clear();loadRoom(0);enemies=[];equip(0);wardWeaponSync();wardWeaponFlash=0;player.attackCd=0;heldAttack=false;attackPointer=null');
+run('setControlScheme("stick");state.hp=5;keys.clear();loadRoom(0);enemies=[];player.attackCd=0;heldAttack=false;attackPointer=null');
 nodes.attackBtn.events.pointerdown(touch(40, 600, 300));
 assert.equal(run('player.pressAt'), run('time'), 'a press of the attack button is a press for the combo');
 assert.equal(run('heldAttack'), true);
 nodes.attackBtn.events.pointermove(touch(40, 650, 306));
-assert.equal(run('state.item'), 1, 'swipe right: the next weapon');
-assert.equal(nodes.weaponStrip.dataset.active, '1', 'the strip follows');
-assert.ok(run('wardWeaponFlash') > 0, 'and the canvas flashes it');
-assert.equal(run('heldAttack'), false, 'a swipe stops the held swings');
-nodes.attackBtn.events.pointermove(touch(40, 720, 306));
-assert.equal(run('state.item'), 1, 'one swipe, one weapon');
-nodes.attackBtn.events.pointerup(touch(40, 720, 306));
-nodes.attackBtn.events.pointerdown(touch(41, 600, 300));
-nodes.attackBtn.events.pointermove(touch(41, 550, 290));
-assert.equal(run('state.item'), 0, 'swipe left: back one');
-nodes.attackBtn.events.pointerup(touch(41, 550, 290));
-nodes.attackBtn.events.pointerdown(touch(42, 600, 300));
-nodes.attackBtn.events.pointermove(touch(42, 548, 300));
-assert.equal(run('state.item'), 2, 'left from the pillow wraps to the brick');
-nodes.attackBtn.events.pointerup(touch(42, 548, 300));
-run('equip(1);wardWeaponSync();player.attackCd=0');
+assert.equal(run('heldAttack'), true, 'a sideways swipe keeps swinging');
+assert.equal(run('wardAim.dx'), 100, 'and aims');
+assert.equal(run('player.attackKind'), 0, 'still the pillow');
+nodes.attackBtn.events.pointerup(touch(40, 650, 306));
 nodes.attackBtn.events.pointerdown(touch(43, 600, 300));
-run('time += 0.5');
 nodes.attackBtn.events.pointermove(touch(43, 660, 300));
-assert.equal(run('state.item'), 1, 'a slow drag does not swipe');
-assert.equal(run('wardAim.dx'), 120, 'it aims');
+assert.equal(run('wardAim.dx'), 120, 'a drag aims');
 nodes.attackBtn.events.pointerdown(touch(44, 600, 300));
 assert.equal(run('attackPointer'), 43, 'a second finger does not steal the button');
 nodes.attackBtn.events.pointerup(touch(43, 660, 300));
-nodes.attackBtn.events.pointerdown(touch(45, 600, 300));
-nodes.attackBtn.events.pointermove(touch(45, 610, 380));
-assert.equal(run('state.item'), 1, 'a vertical drag is an aim, not a swipe');
-nodes.attackBtn.events.pointerup(touch(45, 610, 380));
 assert.equal(run('wardAim'), null);
-run('equip(0);wardWeaponSync();projectiles=[]');
+assert.equal(run('heldAttack'), false);
+// SHIELD with SWING: a second finger on SHIELD holds the bubble up while the first is still on SWING.
+run('player.shieldMeter=wardShieldCap();player.shieldBroken=false;player.attackCd=0');
+nodes.attackBtn.events.pointerdown(touch(46, 600, 300));
+nodes.shieldBtn.events.pointerdown(touch(47, 500, 200));
+run('updateWorld(1/60)');
+assert.ok(run('player.shield') > 0 && run('shieldPointer') === 47, 'the shield goes up with SWING held');
+nodes.shieldBtn.events.pointerdown(touch(48, 500, 200));
+assert.equal(run('shieldPointer'), 47, 'a second finger does not steal SHIELD either');
+nodes.shieldBtn.events.pointerup(touch(47, 500, 200));
+nodes.attackBtn.events.pointerup(touch(46, 600, 300));
+run('for(let i=0;i<12;i++)updateWorld(1/60);projectiles=[]');
+assert.equal(run('player.shield'), 0);
 // The pause menu names the scheme in use.
 run('renderControls()');
 assert.equal(nodes.pauseControls.textContent, 'Controls: Joystick');
@@ -779,7 +793,7 @@ steps(90, 'enemies.length=1;enemies[0].x=560;enemies[0].y=450;');
 assert.ok(run('wardPrey.swings') >= 2 && run('time-player.pressAt') > 1, 'the swings a held finger repeats are not');
 finger.up(50, 560, 420);
 run('wardTouchReset();enemies=[];setControlScheme("stick")');
-console.log('PASS: phones start on the joystick (a pick stays picked), a one-time turn-sideways hint, a swipe across SWING changes weapons, and presses (not held repeats) feed the combo.');
+console.log('PASS: phones start on the joystick (a pick stays picked), a one-time turn-sideways hint, SWING only swings (a drag aims), SHIELD holds with SWING down, and presses (not held repeats) feed the combo.');
 
 // ---- Health you can find: snack carts and nutrients on the floor ----
 run('setControlScheme("tap");state.food=0;state.hp=3;loadRoom(1);enemies=[];encounter.complete=true;for(const k in snackStock)delete snackStock[k]');
