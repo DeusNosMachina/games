@@ -636,7 +636,9 @@ function resolveMiniResult(win, reason) {
   $('miniLobby').classList.add('hidden');
   $('miniResult').classList.remove('hidden');
   $('miniPauseBtn').classList.add('hidden');
-  $('miniBack').classList.toggle('hidden', mini.forced && !win);
+  $('miniBack').classList.toggle('hidden', mini.forced && !win && typeof def.patchUp !== 'function');
+  $('miniBack').textContent =
+    mini.forced && !win ? (typeof def.patchUpLabel === 'function' ? def.patchUpLabel() : 'Get patched up') : 'Back to the hospital';
   $('miniRetry').textContent = mini.daily ? 'Run it back' : win ? 'Improve / next level' : 'Reassemble. Try again.';
   $('miniResult').dataset.medal = '0';
   $('resultStamp').classList.add('hidden');
@@ -1106,7 +1108,15 @@ function ceremonyPaintFx() {
 
 function leaveMini() {
   if (mini.screen === 'outro') return;
-  if (mini.forced && !(mini.screen === 'result' && mini.win)) return;
+  if (mini.forced && !(mini.screen === 'result' && mini.win)) {
+    // A lost recovery still ends when the recovery game offers a patch-up: it names the price (coins,
+    // never progress) and applies it; the ward resumes with at least one heart. No run is a dead end.
+    const def = miniGame();
+    if (mini.screen !== 'result' || typeof def.patchUp !== 'function') return;
+    def.patchUp();
+    state.hp = Math.max(1, state.hp);
+    save();
+  }
   let recovered = mini.forced;
   mini.open = false;
   clearHeld();

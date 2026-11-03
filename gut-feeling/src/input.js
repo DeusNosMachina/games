@@ -456,8 +456,24 @@ $('miniControls').addEventListener('click', e => {
   miniAction(b.dataset.action);
 });
 
+// A game with a touch(kind, p, pointerId) hook gets every finger on the canvas ('down', 'move', 'up';
+// 'cancel' for a lost pointer), in active-canvas coordinates, with no single-pointer gating: games with
+// two controls at once (pinball flippers) use it. Everything else goes through the one-pointer gesture path.
+function miniMultiTouch() {
+  const def = miniGame();
+  return def && typeof def.touch === 'function' ? def : null;
+}
+
 $('miniCanvas').addEventListener('pointerdown', e => {
-  const def = games[mini.id];
+  const multi = miniMultiTouch();
+  if (multi) {
+    if (mini.screen !== 'play' || mini.paused) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dailyScoped(() => multi.touch('down', miniPoint(e), e.pointerId));
+    return;
+  }
+  const def = miniGame();
   // Games without pointer hooks (the IV) ignore canvas presses.
   if (!(def.down || def.move || def.up) || mini.screen !== 'play' || mini.paused || arcadePointer !== null)
     return;
@@ -468,10 +484,20 @@ $('miniCanvas').addEventListener('pointerdown', e => {
 });
 
 $('miniCanvas').addEventListener('pointermove', e => {
+  const multi = miniMultiTouch();
+  if (multi) {
+    if (mini.screen === 'play' && !mini.paused) dailyScoped(() => multi.touch('move', miniPoint(e), e.pointerId));
+    return;
+  }
   if (e.pointerId === arcadePointer) arcadeMove(miniPoint(e));
 });
 
 function releaseArcade(e) {
+  const multi = miniMultiTouch();
+  if (multi) {
+    dailyScoped(() => multi.touch(e.type === 'pointerup' ? 'up' : 'cancel', miniPoint(e), e.pointerId));
+    return;
+  }
   if (e.pointerId !== arcadePointer) return;
   arcadeUp(e.type !== 'pointerup');
   arcadePointer = null;
@@ -612,7 +638,7 @@ window.addEventListener('keydown', e => {
       return;
     }
     // Everything else belongs to the game (def.key).
-    const def = games[mini.id];
+    const def = miniGame();
     if (def.key) dailyScoped(() => def.key(k, e));
     return;
   }

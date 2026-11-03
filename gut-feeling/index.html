@@ -24711,7 +24711,9 @@ function resolveMiniResult(win, reason) {
   $('miniLobby').classList.add('hidden');
   $('miniResult').classList.remove('hidden');
   $('miniPauseBtn').classList.add('hidden');
-  $('miniBack').classList.toggle('hidden', mini.forced && !win);
+  $('miniBack').classList.toggle('hidden', mini.forced && !win && typeof def.patchUp !== 'function');
+  $('miniBack').textContent =
+    mini.forced && !win ? (typeof def.patchUpLabel === 'function' ? def.patchUpLabel() : 'Get patched up') : 'Back to the hospital';
   $('miniRetry').textContent = mini.daily ? 'Run it back' : win ? 'Improve / next level' : 'Reassemble. Try again.';
   $('miniResult').dataset.medal = '0';
   $('resultStamp').classList.add('hidden');
@@ -25181,7 +25183,15 @@ function ceremonyPaintFx() {
 
 function leaveMini() {
   if (mini.screen === 'outro') return;
-  if (mini.forced && !(mini.screen === 'result' && mini.win)) return;
+  if (mini.forced && !(mini.screen === 'result' && mini.win)) {
+    // A lost recovery still ends when the recovery game offers a patch-up: it names the price (coins,
+    // never progress) and applies it; the ward resumes with at least one heart. No run is a dead end.
+    const def = miniGame();
+    if (mini.screen !== 'result' || typeof def.patchUp !== 'function') return;
+    def.patchUp();
+    state.hp = Math.max(1, state.hp);
+    save();
+  }
   let recovered = mini.forced;
   mini.open = false;
   clearHeld();
@@ -39931,8 +39941,24 @@ $('miniControls').addEventListener('click', e => {
   miniAction(b.dataset.action);
 });
 
+// A game with a touch(kind, p, pointerId) hook gets every finger on the canvas ('down', 'move', 'up';
+// 'cancel' for a lost pointer), in active-canvas coordinates, with no single-pointer gating: games with
+// two controls at once (pinball flippers) use it. Everything else goes through the one-pointer gesture path.
+function miniMultiTouch() {
+  const def = miniGame();
+  return def && typeof def.touch === 'function' ? def : null;
+}
+
 $('miniCanvas').addEventListener('pointerdown', e => {
-  const def = games[mini.id];
+  const multi = miniMultiTouch();
+  if (multi) {
+    if (mini.screen !== 'play' || mini.paused) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dailyScoped(() => multi.touch('down', miniPoint(e), e.pointerId));
+    return;
+  }
+  const def = miniGame();
   // Games without pointer hooks (the IV) ignore canvas presses.
   if (!(def.down || def.move || def.up) || mini.screen !== 'play' || mini.paused || arcadePointer !== null)
     return;
@@ -39943,10 +39969,20 @@ $('miniCanvas').addEventListener('pointerdown', e => {
 });
 
 $('miniCanvas').addEventListener('pointermove', e => {
+  const multi = miniMultiTouch();
+  if (multi) {
+    if (mini.screen === 'play' && !mini.paused) dailyScoped(() => multi.touch('move', miniPoint(e), e.pointerId));
+    return;
+  }
   if (e.pointerId === arcadePointer) arcadeMove(miniPoint(e));
 });
 
 function releaseArcade(e) {
+  const multi = miniMultiTouch();
+  if (multi) {
+    dailyScoped(() => multi.touch(e.type === 'pointerup' ? 'up' : 'cancel', miniPoint(e), e.pointerId));
+    return;
+  }
   if (e.pointerId !== arcadePointer) return;
   arcadeUp(e.type !== 'pointerup');
   arcadePointer = null;
@@ -40087,7 +40123,7 @@ window.addEventListener('keydown', e => {
       return;
     }
     // Everything else belongs to the game (def.key).
-    const def = games[mini.id];
+    const def = miniGame();
     if (def.key) dailyScoped(() => def.key(k, e));
     return;
   }
