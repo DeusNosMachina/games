@@ -46,18 +46,16 @@ assert.equal(run('wardKit.bricks'), 0);
 assert.equal(run('throwBrick()'), false, 'no fourth brick');
 assert.ok(run('floats.some(f=>f.text==="OUT OF BRICKS")'), 'it says so');
 assert.equal(run('projectiles.filter(p=>p.kind==="brick"&&p.friendly).length'), 3);
-// TRAP: one a wave; the next wave brings another.
-run('traps=[];projectiles=[]');
-assert.equal(run('layTrap()'), true);
-assert.equal(run('layTrap()'), false, 'one trap a wave');
-assert.equal(run('traps.length'), 1);
-assert.equal(nodes.trapCount.textContent, '0', 'the TRAP badge shows the charge');
-run('enemies=[];encounter.teach=false;encounter.wave=2;spawnWave(1);updateCombat(1/60)');
-assert.equal(run('wardKit.trap'), 1, 'the next wave recharges it');
-assert.equal(nodes.trapCount.textContent, '1');
-assert.equal(run('traps.length'), 1, 'and an unsprung trap stays where it is');
+// No trap: the kit is the pillow, the bricks and the bag.
+run('projectiles=[]');
+assert.equal(run('typeof layTrap'), 'undefined', 'the trap is gone');
+assert.equal(run('typeof traps'), 'undefined');
+assert.deepEqual(Object.keys(JSON.parse(run('JSON.stringify(wardKit)'))), ['bricks'], 'the kit only counts bricks');
+assert.ok(!('traps' in JSON.parse(run('JSON.stringify(WARD_KIT)'))) && run('WARD.trapStun') === undefined);
+run('wardBrickDue=-1;enemies=[];encounter.teach=false;encounter.wave=2;spawnWave(1);updateCombat(1/60)');
+assert.ok(run('wardBrickDue') > 0, 'a new wave still has a brick on the way');
 // SHIELD: held, it blocks everything and nothing gets out; let go and it drops; held to empty, it pops.
-run('enemies=[];traps=[];player.shield=0;player.shieldMeter=wardShieldCap();player.shieldBroken=false;shieldHold(true);updateCombat(1/60)');
+run('enemies=[];player.shield=0;player.shieldMeter=wardShieldCap();player.shieldBroken=false;shieldHold(true);updateCombat(1/60)');
 assert.ok(run('player.shield') > 0, 'the bubble is up while SHIELD is held');
 run('player.inv=0;state.hp=5;damage("bite",{x:600,y:420})');
 assert.equal(run('state.hp'), 5, 'the bubble blocks a bite');
@@ -93,14 +91,14 @@ heldSwing(true);
 heldSwing(true);
 assert.equal(heldSwing(true), false, 'pressed swings never spin: the third is the finisher');
 run('enemies=[];projectiles=[];player.spinCd=0');
-console.log('PASS: one button per action: the pillow swings (a held run spins), three bricks, one trap a wave, a held shield that pops.');
+console.log('PASS: one button per action: the pillow swings (a held run spins), three bricks, a held shield that pops.');
 
 // The rules below are unit checks on hand-placed gremlins: a settled room, so no wave rolls in and the
 // MRI's magnet (the room's twist, tested on its own further down) stays off.
 freshRoom(1);
 run('encounter.complete=true;enemies=[]');
 
-// ---- Hits stagger; only finishers, spins, bricks, stomps and traps stun ----
+// ---- Hits stagger; only finishers, spins, bricks and stomps stun ----
 run('player.x=200;player.y=420;enemies=[makeEnemy(0,260,420)];enemies[0].cool=0');
 run('hitEnemy(enemies[0],1,30,{kind:"pillow"})');
 assert.equal(run('enemies[0].stun'), 0, 'a normal hit does not stun');
@@ -820,7 +818,7 @@ console.log('PASS: wave clears and every sixth eviction drop nutrients; a ward c
 const keyDown = k => events.keydown({ key: k, target: {}, repeat: false, preventDefault: () => {} });
 const keyUp = k => events.keyup({ key: k, target: {}, preventDefault: () => {} });
 freshRoom(3);
-run('enemies=[];projectiles=[];traps=[];player.x=505;player.y=470;player.attackCd=0;player.vomit=0;player.brickCd=0;player.shieldMeter=wardShieldCap();player.shieldBroken=false');
+run('enemies=[];projectiles=[];player.x=505;player.y=470;player.attackCd=0;player.vomit=0;player.brickCd=0;player.shieldMeter=wardShieldCap();player.shieldBroken=false');
 keyDown(' ');
 run('updateWorld(.01)');
 assert.ok(run('player.attack>0&&player.attackKind===0'), 'Space swings the pillow');
@@ -828,8 +826,9 @@ keyUp(' ');
 keyDown('b');
 assert.equal(run('projectiles.at(-1).kind'), 'brick', 'B throws a brick');
 keyUp('b');
+run('player.brickCd=0;globalThis.bricksBefore=wardKit.bricks;globalThis.dashBefore=player.dash');
 keyDown('e');
-assert.equal(run('traps.length'), 1, 'E sets the trap');
+assert.ok(run('wardKit.bricks===bricksBefore&&player.dash===dashBefore&&player.shield===0'), 'E does nothing in the ward now');
 keyUp('e');
 keyDown('r');
 run('updateWorld(1/60)');
@@ -840,9 +839,9 @@ assert.equal(run('player.shield'), 0, 'letting go of R drops it');
 keyDown('2');
 keyDown('c');
 assert.equal(run('typeof state.item'), 'undefined', 'number keys and C no longer equip anything');
-run('keys.clear();enemies=[];projectiles=[];traps=[]');
+run('keys.clear();enemies=[];projectiles=[]');
 assert.ok(nodes.rematchBtn, 'the ward strip exists');
-console.log('PASS: Space swings, B throws a brick, E sets a trap, hold R for the shield.');
+console.log('PASS: Space swings, B throws a brick, hold R for the shield.');
 
 // ---- Bricks to find ----
 // One turns up a few seconds into each wave, somewhere from the room's list away from Macy; walking over it

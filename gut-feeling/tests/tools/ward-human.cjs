@@ -1,19 +1,20 @@
 // Not part of the suite. A human-speed yardstick for the ward: a player who sees the fight a quarter second
 // late, walks up and taps SWING at the nearest gremlin, backs off from wind-ups (and steps off charge lanes,
 // blob lines, gunk rings, the CT donut's lit lane and whatever the MRI magnet is about to fling), jumps a
-// charge, a lunge or the donut that is about to land, holds SHIELD when cornered with JUMP and DASH both
-// resting, lobs a BRICK at a bruiser at range, sets the wave's TRAP when a gremlin closes in, eats when down
-// to two hearts and picks up nutrients and hidden bricks when nothing is coming. Only inputs: the joystick,
-// the SWING, JUMP, DASH, SHIELD, BRICK, TRAP and EAT buttons (or, with SCHEME=tap, touches on the room plus
-// the kit buttons). combat.cjs keeps the masher and the dodging bot; this says whether a person can clear a
-// first visit. KIT=0 plays with SWING, JUMP, DASH and EAT only (the old yardstick).
+// charge, a lunge or the donut that is about to land, holds SHIELD when cornered with JUMP and the dash both
+// resting, lobs a BRICK at a bruiser at range, eats when down to two hearts and picks up nutrients and
+// hidden bricks when nothing is coming. Only inputs: the joystick (a double-tap of it dashes, the second tap
+// DASHGAP seconds after the first), the SWING, JUMP, SHIELD, BRICK and EAT buttons (or, with SCHEME=tap,
+// touches on the room plus the kit buttons). combat.cjs keeps the masher and the dodging bot; this says
+// whether a person can clear a first visit. KIT=0 plays with SWING, JUMP, the dash and EAT only.
 // Usage from the repository root (reaction s, trials per room, prescription 0-2):
 //   node gut-feeling/tests/tools/ward-human.cjs 0.25 20 1
 //   CAMPAIGN=1 node gut-feeling/tests/tools/ward-human.cjs 0.25 20 1   (four departments on one set of hearts)
 // A 0.25 s player should clear every department nearly always, with a heart or two to spare; a 0.35 s player
 // should usually clear. Read the per-room line: cleared, average hearts left, nutrients eaten and picked up,
 // combos, the wave where losses happened, and what landed the hits. Other knobs (env): SCHEME=tap, ONLY=<room>,
-// GRUDGE=<level>, PRE=<code run first>, and the human model below (GLANCE, ATTN, NOISE, GREED).
+// GRUDGE=<level>, PRE=<code run first>, DASHGAP (default 0.1 s), and the human model below (GLANCE, ATTN,
+// NOISE, GREED).
 const { run, close, nodes } = require('../harness.cjs');
 
 const REACT = +process.argv[2] || 0.25,
@@ -207,14 +208,13 @@ function decide(view, me) {
     s = Math.sin(jitter),
     jx = l > 0.01 ? ax / l : 0,
     jy = l > 0.01 ? ay / l : 0;
-  // The kit. SHIELD when something lands in a moment that a jump will not clear and DASH is resting; a BRICK at a bruiser
-  // that is out of pillow reach but in range; the wave's TRAP once a gremlin is closing in.
+  // The kit. SHIELD when something lands in a moment that a jump will not clear and the dash is resting; a BRICK at a
+  // bruiser that is out of pillow reach but in range.
   const shield = KIT && urgent && seen[0].soon < 0.3 && (!seen[0].jump || me.jumpCd > 0) && me.dashCd > 0 && !me.shieldBroken;
   const bruiser = fs.find(e => e.type === 2 && e.stun <= 0 && e.dizzy <= 0),
     toBruiser = bruiser ? Math.hypot(me.x - bruiser.x, me.y - bruiser.y) : 0;
   const brick = KIT && !urgent && me.bricks > 0 && !!bruiser && toBruiser > 130 && toBruiser < 320;
-  const trap = KIT && me.trap > 0 && mode !== 'dodge' && fs.some(e => Math.hypot(me.x - e.x, me.y - e.y) < 160);
-  return { jx: jx * c - jy * s, jy: jx * s + jy * c, attack, jump: hop, dash: dashTo, mode, goal, target, urgent, shield, brick, trap };
+  return { jx: jx * c - jy * s, jy: jx * s + jy * c, attack, jump: hop, dash: dashTo, mode, goal, target, urgent, shield, brick };
 }
 
 // The tap-the-room scheme, played by the same eyes: hold a finger on the gremlin to keep swinging, lift it
@@ -280,21 +280,29 @@ function tapPlay(act, me) {
   tapRelease();
 }
 
-// The joystick scheme through its real buttons: a tap of SWING (or JUMP, DASH, BRICK, TRAP, EAT) is a
-// pointerdown and a pointerup on that button; SHIELD is a pointerdown held until a pointerup; the stick is
-// joy.x / joy.y, as the joystick sets them.
+// The joystick scheme through its real buttons: a tap of SWING (or JUMP, BRICK, EAT) is a pointerdown and a
+// pointerup on that button; SHIELD is a pointerdown held until a pointerup; the stick is joy.x / joy.y, as
+// the joystick sets them. A dash is the real gesture: a quick tap of the stick the way she means to go, and
+// DASHGAP seconds later a second press that way (the harness's stick is centred at 500, 312.5 with a 300 px
+// throw).
+const DASHGAP = +(process.env.DASHGAP || 0.1);
 let pointer = 500,
   shieldFinger = null,
   nextBrick = 0,
-  nextTrap = 0,
   shields = 0,
   bricks = 0,
-  trapsSet = 0;
+  dashes = 0,
+  dashTap = null;
 const touchEvent = id => ({ pointerId: id, pointerType: 'touch', button: 0, clientX: 0, clientY: 0, preventDefault() {} });
 function press(id) {
   const e = touchEvent(++pointer);
   nodes[id].events.pointerdown(e);
   nodes[id].events.pointerup(e);
+}
+function stickTap(jx, jy) {
+  const e = { ...touchEvent(++pointer), clientX: 500 + jx * 300, clientY: 312.5 + jy * 300 };
+  nodes.joystick.events.pointerdown(e);
+  nodes.joystick.events.pointerup(e);
 }
 function releaseShield() {
   if (!shieldFinger) return;
@@ -319,14 +327,16 @@ function fight(room, seed, fresh) {
   spotted = new Map();
   finger = { id: 100, hold: null, holdOn: null, next: 0 };
   shieldFinger = null;
-  nextBrick = nextTrap = shields = bricks = trapsSet = 0;
+  nextBrick = shields = bricks = dashes = 0;
+  dashTap = null;
   run(`setControlScheme('${SCHEME === 'tap' ? 'tap' : 'stick'}')`);
   const lag = Math.max(0, Math.round(REACT / (STEP * THINK)));
   let t = 0,
     eaten = 0,
     act = { jx: 0, jy: 0, attack: false };
   const start = run('state.food'),
-    hp0 = run('state.hp');
+    hp0 = run('state.hp'),
+    dash0 = run('wardDashSerial');
   for (; t < 60 * 240; t++) {
     if (run('mini.open||deadDelay>0||encounter.complete')) break;
     if (run('isModal()')) run('for(const d of $$("dialog"))d.close()');
@@ -336,7 +346,7 @@ function fight(room, seed, fresh) {
       const me = JSON.parse(
         run(
           `JSON.stringify({now:time,x:player.x,y:player.y,hp:state.hp,food:state.food,maxFood:maxFood(),jumpCd:player.jumpCd,dashCd:player.dashCd,` +
-            `bricks:wardKit.bricks,trap:wardKit.trap,shieldBroken:!!player.shieldBroken,brickCd:player.brickCd||0,` +
+            `bricks:wardKit.bricks,shieldBroken:!!player.shieldBroken,brickCd:player.brickCd||0,` +
             `cd:player.attackCd,supply:(supplies.filter(supplyAvailable)[0]||(typeof snackReady==='function'&&snackReady()&&snackCartHere())||null)})`
         )
       );
@@ -357,16 +367,22 @@ function fight(room, seed, fresh) {
         nextBrick = me.now + 1.2;
         bricks++;
       }
-      if (act.trap && me.now >= nextTrap) {
-        press('trapBtn');
-        nextTrap = me.now + 1;
-        trapsSet++;
-      }
       if (SCHEME === 'tap') tapPlay(act, me);
       else {
+        if (dashTap && me.now >= dashTap.due) {
+          // The second tap of the double-tap, the way she is pushing now.
+          stickTap(act.jx, act.jy);
+          dashTap = null;
+        }
         run(`joy.x=${act.jx};joy.y=${act.jy}`);
-        if (act.jump) press('jumpBtn');
-        else if (act.dash) press('dashBtn');
+        // JUMP when it is ready; when it is resting, the dash it falls back on. (Before the stick dash this
+        // pressed JUMP regardless, so the yardstick never dashed at all.)
+        if (act.jump && me.jumpCd <= 0) press('jumpBtn');
+        else if (act.dash && !dashTap && me.dashCd <= 0) {
+          stickTap(act.jx, act.jy);
+          dashTap = { due: me.now + DASHGAP - 1e-6 };
+          run(`joy.x=${act.jx};joy.y=${act.jy}`);
+        }
         // A tap of SWING whenever the last swing is done and something is in reach.
         if (act.attack && me.cd <= 0) press('attackBtn');
       }
@@ -378,6 +394,7 @@ function fight(room, seed, fresh) {
       `JSON.stringify({complete:encounter.complete,wave:encounter.wave,hp:state.hp,food:state.food,dead:deadDelay>0||mini.open,hurt:hurtLog,combos:(state.stats&&state.stats.combos)||0})`
     )
   );
+  dashes = run('wardDashSerial') - dash0;
   tapRelease();
   releaseShield();
   run('keys.clear();joy.x=joy.y=0;heldAttack=false;wardTouchReset();deadDelay=0');
@@ -390,7 +407,7 @@ function fight(room, seed, fresh) {
     seconds: +(t / 60).toFixed(1),
     shields,
     bricks,
-    traps: trapsSet
+    dashes
   };
 }
 
@@ -430,7 +447,7 @@ if (process.env.CAMPAIGN) {
     console.log(
       `room ${room} P${DIFF}${GRUDGE ? ' grudge ' + GRUDGE : ''} ${SCHEME} react ${REACT}: cleared ${won.length}/${runs.length}` +
         ` · hearts left ${avg(won, 'hp')} · ate ${avg(runs, 'eaten')} · picked up ${avg(runs, 'picked')} · combos ${avg(runs, 'combos')}` +
-        ` · ${avg(runs, 'seconds')} s · kit: shield ${avg(runs, 'shields')} brick ${avg(runs, 'bricks')} trap ${avg(runs, 'traps')}` +
+        ` · ${avg(runs, 'seconds')} s · kit: shield ${avg(runs, 'shields')} brick ${avg(runs, 'bricks')} dash ${avg(runs, 'dashes')}` +
         ` · lost at ${JSON.stringify(lostAt)} · hits ${JSON.stringify(hurt)}`
     );
   }

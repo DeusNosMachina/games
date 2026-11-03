@@ -306,17 +306,16 @@ assert.ok(run('joy.x') > 0.5, 'the joystick finger steers right');
 tapButton('jumpBtn', 2);
 assert.ok(run('player.z') > 0 && run('player.vz') > 0, 'JUMP jumps on pointerdown with the joystick held, no click needed');
 assert.equal(run('joyPointer'), 1, 'the joystick keeps its finger');
-tapButton('dashBtn', 3);
-assert.ok(run('player.dash') > 0, 'DASH acts on pointerdown too');
-run('player.dash=0;player.dashCd=0');
-nodes.dashBtn.events.click({ detail: 1 });
-assert.equal(run('player.dash'), 0, 'the click that follows a press is ignored');
-nodes.dashBtn.events.click({ detail: 0 });
-assert.ok(run('player.dash') > 0, 'Enter or Space on a focused button still acts');
-// The kit, one button each, all with the joystick still held: TRAP, BRICK, and SHIELD for as long as it is held.
-run('traps=[];projectiles=[];wardKit.trap=1;wardKit.bricks=3;player.brickCd=0;player.shield=0;player.shieldBroken=false;player.shieldMeter=wardShieldCap()');
-tapButton('trapBtn', 4);
-assert.equal(run('traps.length'), 1, 'TRAP sets a trap on pointerdown');
+run('player.z=0;player.vz=0;player.jumpCd=0');
+nodes.jumpBtn.events.click({ detail: 1 });
+assert.equal(run('player.z'), 0, 'the click that follows a press is ignored');
+nodes.jumpBtn.events.click({ detail: 0 });
+assert.ok(run('player.z') > 0, 'Enter or Space on a focused button still acts');
+run('player.z=0;player.vz=0');
+assert.equal(nodes.dashBtn, undefined, 'there is no DASH button: the stick dashes');
+assert.equal(nodes.trapBtn, undefined, 'and no TRAP');
+// The kit, one button each, all with the joystick still held: BRICK, and SHIELD for as long as it is held.
+run('projectiles=[];wardKit.bricks=3;player.brickCd=0;player.shield=0;player.shieldBroken=false;player.shieldMeter=wardShieldCap()');
 tapButton('brickBtn', 31);
 assert.equal(run('projectiles.filter(p=>p.kind==="brick"&&p.friendly).length'), 1, 'BRICK throws on pointerdown');
 assert.equal(nodes.brickCount.textContent, '2', 'and its badge counts down');
@@ -331,18 +330,83 @@ run('for(let i=0;i<12;i++)updateWorld(1/60)');
 assert.equal(run('player.shield'), 0, 'and drops when the finger lifts');
 nodes.joystick.events.pointerup(touch(1, 700, 312));
 assert.equal(run('joyPointer'), null);
+// DASH is a double-tap of the stick in any direction: a quick touch, then within 0.3 s of letting go a
+// second press that points somewhere. The stick keeps steering after it.
+const stick = {
+  down: (id, x, y) => nodes.joystick.events.pointerdown(touch(id, x, y)),
+  move: (id, x, y) => nodes.joystick.events.pointermove(touch(id, x, y)),
+  up: (id, x, y) => nodes.joystick.events.pointerup(touch(id, x, y))
+};
+const frames = n => run(`for(let i=0;i<${n};i++)updateWorld(1/60)`);
+run('player.dash=0;player.dashCd=0');
+stick.down(40, 700, 312);
+assert.equal(run('player.dash'), 0, 'a long walk, let go and pressed again, is not a double-tap');
+stick.up(40, 700, 312);
+stick.down(41, 500, 0);
+assert.ok(run('player.dash') > 0, 'a quick touch and a second press dash');
+assert.ok(run('player.lastDy') < -0.99, 'the way the second press points (up here)');
+assert.equal(run('joyPointer'), 41, 'and the stick keeps its finger');
+assert.ok(run('joy.y') < -0.9, 'and keeps steering');
+stick.up(41, 500, 0);
+run('player.dash=0;player.dashCd=0');
+stick.down(42, 300, 312);
+assert.equal(run('player.dash'), 0, 'a dash uses up the double-tap: a third quick touch is a fresh first tap');
+stick.up(42, 300, 312);
+frames(24);
+stick.down(43, 300, 312);
+assert.equal(run('player.dash'), 0, 'a second press 0.4 s after letting go is a walk');
+stick.up(43, 300, 312);
+stick.down(44, 500, 312);
+assert.equal(run('player.dash'), 0, 'a second press on the dead centre waits for a direction');
+stick.move(44, 800, 312);
+assert.ok(run('player.dash') > 0 && run('player.lastDx') > 0.99, 'and dashes as soon as it gets one: flick, let go, flick');
+stick.up(44, 800, 312);
+run('player.dash=0;player.dashCd=0');
+frames(24);
+stick.down(45, 300, 312);
+stick.up(45, 300, 312);
+stick.down(46, 500, 312);
+frames(12);
+stick.move(46, 800, 312);
+assert.equal(run('player.dash'), 0, 'a direction that comes 0.2 s late is a walk');
+stick.up(46, 800, 312);
+run('player.dashCd=0');
+frames(24);
+stick.down(47, 300, 312);
+frames(30);
+stick.up(47, 300, 312);
+stick.down(48, 800, 312);
+assert.equal(run('player.dash'), 0, 'a half-second hold is a walk, not the first tap of a dash');
+stick.up(48, 800, 312);
+frames(24);
+run('player.dashCd=1.5');
+stick.down(49, 300, 312);
+stick.up(49, 300, 312);
+stick.down(50, 800, 312);
+assert.equal(run('player.dash'), 0, 'a resting dash stays resting');
+frames(1);
+assert.equal(nodes.joyDash.style.opacity, '.35', 'and the » on the stick dims while it rests');
+stick.up(50, 800, 312);
+run('player.dashCd=0');
+frames(1);
+assert.equal(nodes.joyDash.style.opacity, '1', 'then lights up again');
+run('player.dash=0;player.dashCd=0');
+key('q');
+assert.ok(run('player.dash') > 0, 'Q still dashes on the keyboard');
+events.keyup({ key: 'q', target: {}, preventDefault: () => {} });
+run('player.dash=0;player.dashCd=0');
+frames(24);
 run('player.attackCd=0;player.attack=0;player.z=0;player.vz=0;hitStop=0');
 nodes.attackBtn.events.pointerdown(touch(5));
 assert.ok(run('player.attack') > 0, 'the attack button swings on press');
 assert.equal(run('heldAttack'), true, 'holding it keeps swinging');
 nodes.attackBtn.events.pointerup(touch(5));
 assert.equal(run('heldAttack'), false);
-console.log('PASS: ward buttons act on pointerdown (JUMP with the joystick held), and the follow-up click is ignored.');
+console.log('PASS: ward buttons act on pointerdown (JUMP with the joystick held), the follow-up click is ignored, and a double-tap of the stick dashes.');
 
-// What is left shows on the buttons: BRICK and TRAP badges (dim at zero), SHIELD's ring drains while held.
-run('wardKit.bricks=0;wardKit.trap=0;wardKitDirty()');
+// What is left shows on the buttons: the BRICK badge (dim at zero), SHIELD's ring drains while held.
+run('wardKit.bricks=0;wardKitDirty()');
 assert.equal(nodes.brickCount.textContent, '0');
-assert.equal(nodes.trapCount.textContent, '0');
 run('player.shieldMeter=wardShieldCap();player.shieldBroken=false;shieldHold(true);for(let i=0;i<60;i++)updateWorld(1/60)');
 const ring = Number(nodes.shieldBtn.style['--meter']);
 assert.ok(ring > 0.4 && ring < 0.8, 'the SHIELD ring drains while it is held: ' + ring);
@@ -351,7 +415,8 @@ assert.equal(Number(nodes.shieldBtn.style['--meter']), 1, 'and refills while it 
 assert.equal(nodes.weaponStrip, undefined, 'there is no weapon strip to switch with');
 assert.match(nodes.keyGuide.innerHTML, /HOLD R<\/b> shield/, 'the key guide names one key per action');
 assert.match(nodes.helpKeys.innerHTML, /B: brick/, 'and so does How to play');
-run('wardKit.bricks=3;wardKit.trap=1;wardKitDirty();drawWorld()');
+assert.doesNotMatch(nodes.keyGuide.innerHTML + nodes.helpKeys.innerHTML, /trap/i, 'no trap key anywhere');
+run('wardKit.bricks=3;wardKitDirty();drawWorld()');
 console.log('PASS: the kit buttons show what is left (badges and the shield ring); the key guide and help list one key per action.');
 
 // EAT: a count badge, off when empty or at full hearts, on after a pickup, eats on press.
@@ -524,11 +589,10 @@ finger.up(17, 700, 520);
 steps(10);
 assert.equal(run('player.shield'), 0, 'lifting the finger drops it');
 // The kit buttons stay on screen in this scheme and act on press as always.
-run('traps=[];wardKit.trap=1;player.brickCd=0;wardKit.bricks=2;projectiles=[]');
-tapButton('trapBtn', 61);
+run('player.brickCd=0;wardKit.bricks=2;projectiles=[]');
 tapButton('brickBtn', 62);
-assert.ok(run('traps.length===1&&projectiles.some(p=>p.kind==="brick")'), 'TRAP and BRICK work under tap the room too');
-run('traps=[];projectiles=[]');
+assert.ok(run('projectiles.some(p=>p.kind==="brick")'), 'BRICK works under tap the room too');
+run('projectiles=[]');
 // The beacon still opens its arcade, once; the click that follows is not a second tap.
 run('var gateBefore=wardLocked;wardLocked=()=>false;loadRoom(1);enemies=[]');
 finger.tap(18, run('rooms[1].station[0]'), run('rooms[1].station[1]'));
@@ -727,7 +791,7 @@ freshPage(
   `assert.equal(run('state.controls'), 'stick', 'a phone starts on the joystick');
 assert.equal(run('state.controlsChosen'), false);
 run('begin()');
-assert.match(nodes.toast.textContent, /Smash SWING. Hold SHIELD, lob a BRICK, set a TRAP/, 'the first toast teaches the stick and the buttons');
+assert.match(nodes.toast.textContent, /double-tap it to dash. Smash SWING. Hold SHIELD, lob a BRICK\./, 'the first toast teaches the stick, its dash and the buttons');
 assert.equal(run('state.stats.turnHint'), 1, 'a phone held upright gets the turn-sideways hint');
 assert.ok(run('turnHintUntil') > 0);
 assert.match(nodes.turnHintchild.textContent, /sideways/);

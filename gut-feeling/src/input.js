@@ -514,14 +514,50 @@ function releaseArcade(e) {
 // ---- Ward touch controls ----
 const joystick = $('joystick');
 
+// Double-tap the stick to dash. A short touch (a tap or a flick, JOY_TAP_SECONDS at most), then a second
+// press within JOY_DOUBLE_SECONDS of letting go: if that press lands off centre, or gets there within
+// JOY_DASH_WINDOW, Macy dashes that way and the stick keeps steering. The » on the stick says so. A dash
+// uses up the double-tap, so a third quick touch is a fresh first tap. Q dashes on the keyboard; tap the
+// room has its flick.
+const JOY_TAP_SECONDS = 0.3,
+  JOY_DOUBLE_SECONDS = 0.3,
+  JOY_DASH_WINDOW = 0.15,
+  JOY_DASH_PUSH = 0.4;
+let joyDownAt = -9,
+  joyUpAt = -9,
+  joyLastShort = false,
+  joyDashArmed = false,
+  joyDashed = false;
+
 joystick.addEventListener('pointerdown', e => {
   if (joyPointer !== null) return;
   e.preventDefault();
   joyPointer = e.pointerId;
   joystick.setPointerCapture(e.pointerId);
   if (!state.started) begin();
+  joyDashArmed = joyLastShort && time - joyUpAt <= JOY_DOUBLE_SECONDS;
+  joyLastShort = false;
+  joyDashed = false;
+  joyDownAt = time;
   handleJoy(e);
 });
+
+// The second press of a double-tap, once it points somewhere: dash that way.
+function joyDashCheck() {
+  if (!joyDashArmed) return;
+  if (time - joyDownAt > JOY_DASH_WINDOW) {
+    joyDashArmed = false;
+    return;
+  }
+  const d = Math.hypot(joy.x, joy.y);
+  if (d < JOY_DASH_PUSH) return;
+  joyDashArmed = false;
+  joyDashed = true;
+  player.lastDx = joy.x / d;
+  player.lastDy = joy.y / d;
+  if (Math.abs(joy.x) > 0.1) player.dir = joy.x > 0 ? 1 : -1;
+  if (!roomAction('dash')) dash();
+}
 
 function handleJoy(e) {
   if (e.pointerId !== joyPointer) return;
@@ -537,6 +573,7 @@ function handleJoy(e) {
   joy.x = x / max;
   joy.y = y / max;
   $('stick').style.transform = `translate(${x}px,${y}px)`;
+  joyDashCheck();
 }
 
 joystick.addEventListener('pointermove', handleJoy);
@@ -545,6 +582,10 @@ joystick.addEventListener('pointermove', handleJoy);
   joystick.addEventListener(type, e => {
     if (e.pointerId === joyPointer) {
       joyPointer = null;
+      // A quick touch that did not dash is the first half of a double-tap.
+      joyLastShort = type === 'pointerup' && !joyDashed && time - joyDownAt <= JOY_TAP_SECONDS;
+      joyUpAt = time;
+      joyDashArmed = false;
       joy.x = joy.y = 0;
       $('stick').style.transform = 'translate(0,0)';
     }
@@ -589,9 +630,6 @@ $('attackBtn').addEventListener('click', e => {
 });
 
 onPress($('jumpBtn'), () => roomAction('jump') || jump());
-onPress($('dashBtn'), () => roomAction('dash') || dash());
-// TRAP is also the "use" press: at her room's TV, the E-Type or the light switch it uses that instead.
-onPress($('trapBtn'), () => roomAction('use') || layTrap());
 onPress($('brickBtn'), () => throwBrick());
 onPress($('touchEat'), eat);
 
@@ -638,7 +676,7 @@ const ARCADE_KEYS = [
 ];
 const WARD_KEYS = [
   ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
-  'w', 'a', 's', 'd', 'e', 'q', 'f', 'r', 'b', 'enter', 'shift', 'j'
+  'w', 'a', 's', 'd', 'q', 'f', 'r', 'b', 'enter', 'shift', 'j'
 ];
 
 // Arcade keys: Escape pauses, E is the assist, everything else goes to the game's key hook.
@@ -693,8 +731,7 @@ window.addEventListener('keydown', e => {
     keys.add(k);
   }
   if (e.repeat) return;
-  // One key per action (CONTROL_NAMES.keys): E trap, B brick, hold R for the shield.
-  if (k === 'e' && !roomAction('use')) layTrap();
+  // One key per action (CONTROL_NAMES.keys): B brick, hold R for the shield.
   if (k === 'b') throwBrick();
   if (k === 'r') shieldHold(true);
   if (k === 'q' && !roomAction('dash')) dash();
@@ -751,7 +788,6 @@ const CONTROL_NAMES = {
     ['Q', 'dash'],
     ['hold R', 'barf-bag shield'],
     ['B', 'brick (3 a fight, find more)'],
-    ['E', 'trap (1 a wave)'],
     ['F', 'eat a nutrient'],
     ['M', 'map'],
     ['Enter', 'nearby arcade'],
@@ -768,7 +804,7 @@ function renderControls() {
   const short = { move: 'move', 'barf-bag shield': 'shield', 'eat a nutrient': 'eat' };
   $('helpKeys').innerHTML = CONTROL_NAMES.keys.map(([k, what]) => `${k}: ${what}`).join('<br>');
   $('keyGuide').innerHTML = CONTROL_NAMES.keys
-    .slice(0, 8)
+    .slice(0, 7)
     .map(([k, what]) => `<span><b>${k.replace('WASD / arrows', 'W A S D').toUpperCase()}</b> ${short[what] || what.split(' (')[0]}</span>`)
     .join('');
 }
