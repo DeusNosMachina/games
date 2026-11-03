@@ -540,3 +540,17 @@ for (const tall of [false, true]) {
 }
 n('MAGNET.scene($("miniPreview").getContext("2d"),420,240);MAGNET.scene($("miniPreview").getContext("2d"),260,135)');
 console.log('PASS: Loud Donut Pinball draws every screen in landscape and portrait, busy states included.');
+
+// Controls: LEFT on the left, RIGHT on the right, BALL SAVE between them, on every screen.
+close();
+assert.equal(n('MAGNET.controlsPlace'), 'sides', 'pinball asks for the sides placement');
+n('window.innerWidth=1280;window.innerHeight=820;openMini(1);startMini()');
+assert.equal(n('$("miniDialog").dataset.place'), 'sides');
+assert.equal(n('mini.frame.side'), 'row', 'with a mouse: one row, LEFT, the assist, RIGHT');
+close();
+for (const [w, h] of [[390, 664], [390, 844], [844, 390], [1180, 820]]) {
+  const f = JSON.parse(n(`JSON.stringify(miniOverlayFrame(${w}, ${h}, ${w < h ? '450 / 820' : '800 / 600'}, Math.min(${w}, ${h}) >= 600 ? MINI_FRAME_SIZES.tablet : MINI_FRAME_SIZES.phone, undefined, MAGNET.controlsPlace, 3))`));
+  assert.equal(f.ctl, 'corners', `${w} × ${h}: the flipper buttons sit in the bottom corners`);
+}
+n('delete window.innerWidth;delete window.innerHeight;resize()');
+console.log('PASS: Loud Donut Pinball places LEFT and RIGHT in the corners with BALL SAVE between them.');

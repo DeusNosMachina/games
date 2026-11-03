@@ -166,20 +166,27 @@ function fitMiniCanvas() {
 }
 
 // ---- The run screen ----
-// A run is the canvas plus the minimum: three pills on its top edge, and the controls in one row under
-// it or a column beside it, whichever leaves the bigger canvas. In arcade mode the frame is the whole
-// screen less the safe areas; otherwise the dialog hugs the canvas inside 96% × 94% of the window, so
-// there is no empty panel around it. Sizes are CSS pixels; CSS reads them as variables.
+// A run is the canvas plus the minimum: three pills on its top edge and the control buttons. With a
+// mouse the controls sit in one row under the canvas or a column beside it, whichever leaves the bigger
+// canvas, and the dialog hugs the canvas inside 96% × 94% of the window (no empty panel around it). In
+// arcade mode on a touch screen the canvas takes the whole screen less the safe areas and the buttons
+// float over its bottom edge (miniOverlayFrame). Sizes are CSS pixels; CSS reads them as variables.
+// Overlay sizes: btn is a strip button's height, main its widest, thumbW × thumbH a corner button in
+// the 'sides' placement, assistW × assistH the small buttons between the corners, gap the margin.
 const MINI_FRAME_SIZES = {
-  phone: { row: 66, col: 140, hud: 44, btn: 52 },
-  tablet: { row: 84, col: 200, hud: 50, btn: 62 },
+  phone: { row: 66, col: 140, hud: 44, btn: 52, main: 140, thumbW: 96, thumbH: 86, assistW: 118, assistH: 36, gap: 8 },
+  tablet: { row: 84, col: 200, hud: 50, btn: 62, main: 230, thumbW: 132, thumbH: 112, assistW: 160, assistH: 46, gap: 12 },
   desktop: { row: 72, col: 190, hud: 46, btn: 48 }
 };
+
+function miniCoarse() {
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+}
 
 function miniFrameSizes() {
   const w = window.innerWidth || 1280,
     h = window.innerHeight || 800;
-  if (!matchMedia('(pointer: coarse)').matches) return MINI_FRAME_SIZES.desktop;
+  if (!miniCoarse()) return MINI_FRAME_SIZES.desktop;
   return Math.min(w, h) >= 600 ? MINI_FRAME_SIZES.tablet : MINI_FRAME_SIZES.phone;
 }
 
@@ -216,7 +223,89 @@ function miniFrame(viewW, viewH, aspect, arcade, sizes, inset = { t: 0, r: 0, b:
     // Pause and close: on the canvas's top-right corner in a row layout, atop the column otherwise.
     topX: inset.r + (side === 'row' ? cvL + 6 : 8),
     topY: inset.t + (side === 'row' ? cvT - band + 6 : 6),
-    hudPadR: side === 'row' ? 100 : 8
+    hudPadR: side === 'row' ? 100 : 8,
+    // Nothing sits on the canvas in these layouts.
+    coverCss: { bottom: 0, left: 0, right: 0 }
+  };
+}
+
+// Pure geometry for touch screens in arcade mode: the canvas fills the frame (aspect kept), the HUD
+// band takes the top of any spare height and the buttons float over the canvas's bottom edge, using
+// whatever spare height is left below it first. count is how many buttons there are, the assist
+// included. Two ways to place them (ctl):
+// - 'strip': one centered row along the bottom, over the canvas's bottom edge. place 'bottom' uses it.
+// - 'corners': the first button in the bottom-left corner, the second in the bottom-right, thumb-tall,
+//   and the rest small: centered along the bottom between them (mid 'center') or, when the canvas
+//   leaves a gutter beside it wide enough for a thumb, stacked above the right corner (mid 'stack').
+//   place 'sides' always uses it; place 'bottom' uses it whenever those gutters exist, because then
+//   nothing has to sit on the canvas at all (a square game on a landscape phone).
+// coverCss is what the buttons hide, in CSS pixels: bottom is the band along the canvas's bottom edge
+// with buttons in it, left and right the corner blocks' widths over the canvas, 0 where nothing is.
+function miniOverlayFrame(viewW, viewH, aspect, sizes, inset = { t: 0, r: 0, b: 0, l: 0 }, place = 'bottom', count = 1) {
+  const boxW = viewW - inset.l - inset.r,
+    boxH = viewH - inset.t - inset.b,
+    fitW = Math.max(1, Math.min(boxW, boxH * aspect)),
+    fitH = fitW / aspect,
+    gap = sizes.gap,
+    cvL = (boxW - fitW) / 2,
+    gutter = cvL >= sizes.thumbW + gap * 2,
+    corners = (place === 'sides' && count >= 2) || (gutter && count >= 1),
+    mid = gutter ? 'stack' : 'center',
+    slack = Math.max(0, boxH - fitH),
+    band = Math.min(sizes.hud, slack),
+    // Corner buttons stay clear of the HUD on the shortest screens.
+    thumbH = Math.max(sizes.btn, Math.min(sizes.thumbH, (boxH - sizes.hud) * 0.4)),
+    ctlH = (corners ? thumbH : sizes.btn) + gap * 2,
+    below = slack - band,
+    // Spare height past the buttons is split above and below, so canvas and buttons stay together.
+    extra = Math.max(0, below - ctlH),
+    cvT = band + extra / 2,
+    ctlB = below > ctlH ? cvT + fitH + ctlH : boxH,
+    // A strip spans the canvas, never narrower than 300 px unless the frame is.
+    span = Math.min(boxW, Math.max(fitW, 300)),
+    canvasBottom = cvT + fitH,
+    canvasRight = cvL + fitW,
+    rects = [];
+  if (corners) {
+    // The assist is always the last button; anywhere it lands it keeps its small height.
+    const tall = i => (i === count - 1 ? sizes.assistH : thumbH),
+      base = ctlB - gap;
+    rects.push({ x: gap, w: sizes.thumbW, top: base - tall(0), at: 'left' });
+    if (count >= 2) rects.push({ x: boxW - gap - sizes.thumbW, w: sizes.thumbW, top: base - tall(1), at: 'right' });
+    for (let i = 2; i < count; i++)
+      rects.push(
+        mid === 'stack'
+          ? { x: boxW - gap - sizes.thumbW, w: sizes.thumbW, top: base - thumbH - (i - 1) * (gap + sizes.assistH), at: 'right' }
+          : { x: (boxW - sizes.assistW) / 2, w: sizes.assistW, top: base - sizes.assistH, at: 'mid' }
+      );
+  } else rects.push({ x: (boxW - span) / 2, w: span, top: ctlB - gap - sizes.btn, at: 'mid' });
+  const cover = { bottom: 0, left: 0, right: 0 };
+  for (const r of rects) {
+    if (r.top >= canvasBottom || r.x >= canvasRight || r.x + r.w <= cvL) continue;
+    cover.bottom = Math.max(cover.bottom, canvasBottom - r.top);
+    if (r.at === 'left') cover.left = Math.max(cover.left, r.x + r.w - cvL);
+    if (r.at === 'right') cover.right = Math.max(cover.right, canvasRight - r.x);
+  }
+  return {
+    side: 'over',
+    ctl: corners ? 'corners' : 'strip',
+    mid,
+    frameW: boxW,
+    frameH: boxH,
+    fitW,
+    fitH,
+    cvL,
+    cvT,
+    hudT: cvT - band,
+    topX: inset.r + cvL + 6,
+    topY: inset.t + cvT - band + 6,
+    hudPadR: 100,
+    ctlT: ctlB - ctlH,
+    ctlH,
+    ctlL: corners ? 0 : (boxW - span) / 2,
+    ctlW: corners ? boxW : span,
+    thumbH,
+    coverCss: cover
   };
 }
 
@@ -227,14 +316,36 @@ function miniSafeInsets(dialog) {
   return { t: px(cs.paddingTop), r: px(cs.paddingRight), b: px(cs.paddingBottom), l: px(cs.paddingLeft) };
 }
 
-// Writes the frame for the current run and window onto #miniDialog.
+// Arcade mode on a touch screen floats the buttons over the canvas.
+function miniOverlayWanted() {
+  return inArcade() && miniCoarse();
+}
+
+// setControls writes the count (the assist included) on the row.
+function miniButtonCount() {
+  const c = $('miniControls');
+  if (c.dataset && c.dataset.count) return Number(c.dataset.count);
+  return typeof c.querySelectorAll === 'function' ? c.querySelectorAll('button').length : 0;
+}
+
+// Writes the frame for the current run and window onto #miniDialog: data-side ('row', 'col' or 'over'),
+// data-place (the game's controlsPlace), the CSS variables, and mini.frame. mini.frame.cover says what
+// the buttons hide, in active-canvas pixels: {bottom, left, right}, all 0 when nothing sits on the canvas.
 function applyMiniFrame() {
   const dialog = $('miniDialog'),
+    def = miniGame(),
     { w, h } = activeCanvas(),
     sizes = miniFrameSizes(),
-    arcade = inArcade(),
-    buttons = typeof $('miniControls').querySelectorAll === 'function' ? $('miniControls').querySelectorAll('button').length : 0,
-    f = miniFrame(window.innerWidth || 1280, window.innerHeight || 800, w / h, arcade, sizes, miniSafeInsets(dialog), buttons && buttons <= 2 ? 'row' : null),
+    place = def && def.controlsPlace === 'sides' ? 'sides' : 'bottom',
+    buttons = miniButtonCount(),
+    vw = window.innerWidth || 1280,
+    vh = window.innerHeight || 800,
+    inset = miniSafeInsets(dialog),
+    over = miniOverlayWanted(),
+    // With a mouse, 'sides' keeps one row (LEFT, the assist, RIGHT) so the corners read left and right.
+    f = over
+      ? miniOverlayFrame(vw, vh, w / h, sizes, inset, place, buttons)
+      : miniFrame(vw, vh, w / h, inArcade(), sizes, inset, (buttons && buttons <= 2) || place === 'sides' ? 'row' : null),
     px = v => Math.round(v * 10) / 10 + 'px',
     vars = {
       '--frame-w': f.frameW,
@@ -248,12 +359,36 @@ function applyMiniFrame() {
       '--hud-pad-r': f.hudPadR,
       '--top-x': f.topX,
       '--top-y': f.topY,
-      '--ctl': sizes.row,
+      '--ctl': over ? f.ctlH : sizes.row,
       '--ctl-w': sizes.col,
       '--ctl-btn': sizes.btn
     };
+  if (over)
+    Object.assign(vars, {
+      '--ctl-t': f.ctlT,
+      '--ctl-l': f.ctlL,
+      '--ctl-span': f.ctlW,
+      '--ctl-gap': sizes.gap,
+      '--ctl-main': sizes.main,
+      '--thumb-w': sizes.thumbW,
+      '--thumb-h': f.thumbH,
+      '--assist-w': sizes.assistW,
+      '--assist-h': sizes.assistH
+    });
   for (const k in vars) dialog.style.setProperty(k, px(vars[k]));
+  const k = w / f.fitW,
+    c = f.coverCss;
+  delete f.coverCss;
+  f.place = place;
+  f.cover = {
+    bottom: Math.min(h, Math.round(c.bottom * k)),
+    left: Math.min(w, Math.round(c.left * k)),
+    right: Math.min(w, Math.round(c.right * k))
+  };
   dialog.dataset.side = f.side;
+  dialog.dataset.place = place;
+  dialog.dataset.ctl = f.ctl || '';
+  dialog.dataset.mid = f.mid || '';
   mini.frame = f;
   return f;
 }
@@ -334,9 +469,14 @@ function openMini(id, forced = false) {
   };
   $('miniDialog').classList.remove('gory');
   $('miniClose').classList.toggle('hidden', forced);
+  // How to play starts open only where there is room for it: a mouse and a roomy window.
+  $('lobbyHow').open = !miniCoarse() && (window.innerWidth || 1280) >= 900 && (window.innerHeight || 800) >= 640;
   showLobby();
   modalOpen($('miniDialog'));
 }
+
+// The lobby's own way out. leaveMini is defined below; the listener runs it at click time.
+$('miniLobbyBack').addEventListener('click', () => leaveMini());
 
 function showLobby() {
   const def = miniGame(),
@@ -358,43 +498,46 @@ function showLobby() {
   $('miniHeadline').textContent = info.headline;
   $('miniDescription').textContent = info.desc;
   $('miniDialog').dataset.daily = mini.daily ? 'yes' : '';
-  // One screen: level cards, approach, one big start. Level 1 teaches; 2 and 3 are the real deal.
-  // A level unlocks once the previous one has any medal; forced recovery stays on level 1.
-  // A Daily Dose fixes the level and Show-off rules.
+  $('miniDialog').dataset.forced = mini.forced ? 'yes' : '';
+  // One screen, no scrolling: the hook, the levels as one segmented row (the chosen one's note under
+  // it), the nerve as a two-way switch, then START and BACK. The long copy waits behind How to play.
+  // A level unlocks once the previous one has any medal; a recovery or a Daily Dose fixes the level
+  // (the others stay visible, disabled), and a Daily Dose fixes Show-off rules.
+  const count = miniTierCount();
+  $('tierGrid').dataset.count = String(count);
   $('tierGrid').innerHTML = tiers
-    .slice(0, miniTierCount())
+    .slice(0, count)
     .map((t, i) => {
       const medal = state.medals[mini.id][i],
         locked = mini.daily || mini.forced ? i !== mini.tier : i > 0 && !state.medals[mini.id][i - 1];
       return (
         `<button class="${['tier-card', mini.tier === i ? 'selected' : '', i === 3 ? 'legendary' : ''].filter(Boolean).join(' ')}" data-tier="${i}" ${locked ? 'disabled' : ''}>` +
-        `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : i === 3 ? 'One win in four, any prescription' : 'The real deal'}</span>` +
-        `<strong>${t}</strong><small>${def.tierNotes[i] || ''}</small>` +
-        `<div class="medals">${'★'.repeat(medal)}${'☆'.repeat(3 - medal)}</div></button>`
+        `<small>LEVEL ${i + 1}</small><strong>${i === 3 ? 'LEGEND' : i + 1}</strong>` +
+        `<span class="medals" aria-label="${medal} of 3 stars">${locked && !medal ? '🔒' : '★'.repeat(medal) + '☆'.repeat(3 - medal)}</span></button>`
       );
     })
     .join('');
+  const tag = mini.tier === 0 ? 'Teaches you' : mini.tier === 3 ? 'One win in four' : 'The real deal';
+  $('tierNote').innerHTML = `<strong>${tiers[mini.tier]}</strong> · ${tag}<small>${def.tierNotes[mini.tier] || ''}</small>`;
   $('approachOptions').innerHTML = approaches
     .map((a, i) => {
       const helps = approachHelps(i),
-        desc = i === 0 ? `${helps === 3 ? 'Three' : 'Two'} emergency assists for the whole run.` : a.desc,
+        desc = i === 0 ? `${helps === 3 ? 'Three' : 'Two'} assists` : 'No assists · +25% coins',
         off = mini.daily && i === 0;
       return (
         `<button class="approach ${mini.approach === i ? 'selected' : ''}" data-approach="${i}" ` +
-        `aria-pressed="${mini.approach === i}" ${off ? 'disabled' : ''}><strong>${a.name}</strong><small>${desc}</small></button>`
+        `aria-pressed="${mini.approach === i}" ${off ? 'disabled' : ''}><strong>${i === 0 ? 'Steady hands' : 'Show-off'}</strong><small>${desc}</small></button>`
       );
     })
     .join('');
   $('dailyBanner').classList.toggle('hidden', !mini.daily);
   if (mini.daily)
     $('dailyBanner').textContent =
-      `DAILY DOSE · ${dailyLabel(mini.dailyDate)} · Same gremlins for everyone today. ` +
+      `DAILY DOSE · ${dailyLabel(mini.dailyDate)} · Same gremlins for everyone. ` +
       (state.daily.last === mini.dailyDate ? `Today’s best: ${state.daily.best}.` : `First run pays +${dailyBonus()} coins.`);
-  $('miniStart').innerHTML = mini.daily
-    ? 'Take today’s dose →'
-    : mini.forced
-      ? 'Start the recovery →'
-      : 'Let’s make poor decisions →';
+  $('miniStart').innerHTML = mini.daily ? 'Take today’s dose →' : mini.forced ? 'Start the recovery →' : 'Start →';
+  // A recovery has no way out but through.
+  $('miniLobbyBack').classList.toggle('hidden', !!mini.forced);
   $('miniRewardInfo').textContent = mini.forced ? MINI_RECOVERY_LINE : '';
   $('miniBest').textContent = mini.forced
     ? 'No medals in bed. Just get out of it.'
@@ -496,6 +639,7 @@ function syncMiniTip() {
 
 // Buttons: {id, text, key?, hot?, pad?}. Each click sends miniAction(id); the assist button is always appended.
 function setControls(buttons) {
+  const before = miniButtonCount();
   $('miniControls').dataset.game = mini.id;
   // Arcade mode lays out by button count (the assist included).
   $('miniControls').dataset.count = String(buttons.length + 1);
@@ -507,6 +651,8 @@ function setControls(buttons) {
   $('miniControls').innerHTML =
     html.join('') +
     `<button class="assist muted" data-action="assist" aria-label="Use limited assist">ASSIST · ${mini.helps} left <small>(E)</small></button>`;
+  // A relabel that changes the count mid-run moves the buttons, so the frame and its cover follow.
+  if (mini.initialized && mini.open && miniButtonCount() !== before) applyMiniFrame();
 }
 
 function praise(points, precision = 1) {

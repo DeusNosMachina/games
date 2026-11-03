@@ -749,9 +749,9 @@ run(`state.recoveries=0;state.hp=5;state.lastTier=${lastTierBefore};save()`);
 console.log("PASS: the recovery follows the last run's level, plays one of two phases, counts collapses, stamps nothing, and a lost one can be patched up for coins.");
 
 // ---- The run screen: canvas plus the minimum, sized to the window ----
-run('window.innerWidth=1280;window.innerHeight=820;openMini(4);startMini()');
+run('window.innerWidth=1280;window.innerHeight=820;openMini(5);startMini()');
 let frame = JSON.parse(run('JSON.stringify(mini.frame)'));
-assert.equal(frame.side, 'col', 'a square game on a wide window gets a control column');
+assert.equal(frame.side, 'col', 'a square game with three buttons on a wide window gets a control column');
 assert.equal(Math.round(frame.fitH), Math.floor(820 * 0.94), 'the canvas takes the full dialog height');
 assert.equal(frame.frameW, Math.ceil(frame.fitW + 190), 'the dialog hugs canvas plus column');
 assert.ok(frame.frameW <= 1280 * 0.96 && frame.frameH <= 820 * 0.94, 'inside 96vw × 94vh');
@@ -770,16 +770,158 @@ assert.ok(
   'resizing the window re-fits the frame'
 );
 close();
-const phone = JSON.parse(run('JSON.stringify(miniFrame(390, 844, 450 / 800, true, MINI_FRAME_SIZES.phone))'));
-assert.equal(phone.side, 'row');
-assert.equal(phone.fitW, 390, 'a portrait canvas fills a phone');
-assert.ok(Math.abs(phone.fitH - 693.33) < 0.1);
-assert.ok(phone.cvT >= 0 && phone.cvT + phone.fitH <= 844 - 66 + 0.01, 'clear of the control row');
-const flat = JSON.parse(run('JSON.stringify(miniFrame(844, 390, 1, true, MINI_FRAME_SIZES.phone))'));
-assert.equal(flat.side, 'col', 'a landscape phone puts the controls in a column');
-assert.equal(flat.fitH, 390);
+// A 'sides' game with a mouse keeps one row (LEFT, the assist, RIGHT), even where a column would fit.
+run('openMini(1);startMini()');
+frame = JSON.parse(run('JSON.stringify(mini.frame)'));
+assert.equal(frame.side, 'row', 'pinball on a laptop keeps its buttons in a row');
+assert.equal(nodes.miniDialog.dataset.place, 'sides');
+assert.deepEqual(frame.cover, { bottom: 0, left: 0, right: 0 }, 'nothing sits on a laptop canvas');
+close();
+// Touch screens in arcade mode: the canvas fills the frame and the buttons float over its bottom edge.
+const P = 'MINI_FRAME_SIZES.phone',
+  over = (args, place, count) => JSON.parse(run(`JSON.stringify(miniOverlayFrame(${args}, ${P}, undefined, '${place}', ${count}))`));
+let o = over('390, 844, 450 / 800', 'bottom', 2);
+assert.equal(o.side, 'over');
+assert.equal(o.fitW, 390, 'a portrait canvas fills a phone');
+assert.equal(o.ctl, 'strip');
+assert.ok(o.ctlT >= o.cvT + o.fitH - 0.01, 'spare height under the canvas takes the buttons first');
+assert.equal(o.coverCss.bottom, 0, 'so they cover nothing');
+o = over('390, 664, 450 / 800', 'bottom', 3);
+assert.equal(o.fitH, 664, 'a short phone (browser bars) gives the canvas the whole height');
+assert.equal(o.ctlT + o.ctlH, 664, 'the strip sits on the bottom edge');
+assert.equal(o.coverCss.bottom, 8 + 52, 'and covers one button height plus its margin');
+assert.deepEqual([o.coverCss.left, o.coverCss.right], [0, 0]);
+o = over('844, 390, 800 / 450', 'bottom', 2);
+assert.equal(o.fitH, 390, 'a landscape phone: full height, as before');
+assert.equal(o.ctl, 'strip', 'gutters too narrow for a thumb keep the strip');
+assert.ok(o.coverCss.bottom > 0);
+o = over('844, 390, 1', 'bottom', 3);
+assert.equal(o.ctl, 'corners', 'a square game on a landscape phone puts its buttons in the gutters');
+assert.equal(o.mid, 'stack', 'the assist stacks over the right corner');
+assert.deepEqual(o.coverCss, { bottom: 0, left: 0, right: 0 }, 'and the canvas is all hers');
+// 'sides': the first two buttons in the bottom corners, thumb-tall, the rest small between them.
+o = over('390, 664, 450 / 820', 'sides', 3);
+assert.equal(o.ctl, 'corners');
+assert.equal(o.mid, 'center');
+assert.equal(o.thumbH, 86);
+assert.ok(Math.abs(o.coverCss.left - (8 + 96 - o.cvL)) < 0.01, 'the left corner block');
+assert.ok(Math.abs(o.coverCss.right - o.coverCss.left) < 0.01, 'and its twin on the right');
+assert.equal(o.coverCss.bottom, 8 + 86, 'as tall as a thumb');
+assert.ok(o.ctlT >= o.hudT + 44, 'clear of the HUD');
+o = over('844, 390, 800 / 600', 'sides', 3);
+assert.equal(o.mid, 'stack', 'landscape pinball has gutters: the corners sit beside the table');
+assert.deepEqual(o.coverCss, { bottom: 0, left: 0, right: 0 });
+// In the page (the stub body says arcade for a moment): a coarse pointer in arcade mode, a phone with its browser bars showing.
+run(`window.innerWidth=390;window.innerHeight=664;matchMedia=q=>({matches:/coarse/.test(q)});document.body.classList.wasContains=document.body.classList.contains;document.body.classList.contains=c=>c==='arcade';openMini(1);startMini()`);
+frame = JSON.parse(run('JSON.stringify(mini.frame)'));
+assert.equal(nodes.miniDialog.dataset.side, 'over');
+assert.equal(nodes.miniDialog.dataset.ctl, 'corners', 'pinball: LEFT and RIGHT in the corners');
+assert.equal(nodes.miniDialog.dataset.mid, 'center', 'BALL SAVE between them');
+assert.equal(frame.fitH, 664, 'the canvas takes the whole frame');
+const pinScale = 450 / frame.fitW;
+assert.equal(frame.cover.left, Math.round((8 + 96 - frame.cvL) * pinScale), 'cover is in active-canvas pixels');
+assert.equal(frame.cover.right, frame.cover.left);
+assert.equal(frame.cover.bottom, Math.round((8 + 86) * pinScale));
+assert.equal(nodes.miniDialog.style['--thumb-h'], '86px');
+assert.equal(nodes.miniDialog.style['--ctl-t'], 664 - 102 + 'px');
+// The flippers stay in sight: the corner blocks end left of the left pivot and right of the right one.
+const pinX = JSON.parse(run('JSON.stringify(MAGNET_PIVOTS.map(q => magnetView().ox + (q.x + (q.x < MAGNET_CX ? -1 : 1) * MAGNET_FLIP.rp) * magnetView().s))'));
+assert.equal(run('mini.portrait'), true);
+assert.ok(pinX[0] > frame.cover.left, 'the left flipper is clear of LEFT');
+assert.ok(pinX[1] < 450 - frame.cover.right, 'the right flipper is clear of RIGHT');
+close();
+run('window.innerWidth=844;window.innerHeight=390;openMini(3);startMini()');
+frame = JSON.parse(run('JSON.stringify(mini.frame)'));
+assert.equal(frame.place, 'bottom');
+assert.equal(frame.ctl, 'strip', 'the race keeps a strip in landscape');
+assert.deepEqual(frame.cover, { bottom: Math.round(60 * (800 / frame.fitW)), left: 0, right: 0 }, 'and reports the band it covers');
+run('setControls([{id:"boost",text:"BOOST"}])');
+assert.equal(run('mini.frame.ctl'), 'strip', 'a relabel that changes the count re-lays the frame');
+close();
+run(`document.body.classList.contains=document.body.classList.wasContains;matchMedia=q=>({matches:false})`);
 run('delete window.innerWidth;delete window.innerHeight;resize()');
-console.log('PASS: run screens size the canvas to the window, row or column, with no dead panels.');
+console.log('PASS: run screens size the canvas to the window: row or column with a mouse; on touch screens the canvas fills the frame, buttons float over it in a strip or the corners, and cover says what they hide.');
+
+// ---- The lobby: one screen, no scrolling ----
+// The page: the hook, a segmented level row with the chosen level's note, the nerve switch, START and
+// BACK. The long copy and the best score wait behind How to play; a recovery hides BACK.
+run('state.medals[1]=[1,0,0,0];openMini(1)');
+assert.match(nodes.tierGrid.innerHTML, /data-tier="1" >/, 'level 2 is open after a level 1 medal');
+assert.match(nodes.tierGrid.innerHTML, /data-tier="2" disabled>/, 'level 3 stays visible but locked');
+assert.equal(nodes.tierGrid.dataset.count, '4', 'all four levels in one row');
+assert.match(nodes.tierNote.innerHTML, /Uh-oh Protocol/, 'the chosen level names itself under the row');
+assert.match(nodes.approachOptions.innerHTML, /Steady hands[\s\S]*Show-off/, 'the nerve is a two-way switch');
+nodes.miniLobbyBack.events.click();
+assert.equal(run('mini.open'), false, 'BACK leaves for the hospital');
+run('state.medals[1]=[0,0,0,0];openMini(0,true)');
+assert.match(nodes.miniStart.innerHTML, /recovery/, 'a recovery keeps its own START');
+close();
+// And the real thing: a headless Chrome lays the built page out at phone sizes in arcade mode, where
+// START and BACK must sit inside the screen with nothing to scroll. Skipped where Chrome is missing.
+{
+  const fs = require('node:fs'),
+    os = require('node:os'),
+    chrome = [
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/usr/bin/google-chrome',
+      '/usr/bin/chromium',
+      '/usr/bin/chromium-browser'
+    ].find(f => fs.existsSync(f));
+  if (!chrome) console.log('SKIP: no Chrome here, so the lobby fit was not measured in a real layout.');
+  else {
+    // Each size gets an iframe of exactly that size (a headless window's size is not its viewport).
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gf-lobby-')),
+      sizes = [
+        [390, 844],
+        [844, 390]
+      ],
+      probe =
+        "<script>addEventListener('load',()=>{let out;try{begin();enterArcade(false);" +
+        "out=[];for(const open of ['openMini(1)','openMini(0,true)']){if(mini.open)leaveMini();eval(open);" +
+        "const r=id=>document.getElementById(id).getBoundingClientRect(),b=document.querySelector('#miniDialog .mini-body'),back=document.getElementById('miniLobbyBack');" +
+        "out.push({open,h:innerHeight,start:r('miniStart').bottom,back:back.classList.contains('hidden')?0:r('miniLobbyBack').bottom,scroll:b.scrollHeight-b.clientHeight})}" +
+        "}catch(e){out=String(e)}parent.document.body.dataset['fit'+innerWidth]=JSON.stringify(out)})</script>";
+    fs.writeFileSync(
+      path.join(dir, 'game.html'),
+      fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8').replace('</body>', probe + '</body>')
+    );
+    fs.writeFileSync(
+      path.join(dir, 'probe.html'),
+      '<!doctype html><body style="margin:0">' +
+        sizes.map(([w, h]) => `<iframe src="game.html" width="${w}" height="${h}" style="border:0;display:block"></iframe>`).join('') +
+        '</body>'
+    );
+    const r = spawnSync(
+      chrome,
+      [
+        '--headless=new',
+        '--disable-gpu',
+        '--no-first-run',
+        '--allow-file-access-from-files',
+        `--user-data-dir=${path.join(dir, 'profile')}`,
+        '--window-size=1000,1400',
+        '--virtual-time-budget=4000',
+        '--dump-dom',
+        'file://' + path.join(dir, 'probe.html')
+      ],
+      { encoding: 'utf8', timeout: 90000 }
+    );
+    for (const [w, h] of sizes) {
+      const m = new RegExp(`data-fit${w}="([^"]*)"`).exec(r.stdout || '');
+      assert.ok(m, `Chrome measured the lobby at ${w} × ${h}`);
+      const fit = JSON.parse(m[1].replace(/&quot;/g, '"'));
+      assert.ok(Array.isArray(fit), 'the probe ran: ' + fit);
+      for (const f of fit) {
+        assert.equal(f.h, h, 'the frame is the size asked for');
+        assert.ok(f.start > 0 && f.start <= h, `${f.open} at ${w} × ${h}: START is on screen (${f.start})`);
+        assert.ok(f.back <= h, `${f.open} at ${w} × ${h}: BACK is on screen (${f.back})`);
+        assert.ok(f.scroll <= 1, `${f.open} at ${w} × ${h}: nothing to scroll (${f.scroll})`);
+      }
+    }
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+console.log('PASS: the lobby fits one screen: levels in one row, a two-way nerve switch, START and BACK on screen at 390 × 844 and 844 × 390.');
 
 // ---- The joystick scheme: the default on phones, one button per action ----
 // A finger as the main pointer starts on the joystick and the big buttons; a scheme the player picked
