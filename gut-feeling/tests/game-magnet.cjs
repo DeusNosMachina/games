@@ -1,7 +1,8 @@
 // Loud Donut Pinball (MRI): physics stability and no tunneling, flipper impulse, two fingers at once through
 // touch(), held buttons, keys, the plunger, nudge and tilt, the magnet and its heat, gremlin bumpers,
 // the ramp, drop targets, kickbacks, multiball, drains and ball count, the quota win and victory lap,
-// idle loss, determinism, and drawing at every screen in both canvas shapes.
+// the Barf-o-meter and the heave (its hold, slime wave and extra ball), Legendary, idle loss on all four
+// levels, determinism, and drawing at every screen in both canvas shapes.
 // Test objects live on T so they never collide with the game's globals.
 const { run, close, assert } = require('./harness.cjs');
 run('let rng=4242;Math.random=()=>{rng=(rng*1664525+1013904223)>>>0;return rng/4294967296}');
@@ -41,9 +42,21 @@ assert.equal(n('typeof games[1].touch'), 'function', 'flippers need every finger
 assert.equal(n('games[1].info.game'), 'Loud Donut Pinball');
 for (const key of ['info', 'tierNotes', 'lesson', 'scene', 'assist', 'onLose', 'resultArt', 'statLabel', 'stat', 'tactics', 'assistText'])
   assert.ok(n(`!!games[1].${key}`), key);
-for (const text of j('[games[1].info.desc,games[1].info.control,games[1].info.avoid,...games[1].tierNotes]'))
+for (const text of j('[games[1].info.desc,games[1].info.control,games[1].info.avoid,...games[1].tierNotes,MAGNET_LEGENDARY_NOTE]'))
   assert.ok(!text.includes('—') && !text.includes('!'), 'copy has no em-dashes or exclamation points: ' + text);
-console.log('PASS: registry shape, both canvases, touch hook, copy.');
+assert.equal(n('games[1].legendary'), true, 'pinball has a Legendary level');
+assert.equal(n('miniTierCount(games[1])'), 4);
+// smoke.cjs still wants three notes; the fourth waits in MAGNET_LEGENDARY_NOTE until it counts four.
+assert.ok(n('games[1].tierNotes.length') >= 3 && n('MAGNET_LEGENDARY_NOTE').startsWith('170s'), 'a lobby note per level');
+assert.match(n('games[1].info.desc'), /Barf-o-meter/, 'the card names the Barf-o-meter');
+for (let tier = 0; tier < 4; tier++) {
+  n(`state.difficulty=1;openMini(1);mini.tier=${tier};startMini()`);
+  const l = j('MAGNET.lesson()');
+  assert.ok(!l.goal.includes('—') && !l.goal.includes('!'), 'briefing copy is clean: ' + l.goal);
+  assert.match(l.goal, tier === 3 ? /Legendary/ : /Barf-o-meter|green hits/, `level ${tier + 1} briefing mentions the meter`);
+  close();
+}
+console.log('PASS: registry shape, both canvases, touch hook, Legendary, copy.');
 
 // Stability: hundreds of balls thrown at top speed in every direction for 6 seconds never escape the
 // table, never pass through a wall, never exceed the top speed, and never end up inside a collider.
@@ -73,7 +86,8 @@ for (const [x, y, vx, vy, what] of [
   [330, 400, 1500, 0, 'right wall'],
   [131, 140, 0, -1500, 'lane guide gap and dome'],
   [150, 95, -1500, 0, 'lane guide'],
-  [200, 120, 0, -1500, 'dome']
+  [200, 120, 0, -1500, 'dome'],
+  [262, 236, 1300, -700, 'Barf-o-meter bank']
 ]) {
   n(`T.b=pbBall(${x},${y},${vx},${vy});for(let k=0;k<120;k++)magnetBallStep(T.b,MAGNET_STEP)`);
   assert.ok(n('T.b.x>14&&T.b.x<350&&T.b.y>14'), what + ' held at top speed');
@@ -321,16 +335,139 @@ assert.equal(n('mini.pendingFinish.win'), false, 'time up short of the quota los
 close();
 console.log('PASS: quota, victory lap, time up.');
 
+// The Barf-o-meter bank: three green standups that face the bore, a ball's width clear of Clank's widest
+// swing and of the gate the plunger lane empties through.
+n('pbStart(0);mini.pinSave=0');
+const bank = j('mini.pinT.segs.filter(s=>s.tag==="barf").map(s=>({ax:s.ax,ay:s.ay,bx:s.bx,by:s.by,nx:s.nx,ny:s.ny,r:s.r}))');
+assert.equal(bank.length, 3, 'three green targets');
+const segDist = (s, px, py) => {
+  const dx = s.bx - s.ax, dy = s.by - s.ay, u = Math.max(0, Math.min(1, ((px - s.ax) * dx + (py - s.ay) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(px - s.ax - dx * u, py - s.ay - dy * u);
+};
+for (const s of bank) {
+  const mx = (s.ax + s.bx) / 2, my = (s.ay + s.by) / 2;
+  assert.ok(s.nx * (182 - mx) + s.ny * (286 - my) > 0, 'each green target faces the bore');
+  assert.ok(segDist(s, 182 + 62, 168) - 28 - s.r > 20, 'a ball fits between the bank and Clank at the end of his swing');
+}
+const gate = { ax: 386, ay: 262, bx: 350, by: 300 };
+assert.ok(Math.min(segDist(gate, bank[2].bx, bank[2].by), segDist(gate, bank[2].ax, bank[2].ay)) - 4 - 3 > 20, 'the gate corridor stays open');
+// A ball fired at the middle target from the front fills a notch, scores and bounces off.
+n(`T.s=mini.pinT.segs.find(s=>s.barf===1);T.mx=(T.s.ax+T.s.bx)/2;T.my=(T.s.ay+T.s.by)/2;T.sc=mini.score;
+  T.b=pbBall(T.mx+T.s.nx*40,T.my+T.s.ny*40,-T.s.nx*700,-T.s.ny*700);pbTick(.08)`);
+assert.equal(n('mini.pinBarf'), 1, 'a green hit fills one notch');
+assert.ok(n('mini.score-T.sc') >= 250, 'and scores');
+assert.ok(n('T.b.vx*T.s.nx+T.b.vy*T.s.ny') > 0, 'the ball bounces back off it');
+n('magnetBarfHit(1)');
+assert.equal(n('mini.pinBarf'), 1, 'a second hit inside the debounce counts nothing');
+close();
+n(`pbStart(0);mini.pinSave=0;T.s=mini.pinT.segs.find(s=>s.barf===1);T.mx=(T.s.ax+T.s.bx)/2;T.my=(T.s.ay+T.s.by)/2;
+  T.b=pbBall(T.mx-T.s.nx*24,T.my-T.s.ny*24,T.s.nx*500,T.s.ny*500);pbTick(.08)`);
+assert.equal(n('mini.pinBarf'), 0, 'the back of the bank counts nothing');
+n('mini.pinTilted=true;magnetBarfHit(0)');
+assert.equal(n('mini.pinBarf'), 0, 'a tilted table counts nothing');
+close();
+console.log('PASS: the Barf-o-meter bank: placement, front hits only, debounce, tilt.');
+
+// The heave. Level 1 wants three green hits; the third starts it, empties the meter and asks two more
+// next time. The table holds still through climb, retch, spew and spit: balls, flippers, the magnet, the
+// nudge and the clock wait. The slime wave pays and every gremlin takes a hit; the gremlin coughs up an
+// extra ball that hops to an inlane (multiball, with a short save on level 1); then he sinks back.
+n('pbStart(0);mini.pinSave=0;T.b=pbBall(182,520,0,0)');
+assert.equal(n('mini.pinBarfNeed'), 3, 'level 1 wants three green hits');
+n('magnetBarfHit(0);magnetBarfHit(1)');
+assert.equal(n('mini.pinBarf'), 2);
+assert.equal(n('mini.pinHeave'), null, 'not full yet');
+n('T.sc=mini.score;T.left=mini.limit-mini.phaseTime;T.fa=mini.pinFlips[0].a;magnetBarfHit(2)');
+assert.equal(n('mini.pinHeaves'), 1, 'the third hit fills it: he heaves');
+assert.equal(n('magnetHeavePhase().name'), 'climb');
+assert.equal(n('mini.pinBarf'), 0, 'the meter empties');
+assert.equal(n('mini.pinBarfNeed'), 5, 'and the next heave asks two more');
+assert.equal(n('magnetHolding()'), true, 'the table holds');
+n(`MAGNET.touch("down",pbLeft(),1);MAGNET.touch("down",pbRight(),2);MAGNET.key("shift",${'{preventDefault(){},repeat:false}'});pbTick(.5)`);
+assert.equal(n('magnetHeavePhase().name'), 'climb');
+assert.deepEqual(j('[T.b.x,T.b.y,T.b.vy]'), [182, 520, 0], 'the ball hangs where it was');
+assert.equal(n('mini.pinFlips[0].a'), n('T.fa'), 'flippers wait');
+assert.equal(n('mini.pinMagOn||mini.pinHeat>0'), false, 'the magnet does not fire or heat');
+assert.equal(n('mini.pinNudges'), 0, 'nudges do nothing');
+assert.ok(Math.abs(n('mini.limit-mini.phaseTime') - n('T.left')) < 1e-6, 'the clock stops');
+n('pbTick(.6)');
+assert.equal(n('magnetHeavePhase().name'), 'retch');
+n('T.sw=mini.score;pbTick(.7)');
+assert.equal(n('magnetHeavePhase().name'), 'spew');
+assert.ok(n('mini.score-T.sw') >= 5000, 'the slime wave pays');
+n('pbTick(1.4)');
+assert.ok(n('mini.pinGrem.every(g=>g.hp===g.max-1)'), 'every gremlin it reached took a hit');
+assert.equal(n('magnetHeavePhase().name'), 'spit');
+assert.equal(n('mini.pinBalls.length'), 1, 'the ball is still in his mouth');
+n('pbTick(.4);T.hb=mini.pinBalls.find(b=>b!==T.b)');
+assert.equal(n('magnetHolding()'), false, 'the table lets go');
+assert.equal(n('magnetHeavePhase().name'), 'sink');
+assert.equal(n('mini.pinBalls.length'), 2, 'he coughed up an extra ball');
+assert.equal(n('T.hb.state'), 'hop', 'it hops out of the bore');
+assert.equal(n('mini.pinMulti'), true, 'multiball');
+assert.ok(n('mini.pinSave') >= 5, 'level 1 arms a short ball save for it');
+assert.ok(n('mini.pinFlips[0].a') !== n('T.fa'), 'the held flipper moves the moment the table lets go');
+assert.ok(n('T.b.y') > 520, 'and the ball falls again');
+n('MAGNET.touch("up",pbLeft(),1);MAGNET.touch("up",pbRight(),2);pbTick(.8)');
+assert.equal(n('mini.pinHeave'), null, 'he sinks back into the bore');
+assert.equal(n('T.hb.state'), 'play');
+assert.ok(n('Math.abs(T.hb.x-(mini.pinLv.divider+84)/2)<8&&T.hb.y<560'), 'the first heave drops it into the left inlane');
+n('mini.pinSave=0;T.sp=mini.pinSpare;magnetDrain(T.hb)');
+assert.equal(n('mini.pinSpare'), n('T.sp'), 'losing the extra ball costs nothing');
+assert.equal(n('mini.pinMulti'), false, 'and ends multiball');
+close();
+// Hits during the sink count toward the next meter, and a full one waits for him to finish.
+n('pbStart(0);mini.pinSave=0;pbBall(182,300,0,0);magnetHeaveStart();pbTick(3.7);mini.pinBarf=4;mini.pinBarfCd=[0,0,0];magnetBarfHit(0)');
+assert.equal(n('mini.pinHeaves'), 1, 'no second heave over the first');
+n('pbTick(.6)');
+assert.equal(n('mini.pinHeaves'), 2, 'it starts as soon as he is back in the bore');
+close();
+// With three balls already out he pays instead of adding a fourth.
+n('pbStart(2);mini.pinSave=0;pbBall(182,300,0,0);magnetServe(true);magnetServe(true);T.sc=mini.score;T.r=magnetHeaveBall({n:1})');
+assert.equal(n('T.r'), null, 'no fourth ball');
+assert.equal(n('mini.pinBalls.length'), 3);
+assert.ok(n('mini.score-T.sc') >= 5000, 'he pays instead');
+close();
+// The second heave in a run sends its ball to the right inlane.
+n('pbStart(1);mini.pinSave=0;pbBall(182,300,0,0);mini.pinHeaves=1;magnetHeaveStart();pbTick(3.6)');
+assert.ok(n('mini.pinBalls.find(b=>b.hop).hop.x1') > 182, 'the second heave aims right');
+close();
+console.log('PASS: the heave: trigger, hold, slime wave, extra ball, multiball, the queue and the cap.');
+
+// Legendary: the fastest ball, the widest outlanes, no kickbacks, no ball save at any prescription (not
+// even for the heave's ball), a higher quota on a shorter clock, and the biggest Barf-o-meter.
+const LV = j('MAGNET_LEVELS');
+assert.equal(LV.length, 4, 'four rulesets');
+assert.ok(LV[3].gravity > LV[2].gravity, 'Legendary has the fastest ball');
+assert.ok(LV[3].divider > LV[2].divider, 'and the meanest outlanes');
+assert.ok(LV[3].goal > LV[2].goal && LV[3].limit < LV[2].limit, 'a higher quota on a shorter clock');
+assert.ok(LV[3].kick === 'none' && LV[3].save === 0, 'no kickbacks, no ball save');
+assert.ok(LV[0].barf < LV[1].barf && LV[1].barf < LV[2].barf && LV[2].barf < LV[3].barf, 'the Barf-o-meter grows with the level');
+for (let d = 0; d < 3; d++) {
+  n(`pbStart(3,${d})`);
+  assert.equal(n('mini.pinLv.save'), 0, `no ball save on Legendary at prescription ${d}`);
+  n('magnetLaunch(.5)');
+  assert.equal(n('mini.pinSave'), 0, 'a launch arms nothing');
+  close();
+}
+n('pbStart(3);pbBall(182,300,0,0);magnetHeaveStart();pbTick(3.7)');
+assert.equal(n('mini.pinBalls.length'), 2, 'the heave still pays a ball');
+assert.equal(n('mini.pinSave'), 0, 'with no save on it');
+assert.equal(n('mini.pinBarfNeed'), LV[3].barf + 2);
+assert.ok(n('mini.pinBoss&&!!mini.pinDrops'), 'Clank and the drop targets are back');
+close();
+console.log('PASS: Legendary rules.');
+
 // Idle: nobody touches anything and the run is lost, at every level.
-for (let tier = 0; tier < 3; tier++) {
+for (let tier = 0; tier < 4; tier++) {
   n(`state.difficulty=1;openMini(1);mini.tier=${tier};startMini();launchMini();updateMini(3.3)`);
   for (let i = 0; i < 4000 && n('mini.screen') === 'play'; i++) n('updateMini(.1)');
   assert.equal(n('mini.pendingFinish.win'), false, `level ${tier + 1} idle loses`);
   close();
 }
 // Launch-only (no flipping) falls short of the quota too.
-for (let tier = 0; tier < 3; tier++) {
-  n(`pbStart(${tier});mini.limit=${[150, 180, 210][tier]};while(mini.screen==="play"){if(magnetWaiting())magnetLaunch(.35);updateMini(1/30)}`);
+for (let tier = 0; tier < 4; tier++) {
+  n(`pbStart(${tier});mini.limit=MAGNET_LEVELS[${tier}].limit;while(mini.screen==="play"){if(magnetWaiting())magnetLaunch(.35);updateMini(1/30)}`);
   assert.equal(n('mini.pendingFinish.win'), false, `level ${tier + 1} launch-only loses`);
   close();
 }
@@ -343,7 +480,7 @@ assert.ok(L[0].gravity < L[1].gravity && L[1].gravity < L[2].gravity, 'the ball 
 assert.ok(L[0].save > L[2].save && L[0].hp <= L[2].hp, 'level 1 saves longer and its gremlins give up sooner');
 assert.ok(L[0].kick === 'always' && L[2].kick === 'none' && L[0].divider < L[2].divider, 'outlanes get meaner');
 assert.ok(!L[0].drops && L[1].drops && L[2].boss && L[2].multi && !L[1].boss, 'targets on 2, boss and multiball on 3');
-for (let t = 0; t < 3; t++) assert.ok(L[t].limit >= 30);
+for (let t = 0; t < 4; t++) assert.ok(L[t].limit >= 30);
 n('pbStart(2)');
 assert.ok(n('mini.pinBoss&&mini.pinBoss.hp>mini.pinGrem[0].hp'), 'Clank is a bigger bumper');
 n('T.x=mini.pinBoss.x;pbTick(1)');
@@ -380,10 +517,13 @@ const busy =
   'mini.pinGrem[0].gone=true;mini.pinGrem[0].respawn=1;mini.pinSplats.push({x:136,y:308,t:2,s:1});mini.pinGrem[1].flash=.1;' +
   'magnetPop(180,300,"EVICTED +1000","#c9ffb0");magnetBurst(180,300,"#9be15d",10);magnetSay("MULTIBALL",2,"#ffe08a");' +
   'mini.pinBalls[0].state="ramp";mini.pinBalls[0].rs=200;magnetServe(true);mini.pinBalls[1].state="play";mini.pinBalls[1].x=200;mini.pinBalls[1].y=500;' +
-  'mini.pinShake=1;mini.pinCleared=true;mini.pinLapT=12;drawMini();mini.pinHot=true;mini.pinTilted=true;drawMini();';
+  'mini.pinShake=1;mini.pinCleared=true;mini.pinLapT=12;mini.pinBarf=mini.pinBarfNeed-1;mini.pinBarfLamp=[.3,0,.2];mini.pinBarfFlash=.3;drawMini();mini.pinHot=true;mini.pinTilted=true;drawMini();' +
+  // Every phase of the heave, its flash and the strobing meter.
+  'mini.pinTilted=false;mini.pinBalls=mini.pinBalls.slice(0,1);mini.pinBalls[0].state="play";magnetHeaveStart();' +
+  'for(const t of [0,.4,.85,1.3,1.75,2.4,3.0,3.2,3.5,3.6,3.9,4.1]){mini.pinHeave&&(mini.pinHeave.t=t,magnetHeaveStep(0.001));drawMini()}';
 for (const tall of [false, true]) {
   if (tall) n('window.innerWidth=390;window.innerHeight=844');
-  for (let tier = 0; tier < 3; tier++) {
+  for (let tier = 0; tier < 4; tier++) {
     n(`state.difficulty=1;openMini(1);mini.tier=${tier};startMini();drawMini()`);
     assert.equal(n('mini.portrait'), tall, 'portrait follows the window');
     assert.equal(n('activeCanvas().h>activeCanvas().w'), tall);
