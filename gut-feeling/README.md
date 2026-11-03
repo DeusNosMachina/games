@@ -143,4 +143,4 @@ The implementations, characters, and artwork are specific to this game. Familiar
 
 Progress lives in localStorage for the current browser and origin. It does not sync between devices. Saves from v0.5 carry over; v0.6 adds the new counters, the daily record, the shop items and the Ralph flags. A fresh-adventure reset clears progress only after a second deliberate click.
 
-GitHub Pages serves `main` from the repository root. The game also works as a single local HTML file. No account, analytics, cloud save, service worker, or install.
+GitHub Pages serves `main` from the repository root. The game also works as a single local HTML file; the icons (`favicon.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`), the link preview card (`og.png`, the title screen) and `manifest.webmanifest` sit beside it so a shared link shows a card and "Add to Home Screen" gets a gremlin. No account, analytics, cloud save, or service worker.
