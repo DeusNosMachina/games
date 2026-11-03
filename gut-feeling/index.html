@@ -1231,9 +1231,6 @@ body.turn-hint-on .turn-hint {
   body.arcade #touchActions .kit.brick {
     background: #e6a58fc4;
   }
-  body.arcade #touchActions .kit.trap {
-    background: #f1c27ac4;
-  }
   body.arcade #touchActions .eat {
     background: #f3a69cc4;
   }
@@ -1769,86 +1766,357 @@ body:not(.arcade) #miniDialog:is([data-screen='lobby'], [data-screen='result']) 
   }
 }
 
-/* Lobby: pitch on the left, decisions on the right, one big start. */
+/* Lobby: one screen, no scrolling, in every orientation. The hook, the levels as one segmented row
+   with the chosen level's note under it, the nerve as a two-way switch, then START and BACK pinned at
+   the bottom. How to play holds the long copy, the best score and the prescription: an overlay on
+   phones and small windows, open beside the pitch on a roomy laptop window. */
+#miniDialog[data-screen='lobby'] .mini-body {
+  display: flex;
+  flex-direction: column;
+}
 #miniDialog .lobby {
-  display: grid;
-  gap: var(--sp-4);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 12px;
+  min-height: 0;
+}
+#miniDialog .lobby.hidden {
+  display: none;
 }
 #miniDialog .lobby-intro {
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: var(--sp-4);
+  display: block;
+}
+#miniDialog .lobby-intro canvas,
+#miniDialog .lobby-intro .genre {
+  display: none;
+}
+#miniDialog .lobby-intro h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+}
+#miniDialog .lobby-intro .lobby-reward {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #cfe3dc;
+}
+#miniDialog .lobby-intro .lobby-reward:empty {
+  display: none;
+}
+#miniDialog .lobby-how summary {
+  position: relative;
+  z-index: 4;
+  display: inline-flex;
   align-items: center;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid #ffffff2e;
+  border-radius: 16px;
+  background: #0b1c2766;
+  color: var(--cream);
+  font: 700 12px var(--mono);
+  cursor: pointer;
+  list-style: none;
 }
-#miniDialog .lobby-intro canvas {
-  width: 100%;
-  border-radius: var(--r-md);
+#miniDialog .lobby-how summary::-webkit-details-marker {
+  display: none;
 }
-.lobby-label {
-  margin: 0 0 var(--sp-2);
-  font: var(--kicker);
-  letter-spacing: 1.6px;
-  text-transform: uppercase;
-  color: var(--muted);
+#miniDialog .lobby-how summary::before {
+  content: '?';
+  margin-right: 7px;
+  color: var(--mint);
+}
+#miniDialog .lobby-how[open] summary::before {
+  content: '✕';
+}
+/* Phones and small windows: How to play opens over the lobby, under its own button. */
+#miniDialog .lobby-how-body {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  overflow: auto;
+  padding: 92px 16px 16px;
+  border-radius: 14px;
+  background: #142f3e;
+}
+#miniDialog .lobby-how-body #miniDescription {
+  display: block;
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #e3eedb;
+}
+#miniDialog .lobby-how-body .lobby-foot {
+  display: flex;
+  justify-content: flex-start;
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+#miniDialog .lobby-how-body .textbtn {
+  padding: 0;
+  font-size: 12px;
+}
+#miniDialog .lobby-pick {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  gap: 10px;
+  min-height: 0;
 }
 #miniDialog .lobby-pick .daily-banner {
-  margin: 0 0 var(--sp-3);
+  margin: 0;
+  padding: 7px 10px;
+  font-size: 11px;
 }
+/* Levels: one segmented row, LEVEL n over a big number and its stars. */
 #miniLobby .tier-grid {
-  gap: 10px;
-  margin: 0 0 var(--sp-4);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+#miniLobby .tier-grid[data-count='4'] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 #miniLobby .tier-card {
-  padding: 12px 14px;
-  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 7px 4px 6px;
+  border: 1px solid #47646b;
+  border-radius: 12px;
   background: var(--card);
+  text-align: center;
+}
+#miniLobby .tier-card small {
+  font: 700 9px var(--mono);
+  letter-spacing: 0.8px;
+  color: var(--muted);
+}
+#miniLobby .tier-card strong {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.1;
+}
+#miniLobby .tier-card.legendary strong {
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: 1px;
+}
+#miniLobby .tier-card .medals {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--yellow);
 }
 #miniLobby .tier-card.selected {
   border-color: var(--mint);
   background: var(--card-hi);
   box-shadow: inset 0 0 0 1px var(--mint);
 }
+#miniLobby .tier-card:disabled {
+  opacity: 0.45;
+}
+#miniLobby .tier-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #e7efd8;
+}
+#miniLobby .tier-note small {
+  display: block;
+  margin-top: 2px;
+  font: 11px/1.4 var(--mono);
+  color: var(--muted);
+}
+/* Nerve: a two-way switch. */
 #miniLobby .approach-options {
-  gap: 10px;
-  margin: 0 0 var(--sp-4);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid #47646b;
+  border-radius: 14px;
+  background: #0b1c2755;
 }
 #miniLobby .approach {
-  padding: 12px 14px;
-  border-radius: var(--r-md);
-  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  text-align: center;
+}
+#miniLobby .approach strong {
+  font-size: 13px;
+}
+#miniLobby .approach small {
+  display: block;
+  margin: 1px 0 0;
+  font-size: 10px;
 }
 #miniLobby .approach.selected {
-  border-color: var(--mint);
   background: var(--card-hi);
+  box-shadow: inset 0 0 0 1px var(--mint);
 }
-#miniLobby .lobby-start {
+#miniLobby .approach:disabled {
+  opacity: 0.4;
+}
+/* START and BACK: big, at the bottom. */
+#miniLobby .lobby-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+#miniLobby .lobby-start,
+#miniLobby .lobby-back {
+  display: flex;
+  justify-content: center;
+  width: 100%;
   min-height: 54px;
   margin: 0;
-  border-radius: var(--r-md);
-  font-size: 16px;
+  border-radius: 14px;
+  font-size: 17px;
 }
-#miniLobby .lobby-foot {
-  margin-top: 10px;
+#miniLobby .lobby-back {
+  min-height: 48px;
+  font-size: 15px;
 }
-#miniLobby .lobby-foot span:empty {
+#miniLobby .lobby-back.hidden {
   display: none;
 }
-@media (min-width: 760px) {
+/* A tall phone has room for the game's preview card above the hook. */
+@media (max-width: 759px) and (min-height: 760px) {
+  #miniDialog .lobby-intro canvas {
+    display: block;
+    width: 100%;
+    max-height: 200px;
+    margin-bottom: 12px;
+    object-fit: cover;
+  }
+}
+/* Short screens (a phone on its side): levels and note on the left, the switch and the buttons right. */
+@media (max-height: 520px) and (min-width: 560px) {
+  #miniDialog[data-screen='lobby'] .mini-head {
+    min-height: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  #miniDialog[data-screen='lobby'] .mini-head h2 {
+    font-size: 17px;
+  }
+  #miniDialog[data-screen='lobby'] .mini-body {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  #miniDialog .lobby-pick .daily-banner {
+    padding: 5px 10px;
+  }
   #miniDialog .lobby {
-    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
-    column-gap: 28px;
+    gap: 6px;
+  }
+  #miniDialog .lobby-intro > div {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 4px 12px;
+  }
+  #miniDialog .lobby-intro h3 {
+    margin: 0;
+    font-size: 17px;
+  }
+  #miniDialog .lobby-intro .lobby-reward {
+    flex-basis: 100%;
+    order: 2;
+    margin: 0;
+  }
+  #miniDialog .lobby-how-body {
+    padding-top: 52px;
+  }
+  #miniDialog .lobby-pick {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    align-content: start;
+    column-gap: 16px;
+    row-gap: 8px;
+  }
+  #miniDialog .lobby-pick .daily-banner {
+    grid-area: 1 / 1 / 2 / -1;
+  }
+  #miniLobby .tier-grid {
+    grid-area: 2 / 1;
+  }
+  #miniLobby .tier-note {
+    grid-area: 3 / 1;
+  }
+  #miniLobby .approach-options {
+    grid-area: 2 / 2;
+    align-self: start;
+  }
+  #miniLobby .lobby-actions {
+    grid-area: 3 / 2;
+    align-self: end;
+    margin: 0;
+  }
+  #miniLobby .lobby-start {
+    min-height: 48px;
+  }
+  #miniLobby .lobby-back {
+    min-height: 42px;
+  }
+}
+/* A roomy laptop window: the preview and How to play beside the choices. */
+@media (pointer: fine) and (min-width: 900px) and (min-height: 640px) {
+  #miniDialog .lobby {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.2fr);
+    column-gap: 28px;
+    align-items: stretch;
     max-width: 1180px;
     margin: 0 auto;
   }
-  #miniDialog .lobby-intro {
-    grid-template-columns: 1fr;
+  #miniDialog .lobby-intro canvas {
+    display: block;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  #miniDialog .lobby-intro .genre {
+    display: block;
+    margin-bottom: 6px;
   }
   #miniDialog .lobby-intro h3 {
     font-size: 24px;
   }
-  #miniDialog .lobby-intro p {
+  #miniDialog .lobby-how-body {
+    position: static;
+    margin-top: 10px;
+    padding: 0;
+    background: none;
+  }
+  #miniDialog .lobby-how-body #miniDescription {
     font-size: 13px;
+  }
+  #miniLobby .tier-card {
+    padding: 10px 6px 8px;
+  }
+  #miniDialog .lobby-pick {
+    justify-content: center;
+  }
+  #miniLobby .lobby-actions {
+    margin-top: 6px;
   }
 }
 
@@ -1955,7 +2223,8 @@ body:not(.arcade) #miniDialog:is([data-screen='lobby'], [data-screen='result']) 
 /* ---- Run screens: the canvas plus the minimum, in every mode ---- */
 /* applyMiniFrame (minigames.js) sets --frame-w/-h, --fit-w/-h, --cv-l/-t, --hud-t/-h, --hud-pad-r,
    --top-x/-y, --ctl, --ctl-w, --ctl-btn and data-side ('row': controls under the canvas, 'col':
-   a column on the right). Outside arcade mode the dialog is exactly the frame. */
+   a column on the right, 'over': floating over the canvas on touch screens in arcade mode, with
+   data-place 'bottom' or 'sides'). Outside arcade mode the dialog is exactly the frame. */
 body:not(.arcade) #miniDialog:is([data-screen='briefing'], [data-screen='intro'], [data-screen='play'], [data-screen='outro']) {
   width: calc(var(--frame-w) + 2px);
   height: calc(var(--frame-h) + 2px);
@@ -2187,6 +2456,82 @@ body:not(.arcade) #miniDialog:is([data-screen='briefing'], [data-screen='intro']
   min-height: 92px;
   font-size: 14px;
 }
+/* A 'sides' game with a mouse keeps one row, ordered LEFT, the assist, RIGHT. */
+#miniDialog[data-side='row'][data-place='sides'] #miniControls .assist {
+  order: 1;
+}
+#miniDialog[data-side='row'][data-place='sides'] #miniControls button:nth-child(2):not(.assist) {
+  order: 2;
+}
+/* Touch screens in arcade mode (data-side 'over'): the canvas fills the frame and the buttons float over
+   its bottom edge, 80% opaque. Only the buttons take touches, so a tap or drag between them still lands
+   on the canvas. --ctl-l/-t/-span and --ctl place the controls box. data-ctl 'strip' is one centered row;
+   'corners' puts the first two buttons in the bottom corners (--thumb-w × --thumb-h) and the rest, small,
+   centered between them (data-mid 'center') or stacked above the right corner (data-mid 'stack', when
+   the canvas leaves a gutter beside it). The assist keeps its small height wherever it lands. */
+#miniDialog[data-side='over'] #miniControls {
+  left: var(--ctl-l);
+  top: var(--ctl-t);
+  width: var(--ctl-span);
+  height: var(--ctl);
+  padding: var(--ctl-gap);
+  justify-content: center;
+  align-items: flex-end;
+  gap: 10px;
+  overflow: visible;
+  pointer-events: none;
+}
+#miniDialog[data-side='over'] #miniControls button {
+  flex: 0 1 var(--ctl-main);
+  height: var(--ctl-btn);
+  min-height: 0;
+  pointer-events: auto;
+  opacity: 0.8;
+  box-shadow: 0 4px 14px #0a1a2466;
+}
+#miniDialog[data-side='over'] #miniControls button.active {
+  opacity: 0.95;
+}
+#miniDialog[data-side='over'] #miniControls .assist {
+  flex: 0 1 var(--assist-w);
+  max-width: none;
+  height: var(--assist-h);
+  min-height: 0;
+  align-self: center;
+}
+#miniDialog[data-ctl='corners'] #miniControls button:nth-child(-n + 2) {
+  position: absolute;
+  bottom: var(--ctl-gap);
+  width: var(--thumb-w);
+  height: var(--thumb-h);
+  font-size: 15px;
+}
+#miniDialog[data-ctl='corners'] #miniControls button:nth-child(1) {
+  left: var(--ctl-gap);
+}
+#miniDialog[data-ctl='corners'] #miniControls button:nth-child(2) {
+  right: var(--ctl-gap);
+}
+#miniDialog[data-ctl='corners'] #miniControls button:nth-child(n + 3) {
+  flex: 0 1 var(--assist-w);
+  max-width: calc(var(--ctl-span) - 2 * var(--thumb-w) - 4 * var(--ctl-gap));
+  height: var(--assist-h);
+  align-self: flex-end;
+}
+#miniDialog[data-ctl='corners'][data-mid='stack'] #miniControls button:nth-child(n + 3) {
+  position: absolute;
+  right: var(--ctl-gap);
+  bottom: calc(var(--ctl-gap) * 2 + var(--thumb-h));
+  width: var(--thumb-w);
+  max-width: none;
+}
+#miniDialog[data-ctl='corners'][data-mid='stack'] #miniControls button:nth-child(4) {
+  bottom: calc(var(--ctl-gap) * 3 + var(--thumb-h) + var(--assist-h));
+}
+#miniDialog[data-ctl='corners'] #miniControls button.assist {
+  height: var(--assist-h);
+  font-size: 11px;
+}
 /* Briefing and GO cards cover the frame; pause and close stay on top. */
 #miniDialog .mini-briefing {
   position: absolute;
@@ -2217,10 +2562,14 @@ body.arcade #miniDialog:is([data-screen='lobby'], [data-screen='result']) .mini-
   display: flex;
   flex-direction: column;
 }
-body.arcade #miniDialog #miniLobby,
 body.arcade #miniDialog #miniResult {
   width: 100%;
   margin-block: auto;
+}
+body.arcade #miniDialog #miniLobby {
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
 }
 body.arcade #miniDialog #miniLobby.hidden,
 body.arcade #miniDialog #miniResult.hidden {
@@ -2930,15 +3279,13 @@ body.safe-room .touch-controls .attack::before{content:'\2022\2022\2022';display
 </div></dialog>
 <dialog id="miniDialog" class="mini-dialog"><div class="modal-head mini-head"><div class="mini-titles"><small id="miniDepartment" class="modal-kicker"></small><h2 id="miniTitle"></h2></div><div class="mini-topactions"><button class="smallbtn hidden" id="miniPauseBtn" aria-label="Pause arcade game">Ⅱ</button><button class="close" id="miniClose" aria-label="Leave arcade game"><svg><use href="#i-close"/></svg></button></div></div><div class="mini-body">
 <div id="miniLobby" class="lobby">
-<div class="lobby-intro"><canvas id="miniPreview" width="420" height="240"></canvas><div><span id="miniGenre" class="genre"></span><h3 id="miniHeadline"></h3><p id="miniDescription"></p></div></div>
+<div class="lobby-intro"><canvas id="miniPreview" width="420" height="240"></canvas><div class="lobby-pitch"><span id="miniGenre" class="genre"></span><h3 id="miniHeadline"></h3><p id="miniRewardInfo" class="lobby-reward"></p><details id="lobbyHow" class="lobby-how"><summary>How to play</summary><div class="lobby-how-body"><p id="miniDescription"></p><p class="lobby-foot"><span id="miniBest"></span></p><button class="textbtn" id="miniDifficulty"></button></div></details></div></div>
 <div class="lobby-pick">
 <p id="dailyBanner" class="daily-banner hidden"></p>
-<p class="lobby-label">Pick a level</p>
-<div id="tierGrid" class="tier-grid"></div>
-<p class="lobby-label">Pick your nerve</p>
-<div id="approachOptions" class="approach-options"></div>
-<button id="miniStart" class="primary coral lobby-start">Let’s make poor decisions →</button>
-<p class="lobby-foot"><span id="miniBest"></span> <span id="miniRewardInfo"></span> <button class="textbtn" id="miniDifficulty"></button></p>
+<div id="tierGrid" class="tier-grid" role="group" aria-label="Level"></div>
+<p id="tierNote" class="tier-note"></p>
+<div id="approachOptions" class="approach-options" role="group" aria-label="Nerve"></div>
+<div class="lobby-actions"><button id="miniStart" class="primary coral lobby-start">Start →</button><button id="miniLobbyBack" class="primary lobby-back">Back to the hospital</button></div>
 </div>
 </div>
 <div id="miniPlay" class="hidden"><div class="mini-rulebar"><strong id="miniRuleGoal"></strong><span id="miniRuleControl"></span></div><div class="mini-hud"><div><small id="miniStatLabel">PROGRESS</small><span id="miniStat">0</span></div><div><small>TIME LEFT</small><span id="miniTimer">0:00</span></div><div><small id="miniLivesLabel">OOPS ALLOWANCE</small><span id="miniLives">♥ ♥ ♥</span></div></div><div id="miniTactics" class="mini-tactics"></div><div class="mini-stage"><canvas id="miniCanvas" width="800" height="450" tabindex="0" aria-label="Arcade game"></canvas><div class="mini-pause hidden" id="miniPaused"><strong>Take a breather.</strong><button class="primary" id="miniResume">Resume the nonsense</button><button class="smallbtn" id="miniSound">Sound</button></div></div><p id="miniInstruction" class="mini-instruction" aria-live="polite"></p><div id="miniControls" class="mini-controls"></div>
@@ -30044,20 +30391,27 @@ function fitMiniCanvas() {
 }
 
 // ---- The run screen ----
-// A run is the canvas plus the minimum: three pills on its top edge, and the controls in one row under
-// it or a column beside it, whichever leaves the bigger canvas. In arcade mode the frame is the whole
-// screen less the safe areas; otherwise the dialog hugs the canvas inside 96% × 94% of the window, so
-// there is no empty panel around it. Sizes are CSS pixels; CSS reads them as variables.
+// A run is the canvas plus the minimum: three pills on its top edge and the control buttons. With a
+// mouse the controls sit in one row under the canvas or a column beside it, whichever leaves the bigger
+// canvas, and the dialog hugs the canvas inside 96% × 94% of the window (no empty panel around it). In
+// arcade mode on a touch screen the canvas takes the whole screen less the safe areas and the buttons
+// float over its bottom edge (miniOverlayFrame). Sizes are CSS pixels; CSS reads them as variables.
+// Overlay sizes: btn is a strip button's height, main its widest, thumbW × thumbH a corner button in
+// the 'sides' placement, assistW × assistH the small buttons between the corners, gap the margin.
 const MINI_FRAME_SIZES = {
-  phone: { row: 66, col: 140, hud: 44, btn: 52 },
-  tablet: { row: 84, col: 200, hud: 50, btn: 62 },
+  phone: { row: 66, col: 140, hud: 44, btn: 52, main: 140, thumbW: 96, thumbH: 86, assistW: 118, assistH: 36, gap: 8 },
+  tablet: { row: 84, col: 200, hud: 50, btn: 62, main: 230, thumbW: 132, thumbH: 112, assistW: 160, assistH: 46, gap: 12 },
   desktop: { row: 72, col: 190, hud: 46, btn: 48 }
 };
+
+function miniCoarse() {
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+}
 
 function miniFrameSizes() {
   const w = window.innerWidth || 1280,
     h = window.innerHeight || 800;
-  if (!matchMedia('(pointer: coarse)').matches) return MINI_FRAME_SIZES.desktop;
+  if (!miniCoarse()) return MINI_FRAME_SIZES.desktop;
   return Math.min(w, h) >= 600 ? MINI_FRAME_SIZES.tablet : MINI_FRAME_SIZES.phone;
 }
 
@@ -30094,7 +30448,89 @@ function miniFrame(viewW, viewH, aspect, arcade, sizes, inset = { t: 0, r: 0, b:
     // Pause and close: on the canvas's top-right corner in a row layout, atop the column otherwise.
     topX: inset.r + (side === 'row' ? cvL + 6 : 8),
     topY: inset.t + (side === 'row' ? cvT - band + 6 : 6),
-    hudPadR: side === 'row' ? 100 : 8
+    hudPadR: side === 'row' ? 100 : 8,
+    // Nothing sits on the canvas in these layouts.
+    coverCss: { bottom: 0, left: 0, right: 0 }
+  };
+}
+
+// Pure geometry for touch screens in arcade mode: the canvas fills the frame (aspect kept), the HUD
+// band takes the top of any spare height and the buttons float over the canvas's bottom edge, using
+// whatever spare height is left below it first. count is how many buttons there are, the assist
+// included. Two ways to place them (ctl):
+// - 'strip': one centered row along the bottom, over the canvas's bottom edge. place 'bottom' uses it.
+// - 'corners': the first button in the bottom-left corner, the second in the bottom-right, thumb-tall,
+//   and the rest small: centered along the bottom between them (mid 'center') or, when the canvas
+//   leaves a gutter beside it wide enough for a thumb, stacked above the right corner (mid 'stack').
+//   place 'sides' always uses it; place 'bottom' uses it whenever those gutters exist, because then
+//   nothing has to sit on the canvas at all (a square game on a landscape phone).
+// coverCss is what the buttons hide, in CSS pixels: bottom is the band along the canvas's bottom edge
+// with buttons in it, left and right the corner blocks' widths over the canvas, 0 where nothing is.
+function miniOverlayFrame(viewW, viewH, aspect, sizes, inset = { t: 0, r: 0, b: 0, l: 0 }, place = 'bottom', count = 1) {
+  const boxW = viewW - inset.l - inset.r,
+    boxH = viewH - inset.t - inset.b,
+    fitW = Math.max(1, Math.min(boxW, boxH * aspect)),
+    fitH = fitW / aspect,
+    gap = sizes.gap,
+    cvL = (boxW - fitW) / 2,
+    gutter = cvL >= sizes.thumbW + gap * 2,
+    corners = (place === 'sides' && count >= 2) || (gutter && count >= 1),
+    mid = gutter ? 'stack' : 'center',
+    slack = Math.max(0, boxH - fitH),
+    band = Math.min(sizes.hud, slack),
+    // Corner buttons stay clear of the HUD on the shortest screens.
+    thumbH = Math.max(sizes.btn, Math.min(sizes.thumbH, (boxH - sizes.hud) * 0.4)),
+    ctlH = (corners ? thumbH : sizes.btn) + gap * 2,
+    below = slack - band,
+    // Spare height past the buttons is split above and below, so canvas and buttons stay together.
+    extra = Math.max(0, below - ctlH),
+    cvT = band + extra / 2,
+    ctlB = below > ctlH ? cvT + fitH + ctlH : boxH,
+    // A strip spans the canvas, never narrower than 300 px unless the frame is.
+    span = Math.min(boxW, Math.max(fitW, 300)),
+    canvasBottom = cvT + fitH,
+    canvasRight = cvL + fitW,
+    rects = [];
+  if (corners) {
+    // The assist is always the last button; anywhere it lands it keeps its small height.
+    const tall = i => (i === count - 1 ? sizes.assistH : thumbH),
+      base = ctlB - gap;
+    rects.push({ x: gap, w: sizes.thumbW, top: base - tall(0), at: 'left' });
+    if (count >= 2) rects.push({ x: boxW - gap - sizes.thumbW, w: sizes.thumbW, top: base - tall(1), at: 'right' });
+    for (let i = 2; i < count; i++)
+      rects.push(
+        mid === 'stack'
+          ? { x: boxW - gap - sizes.thumbW, w: sizes.thumbW, top: base - thumbH - (i - 1) * (gap + sizes.assistH), at: 'right' }
+          : { x: (boxW - sizes.assistW) / 2, w: sizes.assistW, top: base - sizes.assistH, at: 'mid' }
+      );
+  } else rects.push({ x: (boxW - span) / 2, w: span, top: ctlB - gap - sizes.btn, at: 'mid' });
+  const cover = { bottom: 0, left: 0, right: 0 };
+  for (const r of rects) {
+    if (r.top >= canvasBottom || r.x >= canvasRight || r.x + r.w <= cvL) continue;
+    cover.bottom = Math.max(cover.bottom, canvasBottom - r.top);
+    if (r.at === 'left') cover.left = Math.max(cover.left, r.x + r.w - cvL);
+    if (r.at === 'right') cover.right = Math.max(cover.right, canvasRight - r.x);
+  }
+  return {
+    side: 'over',
+    ctl: corners ? 'corners' : 'strip',
+    mid,
+    frameW: boxW,
+    frameH: boxH,
+    fitW,
+    fitH,
+    cvL,
+    cvT,
+    hudT: cvT - band,
+    topX: inset.r + cvL + 6,
+    topY: inset.t + cvT - band + 6,
+    hudPadR: 100,
+    ctlT: ctlB - ctlH,
+    ctlH,
+    ctlL: corners ? 0 : (boxW - span) / 2,
+    ctlW: corners ? boxW : span,
+    thumbH,
+    coverCss: cover
   };
 }
 
@@ -30105,14 +30541,36 @@ function miniSafeInsets(dialog) {
   return { t: px(cs.paddingTop), r: px(cs.paddingRight), b: px(cs.paddingBottom), l: px(cs.paddingLeft) };
 }
 
-// Writes the frame for the current run and window onto #miniDialog.
+// Arcade mode on a touch screen floats the buttons over the canvas.
+function miniOverlayWanted() {
+  return inArcade() && miniCoarse();
+}
+
+// setControls writes the count (the assist included) on the row.
+function miniButtonCount() {
+  const c = $('miniControls');
+  if (c.dataset && c.dataset.count) return Number(c.dataset.count);
+  return typeof c.querySelectorAll === 'function' ? c.querySelectorAll('button').length : 0;
+}
+
+// Writes the frame for the current run and window onto #miniDialog: data-side ('row', 'col' or 'over'),
+// data-place (the game's controlsPlace), the CSS variables, and mini.frame. mini.frame.cover says what
+// the buttons hide, in active-canvas pixels: {bottom, left, right}, all 0 when nothing sits on the canvas.
 function applyMiniFrame() {
   const dialog = $('miniDialog'),
+    def = miniGame(),
     { w, h } = activeCanvas(),
     sizes = miniFrameSizes(),
-    arcade = inArcade(),
-    buttons = typeof $('miniControls').querySelectorAll === 'function' ? $('miniControls').querySelectorAll('button').length : 0,
-    f = miniFrame(window.innerWidth || 1280, window.innerHeight || 800, w / h, arcade, sizes, miniSafeInsets(dialog), buttons && buttons <= 2 ? 'row' : null),
+    place = def && def.controlsPlace === 'sides' ? 'sides' : 'bottom',
+    buttons = miniButtonCount(),
+    vw = window.innerWidth || 1280,
+    vh = window.innerHeight || 800,
+    inset = miniSafeInsets(dialog),
+    over = miniOverlayWanted(),
+    // With a mouse, 'sides' keeps one row (LEFT, the assist, RIGHT) so the corners read left and right.
+    f = over
+      ? miniOverlayFrame(vw, vh, w / h, sizes, inset, place, buttons)
+      : miniFrame(vw, vh, w / h, inArcade(), sizes, inset, (buttons && buttons <= 2) || place === 'sides' ? 'row' : null),
     px = v => Math.round(v * 10) / 10 + 'px',
     vars = {
       '--frame-w': f.frameW,
@@ -30126,12 +30584,36 @@ function applyMiniFrame() {
       '--hud-pad-r': f.hudPadR,
       '--top-x': f.topX,
       '--top-y': f.topY,
-      '--ctl': sizes.row,
+      '--ctl': over ? f.ctlH : sizes.row,
       '--ctl-w': sizes.col,
       '--ctl-btn': sizes.btn
     };
+  if (over)
+    Object.assign(vars, {
+      '--ctl-t': f.ctlT,
+      '--ctl-l': f.ctlL,
+      '--ctl-span': f.ctlW,
+      '--ctl-gap': sizes.gap,
+      '--ctl-main': sizes.main,
+      '--thumb-w': sizes.thumbW,
+      '--thumb-h': f.thumbH,
+      '--assist-w': sizes.assistW,
+      '--assist-h': sizes.assistH
+    });
   for (const k in vars) dialog.style.setProperty(k, px(vars[k]));
+  const k = w / f.fitW,
+    c = f.coverCss;
+  delete f.coverCss;
+  f.place = place;
+  f.cover = {
+    bottom: Math.min(h, Math.round(c.bottom * k)),
+    left: Math.min(w, Math.round(c.left * k)),
+    right: Math.min(w, Math.round(c.right * k))
+  };
   dialog.dataset.side = f.side;
+  dialog.dataset.place = place;
+  dialog.dataset.ctl = f.ctl || '';
+  dialog.dataset.mid = f.mid || '';
   mini.frame = f;
   return f;
 }
@@ -30212,9 +30694,14 @@ function openMini(id, forced = false) {
   };
   $('miniDialog').classList.remove('gory');
   $('miniClose').classList.toggle('hidden', forced);
+  // How to play starts open only where there is room for it: a mouse and a roomy window.
+  $('lobbyHow').open = !miniCoarse() && (window.innerWidth || 1280) >= 900 && (window.innerHeight || 800) >= 640;
   showLobby();
   modalOpen($('miniDialog'));
 }
+
+// The lobby's own way out. leaveMini is defined below; the listener runs it at click time.
+$('miniLobbyBack').addEventListener('click', () => leaveMini());
 
 function showLobby() {
   const def = miniGame(),
@@ -30236,43 +30723,46 @@ function showLobby() {
   $('miniHeadline').textContent = info.headline;
   $('miniDescription').textContent = info.desc;
   $('miniDialog').dataset.daily = mini.daily ? 'yes' : '';
-  // One screen: level cards, approach, one big start. Level 1 teaches; 2 and 3 are the real deal.
-  // A level unlocks once the previous one has any medal; forced recovery stays on level 1.
-  // A Daily Dose fixes the level and Show-off rules.
+  $('miniDialog').dataset.forced = mini.forced ? 'yes' : '';
+  // One screen, no scrolling: the hook, the levels as one segmented row (the chosen one's note under
+  // it), the nerve as a two-way switch, then START and BACK. The long copy waits behind How to play.
+  // A level unlocks once the previous one has any medal; a recovery or a Daily Dose fixes the level
+  // (the others stay visible, disabled), and a Daily Dose fixes Show-off rules.
+  const count = miniTierCount();
+  $('tierGrid').dataset.count = String(count);
   $('tierGrid').innerHTML = tiers
-    .slice(0, miniTierCount())
+    .slice(0, count)
     .map((t, i) => {
       const medal = state.medals[mini.id][i],
         locked = mini.daily || mini.forced ? i !== mini.tier : i > 0 && !state.medals[mini.id][i - 1];
       return (
         `<button class="${['tier-card', mini.tier === i ? 'selected' : '', i === 3 ? 'legendary' : ''].filter(Boolean).join(' ')}" data-tier="${i}" ${locked ? 'disabled' : ''}>` +
-        `<small>LEVEL ${i + 1}</small><span class="tier-tag">${i === 0 ? 'Teaches you' : i === 3 ? 'One win in four, any prescription' : 'The real deal'}</span>` +
-        `<strong>${t}</strong><small>${def.tierNotes[i] || ''}</small>` +
-        `<div class="medals">${'★'.repeat(medal)}${'☆'.repeat(3 - medal)}</div></button>`
+        `<small>LEVEL ${i + 1}</small><strong>${i === 3 ? 'LEGEND' : i + 1}</strong>` +
+        `<span class="medals" aria-label="${medal} of 3 stars">${locked && !medal ? '🔒' : '★'.repeat(medal) + '☆'.repeat(3 - medal)}</span></button>`
       );
     })
     .join('');
+  const tag = mini.tier === 0 ? 'Teaches you' : mini.tier === 3 ? 'One win in four' : 'The real deal';
+  $('tierNote').innerHTML = `<strong>${tiers[mini.tier]}</strong> · ${tag}<small>${def.tierNotes[mini.tier] || ''}</small>`;
   $('approachOptions').innerHTML = approaches
     .map((a, i) => {
       const helps = approachHelps(i),
-        desc = i === 0 ? `${helps === 3 ? 'Three' : 'Two'} emergency assists for the whole run.` : a.desc,
+        desc = i === 0 ? `${helps === 3 ? 'Three' : 'Two'} assists` : 'No assists · +25% coins',
         off = mini.daily && i === 0;
       return (
         `<button class="approach ${mini.approach === i ? 'selected' : ''}" data-approach="${i}" ` +
-        `aria-pressed="${mini.approach === i}" ${off ? 'disabled' : ''}><strong>${a.name}</strong><small>${desc}</small></button>`
+        `aria-pressed="${mini.approach === i}" ${off ? 'disabled' : ''}><strong>${i === 0 ? 'Steady hands' : 'Show-off'}</strong><small>${desc}</small></button>`
       );
     })
     .join('');
   $('dailyBanner').classList.toggle('hidden', !mini.daily);
   if (mini.daily)
     $('dailyBanner').textContent =
-      `DAILY DOSE · ${dailyLabel(mini.dailyDate)} · Same gremlins for everyone today. ` +
+      `DAILY DOSE · ${dailyLabel(mini.dailyDate)} · Same gremlins for everyone. ` +
       (state.daily.last === mini.dailyDate ? `Today’s best: ${state.daily.best}.` : `First run pays +${dailyBonus()} coins.`);
-  $('miniStart').innerHTML = mini.daily
-    ? 'Take today’s dose →'
-    : mini.forced
-      ? 'Start the recovery →'
-      : 'Let’s make poor decisions →';
+  $('miniStart').innerHTML = mini.daily ? 'Take today’s dose →' : mini.forced ? 'Start the recovery →' : 'Start →';
+  // A recovery has no way out but through.
+  $('miniLobbyBack').classList.toggle('hidden', !!mini.forced);
   $('miniRewardInfo').textContent = mini.forced ? MINI_RECOVERY_LINE : '';
   $('miniBest').textContent = mini.forced
     ? 'No medals in bed. Just get out of it.'
@@ -30374,6 +30864,7 @@ function syncMiniTip() {
 
 // Buttons: {id, text, key?, hot?, pad?}. Each click sends miniAction(id); the assist button is always appended.
 function setControls(buttons) {
+  const before = miniButtonCount();
   $('miniControls').dataset.game = mini.id;
   // Arcade mode lays out by button count (the assist included).
   $('miniControls').dataset.count = String(buttons.length + 1);
@@ -30385,6 +30876,8 @@ function setControls(buttons) {
   $('miniControls').innerHTML =
     html.join('') +
     `<button class="assist muted" data-action="assist" aria-label="Use limited assist">ASSIST · ${mini.helps} left <small>(E)</small></button>`;
+  // A relabel that changes the count mid-run moves the buttons, so the frame and its cover follow.
+  if (mini.initialized && mini.open && miniButtonCount() !== before) applyMiniFrame();
 }
 
 function praise(points, precision = 1) {
@@ -37766,6 +38259,8 @@ const MAGNET = registerGame({
   canvas: { w: 800, h: 600 },
   portraitCanvas: { w: 450, h: 820 },
   layout: 'gesture',
+  // LEFT in the bottom-left corner, RIGHT in the bottom-right, BALL SAVE small between them.
+  controlsPlace: 'sides',
   legendary: true,
   info: {
     game: 'Loud Donut Pinball',
@@ -37900,7 +38395,7 @@ const MAGNET = registerGame({
   tactics: () =>
     `SCORE ${mini.score} · ×${mini.pinMult} · ${mini.pinRamps} SCANS · BARF ${mini.pinBarf}/${mini.pinBarfNeed} · MAGNET ${mini.pinHot ? 'HOT' : Math.round((1 - mini.pinHeat) * 100) + '%'}` +
     (mini.pinTilted ? ' · TILT' : ''),
-  assistText: () => 'BALL SAVE · ' + mini.helps + ' (E)',
+  assistText: () => 'BALL SAVE · ' + mini.helps + (typeof wardCoarsePointer !== 'undefined' && wardCoarsePointer ? '' : ' (E)'),
   // Quota overshoot, score against par and balls left drive the medal; drains, tilts and assists cost it.
   quality() {
     const lv = mini.pinLv,

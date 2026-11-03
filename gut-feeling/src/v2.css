@@ -1190,9 +1190,6 @@ body.turn-hint-on .turn-hint {
   body.arcade #touchActions .kit.brick {
     background: #e6a58fc4;
   }
-  body.arcade #touchActions .kit.trap {
-    background: #f1c27ac4;
-  }
   body.arcade #touchActions .eat {
     background: #f3a69cc4;
   }

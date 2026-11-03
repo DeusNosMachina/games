@@ -242,7 +242,7 @@ const MAGNET = registerGame({
   tactics: () =>
     `SCORE ${mini.score} · ×${mini.pinMult} · ${mini.pinRamps} SCANS · BARF ${mini.pinBarf}/${mini.pinBarfNeed} · MAGNET ${mini.pinHot ? 'HOT' : Math.round((1 - mini.pinHeat) * 100) + '%'}` +
     (mini.pinTilted ? ' · TILT' : ''),
-  assistText: () => 'BALL SAVE · ' + mini.helps + ' (E)',
+  assistText: () => 'BALL SAVE · ' + mini.helps + (typeof wardCoarsePointer !== 'undefined' && wardCoarsePointer ? '' : ' (E)'),
   // Quota overshoot, score against par and balls left drive the medal; drains, tilts and assists cost it.
   quality() {
     const lv = mini.pinLv,
