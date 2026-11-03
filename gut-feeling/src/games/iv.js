@@ -1,22 +1,224 @@
-// Drip or Die: the recovery ritual. Zero hearts sends Macy back to bed for ONE gentle phase: tap the
-// drip while the line crosses the mint window. It is registered as 'recovery', so the framework runs it
-// in place of the room's arcade whenever a run is forced (openMini(0, true)). Eight drips, three
-// strikes, windows that shrink a little and never move. Every recovery is the same level; it never
-// climbs. Three strikes end in the staged cartoon explosion, and a lost recovery can be retried or
-// ended from the result screen with a patch-up that costs coins (never progress or medals).
-// Canvas 800 × 450, or 450 × 800 when the framework sets mini.portrait on an upright phone: a scene
-// strip on top and the bar below it. Rules never change with the shape; draw code asks every frame.
+// Drip or Die: the recovery ritual. Zero hearts sends Macy back to bed for ONE phase, drawn at random for
+// each collapse: prime the pump (tap while the line crosses a mint window) or hold the pressure (hold to
+// pump and keep the needle in a band that jumps, slims and gets shoved). It is registered as 'recovery',
+// so the framework runs it in place of the room's arcade whenever a run is forced (openMini(0, true)),
+// on the level of the last arcade run she played (state.lastTier): level 1 gentle, 2 and 3 the real deal,
+// 4 Legendary. Three strikes on every level end in the staged cartoon explosion, and a lost recovery can
+// be retried (same phase, same level) or ended from the result screen with a patch-up that costs coins
+// (never progress or medals).
+// Canvas 800 × 450, or 450 × 800 when the framework sets mini.portrait on an upright phone: a scene strip on
+// top and the phase below it. Rules never change with the shape; draw code asks every frame.
 
-// Three strikes end the run, every time. The third one pops.
+// Three strikes end the run, every level and prescription. The third one pops.
 const IV_STRIKES = 3;
 
-// The one level. Widths are shares of the bar, times are seconds.
-//   required        drips to land
-//   limit           seconds on the clock
-//   width [lo, hi]  window width range for the first sweep; each landed drip multiplies it by shrink,
-//                   never below floor. Every sweep draws its own width from the current range.
-//   speed, ramp     marker speed in bar widths per second, and how much faster it ends (0.15 = 15%)
-const IV_DRIP = { required: 8, limit: 48, width: [0.17, 0.21], shrink: 0.95, floor: 0.12, speed: 0.43, ramp: 0.15 };
+// The two phases a recovery can draw (ivRecoveryPlan().phase, mini.ivPhase).
+const IV_PUMP = 0,
+  IV_PRESSURE = 1;
+const IV_PHASE_NAMES = ['Prime the pump', 'Hold the pressure'];
+
+// Rules per level (index = mini.tier: 0 gentle, 1 and 2 the real deal, 3 Legendary). Widths are shares of
+// the bar or the gauge, times are seconds. Tune here, then run tests/tools/iv-human.cjs.
+//
+// pump (prime the pump):
+//   required, limit   drips to land, seconds on the clock
+//   patterns          sweep shapes, one picked per sweep: single, double (two mints, tap both), decoy (a mint
+//                     and a red), decoyDouble (mint, red, mint)
+//   tempos            marker speed multipliers, one picked per sweep and named on the sweep tag
+//   width [lo, hi]    window width range for the first sweep; each landed drip multiplies it by shrink, never
+//                     below floor. Every sweep draws its own width from the current range.
+//   speed, ramp       marker speed in bar widths per second (times the prescription), and how much faster
+//                     it runs by the last drip (0.2 = 20%)
+//   moveFrom, moveMax windows slide from this drip on (0 = never) at up to this share of the marker speed
+//   reverse           chance a sliding window turns around mid-sweep; it flickers IV_TURN_WARN first
+//   minCross          fairness floor: a sliding window never crosses the line in less than this
+//   hint              point at the window and shout NOW!
+// press (hold the pressure):
+//   need, limit       seconds to bank inside the band, seconds on the clock. From level 2 the clock is
+//                     tight: only time near the band's center (which banks ×1.5, then ×2) beats it
+//   events            the shove cycle, in order: cough (shoves up), hiccup (down), spike (the band moves),
+//                     split (two bands, either counts), invert (the controls flip for 3 s)
+//   eventsFrom, gap   banked seconds before the first event, seconds between events
+//   warn, power       warning before a shove, and how hard it shoves
+//   jump, jumpWarn    the band jumps every jump[0] to jump[1] s, after a jumpWarn arrow
+//   width [n, w]      each segment between jumps draws its band width from this range, wide half first
+//   shrink            the band also slims by this share as the time is banked
+//   wander            [speed, amplitude] of the band's slow wander, per banked third
+//   wobble            the needle's own drift
+//   counterStrike     an uncountered cough, hiccup or spike is a strike (style only when false)
+//   hint              the marker says which way to go
+const IV_LEVELS = [
+  {
+    pump: {
+      required: 8,
+      limit: 48,
+      patterns: ['single'],
+      tempos: [1],
+      width: [0.17, 0.21],
+      shrink: 0.95,
+      floor: 0.12,
+      speed: 0.43,
+      ramp: 0.15,
+      moveFrom: 0,
+      moveMax: 0,
+      reverse: 0,
+      minCross: 0.2,
+      hint: true
+    },
+    press: {
+      need: 10,
+      limit: 55,
+      events: ['cough'],
+      eventsFrom: 4,
+      gap: [3.5, 5],
+      warn: 0.9,
+      power: 0.6,
+      jump: [4, 7],
+      jumpWarn: 0.8,
+      width: [0.1, 0.19],
+      shrink: 0.2,
+      wander: [
+        [0.3, 0.06],
+        [0.42, 0.08],
+        [0.55, 0.1]
+      ],
+      wobble: 0.012,
+      counterStrike: false,
+      hint: true
+    }
+  },
+  {
+    pump: {
+      required: 13,
+      limit: 52,
+      patterns: ['single', 'double', 'decoy', 'double', 'decoy'],
+      tempos: [0.85, 1, 1.15],
+      width: [0.095, 0.115],
+      shrink: 0.95,
+      floor: 0.055,
+      speed: 0.58,
+      ramp: 0.25,
+      moveFrom: 0,
+      moveMax: 0,
+      reverse: 0,
+      minCross: 0.2,
+      hint: false
+    },
+    press: {
+      need: 13,
+      limit: 15,
+      events: ['cough', 'hiccup', 'spike', 'split'],
+      eventsFrom: 0,
+      gap: [2.8, 4.2],
+      warn: 0.8,
+      power: 1,
+      jump: [4, 7],
+      jumpWarn: 0.7,
+      width: [0.08, 0.19],
+      shrink: 0.2,
+      wander: [
+        [0.5, 0.09],
+        [0.6, 0.11],
+        [0.7, 0.13]
+      ],
+      wobble: 0.021,
+      counterStrike: true,
+      hint: false
+    }
+  },
+  {
+    pump: {
+      required: 15,
+      limit: 58,
+      patterns: ['single', 'double', 'decoy', 'decoyDouble', 'double'],
+      tempos: [0.8, 1, 1.2],
+      width: [0.09, 0.105],
+      shrink: 0.95,
+      floor: 0.05,
+      speed: 0.6,
+      ramp: 0.25,
+      moveFrom: 3,
+      moveMax: 0.5,
+      reverse: 0,
+      minCross: 0.07,
+      hint: false
+    },
+    press: {
+      need: 16,
+      limit: 21,
+      events: ['cough', 'invert', 'hiccup', 'spike', 'split', 'invert'],
+      eventsFrom: 0,
+      gap: [2.4, 3.4],
+      warn: 0.7,
+      power: 1,
+      jump: [4, 7],
+      jumpWarn: 0.7,
+      width: [0.065, 0.19],
+      shrink: 0.2,
+      wander: [
+        [0.6, 0.1],
+        [0.72, 0.12],
+        [0.85, 0.14]
+      ],
+      wobble: 0.03,
+      counterStrike: true,
+      hint: false
+    }
+  },
+  {
+    pump: {
+      required: 15,
+      limit: 60,
+      patterns: ['double', 'decoy', 'decoyDouble', 'single', 'double'],
+      tempos: [0.8, 1, 1.25],
+      width: [0.085, 0.1],
+      shrink: 0.95,
+      floor: 0.05,
+      speed: 0.62,
+      ramp: 0.25,
+      moveFrom: 1,
+      moveMax: 0.65,
+      reverse: 0.4,
+      minCross: 0.068,
+      hint: false
+    },
+    press: {
+      need: 18,
+      limit: 30,
+      events: ['cough', 'invert', 'hiccup', 'spike', 'invert', 'split', 'cough', 'hiccup'],
+      eventsFrom: 0,
+      gap: [1.8, 2.6],
+      warn: 0.6,
+      power: 1.15,
+      jump: [3.5, 6],
+      jumpWarn: 0.7,
+      width: [0.055, 0.16],
+      shrink: 0.2,
+      wander: [
+        [0.7, 0.11],
+        [0.85, 0.13],
+        [1, 0.15]
+      ],
+      wobble: 0.04,
+      counterStrike: true,
+      hint: false
+    }
+  }
+];
+
+// Shoves she has to counter, and how long each one gets: out of the band for `limit` seconds within `dur`
+// seconds of the shove means the counter failed. Fairness: caught pushing the wrong way as it lands, with
+// the band at its narrowest, a player who answers a quarter second later is out for at most 1.22 s (a
+// Legendary cough on Gutastrophe), so every shove can be countered by reaction alone; the warning card is
+// there to do better than that.
+const IV_COUNTERS = {
+  cough: { dur: 2.4, limit: 1.4 },
+  hiccup: { dur: 2.4, limit: 1.4 },
+  spike: { dur: 2.4, limit: 1.3 }
+};
+
+// A sliding window that is about to turn around flickers its arrows this long first.
+const IV_TURN_WARN = 0.6;
 
 // A lost recovery can end from the result screen for this share of her coins, rounded down.
 const IV_PATCH_SHARE = 0.15;
@@ -68,9 +270,13 @@ const IV_LOSS_COPY = [
   ['INSIDES: NOW OUTSIDES.', 'The IV pole is wearing your intestines like a scarf. Honestly? It works.']
 ];
 
-// The recovery in progress ({count}), kept so a retry after an explosion is not another collapse.
-// Cleared when the recovery is won or patched up; the next collapse starts a new one.
+// The recovery in progress ({phase, count}), kept so a retry after an explosion is the same recovery: the
+// same phase, and not another collapse. Cleared when the recovery is won or patched up.
 let ivRecovery = null;
+// The phase the next recovery will play, drawn ahead of time: once at load, and again for the one after
+// whenever a recovery starts. Opening the lobby never rolls the dice, so it never shifts anyone else's
+// random numbers, and the lobby can name the phase the run will play.
+let ivRecoveryNext = ivDrawPhase();
 
 // Explosion bookkeeping survives between runs so a second viewing lands differently.
 let ivBoomCount = 0;
@@ -79,6 +285,7 @@ let ivLastHeartSlot = -1;
 
 const IV = registerGame({
   id: 'recovery',
+  legendary: true,
   canvas: { w: 800, h: 450 },
   portraitCanvas: { w: 450, h: 800 },
   layout: 'iv',
@@ -87,23 +294,37 @@ const IV = registerGame({
     game: 'Drip or Die',
     genre: 'RECOVERY · ONE IV · THREE STRIKES',
     headline: 'One IV. Then back to the ward.',
-    desc:
-      'Zero hearts means back to bed for one IV. Tap while the line crosses the mint window: eight good drips and you are up, hearts and all. Three strikes and things get anatomical. If it goes badly, the nurse can patch you up for a few coins.'
+    // The lobby says which phase this collapse drew; the level cards say how hard.
+    get desc() {
+      const course =
+        ivRecoveryPlan().phase === IV_PRESSURE
+          ? 'Tonight’s course: hold the pressure. Hold to pump, let go to ease off, and keep the needle in the mint band while she coughs and hiccups.'
+          : 'Tonight’s course: prime the pump. Tap while the line crosses the mint window.';
+      return (
+        'Zero hearts means back to bed for one IV, at the level of the game that flattened you. ' +
+        course +
+        ' Three strikes and things get anatomical. If it goes badly, the nurse can patch you up for a few coins.'
+      );
+    }
   },
   tierNotes: [
-    'Eight drips. Three strikes. No surprises.',
-    'Recovery never gets harder than level 1.',
-    'Recovery never gets harder than level 1.'
+    'Wide windows or a lazy band. Three strikes. No surprises.',
+    'Decoys and doubles, or coughs that count.',
+    'Sliding windows, or controls that flip.',
+    'Everything slides, everything shoves. Bring snacks.'
   ],
   init() {
-    // Every recovery is the same gentle level, whatever level the lobby passed in.
-    ivRecoveryStart();
-    mini.tier = 0;
+    // One phase per recovery, at the level the lobby passed in: the plan's level, the last run's.
+    const plan = ivRecoveryStart();
+    mini.tier = clamp(Math.floor(mini.tier) || 0, 0, IV_LEVELS.length - 1);
+    mini.ivPhase = plan.phase;
     mini.rules.misses = IV_STRIKES;
     mini.good = 0;
     mini.precision = [];
     mini.ivChain = 0;
     mini.ivBestChain = 0;
+    mini.ivCentreTime = 0;
+    mini.ivBandTime = 0;
     mini.ivMoodKind = 'calm';
     mini.ivMoodT = 0;
     mini.ivBpm = 88;
@@ -117,14 +338,16 @@ const IV = registerGame({
     const words = IV_WORDS.filter(w => w !== ivLastWord);
     mini.ivWord = pick(words);
     ivLastWord = mini.ivWord;
+    ivBriefMirror();
     ivSetup();
   },
   controls() {
-    setControls([{ id: 'tap', text: 'TAP THE DRIP', key: 'Space', hot: true }]);
+    if (mini.ivPhase === IV_PRESSURE) setControls([{ id: 'hold', text: 'HOLD TO PUMP', key: 'Space', hot: true }]);
+    else setControls([{ id: 'tap', text: 'TAP THE DRIP', key: 'Space', hot: true }]);
   },
   update(dt) {
     ivUpdateFx(dt);
-    ivUpdateTap(dt);
+    updateIVGame(dt);
     if (mini.screen === 'play' && mini.phaseTime >= mini.limit)
       finishMini(false, 'The clock called. It wants its seconds back. ' + ivPatchLine());
   },
@@ -151,10 +374,12 @@ const IV = registerGame({
     if (mini.flash > 0) {
       g.save();
       g.globalAlpha = Math.min(1, mini.flash * 3);
-      const good = !/MISS|AWAY|STRIKE/.test(mini.flashText);
+      const good = !/MISS|AWAY|DECOY|CHAT|STRIKE|WON|BEHIND/.test(mini.flashText);
       if (mini.portrait) {
-        panel(g, 14, 656, 422, 36, good ? '#356e61' : '#75455b', '#d4b399');
-        ivFitLabel(g, mini.flashText, 225, 680, 14, '#ffedd0', 400);
+        // Portrait: under the timing bar, or over the readouts under the gauge.
+        const [fy, fh] = mini.ivPhase === IV_PRESSURE ? [718, 52] : [656, 36];
+        panel(g, 14, fy, 422, fh, good ? '#356e61' : '#75455b', '#d4b399');
+        ivFitLabel(g, mini.flashText, 225, fy + fh / 2 + 6, 14, '#ffedd0', 400);
       } else {
         panel(g, 105, 42, 590, 34, good ? '#356e61' : '#75455b', '#d4b399');
         label(g, mini.flashText, 400, 65, 14, '#ffedd0', 'center');
@@ -170,48 +395,64 @@ const IV = registerGame({
   },
   assist() {
     mini.helpTime = 4;
+    if (mini.ivPhase === IV_PRESSURE) {
+      mini.pressure = ivNearestCentre();
+      mini.velocity = 0;
+    }
     mini.flash = 0.7;
-    mini.flashText = 'WINDOWS WIDENED. FIVE STYLE POINTS.';
+    mini.flashText = mini.ivPhase === IV_PRESSURE ? 'PRESSURE RESET. FIVE STYLE POINTS.' : 'WINDOWS WIDENED. FIVE STYLE POINTS.';
     sfx('shield');
   },
+  // Space taps the drip once per press, or pumps for as long as it is down (the framework lets go on keyup).
   key(k, e) {
     if (k !== ' ') return false;
     e.preventDefault();
-    if (!e.repeat) miniAction('tap');
+    if (mini.ivPhase === IV_PRESSURE) mini.held = true;
+    else if (!e.repeat) miniAction('tap');
     return true;
   },
-  // The finger is the button: a press anywhere on the canvas taps the drip.
+  // The finger is the button: a press anywhere on the canvas taps the drip, or pumps until it lifts.
   down(p) {
     ivRipple(p);
-    miniAction('tap');
+    if (mini.ivPhase === IV_PRESSURE) mini.held = true;
+    else miniAction('tap');
   },
-  lesson() {
-    return {
-      title: 'Recovery / Drip or Die',
-      goal: 'Land ' + mini.required + ' drips and you are out of bed with your hearts back.',
-      control:
-        'Tap the screen (or TAP THE DRIP, or Space) while the line crosses the mint window. Gold centers in a row build a chain multiplier.',
-      avoid:
-        'Tapping outside the mint, or letting a drip slip past, is a strike. Three strikes and you pop. If you pop, try again or let the nurse patch you up for a few coins.',
-      demo: 'timing',
-      cue: 'Tap on mint · 8 drips · 3 strikes'
-    };
+  // up(true) means the finger was lost or the run interrupted: it lets go either way, and never taps.
+  up() {
+    if (mini.ivPhase === IV_PRESSURE) mini.held = false;
   },
-  statLabel: () => 'PRIME THE PUMP',
-  stat: () => mini.good + '/' + mini.required + ' drips',
+  lesson: () => ivLesson(),
+  statLabel: () => (mini.ivPhase === IV_PRESSURE ? 'HOLD THE PRESSURE' : 'PRIME THE PUMP'),
+  stat: () =>
+    mini.ivPhase === IV_PRESSURE ? mini.stable.toFixed(1) + '/' + mini.need + 's steady' : mini.good + '/' + mini.required + ' drips',
   livesLabel: () => 'STRIKES',
   // Three marks; a ✕ fills in for every strike.
   lives: () => {
     const used = Math.min(mini.miss, mini.rules.misses);
     return ('✕ '.repeat(used) + '○ '.repeat(mini.rules.misses - used)).trim();
   },
-  tactics: () => 'SCORE ' + mini.score + '   ·   GOLD CHAIN ×' + ivChainMult() + '   ·   ' + mini.helps + ' ASSISTS LEFT',
-  assistText: () => 'WIDEN WINDOWS · ' + mini.helps + ' left (E)',
-  // Precision and gold chains earn the medal; strikes and assists cost it.
+  tactics: () =>
+    'SCORE ' +
+    mini.score +
+    '   ·   ' +
+    (mini.ivPhase === IV_PRESSURE ? 'CENTER ×' + (mini.ivMult || 1) : 'GOLD CHAIN ×' + ivChainMult()) +
+    '   ·   ' +
+    mini.helps +
+    ' ASSISTS LEFT',
+  assistText: () => (mini.ivPhase === IV_PRESSURE ? 'RESET PRESSURE' : 'WIDEN WINDOWS') + ' · ' + mini.helps + ' left (E)',
+  // The pump is judged on precision and gold chains, the pressure on dead-center time and pace; strikes
+  // and assists cost either.
   quality() {
-    const p = mini.precision,
-      accuracy = p.length ? p.reduce((a, b) => a + b, 0) / p.length : 0.6;
-    return Math.round(clamp(56 + accuracy * 30 + Math.min(14, mini.ivBestChain * 2.8) - (100 - mini.quality), 0, 100));
+    let q;
+    if (mini.ivPhase === IV_PRESSURE) {
+      const centre = Math.min(1, (mini.ivCentreTime / Math.max(1, mini.ivBandTime)) * 1.6);
+      q = 56 + centre * 44 - Math.max(0, mini.phaseTime - mini.need * 2.7) * 0.4;
+    } else {
+      const p = mini.precision,
+        accuracy = p.length ? p.reduce((a, b) => a + b, 0) / p.length : 0.6;
+      q = 56 + accuracy * 30 + Math.min(14, mini.ivBestChain * 2.8);
+    }
+    return Math.round(clamp(q - (100 - mini.quality), 0, 100));
   },
   // Out of bed: hearts back by medal, and the next collapse starts a new recovery.
   onWin() {
@@ -270,7 +511,47 @@ const IV = registerGame({
 // the passport, the Daily Dose, the registry checks). games.recovery still finds it.
 Object.defineProperty(games, 'recovery', { value: IV, enumerable: false, configurable: true, writable: true });
 
+// Briefing copy for the phase this recovery drew, at its level. The title is the recovery's own.
+function ivLesson() {
+  const t = clamp(mini.tier || 0, 0, IV_LEVELS.length - 1);
+  if (mini.ivPhase === IV_PRESSURE)
+    return {
+      title: 'Recovery / Drip or Die',
+      goal:
+        'Hold the pressure: bank ' +
+        mini.need +
+        ' seconds inside the mint band before the clock runs out and you are out of bed, hearts and all. Dead center banks faster.',
+      control: 'Press and hold anywhere on the screen (or HOLD TO PUMP, or Space) to raise the pressure. Let go to lower it.',
+      avoid: [
+        'The band jumps to new heights (watch the arrow) and slims as you bank. Pinning the top or bottom is a strike. Later she coughs: let go. Three strikes and you pop.',
+        'COUGH shoves up (let go), HICCUP shoves down (pump), a SPIKE moves the band. Counter them or take a strike. Split bands: either half counts. Three strikes and you pop.',
+        'All of that, plus purple warnings: the controls flip for 3 seconds. Hold goes down, letting go goes up. Three strikes and you pop.',
+        'Legendary. Harder shoves, closer together, a thinner band, and the controls flip twice a cycle. Counter everything. Three strikes and you pop.'
+      ][t],
+      demo: 'balance',
+      cue: ['Hold = up · release = down', 'Counter every shove', 'Purple = flipped controls', 'Counter everything · purple flips'][t]
+    };
+  return {
+    title: 'Recovery / Drip or Die',
+    goal: 'Prime the pump: land ' + mini.required + ' drips and you are out of bed, hearts and all.',
+    control:
+      'Tap the screen (or TAP THE DRIP, or Space) while the line crosses a mint window. Gold centers in a row build a chain multiplier.',
+    avoid: [
+      'Tapping outside the mint, or letting a drip slip past, is a strike. Three strikes and you pop. If you pop, try again or let the nurse patch you up for a few coins.',
+      'Two mint windows: tap both. Red is a decoy and a strike. Windows shrink with every drip. Three strikes and you pop.',
+      'From drip 3 the windows slide, never faster than you can follow. Red is still a decoy. Three strikes and you pop.',
+      'Legendary. Every window slides, and some change their minds: flickering arrows mean it is about to turn. Three strikes and you pop.'
+    ][t],
+    demo: 'timing',
+    cue: ['Tap on mint · ' + mini.required + ' drips · 3 strikes', 'Every mint · never red · 3 strikes', 'Chase the slide · never red', 'Flicker means it turns · never red'][t]
+  };
+}
+
 // ---------- Shared helpers ----------
+
+function ivRules() {
+  return IV_LEVELS[clamp(mini.tier || 0, 0, IV_LEVELS.length - 1)];
+}
 
 // The canvas this frame draws on. The framework may flip mini.portrait mid-run, so ask every frame.
 function ivCanvas() {
@@ -354,7 +635,7 @@ function ivDripFx(n) {
   for (let i = 0; i < n; i++) mini.ivDripFx.push({ dy: -i * 7, vy: 30 + i * 8, life: 1 });
 }
 
-// Macy's reactions, the heart monitor and the IV drips keep running under the bar.
+// Macy's reactions, the heart monitor and the IV drips keep running under the phase.
 function ivUpdateFx(dt) {
   mini.ivMoodT = Math.max(0, mini.ivMoodT - dt);
   if (mini.miss !== mini.ivSeenMiss) {
@@ -399,21 +680,55 @@ function ivDrawRipples(g) {
 }
 
 // ---------- The recovery ----------
-// Zero hearts sends Macy back to bed for this one phase, at this one level, every time. state.recoveries
-// counts collapses (the stickers read it); the framework resets it on any medal outside a recovery.
+// Zero hearts sends Macy back to bed for one phase, pump or pressure, drawn at random for each collapse,
+// on the level of the last arcade run she played. state.recoveries counts collapses (the stickers read
+// it); the framework resets it on any medal outside a recovery.
 
-// {phase, level, count}: always the drip phase at level 1. count is the collapses so far (during a
-// recovery and its retries, the count it started from). minigames.js opens the lobby on .level.
-function ivRecoveryPlan() {
-  return { phase: 0, level: 0, count: ivRecovery ? ivRecovery.count : state.recoveries || 0 };
+// A coin flip between the two phases.
+function ivDrawPhase() {
+  return rand(0, 1) < 0.5 ? IV_PUMP : IV_PRESSURE;
 }
 
-// A forced run starts. A new recovery counts the collapse; a retry after an explosion does not.
+// {phase, level, count}. phase is IV_PUMP or IV_PRESSURE: before a recovery starts, the phase the next
+// one will play (drawn ahead, kept until it starts); during one and its retries, that recovery's. level
+// is state.lastTier (0 to 3), which minigames.js opens the lobby on. count is the collapses so far
+// (during a recovery, the count it started from).
+function ivRecoveryPlan() {
+  const level = clamp(Math.floor(state.lastTier) || 0, 0, IV_LEVELS.length - 1);
+  if (ivRecovery) return { phase: ivRecovery.phase, level, count: ivRecovery.count };
+  if (ivRecoveryNext !== IV_PUMP && ivRecoveryNext !== IV_PRESSURE) ivRecoveryNext = ivDrawPhase();
+  return { phase: ivRecoveryNext, level, count: state.recoveries || 0 };
+}
+
+// A forced run starts. A new recovery takes the planned phase, counts the collapse and draws the phase
+// for the one after; a retry after an explosion repeats its phase and counts nothing.
 function ivRecoveryStart() {
-  if (ivRecovery) return;
-  ivRecovery = { count: state.recoveries || 0 };
-  state.recoveries = ivRecovery.count + 1;
-  save();
+  if (!ivRecovery) {
+    const plan = ivRecoveryPlan();
+    ivRecovery = { phase: plan.phase, count: plan.count };
+    ivRecoveryNext = ivDrawPhase();
+    state.recoveries = plan.count + 1;
+    save();
+  }
+  return { ...ivRecovery };
+}
+
+// The framework keys the full briefing on mini.phase, which stays 0 because a recovery is one phase. Each
+// of the two phases still gets its own full briefing once: 'recovery:pump' and 'recovery:pressure' say
+// which ones she has seen, and the drawn phase's answer is mirrored into 'recovery:0' before the framework
+// reads it.
+function ivBriefMirror() {
+  const shared = 'recovery:0',
+    own = mini.ivPhase === IV_PRESSURE ? 'recovery:pressure' : 'recovery:pump',
+    seenList = state.briefed;
+  // A save from before the pressure phase returned has only ever been briefed on the pump.
+  if (seenList.includes(shared) && !seenList.includes('recovery:pump') && !seenList.includes('recovery:pressure'))
+    seenList.push('recovery:pump');
+  const seen = seenList.includes(own),
+    at = seenList.indexOf(shared);
+  if (seen && at < 0) seenList.push(shared);
+  if (!seen && at >= 0) seenList.splice(at, 1);
+  if (!seen) seenList.push(own);
 }
 
 // What getting patched up costs right now: a share of her coins, rounded down, never below zero.
@@ -428,7 +743,7 @@ function ivPatchLine() {
     : 'Try again, or the nurse patches you up for free. Your wallet is also in recovery.';
 }
 
-// ---------- Tap the drip ----------
+// ---------- The phase ----------
 
 // Every strike says how many are gone. The third one ends the run (miniOops calls finishMini).
 function ivStrike(message) {
@@ -436,22 +751,79 @@ function ivStrike(message) {
 }
 
 function ivSetup() {
+  const L = ivRules(),
+    t = mini.tier;
+  // A recovery is one phase, so mini.phase stays 0 (the framework keys briefings on it). mini.ivPhase
+  // says which one.
   mini.phase = 0;
   mini.phaseTime = 0;
   mini.held = false;
   mini.helpTime = 0;
   mini.inputLock = 0;
-  mini.limit = IV_DRIP.limit;
-  mini.required = IV_DRIP.required;
+  mini.outside = 0;
+  if (mini.ivPhase === IV_PRESSURE) {
+    const P = L.press;
+    mini.limit = P.limit;
+    mini.need = P.need;
+    mini.pressure = 0.5;
+    mini.velocity = 0;
+    mini.stable = 0;
+    mini.pressureTarget = 0.52;
+    mini.ivHome = 0.52;
+    mini.ivHomeTo = 0.52;
+    mini.ivSegIdx = 0;
+    mini.ivSegW = ivSegmentWidth(0);
+    mini.ivSegWTo = mini.ivSegW;
+    mini.ivJumpIn = rand(P.jump[0], P.jump[1]);
+    mini.ivJumpNext = null;
+    mini.ivSinceJump = 9;
+    mini.ivWanderPhase = 0;
+    mini.ivWanderAmp = P.wander[0][1];
+    mini.ivCounter = null;
+    mini.ivCentres = [0.52];
+    mini.ivSplit = 0;
+    mini.ivSpikeOff = 0;
+    mini.ivInverted = false;
+    mini.ivEvent = null;
+    mini.ivEventIdx = 0;
+    mini.ivEventGap = 2.5;
+    mini.ivCentreRun = 0;
+    mini.ivMult = 1;
+    setInstructions(
+      [
+        'Hold anywhere on the screen to pump, let go to ease off. Follow the mint band; when the arrow shows, it jumps.',
+        'Hold anywhere on the screen to pump. Counter coughs, hiccups and spikes or take a strike. Either split half counts.',
+        'Hold anywhere on the screen to pump. Counter every shove, and watch for purple: the controls flip for 3 seconds.',
+        'Hold anywhere on the screen to pump. Harder shoves, a thinner band, more purple. Counter everything.'
+      ][t]
+    );
+    return;
+  }
+  mini.limit = L.pump.limit;
+  mini.required = L.pump.required;
   mini.dir = 1;
   mini.pos = 0;
-  mini.band = IV_DRIP.width[1];
+  mini.band = L.pump.width[1];
   mini.beatLock = 0.3;
   mini.ivFumble = 0;
   mini.ivSweepCount = 0;
-  ivNewSweep();
-  setInstructions('Tap the screen when the line crosses mint. Eight drips and you are out of bed. Three strikes and you pop.');
+  ivNewSweep('single');
+  setInstructions(
+    [
+      'Tap the screen when the line crosses mint. ' + mini.required + ' drips and you are out of bed. Three strikes and you pop.',
+      'Tap the screen on every mint window, never red. They shrink as you go. Three strikes and you pop.',
+      'Tap the screen on every mint, never red. From drip 3 the windows slide. Three strikes and you pop.',
+      'Tap the screen on every mint, never red. Everything slides; flickering arrows mean it is about to turn.'
+    ][t]
+  );
 }
+
+function updateIVGame(dt) {
+  if (mini.ivPhase === IV_PRESSURE) ivUpdatePressure(dt);
+  else ivUpdateTap(dt);
+}
+
+// ---------- Prime the pump ----------
 
 function ivBand() {
   return mini.band * (mini.helpTime > 0 ? 1.7 : 1);
@@ -459,13 +831,25 @@ function ivBand() {
 
 // The width range for the next sweep. It shrinks a little with every landed drip, down to the floor.
 function ivWidthRange() {
-  const k = Math.pow(IV_DRIP.shrink, mini.good || 0);
-  return [Math.max(IV_DRIP.floor, IV_DRIP.width[0] * k), Math.max(IV_DRIP.floor, IV_DRIP.width[1] * k)];
+  const L = ivRules().pump,
+    k = Math.pow(L.shrink, mini.good || 0);
+  return [Math.max(L.floor, L.width[0] * k), Math.max(L.floor, L.width[1] * k)];
 }
 
-// Marker speed, a little faster with every drip. The same on every level and prescription.
+// How fast windows slide on the drip being played, as a share of the marker speed. 0 before moveFrom.
+function ivDriftShare() {
+  const L = ivRules().pump,
+    drip = (mini.good || 0) + 1;
+  if (!L.moveFrom || drip < L.moveFrom) return 0;
+  const span = Math.max(1, (mini.required || L.required) - L.moveFrom);
+  return L.moveMax * (0.4 + 0.6 * Math.min(1, (drip - L.moveFrom) / span));
+}
+
+// Marker speed: the level's, the prescription's, a ramp across the phase, and the sweep's tempo.
 function ivSpeed() {
-  return IV_DRIP.speed * (1 + IV_DRIP.ramp * Math.min(1, (mini.good || 0) / Math.max(1, (mini.required || IV_DRIP.required) - 1)));
+  const L = ivRules().pump,
+    ramp = 1 + L.ramp * Math.min(1, (mini.good || 0) / Math.max(1, (mini.required || L.required) - 1));
+  return L.speed * (mini.rules ? mini.rules.mini : 1) * ramp * (mini.ivSweep ? mini.ivSweep.tempo : 1);
 }
 
 function ivChainMult() {
@@ -477,27 +861,105 @@ function ivSweepPos(u) {
   return mini.dir > 0 ? u : 1 - u;
 }
 
-// One pass of the marker with one mint window that stays put.
-function ivNewSweep() {
+// One pass of the marker. Each sweep draws its own window width; windows are placed in sweep order and
+// never closer to the start edge than the line can travel in a blink.
+function ivNewSweep(kind) {
+  const L = ivRules().pump;
+  if (!kind) kind = pick(L.patterns);
   mini.ivSweepCount++;
-  const range = ivWidthRange(),
-    band = rand(range[0], range[1]),
-    u = rand(0.3, 0.8);
+  const tempo = mini.ivSweepCount === 1 ? 1 : pick(L.tempos);
+  const range = ivWidthRange();
+  const band = rand(range[0], range[1]);
   mini.band = band;
-  mini.ivSweep = { width: band, win: { u, pos: ivSweepPos(u), hit: false }, oops: false };
+  const gap = band + 0.06;
+  const wins = [];
+  const add = (u, decoy) => wins.push({ u, pos: 0, decoy, hit: false, hitDecoy: false });
+  if (kind === 'single') add(rand(0.3, 0.8), false);
+  if (kind === 'double') {
+    const a = rand(0.25, 0.4);
+    add(a, false);
+    add(Math.min(0.88, a + rand(Math.max(gap, 0.24), 0.42)), false);
+  }
+  if (kind === 'decoy') {
+    const a = rand(0.3, 0.7);
+    add(a, false);
+    add(a + (a > 0.5 ? -1 : 1) * rand(gap, gap + 0.12), true);
+  }
+  if (kind === 'decoyDouble') {
+    const a = rand(0.22, 0.28);
+    const b = a + rand(0.42, 0.5);
+    add(a, false);
+    add((a + b) / 2, true);
+    add(b, false);
+  }
+  for (const w of wins) w.pos = ivSweepPos(w.u);
+  mini.ivSweep = { kind, wins, tempo, width: band, oops: false, shift: 0, shiftMin: 0, shiftMax: 0, drift: 0, age: 0, flipAt: null };
+  ivSetDrift(mini.ivSweep);
   mini.pos = mini.dir > 0 ? 0 : 1;
+}
+
+// Sliding windows. The whole pattern drifts together, so windows never overlap. It bounces off the ends
+// of the bar and, where the level says so, sometimes turns around (after IV_TURN_WARN of flicker).
+function ivSetDrift(s) {
+  const L = ivRules().pump;
+  const share = ivDriftShare();
+  if (!share) return;
+  const half = s.width / 2;
+  const us = s.wins.map(w => w.u);
+  const lo = Math.min(...us) - half;
+  const hi = Math.max(...us) + half;
+  s.shiftMin = Math.min(0, 0.03 - lo);
+  s.shiftMax = Math.max(0, 0.97 - hi);
+  if (s.shiftMax - s.shiftMin < 0.04) return;
+  const speed = ivSpeed();
+  // Fairness: a window coming at the line never crosses it in less than minCross seconds.
+  const fast = Math.min(share * speed, Math.max(0, s.width / L.minCross - speed));
+  if (fast < 0.01) return;
+  // Windows near the start run away from the line; the rest pick a side.
+  const along = Math.min(...us) < 0.42 || rand(0, 1) < 0.5;
+  s.drift = along ? fast : -fast;
+  if (L.reverse && rand(0, 1) < L.reverse) s.flipAt = IV_TURN_WARN + rand(0.1, 0.45) / speed;
+}
+
+function ivDriftWindows(dt) {
+  const s = mini.ivSweep;
+  if (!s.drift) return;
+  s.age += dt;
+  if (s.flipAt !== null && s.age >= s.flipAt) {
+    s.drift = -s.drift;
+    s.flipAt = null;
+  }
+  s.shift += s.drift * dt;
+  if (s.shift > s.shiftMax) {
+    s.shift = 2 * s.shiftMax - s.shift;
+    s.drift = -Math.abs(s.drift);
+  }
+  if (s.shift < s.shiftMin) {
+    s.shift = 2 * s.shiftMin - s.shift;
+    s.drift = Math.abs(s.drift);
+  }
+  s.shift = clamp(s.shift, s.shiftMin, s.shiftMax);
+  for (const w of s.wins) w.pos = ivSweepPos(w.u + s.shift);
+}
+
+// True while a sliding window is about to turn around: its arrows flicker.
+function ivTurning() {
+  const s = mini.ivSweep;
+  return !!(s && s.drift && s.flipAt !== null && s.flipAt - s.age < IV_TURN_WARN);
 }
 
 function ivUpdateTap(dt) {
   mini.beatLock = Math.max(0, mini.beatLock - dt);
   mini.ivFumble = Math.max(0, mini.ivFumble - dt);
+  mini.ivSpeed = ivSpeed();
   if (mini.beatLock > 0) return;
-  mini.pos += mini.dir * ivSpeed() * dt;
+  ivDriftWindows(dt);
+  mini.pos += mini.dir * mini.ivSpeed * dt;
   if (mini.pos > 1 || mini.pos < 0) ivEndSweep();
 }
 
 function ivEndSweep() {
-  if (!mini.ivSweep.win.hit) ivSweepError('A DRIP GOT AWAY');
+  if (mini.ivSweep.wins.some(w => !w.decoy && !w.hit)) ivSweepError('A DRIP GOT AWAY');
   if (mini.screen !== 'play') return;
   ivNextSweep();
 }
@@ -508,7 +970,8 @@ function ivNextSweep() {
   ivNewSweep();
 }
 
-// A wild tap and an escaped drip in the same sweep are one mistake: one strike, then only style.
+// One sweep, one strike: a wild tap, a decoy and an escaped drip in the same sweep are one mistake. After
+// the first, the rest only cost style.
 function ivSweepError(message) {
   const s = mini.ivSweep;
   mini.ivChain = 0;
@@ -526,20 +989,43 @@ function ivSweepError(message) {
 }
 
 function ivTap() {
-  if (mini.screen !== 'play' || mini.paused || mini.beatLock > 0 || mini.inputLock > 0 || mini.ivFumble > 0) return;
-  const win = mini.ivSweep.win,
-    half = ivBand() / 2,
-    off = Math.abs(mini.pos - win.pos);
-  // A second tap on a window you already landed is harmless.
-  if (win.hit) return;
-  if (off > half) {
+  if (mini.screen !== 'play' || mini.paused || mini.ivPhase === IV_PRESSURE || mini.beatLock > 0 || mini.inputLock > 0)
+    return;
+  if (mini.ivFumble > 0) return;
+  const s = mini.ivSweep,
+    half = ivBand() / 2;
+  let best = null,
+    bestOff = Infinity,
+    spent = false;
+  for (const w of s.wins) {
+    const off = Math.abs(mini.pos - w.pos);
+    // Decoys never widen with the assist.
+    if (off > (w.decoy ? mini.band / 2 : half)) continue;
+    if (!w.decoy && w.hit) {
+      spent = true;
+      continue;
+    }
+    if (off < bestOff) {
+      best = w;
+      bestOff = off;
+    }
+  }
+  if (!best) {
+    // A second tap on a window you already landed is harmless.
+    if (spent) return;
     mini.ivFumble = 0.3;
     ivSweepError('MISSED THE DRIP');
     return;
   }
-  const accuracy = 1 - off / half,
+  if (best.decoy) {
+    best.hitDecoy = true;
+    mini.ivFumble = 0.3;
+    ivSweepError('RED MEANS NO. THAT WAS A DECOY.');
+    return;
+  }
+  const accuracy = 1 - bestOff / half,
     centre = accuracy >= 0.72;
-  win.hit = true;
+  best.hit = true;
   mini.good++;
   mini.precision.push(accuracy);
   mini.ivChain = centre ? mini.ivChain + 1 : 0;
@@ -560,7 +1046,209 @@ function ivTap() {
     finishMini(true);
     return;
   }
-  ivNextSweep();
+  if (s.wins.every(w => w.decoy || w.hit)) ivNextSweep();
+}
+
+// ---------- Hold the pressure ----------
+
+// The band: this segment's width, slimmed as time is banked, narrower when split, wider with the assist.
+function ivBandWidth() {
+  const P = ivRules().press;
+  const slim = 1 - P.shrink * Math.min(1, mini.stable / mini.need);
+  return mini.ivSegW * slim * (mini.ivSplit > 0.005 ? 0.85 : 1) * (mini.helpTime > 0 ? 1.3 : 1);
+}
+
+function ivNearestCentre() {
+  const c = mini.ivCentres || [mini.pressureTarget];
+  return c.reduce((a, b) => (Math.abs(b - mini.pressure) < Math.abs(a - mini.pressure) ? b : a), c[0]);
+}
+
+function ivInBand() {
+  return Math.abs(mini.pressure - ivNearestCentre()) < ivBandWidth() / 2;
+}
+
+// Segments alternate between the wide and the narrow half of the level's width range, wide first.
+function ivSegmentWidth(i) {
+  const [narrow, wide] = ivRules().press.width;
+  const mid = (narrow + wide) / 2;
+  return i % 2 ? rand(narrow, mid) : rand(mid, wide);
+}
+
+// A new height anywhere from 0.2 to 0.8, at least 0.18 away from the current one.
+function ivJumpHeight() {
+  const lo = 0.2,
+    hi = 0.8;
+  const a = Math.max(lo, mini.ivHomeTo - 0.18);
+  const b = Math.min(hi, mini.ivHomeTo + 0.18);
+  let h = lo + rand(0, hi - lo - (b - a));
+  if (h > a) h += b - a;
+  return h;
+}
+
+// True while a cough, hiccup or spike is on its way or being countered.
+function ivShoveActive() {
+  const ev = mini.ivEvent;
+  return !!mini.ivCounter || !!(ev && IV_COUNTERS[ev.kind]);
+}
+
+// Every few seconds the band jumps to a new height and width, after a warning arrow.
+function ivUpdateJump(dt) {
+  const P = ivRules().press;
+  mini.ivSinceJump += dt;
+  // A jump waits while a shove is being countered, unless its warning is already up.
+  if (!mini.ivJumpNext && ivShoveActive()) return;
+  mini.ivJumpIn -= dt;
+  if (!mini.ivJumpNext && mini.ivJumpIn <= P.jumpWarn) {
+    mini.ivJumpNext = { home: ivJumpHeight(), width: ivSegmentWidth(mini.ivSegIdx + 1) };
+    sfx('lock');
+  }
+  if (mini.ivJumpIn > 0) return;
+  mini.ivSegIdx++;
+  mini.ivHomeTo = mini.ivJumpNext.home;
+  mini.ivSegWTo = mini.ivJumpNext.width;
+  mini.ivJumpNext = null;
+  mini.ivJumpIn = rand(P.jump[0], P.jump[1]);
+  mini.ivSinceJump = 0;
+  sfx('unlock');
+}
+
+// Coughs and hiccups shove, spikes move the band, splits make two, and the later levels flip the controls.
+function ivUpdateEvents(dt) {
+  const P = ivRules().press;
+  if (!P.events.length) return;
+  let ev = mini.ivEvent;
+  if (!ev) {
+    // Level 1 saves its gentle cough until some time is banked.
+    if (mini.stable < P.eventsFrom) return;
+    mini.ivEventGap -= dt;
+    if (mini.ivEventGap > 0) return;
+    const kind = P.events[mini.ivEventIdx % P.events.length];
+    // Shoves never land on top of a band jump.
+    if (IV_COUNTERS[kind] && (mini.ivJumpNext || mini.ivSinceJump < 1.2)) return;
+    mini.ivEventIdx++;
+    ev = mini.ivEvent = {
+      kind,
+      t: 0,
+      fired: false,
+      warn: kind === 'invert' ? 1.5 : kind === 'split' ? 0.9 : P.warn,
+      dur: { cough: 0.6, hiccup: 0.6, spike: 3.6, split: 5, invert: 3 }[kind],
+      dir: kind === 'hiccup' ? -1 : 1
+    };
+    // A spike moves the band toward the middle, never off the gauge.
+    if (kind === 'spike') ev.dir = mini.pressureTarget > 0.52 ? -1 : 1;
+    sfx(kind === 'invert' ? 'wave' : 'stun');
+  }
+  ev.t += dt;
+  const u = ev.t - ev.warn;
+  if (u >= 0 && !ev.fired) {
+    ev.fired = true;
+    if (ev.kind === 'cough' || ev.kind === 'hiccup') {
+      mini.velocity += ev.dir * 0.42 * mini.rules.mini * P.power;
+      ivMood(ev.kind, 0.7);
+      sfx(ev.kind === 'cough' ? 'blob' : 'jump');
+    }
+    if (ev.kind === 'split') sfx('split');
+    if (ev.kind === 'spike') sfx('trap');
+    if (ev.kind === 'invert') sfx('wave');
+    // A shove that catches her in the band has to be countered.
+    if (IV_COUNTERS[ev.kind] && ivInBand()) mini.ivCounter = { kind: ev.kind, t: 0, out: 0, ...IV_COUNTERS[ev.kind] };
+  }
+  mini.ivInverted = ev.kind === 'invert' && u >= 0 && u < ev.dur;
+  mini.ivSplit = ev.kind === 'split' && u >= 0 ? 0.14 * Math.sin(Math.PI * clamp(u / ev.dur, 0, 1)) : 0;
+  mini.ivSpikeOff = 0;
+  if (ev.kind === 'spike' && u >= 0)
+    mini.ivSpikeOff = ev.dir * 0.15 * (u < 0.3 ? u / 0.3 : u < 1.5 ? 1 : Math.max(0, 1 - (u - 1.5) / 2.1));
+  if (u >= ev.dur) {
+    mini.ivEvent = null;
+    mini.ivInverted = false;
+    mini.ivSplit = 0;
+    mini.ivSpikeOff = 0;
+    mini.ivEventGap = rand(P.gap[0], P.gap[1]);
+  }
+}
+
+// A shove she never countered: out of the band for too long while it plays out.
+function ivUpdateCounter(dt, inBand) {
+  const c = mini.ivCounter;
+  if (!c) return;
+  c.t += dt;
+  if (!inBand) c.out += dt;
+  if (c.out >= c.limit) {
+    mini.ivCounter = null;
+    ivMood('grimace', 1);
+    const message = { cough: 'THE COUGH WON', hiccup: 'THE HICCUP WON', spike: 'THE SPIKE LEFT YOU BEHIND' }[c.kind];
+    if (ivRules().press.counterStrike) {
+      ivStrike(message);
+      return;
+    }
+    mini.combo = 0;
+    mini.quality = Math.max(0, mini.quality - 3);
+    mini.flash = 0.8;
+    mini.flashText = message + '. LET GO WHEN SHE COUGHS.';
+    sfx('miss');
+    return;
+  }
+  if (c.t >= c.dur) {
+    mini.ivCounter = null;
+    praise(80);
+    mini.flash = 0.5;
+    mini.flashText = 'COUNTERED. TEXTBOOK.';
+    sfx('pickup');
+  }
+}
+
+function ivUpdatePressure(dt) {
+  const P = ivRules().press;
+  ivUpdateJump(dt);
+  ivUpdateEvents(dt);
+  // The slow wander quickens and widens with each banked third.
+  const [speed, amp] = P.wander[Math.min(2, Math.floor((mini.stable / mini.need) * 3))];
+  mini.ivWanderPhase += dt * speed;
+  mini.ivWanderAmp += (amp - mini.ivWanderAmp) * (1 - Math.exp(-dt * 1.5));
+  const glide = 1 - Math.exp(-dt * 7);
+  mini.ivHome += (mini.ivHomeTo - mini.ivHome) * glide;
+  mini.ivSegW += (mini.ivSegWTo - mini.ivSegW) * glide;
+  const base = mini.ivHome + Math.sin(mini.ivWanderPhase) * mini.ivWanderAmp;
+  mini.pressureTarget = clamp(base + mini.ivSpikeOff, 0.16, 0.84);
+  mini.ivCentres =
+    mini.ivSplit > 0.005
+      ? [clamp(mini.pressureTarget - mini.ivSplit, 0.12, 0.88), clamp(mini.pressureTarget + mini.ivSplit, 0.12, 0.88)]
+      : [mini.pressureTarget];
+  // Flipped controls: holding pushes down, letting go pushes up.
+  const up = mini.held !== mini.ivInverted;
+  const desired = (up ? 0.27 : -0.23) * mini.rules.mini;
+  mini.velocity += (desired - mini.velocity) * (1 - Math.exp(-dt * 6));
+  mini.pressure = clamp(mini.pressure + dt * (mini.velocity + Math.sin(mini.phaseTime * 1.7) * P.wobble), 0, 1);
+  const off = Math.abs(mini.pressure - ivNearestCentre());
+  const half = ivBandWidth() / 2;
+  mini.ivMult = 1;
+  if (off < half) {
+    mini.ivBandTime += dt;
+    // Dead center banks faster: ×1.5 at once, ×2 after 1.5 s without wobbling out.
+    if (off < half * 0.36) {
+      mini.ivCentreRun += dt;
+      mini.ivCentreTime += dt;
+      mini.ivMult = mini.ivCentreRun >= 1.5 ? 2 : 1.5;
+    } else mini.ivCentreRun = 0;
+    mini.stable += dt * mini.ivMult;
+  } else mini.ivCentreRun = 0;
+  ivUpdateCounter(dt, off < half);
+  if (mini.pressure < 0.06 || mini.pressure > 0.94) {
+    mini.outside += dt;
+    if (mini.outside > 0.85) {
+      mini.outside = 0;
+      mini.pressure = 0.5;
+      mini.velocity = 0;
+      ivStrike('PRESSURE HAS LEFT THE CHAT');
+    }
+  } else mini.outside = 0;
+  if (mini.screen === 'play' && mini.stable >= mini.need) {
+    // Out of bed.
+    praise(300);
+    ivMood('grin', 3);
+    sfx('clear');
+    finishMini(true);
+  }
 }
 
 // ---------- In-game art ----------
@@ -830,11 +1518,24 @@ function ivDrawDrips(g, x, y) {
     if (d.dy >= 0) ellipse(g, x, y + d.dy, 2, 2.6, ivMix('#f3ce84', '#ffffff', 0.2, Math.min(1, d.life * 2)));
 }
 
+// Macy's face follows the moment: a cough or hiccup winding up puffs her cheeks, flipped controls make
+// her dizzy.
 function ivLook() {
-  return { mood: mini.ivMoodT > 0 ? mini.ivMoodKind : 'calm', puff: 0, green: 0, t: mini.total };
+  let mood = mini.ivMoodT > 0 ? mini.ivMoodKind : 'calm';
+  let puff = 0;
+  if (mini.ivPhase === IV_PRESSURE && mini.ivEvent && !mini.ivEvent.fired) {
+    const ev = mini.ivEvent;
+    if (ev.kind === 'cough' || ev.kind === 'hiccup') {
+      mood = ev.kind;
+      puff = clamp(ev.t / ev.warn, 0, 1) * 0.35;
+    }
+  }
+  if (mini.ivPhase === IV_PRESSURE && mini.ivInverted) mood = 'dizzy';
+  if (mood === 'cough' || mood === 'hiccup') puff = Math.max(puff, mini.ivMoodT > 0 ? 0.15 : 0);
+  return { mood, puff, green: 0, t: mini.total };
 }
 
-// Backdrop, the bar and the strike marks, on whichever canvas shape is up.
+// Backdrop and the phase, on whichever canvas shape is up. The HUD pills carry the strikes.
 function ivDrawPlay(g) {
   if (mini.portrait) {
     ivBackdropTall(g);
@@ -847,13 +1548,17 @@ function ivDrawPlay(g) {
 }
 
 function drawIVMini(g) {
-  if (mini.portrait) ivDrawTapTall(g);
+  const pressure = mini.ivPhase === IV_PRESSURE;
+  if (mini.portrait) {
+    if (pressure) ivDrawPressureTall(g);
+    else ivDrawTapTall(g);
+  } else if (pressure) ivDrawPressureScene(g);
   else ivDrawTapScene(g);
 }
 
-// ---------- Portrait (450 × 800): a scene strip on top, the bar below ----------
+// ---------- Portrait (450 × 800): a scene strip on top, the phase below ----------
 
-// The same teal room as miniBackdrop, stood upright, with the title and level tag on one header row.
+// The same teal room as miniBackdrop, stood upright.
 function ivBackdropTall(g) {
   rect(g, 0, 0, 450, 800, gradient(g, 0, 0, 450, 800, '#295d65', '#142e46'));
   glow(g, 225, 470, 400, '#6ad6aa3d');
@@ -864,7 +1569,7 @@ function ivBackdropTall(g) {
   }
 }
 
-// The top 30% of the portrait canvas: the IV stand dripping, Macy in bed with
+// The top 30% of the portrait canvas, shared by both phases: the IV stand dripping, Macy in bed with
 // her reactions, and the monitor on the cabinet.
 function ivDrawStrip(g) {
   rr(g, 10, 40, 430, 198, 16, gradient(g, 0, 40, 0, 198, '#2f6a70', '#1d4655'), '#6c969a66', 1.2);
@@ -907,21 +1612,37 @@ function ivDrawChain(g, x, y, big, small) {
     );
 }
 
+// Which way the line is going, how fast this sweep runs, and whether the windows slide.
+function ivSweepTag(sep) {
+  const s = mini.ivSweep,
+    tempo = s.tempo > 1.05 ? 'TEMPO ▲ FAST' : s.tempo < 0.95 ? 'TEMPO ▼ SLOW' : '';
+  return (mini.dir > 0 ? 'SWEEP →' : '← SWEEP') + (tempo ? sep + tempo : '') + (s.drift ? sep + 'SLIDING' : '');
+}
+
+// The legend under the bar, per level: what the colors mean.
+const IV_LEGEND = [
+  ['MINT = TAP', 'GOLD CENTER = CHAIN BONUS'],
+  ['MINT = TAP  ·  TWO MINTS = TAP BOTH', 'RED = DECOY'],
+  ['MINT = TAP  ·  RED = DECOY', 'ARROWS = WHERE IT SLIDES'],
+  ['MINT = TAP  ·  RED = DECOY', 'FLICKERING ARROWS = ABOUT TO TURN']
+];
+
 // Portrait: the drip counter and chain up top, a big timing bar in the lower third, the legend below.
 function ivDrawTapTall(g) {
+  const L = ivRules().pump;
   label(g, 'PRIME THE PUMP', 225, 284, 24, '#d8e8cc', 'center');
   ivDrawDripDots(g, 225, 322, 40, 13);
   label(g, mini.good + ' / ' + mini.required + ' drips', 225, 404, 20, '#e7d49c', 'center');
   ivDrawChain(g, 225, 434, 19, 14);
-  ivFitLabel(g, mini.dir > 0 ? 'SWEEP →' : '← SWEEP', 225, 464, 14, '#b4d9cb', 410);
+  ivFitLabel(g, ivSweepTag('  ·  '), 225, 464, 14, '#b4d9cb', 410);
   ivDrawSweepBar(g, 22, 548, 406, 70);
-  ivFitLabel(g, 'MINT = TAP', 225, 728, 15, '#dce8ca', 410);
-  ivFitLabel(g, 'GOLD CENTER = CHAIN BONUS', 225, 752, 15, '#dce8ca', 410);
-  if (mini.screen !== 'outro') ivTapHint(g, 22, 548, 406, 1.4);
+  IV_LEGEND[clamp(mini.tier || 0, 0, 3)].forEach((text, i) => ivFitLabel(g, text, 225, 728 + i * 24, 15, '#dce8ca', 410));
+  if (L.hint && mini.screen !== 'outro') ivTapHint(g, 22, 548, 406, 1.4);
 }
 
 // Landscape: Macy in bed on the left, the counter on the right, the bar across the bottom.
 function ivDrawTapScene(g) {
+  const L = ivRules().pump;
   ivPatient(g, 222, 275, 1.15, ivLook());
   ivStand(g, 111, 275, 1.2);
   ivDrawDrips(g, 132.6, 176);
@@ -931,40 +1652,76 @@ function ivDrawTapScene(g) {
   ivDrawDripDots(g, 605, 134, 34, 11);
   label(g, mini.good + ' / ' + mini.required + ' drips', 605, 218, 17, '#e7d49c', 'center');
   ivDrawChain(g, 605, 246, 17, 12);
-  label(g, mini.dir > 0 ? 'SWEEP →' : '← SWEEP', 605, 274, 13, '#b4d9cb', 'center');
+  label(g, ivSweepTag('   ·   '), 605, 274, 13, '#b4d9cb', 'center');
   ivDrawSweepBar(g, 85, 335, 630);
-  label(g, 'MINT = TAP    ·    GOLD CENTER = CHAIN BONUS', 400, 411, 14, '#dce8ca', 'center');
-  if (mini.screen !== 'outro') ivTapHint(g, 85, 335, 630);
+  label(g, IV_LEGEND[clamp(mini.tier || 0, 0, 3)].join('    ·    '), 400, 411, 14, '#dce8ca', 'center');
+  if (L.hint && mini.screen !== 'outro') ivTapHint(g, 85, 335, 630);
 }
 
-// The sweep bar and its one window. Landscape draws it 37 tall; portrait passes a taller h, and b
-// scales the marks around it (b is 1 at h 37, so the landscape bar is unchanged).
+// The sweep bar with every window of the current pass. Landscape draws it 37 tall; portrait passes a
+// taller h, and b scales the marks around it (b is 1 at h 37, so the landscape bar is unchanged).
 function ivDrawSweepBar(g, x, y, w, h = 37) {
-  const win = mini.ivSweep.win,
-    band = ivBand(),
-    b = Math.min(1.5, h / 37),
-    wx = x + (win.pos - band / 2) * w,
-    ww = band * w;
+  const s = mini.ivSweep;
+  const band = ivBand();
+  const b = Math.min(1.5, h / 37);
   rr(g, x, y, w, h, 16 * Math.min(1.25, b), '#0c2c3b', '#6c969a', 1);
-  // The tall bar lights up the window so the target reads at a glance.
-  if (h > 37 && !win.hit) glow(g, x + win.pos * w, y + h / 2, 70, '#a8f0c440');
-  if (win.hit) {
-    rr(g, wx, y + 2, ww, h - 4, 6, '#d8f5c766');
-    label(g, '✓', x + win.pos * w, y + h / 2 + 6.5 * b, 15 * b, '#e9ffd8', 'center');
-  } else {
+  // The tall bar lights up the next live window so the target reads at a glance.
+  const next = h > 37 ? s.wins.find(v => !v.decoy && !v.hit) : null;
+  if (next) glow(g, x + next.pos * w, y + h / 2, 70, '#a8f0c440');
+  for (const win of s.wins) {
+    const half = (win.decoy ? mini.band : band) / 2;
+    const wx = x + (win.pos - half) * w;
+    const ww = half * 2 * w;
+    if (win.decoy) {
+      const cx = wx + ww / 2;
+      const cy = y + h / 2;
+      const r = 6 * b;
+      rr(g, wx, y + 2, ww, h - 4, 6, win.hitDecoy ? '#7d2a3a' : '#e2687a', '#ffb3bd', 1);
+      line(g, [[cx - r, cy - r], [cx + r, cy + r]], '#fff1f1', 3 * b);
+      line(g, [[cx + r, cy - r], [cx - r, cy + r]], '#fff1f1', 3 * b);
+      continue;
+    }
+    if (win.hit) {
+      rr(g, wx, y + 2, ww, h - 4, 6, '#d8f5c766');
+      label(g, '✓', x + win.pos * w, y + h / 2 + 6.5 * b, 15 * b, '#e9ffd8', 'center');
+      continue;
+    }
     rr(g, wx, y + 2, ww, h - 4, 6, '#96ceac');
     rr(g, x + (win.pos - band * 0.14) * w, y + 2, band * 0.28 * w, h - 4, 3, '#f4e6ad');
   }
-  const mx = x + mini.pos * w,
-    thick = Math.min(1.4, b);
+  // Sliding windows show which way they are heading. One about to turn around flickers first.
+  if (s.drift) {
+    const dir = Math.sign(mini.dir * s.drift);
+    const turning = ivTurning();
+    for (const win of s.wins) {
+      if (!win.decoy && win.hit) continue;
+      const cx = x + win.pos * w;
+      const hot = Math.sin(mini.t * 40) > 0 ? '#ff9a6a' : '#fff1b8';
+      const col = turning ? hot : win.decoy ? '#ffb3bd' : '#c8f0d4';
+      for (const k of [0, 1]) {
+        const ax = cx + dir * (k * 9 - 4) * b;
+        poly(
+          g,
+          [
+            [ax - dir * 4 * b, y + h + 12 * b],
+            [ax + dir * 4 * b, y + h + 17 * b],
+            [ax - dir * 4 * b, y + h + 22 * b]
+          ],
+          col
+        );
+      }
+    }
+  }
+  const mx = x + mini.pos * w;
+  const thick = Math.min(1.4, b);
   line(g, [[mx, y - 5], [mx, y + h + 6]], mini.ivFumble > 0 ? '#ff9aa8' : '#ffe0a1', 4 * thick);
   ellipse(g, mx, y - 5, 5 * thick, 5 * thick, mini.ivFumble > 0 ? '#ff9aa8' : '#ffe0a1');
 }
 
-// Point at the window and shout when it is time. Portrait passes a bigger s.
+// Level 1 only: point at the window and shout when it is time. Portrait passes a bigger s.
 function ivTapHint(g, x, y, w, s = 1) {
-  const win = mini.ivSweep.win;
-  if (win.hit) return;
+  const win = mini.ivSweep.wins.find(v => !v.decoy && !v.hit);
+  if (!win) return;
   const wx = x + win.pos * w,
     inside = Math.abs(mini.pos - win.pos) <= ivBand() / 2,
     bob = Math.sin(mini.t * 6) * 3 * s;
@@ -981,6 +1738,182 @@ function ivTapHint(g, x, y, w, s = 1) {
       '#fff1b8'
     );
   }
+}
+
+// What the band is up to, for the title slot above the gauge.
+function ivBandTitle() {
+  const jump = mini.ivJumpNext;
+  return jump
+    ? 'BAND JUMPING ' + (jump.home > mini.ivHomeTo ? '▲' : '▼')
+    : mini.ivSplit > 0.005
+      ? 'TWO BANDS. EITHER COUNTS.'
+      : 'FOLLOW THE MOVING BAND';
+}
+
+// Portrait gauge: inner bottom at y 701, 374 tall. Pressure 0..1 to canvas y.
+function ivGaugeTallY(p) {
+  return 701 - p * 374;
+}
+
+// Portrait: the callout slot on top, a tall centered gauge, banked time and progress at the bottom.
+function ivDrawPressureTall(g) {
+  const jump = mini.ivJumpNext;
+  if (mini.ivEvent) ivDrawEventCard(g);
+  else label(g, ivBandTitle(), 225, 287, 21, jump ? '#ffe39a' : '#dce9cd', 'center');
+  panel(g, 135, 314, 180, 400, '#173747', '#82a9ad');
+  rr(g, 147, 327, 156, 374, 13, '#0b2839');
+  const y = ivGaugeTallY(mini.pressure);
+  rr(g, 148, y, 154, Math.max(1, 701 - y), 8, gradient(g, 146, y, 0, 701 - y, '#9fd7c0', '#4f9aa9'));
+  const bw = ivBandWidth();
+  for (const c of mini.ivCentres) {
+    rr(g, 120, ivGaugeTallY(c + bw / 2), 210, bw * 374, 5, '#c3eaaa77', '#d8efb7', 2);
+    line(g, [[128, ivGaugeTallY(c)], [322, ivGaugeTallY(c)]], '#f4e6ad88', 1.5);
+  }
+  if (jump) ivDrawJumpWarning(g, jump);
+  line(g, [[333, y], [355, y]], '#ffda8c', 3);
+  label(g, Math.round(mini.pressure * 100) + '%', 361, y + 7, 20, '#ffe1a3');
+  // The level 1 hint rides with the pressure marker: which way to go.
+  if (ivRules().press.hint && mini.screen === 'play') {
+    const c = ivNearestCentre();
+    if (mini.pressure < c - bw / 2) label(g, '▲ HOLD', 361, y + 29, 15, '#fff1b8');
+    if (mini.pressure > c + bw / 2) label(g, '▼ LET GO', 361, y + 29, 15, '#fff1b8');
+  }
+  label(g, mini.stable.toFixed(1) + ' / ' + mini.need + 's', 22, 746, 24, '#ffe0a1');
+  label(g, 'TIME IN THE BAND', 22, 764, 11, '#a8d1c3');
+  if (mini.ivMult > 1) label(g, 'DEAD CENTER ×' + mini.ivMult, 428, 746, 16, '#ffe39a', 'right');
+  else label(g, 'Momentum ' + (mini.velocity > 0 ? '↑' : '↓'), 428, 746, 15, '#c4e0d4', 'right');
+  const goingUp = mini.held !== mini.ivInverted;
+  const status = (mini.held ? 'HOLDING' : 'LET GO') + (goingUp ? ' ↑ PUMPING' : ' ↓ RELEASING');
+  label(g, status, 428, 764, 12, '#d3e5c5', 'right');
+  rr(g, 22, 778, 406, 10, 5, '#234959');
+  rr(g, 22, 778, 406 * Math.min(1, mini.stable / mini.need), 10, 5, '#bde5b5');
+  if (mini.ivInverted) {
+    const pulse = 0.14 + Math.sin(mini.t * 10) * 0.05;
+    rect(g, 0, 0, 450, 800, 'rgba(150,70,220,' + pulse + ')');
+    rr(g, 6, 6, 438, 788, 18, null, '#d9a6ff', 5);
+  }
+}
+
+// Landscape: Macy and the monitor on the left, the gauge in the middle, the banked time on the right.
+function ivDrawPressureScene(g) {
+  ivPatient(g, 137, 309, 0.95, ivLook());
+  ivStand(g, 61, 309, 0.85);
+  ivDrawDrips(g, 76.3, 238);
+  ivMonitor(g, 228, 182, 0.8, { bpm: mini.ivBpm, t: mini.total, alarm: mini.ivBpm > 108 });
+  const jump = mini.ivJumpNext;
+  label(g, ivBandTitle(), 400, 67, 22, jump ? '#ffe39a' : '#dce9cd', 'center');
+  panel(g, 319, 92, 162, 272, '#173747', '#82a9ad');
+  rr(g, 331, 105, 138, 246, 13, '#0b2839');
+  const y = 351 - mini.pressure * 246;
+  rr(g, 332, y, 136, Math.max(1, 351 - y), 8, gradient(g, 330, y, 0, 351 - y, '#9fd7c0', '#4f9aa9'));
+  const bw = ivBandWidth();
+  for (const c of mini.ivCentres) {
+    const by = 351 - (c + bw / 2) * 246;
+    rr(g, 308, by, 185, bw * 246, 5, '#c3eaaa77', '#d8efb7', 2);
+    line(g, [[316, 351 - c * 246], [485, 351 - c * 246]], '#f4e6ad88', 1.5);
+  }
+  if (jump) ivDrawJumpWarning(g, jump);
+  line(g, [[487, y], [509, y]], '#ffda8c', 3);
+  label(g, Math.round(mini.pressure * 100) + '%', 555, y + 5, 20, '#ffe1a3');
+  label(g, mini.stable.toFixed(1) + ' / ' + mini.need + 's', 685, 132, 25, '#ffe0a1', 'center');
+  label(g, 'TIME IN THE BAND', 685, 156, 12, '#a8d1c3', 'center');
+  if (mini.ivMult > 1) label(g, 'DEAD CENTER ×' + mini.ivMult, 685, 196, 16, '#ffe39a', 'center');
+  else label(g, 'Momentum ' + (mini.velocity > 0 ? '↑' : '↓'), 685, 196, 15, '#c4e0d4', 'center');
+  ivDrawEventCard(g);
+  // The level 1 hint: which way to go.
+  if (ivRules().press.hint && mini.screen === 'play') {
+    const c = ivNearestCentre();
+    if (mini.pressure < c - bw / 2) label(g, '▲ HOLD', 400, 384, 15, '#fff1b8', 'center');
+    if (mini.pressure > c + bw / 2) label(g, '▼ LET GO', 400, 384, 15, '#fff1b8', 'center');
+  }
+  const goingUp = mini.held !== mini.ivInverted;
+  const status = (mini.held ? 'HOLDING' : 'LET GO') + (goingUp ? ' ↑ PUMPING' : ' ↓ RELEASING');
+  label(g, status, 400, 405, 16, '#d3e5c5', 'center');
+  rr(g, 247, 422, 306, 10, 5, '#234959');
+  rr(g, 247, 422, 306 * Math.min(1, mini.stable / mini.need), 10, 5, '#bde5b5');
+  if (mini.ivInverted) {
+    const pulse = 0.14 + Math.sin(mini.t * 10) * 0.05;
+    rect(g, 0, 0, 800, 450, 'rgba(150,70,220,' + pulse + ')');
+    rr(g, 6, 6, 788, 438, 18, null, '#d9a6ff', 5);
+  }
+}
+
+// The band is about to jump: a blinking outline where it lands and an arrow from here to there.
+function ivDrawJumpWarning(g, jump) {
+  const P = ivRules().press;
+  const slim = 1 - P.shrink * Math.min(1, mini.stable / mini.need);
+  const c = clamp(jump.home + Math.sin(mini.ivWanderPhase) * mini.ivWanderAmp, 0.16, 0.84);
+  const w = jump.width * slim;
+  const blink = Math.sin(mini.t * 26) > -0.3;
+  // Gauge geometry: the tall portrait gauge or the landscape one.
+  const tall = mini.portrait;
+  const gy = p => (tall ? ivGaugeTallY(p) : 351 - p * 246);
+  const span = tall ? 374 : 246;
+  const bandX = tall ? 120 : 308;
+  const bandW = tall ? 210 : 185;
+  const ax = tall ? 106 : 296;
+  if (blink) rr(g, bandX, gy(c + w / 2), bandW, w * span, 5, '#ffe39a22', '#ffe39a', 2);
+  const y0 = gy(mini.pressureTarget);
+  const y1 = gy(c);
+  const dir = y1 < y0 ? -1 : 1;
+  line(g, [[ax, y0], [ax, y1 - dir * 10]], '#ffe39a', 4);
+  poly(
+    g,
+    [
+      [ax - 9, y1 - dir * 12],
+      [ax + 9, y1 - dir * 12],
+      [ax, y1]
+    ],
+    '#ffe39a'
+  );
+  // Portrait has room beside the gauge to say it out loud.
+  if (tall) label(g, 'JUMP ' + (dir < 0 ? '▲' : '▼'), ax - 14, y1 + 5, 14, '#ffe39a', 'right');
+}
+
+// The callout for a shove, a split or a flip: what is coming and what to do about it.
+function ivDrawEventCard(g) {
+  const ev = mini.ivEvent;
+  if (!ev) return;
+  const left = ev.warn - ev.t;
+  let title = '';
+  let sub = '';
+  let col = '#5b3b6e';
+  if (ev.kind === 'cough') {
+    title = left > 0 ? 'COUGH INCOMING ↑' : 'COUGH!';
+    sub = 'shoves it up: let go';
+    col = '#7a4a2e';
+  }
+  if (ev.kind === 'hiccup') {
+    title = left > 0 ? 'HICCUP INCOMING ↓' : 'HIC!';
+    sub = 'drops it down: pump';
+    col = '#2e5a7a';
+  }
+  if (ev.kind === 'spike') {
+    title = 'PRESSURE SPIKE ' + (ev.dir > 0 ? '↑' : '↓');
+    sub = 'the band is jumping';
+    col = '#7a2e45';
+  }
+  if (ev.kind === 'split') {
+    title = 'BAND SPLIT';
+    sub = 'pick a half, either counts';
+    col = '#2e6a55';
+  }
+  if (ev.kind === 'invert') {
+    const rest = Math.max(0, ev.warn + ev.dur - ev.t);
+    title = left > 0 ? 'CONTROLS FLIP IN ' + left.toFixed(1) : 'FLIPPED! ' + rest.toFixed(1);
+    sub = 'hold = down · let go = up';
+    col = '#5d2e8a';
+  }
+  // Portrait: a wide callout above the gauge, in the title's slot.
+  if (mini.portrait) {
+    rr(g, 30, 250, 390, 56, 14, col, '#f1e2b9aa', 1.5);
+    ivFitLabel(g, title, 225, 274, 18, '#fff0cf', 370);
+    ivFitLabel(g, sub, 225, 296, 13, '#f1dccb', 370);
+    return;
+  }
+  rr(g, 604, 238, 174, 64, 13, col, '#f1e2b9aa', 1.5);
+  label(g, title, 691, 266, 15, '#fff0cf', 'center');
+  label(g, sub, 691, 287, 12, '#f1dccb', 'center');
 }
 
 // ---------- The losing outro: rumble, inflate, flash, burst ----------
