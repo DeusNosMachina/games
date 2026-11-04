@@ -2546,7 +2546,8 @@ for (const [room, ents] of Object.entries(castIn)) {
     drawWorld();
     const here = hallwayCast.filter(n => hallwayShown(n));
     here.forEach(n => { n.bark = { text: 'Knock knock.', life: 1, max: 2 }; });
-    const n = here[0]; player.x = clamp(n.x + 44, 80, 920); player.y = n.y; updateRoomExtras(0.1); hallwayOpenTalk(n);
+    // Lights out (room 5) is bedtime: everyone has left, so there is nobody to talk to.
+    const n = here[0]; if (n) { player.x = clamp(n.x + 44, 80, 920); player.y = n.y; updateRoomExtras(0.1); hallwayOpenTalk(n); }
     roomExtraRenderables().forEach(r => r.draw(roomStrict));
     drawRoomOverlay(roomStrict, 844, 390);
     drawWorld();
@@ -2554,10 +2555,28 @@ for (const [room, ents] of Object.entries(castIn)) {
     hallwayCloseTalk();
   })()`);
   const drawn = JSON.parse(RP.run('JSON.stringify(drawn)'));
-  const want = RP.run(`${JSON.stringify(ents)}.reduce((a, e) => a + hallwayMembers(e).length, 0)`);
+  const want = room === '5' ? 0 : RP.run(`${JSON.stringify(ents)}.reduce((a, e) => a + hallwayMembers(e).length, 0)`);
   assert.equal(drawn.here, want, `room ${room}: everyone placed there is in view`);
   assert.equal(drawn.list, want, `room ${room}: each one is a depth-sorted renderable`);
 }
 assert.deepEqual(rStrict.slice(0, 5), [], 'every room, visitors, barks and the speech box draw with finite numbers');
 RP.run('viewport.w = 1000; viewport.h = 625');
-console.log('PASS: her room (lights on and out), the MRI, the lounge, CT and ultrasound all draw with visitors, barks and a talk.');
+console.log('PASS: her room, the MRI, the lounge, CT and ultrasound all draw with visitors, barks and a talk; lights out empties her room.');
+
+// ---- Lights out empties her room ----
+run(`(() => {
+  hallwayRoaming = true; hallwayResetCast(); state.room = 0; hallwayTalk = null; enemies = [];
+  for (const e of hallwayEntities()) hallwayPlaceEntity(e, 6);
+  hallwayPlaceEntity('dad', 0); hallwayRoam.next = 1e9; hallwayEnsure.due = 1e9;
+  const dad = hallwayCast.find(n => n.id === 'dad');
+  globalThis.lightsSafeOn = hallwayRoomSafe(0);
+  state.room = 5;
+  globalThis.lightsSafeOff = hallwayRoomSafe(0);
+  for (let i = 0; i < 120; i++) updateRoomExtras(1 / 60);
+  globalThis.lightsDadRoom = hallwayEntityRoom('dad');
+  state.room = 0; hallwayRoaming = false;
+})()`);
+assert.equal(run('lightsSafeOn'), true, 'her room takes visitors with the lights on');
+assert.equal(run('lightsSafeOff'), false, 'and not with the lights out');
+assert.equal(run('lightsDadRoom'), 6, 'Dad leaves for the hallway when the lights go out');
+console.log('PASS: lights out sends the visitors out of her room.');

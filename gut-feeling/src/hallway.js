@@ -3812,6 +3812,8 @@ function hallwayRoomSafe(room) {
   const k = hallwayKey(room);
   if (k === HALLWAY_ID) return true;
   if (k === 0 && hallwayRalphWaiting()) return false;
+  // Lights out means bedtime: her room empties while it is dark.
+  if (k === 0 && state.room === 5) return false;
   const combat = typeof wardCombatRoom === 'function' ? wardCombatRoom(k) : k !== 0;
   if (combat) {
     if (!(Number(state.wardClears[k]) > 0)) return false;

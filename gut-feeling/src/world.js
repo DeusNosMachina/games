@@ -543,7 +543,9 @@ const MACY_IDLE_MIN = 4,
         verb: () => (state.room === 5 ? 'LIGHTS ON' : 'LIGHTS OUT'),
         tap: [LIGHT_SWITCH.x - 18, LIGHT_SWITCH.y - 22, 36, 46]
       },
-      { id: 'wall', zone: [40, 170, 200, 165], at: [160, 296], tip: [167, 140], verb: 'READ', tap: [86, 66, 162, 62] },
+      { id: 'wall', zone: [40, 170, 200, 142], at: [160, 296], tip: [167, 140], verb: 'READ', tap: [86, 66, 162, 62] },
+      // The foot of the bed, a step further down than the wall's spot: NAP turns the lights out and dreams.
+      { id: 'bed', zone: [95, 312, 131, 40], at: [162, 332], tip: [162, 196], verb: 'NAP', tap: [95, 176, 131, 105] },
       { id: 'etype', zone: [240, 170, 130, 150], at: [307, 282], tip: [307, 130], verb: 'ADMIRE', tap: [266, 138, 82, 36] },
       { id: 'tv', zone: [596, 170, 228, 125], at: [705, 236], tip: [705, 142], verb: 'CHANNEL', tap: [620, 24, 170, 100] }
     ],
@@ -888,6 +890,7 @@ function roomSpotUse(s) {
   macyWake();
   if (Math.abs(s.at[0] - player.x) > 8) player.dir = s.at[0] > player.x ? 1 : -1;
   if (s.id === 'switch') return roomLights();
+  if (s.id === 'bed') return roomNap();
   if (s.id === 'tv') return tvChange();
   if (s.id === 'etype') {
     if (roomBark && roomBark.id === 'etype') roomBark = null;
@@ -944,6 +947,23 @@ const ROOM_LIGHTS_FADE = 0.35;
 
 let roomLightsFade = 0,
   roomLightsDark = false;
+
+// The bed: lights out if they are on, then straight into a dream. (Lying still in the dark for a while
+// still drifts off on its own; this is the way you find on purpose.)
+function roomNap() {
+  if (typeof dreamActive === 'function' && dreamActive()) return true;
+  if (reduced) {
+    toast('Reduced motion is on, so no dreams. She rests her eyes. Dramatically.', 3);
+    return true;
+  }
+  if (state.room !== 5) roomLights();
+  if (typeof dreamBegin !== 'function') return true;
+  dreamBegin();
+  const stats = (state.stats ||= {});
+  stats.naps = (Number(stats.naps) || 0) + 1;
+  save();
+  return true;
+}
 
 function roomLights() {
   const off = state.room !== 5;

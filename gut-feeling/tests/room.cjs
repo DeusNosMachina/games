@@ -530,3 +530,16 @@ assert.equal(nodes.attackBtnchild.textContent, 'TALK', 'next to a visitor in her
 run('hallwayTarget = null; wardActRefresh()');
 assert.equal(nodes.attackBtnchild.textContent, 'USE', 'and reads USE again when nobody is near');
 console.log('PASS: the safe-room button reads TALK by a visitor and USE otherwise.');
+
+// ---- The bed is a hotspot: NAP turns the lights out and starts a dream on the spot ----
+run('loadRoom(0); player.x = 160; player.y = 332; player.moving = false');
+assert.equal(run('roomSpotNear() && roomSpotNear().id'), 'bed', 'standing at the foot of the bed offers the bed');
+assert.equal(run('roomSpotNear().verb'), 'NAP');
+run('player.x = 160; player.y = 300');
+assert.equal(run('roomSpotNear() && roomSpotNear().id'), 'wall', 'a step up from the foot of the bed is still the get-well wall');
+run("roomSpotUse(ROOM_SPOTS[0].find(s => s.id === 'bed'))");
+assert.equal(run('state.room'), 5, 'a nap turns the lights out');
+assert.equal(run('typeof dreamActive === "function" ? dreamActive() : true'), true, 'and starts a dream straight away');
+assert.equal(run('state.stats.naps'), 1, 'naps are counted');
+run('if (typeof dreamWake === "function") dreamWake(); loadRoom(0)');
+console.log('PASS: the bed offers NAP, turns the lights out and starts a dream on the spot.');
