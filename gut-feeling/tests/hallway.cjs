@@ -1,13 +1,18 @@
 // The seventh-floor hallway at Valley Hospital (room 6): names and signage, install, door placement,
 // strolling visitors, conversations, Barb from Dietary and her Ensure, Rowdy, the get-well cards and
 // sticker counters, door zones, the shop and the exit, drawing with a strict canvas, the talk voices,
-// and the hallway and title tracks. The platform hooks in world.js may not be in this build yet, so the
-// test drives the hooks itself and tolerates a goRoom(6) that cannot finish.
+// the hallway and title tracks, and visitors in the other rooms (who may be where, the scheduler, travel
+// through doors, talking in a room, the rematch eviction, remembering who is where). The platform hooks
+// in world.js may not be in this build yet, so the test drives the hooks itself and tolerates a goRoom(6)
+// that cannot finish.
 const fs = require('node:fs');
 const path = require('node:path');
 const { run, box, nodes, assert } = require('./harness.cjs');
 
 run('let rng = 2026; Math.random = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 4294967296; }');
+// Most of this file is about the hallway itself: the whole cast stays there (no roaming) until the
+// rooms section near the end switches it back on.
+run('hallwayRoaming = false; hallwayResetCast()');
 
 // ---- Source rules ----
 const src = fs.readFileSync(path.join(__dirname, '../src/hallway.js'), 'utf8');
@@ -421,8 +426,11 @@ assert.deepEqual(JSON.parse(run('JSON.stringify(trioFace)')), [[false, true], [f
 run(`(() => {
   player.x = 300; player.y = 520;
   const crew = hallwayCast.filter(n => n.group === 'friends'),
-    lead = crew.find(n => n.lead),
-    from = [lead.x, lead.y];
+    lead = crew.find(n => n.lead);
+  // Mid-range, so there is room to walk away from her whichever way the last stroll went.
+  lead.x = 2150; lead.y = 330;
+  for (const n of crew) if (n !== lead) { n.x = lead.x + n.slot[0]; n.y = lead.y + n.slot[1]; }
+  const from = [lead.x, lead.y];
   let walked = 0;
   lead.mode = 'idle'; lead.idle = lead.restless;
   for (let i = 0; i < 60 * 12; i++) {
@@ -985,15 +993,15 @@ assert.deepEqual(
 assert.ok(cs.find(c => c.who === 'rowdy').text.includes('Macy'), "Rowdy's card cheers for Macy by name");
 assert.ok(cardLists.dad.includes(cs.find(c => c.who === 'dad').text));
 
-// Second talks never duplicate a card.
-talkOnce('dad');
+// Second talks never duplicate a card. (Dad's talk is a joke, or now and then a deep thought.)
+const secondDad = talkOnce('dad');
 talkOnce('julez');
 talkOnce('benedetto');
 talks += 3;
 assert.equal(cards().length, CARD_WHO.length, 'no duplicate cards');
 assert.equal(cards().filter(c => c.who === 'julez').length, 1, 'one card from Julez');
 assert.equal(count('talks'), talks);
-assert.equal(count('dadJokes'), 2, 'each Dad joke told counts once');
+assert.equal(count('dadJokes'), 1 + (secondDad.some(l => Number.isInteger(l.joke)) ? 1 : 0), 'each Dad joke told counts once');
 assert.equal(count('metEveryone'), 1);
 
 // Rowdy's own timer cheers: watched to the end counts; to nobody, or walked out on, does not.
@@ -1713,7 +1721,8 @@ run(`drawLog = []; hallwayDrawNpc(logCtx, hallwayCast.find(x => x.id === 'mimi')
 assert.ok(run('withPurse - drawLog.length') >= 12, 'the purse has its little repeating print');
 console.log('PASS: Mimi (light blondish-brown bun, the purse, the worrying) and Dodo (silver side part, beard, camera and flash) draw; every gesture draws.');
 
-// Not in the hallway: the hooks stay out of the way.
+// A room with nobody in it (roaming is off here, so the whole cast is in the hallway): the hooks stay
+// out of the way.
 run('state.room = 2; hallwayTalk = null');
 assert.equal(run("roomExtrasAction('attack')"), false);
 assert.equal(run('roomExtraRenderables().length'), 0);
@@ -1721,7 +1730,7 @@ run('drawRoomOverlay(c, 1000, 625); updateRoomExtras(1 / 60); onRoomLoaded(2)');
 run('state.room = 6; state.paused = true');
 assert.equal(run("roomExtrasAction('attack')"), false, 'paused: hands off');
 run('state.paused = false');
-console.log('PASS: outside the hallway (or paused) the hooks do nothing.');
+console.log('PASS: in a room with no visitors (or paused) the hooks do nothing.');
 
 // ---- Voices and tracks ----
 const voices = JSON.parse(run('JSON.stringify(HALLWAY_VOICES)'));
@@ -1898,3 +1907,456 @@ assert.ok(
 run('music(null)');
 assert.equal(run('audioDraws'), 0, 'voices and tracks never draw from the game’s Math.random');
 console.log('PASS: every voice is a layered, distinct syllable; room:6 and title play once and repeat as no-ops.');
+
+// ---- Visitors in the rooms ----
+// A fresh page with roaming on: who may be where, three visits a room at most, nobody in a ward with
+// gremlins, Rowdy home in the hallway, groups together, somebody always in the hallway, the scheduler,
+// walking through doors in view, talking and greeting in a room, the rematch eviction, remembering who is
+// where, and every room drawing with visitors in it.
+delete require.cache[require.resolve('./harness.cjs')];
+const RP = require('./harness.cjs');
+RP.run('let rng = 4711; Math.random = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 4294967296; }');
+RP.run(`begin(); state.paused = false; enemies = []; player.inv = 1e9;
+  state.wardClears = state.wardClears.map((v, i) => (i >= 1 && i <= 4 ? 1 : 0));
+  for (const k in state.wardFights) delete state.wardFights[k];
+  state.ralphReady = false; state.ralph = false; state.won = false;
+  hallwayConvos = null; localStorage.setItem('gut-feeling-convos', '{}');
+  loadRoom(6); hallwayResetCast(); onRoomLoaded(6);
+  var roomsOf = () => Object.fromEntries(hallwayEntities().map(e => [e, hallwayEntityRoom(e)]));
+  var KIN = ['dad', 'brother', 'casey', 'family', 'friends'], STAFF = ['stephanie', 'julez', 'lori', 'benedetto'];`);
+assert.equal(RP.run('hallwayRoaming'), true, 'roaming is on by default');
+assert.deepEqual(JSON.parse(RP.run('JSON.stringify(hallwayEntities().sort())')), ['benedetto', 'brother', 'casey', 'dad', 'family', 'friends', 'julez', 'lori', 'stephanie'], 'nine visits: Mimi and Dodo are one, the friends are one');
+const spread = JSON.parse(RP.run('JSON.stringify(roomsOf())'));
+const spreadIn = Object.values(spread).filter(r => r !== 6).length;
+assert.ok(spreadIn >= 3 && spreadIn <= 5, `a fresh start spreads about half the cast into rooms (${JSON.stringify(spread)})`);
+for (const [ent, r] of Object.entries(spread)) assert.ok(RP.run(`hallwayAllowed('${ent}', ${r})`), `${ent} may be in ${r}`);
+// The rules themselves.
+assert.ok(RP.run('KIN.every(e => hallwayAllowed(e, 0) && hallwayAllowed(e, 5) && hallwayAllowed(e, 2) && hallwayAllowed(e, 6) && ![1, 3, 4].some(r => hallwayAllowed(e, r)))'), 'family and friends: her room, the lounge, the hallway');
+assert.ok(RP.run('STAFF.every(e => [0, 1, 3, 4, 5, 6].every(r => hallwayAllowed(e, r)) && !hallwayAllowed(e, 2))'), 'doctors and nurses: anywhere but the lounge');
+assert.equal(RP.run('hallwayRoomSafe(3)'), true);
+RP.run('state.wardClears[3] = 0');
+assert.equal(RP.run('hallwayRoomSafe(3)'), false, 'a ward never cleared has gremlins');
+RP.run('state.wardClears[3] = 1; state.wardFights[3] = { wave: 2, teach: false, left: [[0]] }');
+assert.equal(RP.run('hallwayRoomSafe(3)'), false, 'so does a rematch walked out of');
+RP.run('delete state.wardFights[3]; state.ralphReady = true');
+assert.equal(RP.run('hallwayRoomSafe(0) || hallwayRoomSafe(5)'), false, 'Ralph waiting under the bed keeps everyone out of her room');
+RP.run('state.ralphReady = false');
+// Spots: open floor, off the beacon, the cart and the hotspots, away from the way out and her landing.
+const badSpots = JSON.parse(
+  RP.run(`JSON.stringify([0, 1, 2, 3, 4].flatMap(r => hallwayRoomSpots(r).filter(([x, y]) => {
+    const st = rooms[r].station, cart = SNACK_CARTS[r];
+    return !hallwayFloorFree(r, x, y, 6) || (st && Math.hypot(x - st[0], y - st[1]) < 100) || (cart && Math.hypot(x - cart.x, y - cart.y) < 70) ||
+      (x > 780 && y < 340) || Math.hypot(x - 505, y - 470) < 150 ||
+      (ROOM_SPOTS[r] || []).some(s => Math.hypot(x - s.at[0], y - s.at[1]) < 90);
+  }).map(p => [r, ...p])))`)
+);
+assert.deepEqual(badSpots, [], 'every standing spot is open floor clear of the beacon, cart, hotspots, exit and landing');
+assert.ok(RP.run('[0, 1, 2, 3, 4].every(r => hallwayRoomSpots(r).length >= 12)'), 'and every room has plenty of them');
+console.log(`PASS: who may be where, the safety rules, standing spots, and a fresh spread of ${spreadIn} visits into rooms.`);
+
+// Ten minutes: Macy walks a loop through the floor (a locked CT, a rematch in the MRI she walks out of
+// half-way), and after every step the rules hold.
+RP.run(`(() => {
+  state.wardClears[3] = 0;
+  const route = [6, 0, 6, 2, 1, 6, 4, 0, 6, 2, 5, 6];
+  const bad = [], seen = new Set(), moves = { n: 0 }, last = roomsOf(), inRooms = [];
+  let leg = -1, rematched = false;
+  const rowdy = hallwayCast.find(n => n.rowdy);
+  for (let i = 0; i < 20 * 600; i++) {
+    const t = i / 20, want = route[Math.floor(t / 50) % route.length];
+    if (want !== leg) {
+      leg = want;
+      loadRoom(want);
+      enemies = [];
+      if (want === 6) player.x = 1600;
+    }
+    // In the MRI the second time round she asks for Ralph's grudge, then walks out mid-fight.
+    if (want === 1 && !rematched && t > 220 && t < 250) { rematched = true; wardRematch(); enemies = []; globalThis.rematchAt = t; }
+    updateRoomExtras(1 / 20);
+    const now = roomsOf();
+    for (const e of Object.keys(now)) if (now[e] !== last[e]) { moves.n++; seen.add(e); }
+    Object.assign(last, now);
+    const count = {};
+    for (const [e, r] of Object.entries(now)) {
+      if (!hallwayAllowed(e, r)) bad.push(t + ' ' + e + ' not allowed in ' + r);
+      if (r !== 6 && !hallwayRoomSafe(r)) bad.push(t + ' ' + e + ' in unsafe room ' + r);
+      count[r] = (count[r] || 0) + 1;
+    }
+    const barb = hallwayCast.find(n => n.ensure);
+    if (barb.present && barb.room !== 6) {
+      count[barb.room] = (count[barb.room] || 0) + 1;
+      if (!hallwayRoomSafe(barb.room)) bad.push(t + ' Barb in unsafe room ' + barb.room);
+    }
+    for (const [r, n] of Object.entries(count)) if (r !== '6' && n > 3) bad.push(t + ' ' + n + ' visits in room ' + r);
+    if (!(count[6] >= 1)) bad.push(t + ' nobody but Rowdy in the hallway');
+    if (rowdy.room !== 6 || rowdy.trip) bad.push(t + ' Rowdy left the hallway');
+    for (const g of ['family', 'friends']) {
+      const crew = hallwayMembers(g);
+      if (new Set(crew.map(n => n.room)).size !== 1) bad.push(t + ' ' + g + ' split up');
+    }
+    if (Object.values(now).includes(3)) bad.push(t + ' someone in the locked CT');
+    inRooms.push(Object.values(now).filter(r => r !== 6).length);
+  }
+  globalThis.roam = { bad: bad.slice(0, 6), moves: moves.n, movers: [...seen], mean: inRooms.reduce((a, b) => a + b, 0) / inRooms.length,
+    min: Math.min(...inRooms), max: Math.max(...inRooms), fightLeft: !!state.wardFights[1] };
+})()`);
+const roam = JSON.parse(RP.run('JSON.stringify(roam)'));
+assert.deepEqual(roam.bad, [], 'ten minutes: every rule holds after every step');
+assert.ok(roam.moves >= 10, `the scheduler keeps people moving (${roam.moves} moves)`);
+assert.ok(roam.movers.length >= 6, `and not always the same people (${roam.movers.join(', ')})`);
+assert.ok(roam.mean >= 3 && roam.mean <= 5.5, `about half the cast is in rooms (mean ${roam.mean.toFixed(2)} of 9, ${roam.min} to ${roam.max})`);
+assert.equal(RP.run('typeof rematchAt'), 'number', 'the loop asked for a rematch');
+assert.equal(roam.fightLeft, true, 'the MRI fight was walked out of half-done');
+assert.equal(RP.run('Object.values(roomsOf()).includes(1)'), false, 'so nobody is in the MRI');
+RP.run('for (const k in state.wardFights) delete state.wardFights[k]; state.wardClears[3] = 1');
+console.log(`PASS: ten minutes on the floor: ${roam.moves} moves by ${roam.movers.length} visits, ${roam.mean.toFixed(1)} of 9 in rooms on average, every rule held.`);
+
+// The scheduler's numbers: a move every 20 to 60 s, nobody moves before 60 s in a place, and Rowdy and
+// Barb are never on its list.
+RP.run(`(() => {
+  hallwayResetCast(); loadRoom(6); player.x = 3000; player.y = 520;
+  const gaps = [], stays = [];
+  let lastMove = null;
+  const since = {};
+  for (const e of hallwayEntities()) since[e] = null;
+  let prev = roomsOf();
+  for (let i = 0; i < 20 * 900; i++) {
+    updateRoomExtras(1 / 20);
+    const t = i / 20, now = roomsOf();
+    for (const e of Object.keys(now)) if (now[e] !== prev[e]) {
+      if (lastMove !== null) gaps.push(t - lastMove);
+      lastMove = t;
+      if (since[e] !== null) stays.push(t - since[e]);
+      since[e] = t;
+    }
+    prev = now;
+  }
+  globalThis.sched = { gaps, stays, ents: hallwayEntities() };
+})()`);
+const sched = JSON.parse(RP.run('JSON.stringify(sched)'));
+assert.ok(sched.gaps.length >= 12, `fifteen minutes, plenty of moves (${sched.gaps.length})`);
+assert.ok(sched.gaps.every(g => g >= 4.9), `one move at a time, never two together (shortest gap ${Math.min(...sched.gaps).toFixed(1)} s)`);
+assert.ok(sched.gaps.filter(g => g >= 19.9 && g <= 60.1).length / sched.gaps.length > 0.7, 'most gaps are 20 to 60 s');
+assert.ok(sched.stays.every(s => s >= 59.9), `a visit stays at least a minute (${Math.min(...sched.stays).toFixed(1)} s)`);
+assert.ok(!sched.ents.includes('rowdy') && !sched.ents.includes('barb'), 'Rowdy and Barb are not on the roster');
+console.log(`PASS: the scheduler moves one visit every ${Math.min(...sched.gaps).toFixed(0)} to ${Math.max(...sched.gaps).toFixed(0)} s; every stay is a minute or more.`);
+
+// ---- Travel she can see ----
+// From the hallway into a room: a walk to that room's door, up into it, gone; then in the room, a spot.
+RP.run(`(() => {
+  hallwayResetCast(); loadRoom(6); player.x = 2900; player.y = 520;
+  for (const e of hallwayEntities()) hallwayPlaceEntity(e, 6);
+  hallwayRoam.next = 1e9;
+  const dad = hallwayCast.find(n => n.id === 'dad');
+  hallwaySettle(dad, 420, 380);
+  hallwayMoveEntity('dad', 0);
+  const log = [];
+  for (let i = 0; i < 60 * 30 && dad.trip; i++) { updateRoomExtras(1 / 60); log.push([dad.x, dad.y, hallwayShown(dad)]); }
+  const lastSeen = log.filter(l => l[2]).pop();
+  globalThis.outTrip = { lastSeen, room: dad.room, shown: hallwayShown(dad), trip: !!dad.trip, spot: [dad.x, dad.y],
+    free: hallwayFloorFree(0, dad.x, dad.y), steps: log.length };
+})()`);
+const outTrip = JSON.parse(RP.run('JSON.stringify(outTrip)'));
+assert.ok(Math.abs(outTrip.lastSeen[0] - 600) < 24 && outTrip.lastSeen[1] < 236, `Dad walks into Room 10's door before he vanishes (${outTrip.lastSeen.map(Math.round)})`);
+assert.equal(outTrip.room, 0);
+assert.equal(outTrip.shown, false, 'and is gone from the hallway');
+assert.equal(outTrip.free, true, 'standing on open floor in her room');
+// From a room into the hallway: out of that room's door, then over to their stretch.
+RP.run(`(() => {
+  const casey = hallwayCast.find(n => n.id === 'casey');
+  hallwayPlaceEntity('casey', 2);
+  player.x = 300; player.y = 520;
+  hallwayMoveEntity('casey', 6);
+  const first = [casey.x, casey.y, hallwayShown(casey), casey.trip && casey.trip.phase];
+  for (let i = 0; i < 60 * 40 && casey.trip; i++) updateRoomExtras(1 / 60);
+  globalThis.inTrip = { first, end: [casey.x, casey.y], range: casey.range, trip: !!casey.trip };
+})()`);
+const inTrip = JSON.parse(RP.run('JSON.stringify(inTrip)'));
+assert.deepEqual(inTrip.first.slice(2), [true, 'in'], 'Casey comes out of the lounge in view');
+assert.ok(Math.abs(inTrip.first[0] - 1560) < 1 && inTrip.first[1] < 250, 'through the lounge doors');
+assert.equal(inTrip.trip, false, 'and finishes the walk');
+assert.ok(inTrip.end[0] >= inTrip.range[0] - 30 && inTrip.end[0] <= inTrip.range[1] + 30, `in her own stretch of the hall (${Math.round(inTrip.end[0])})`);
+
+// In her room: Riley knocks and walks in from the corner; the friends follow one after another; Dad
+// says he will be back and walks out by the corner. Nobody walks through furniture.
+RP.run(`(() => {
+  hallwayResetCast(); for (const e of hallwayEntities()) hallwayPlaceEntity(e, 6);
+  hallwayPlaceEntity('dad', 0);
+  loadRoom(0); player.x = 505; player.y = 470; hallwayRoam.next = 1e9; hallwayEnsure.due = 1e9;
+  const riley = hallwayCast.find(n => n.id === 'brother'), dad = hallwayCast.find(n => n.id === 'dad');
+  const bad = [];
+  hallwayMoveEntity('brother', 0);
+  const first = [riley.x, riley.y, riley.trip.phase];
+  let knock = null;
+  for (let i = 0; i < 60 * 30 && riley.trip; i++) {
+    updateRoomExtras(1 / 60);
+    if (riley.bark && !knock) knock = riley.bark.text;
+    if (hallwayShown(riley) && !hallwayFloorFree(0, riley.x, riley.y)) bad.push(['riley', riley.x, riley.y]);
+  }
+  hallwayMoveEntity('friends', 0);
+  const crew = hallwayMembers('friends'), firstSeen = crew.map(() => null);
+  for (let i = 0; i < 60 * 30 && crew.some(n => n.trip); i++) {
+    updateRoomExtras(1 / 60);
+    crew.forEach((n, k) => { if (firstSeen[k] === null && hallwayShown(n)) firstSeen[k] = i / 60; if (hallwayShown(n) && !hallwayFloorFree(0, n.x, n.y)) bad.push([n.id, n.x, n.y]); });
+  }
+  const lead = crew.find(n => n.lead);
+  const spread = Math.max(...crew.map(n => dist(n, lead)));
+  hallwayMoveEntity('dad', 2);
+  let bye = dad.bark && dad.bark.text, lastSeen = null;
+  for (let i = 0; i < 60 * 30 && dad.trip; i++) {
+    updateRoomExtras(1 / 60);
+    if (hallwayShown(dad)) { lastSeen = [dad.x, dad.y]; if (!hallwayFloorFree(0, dad.x, dad.y)) bad.push(['dad', dad.x, dad.y]); }
+  }
+  globalThis.roomTrips = { first, knock, riley: [riley.x, riley.y, riley.room, !!riley.trip], firstSeen, spread, bye, lastSeen, dadRoom: dad.room, dadShown: hallwayShown(dad), bad: bad.slice(0, 3) };
+})()`);
+const roomTrips = JSON.parse(RP.run('JSON.stringify(roomTrips)'));
+const KNOCKS = JSON.parse(RP.run('JSON.stringify(HALLWAY_KNOCKS.kin)'));
+assert.deepEqual(roomTrips.first, [950, 196, 'in'], 'Riley comes in at the corner Macy leaves by');
+assert.ok(KNOCKS.includes(roomTrips.knock), `with a knock (${roomTrips.knock})`);
+assert.equal(roomTrips.riley[3], false, 'and walks over to a spot');
+assert.ok(RP.run(`hallwayRoomSpots(0).some(([x, y]) => Math.hypot(x - ${roomTrips.riley[0]}, y - ${roomTrips.riley[1]}) < 6)`), `one of the room’s standing spots (${roomTrips.riley})`);
+assert.ok(roomTrips.firstSeen.every(t => t !== null), 'all three friends come in');
+assert.ok(roomTrips.firstSeen[2] - roomTrips.firstSeen[0] >= 1, `one after another (${roomTrips.firstSeen.map(t => t.toFixed(1))})`);
+assert.ok(roomTrips.spread < 110, 'and end up together');
+assert.ok(JSON.parse(RP.run('JSON.stringify(HALLWAY_BYES)')).includes(roomTrips.bye) || roomTrips.bye === null, 'Dad may say he will be back');
+assert.ok(roomTrips.lastSeen[0] > 900 && roomTrips.lastSeen[1] < 260, `Dad leaves by the corner (${roomTrips.lastSeen.map(Math.round)})`);
+assert.deepEqual([roomTrips.dadRoom, roomTrips.dadShown], [2, false], 'and is in the lounge now');
+assert.deepEqual(roomTrips.bad, [], 'nobody walks through the furniture');
+// Out of view at both ends: they are simply there.
+RP.run(`hallwayMoveEntity('casey', 2); globalThis.quiet = [!!hallwayCast.find(n => n.id === 'casey').trip, hallwayEntityRoom('casey')]`);
+assert.deepEqual(JSON.parse(RP.run('JSON.stringify(quiet)')), [false, 2], 'with Macy in neither room, a move is instant');
+// Macy leaves mid-trip: the walk finishes at once.
+RP.run(`hallwayMoveEntity('friends', 6); loadRoom(6); globalThis.midTrip = hallwayMembers('friends').map(n => [!!n.trip, n.room])`);
+assert.deepEqual(JSON.parse(RP.run('JSON.stringify(midTrip)')), [[false, 6], [false, 6], [false, 6]], 'walking out of the room ends every trip');
+console.log('PASS: travel in view: through the door in the hallway, by the corner in a room, a knock coming in, groups a beat apart, instant out of view.');
+
+// ---- Rooms behave like the hallway ----
+// The lounge: Mimi and Dodo. A TALK prompt, the same deck and speech box, the greeting, the counters.
+RP.run(`(() => {
+  hallwayResetCast(); for (const e of hallwayEntities()) hallwayPlaceEntity(e, 6);
+  hallwayPlaceEntity('family', 2);
+  loadRoom(2); hallwayRoam.next = 1e9; hallwayEnsure.due = 1e9; hallwayTalk = null;
+  const dodo = hallwayCast.find(n => n.id === 'dodo');
+  player.x = dodo.x + 44; player.y = dodo.y; player.moving = false; player.dash = 0;
+  updateRoomExtras(0.2);
+})()`);
+assert.equal(RP.run('hallwayTarget && hallwayTarget.kind'), 'talk', 'a TALK prompt in the lounge');
+assert.equal(RP.run('hallwayTarget.npc.id'), 'dodo');
+assert.equal(RP.run('roomExtraRenderables().length'), 2, 'Mimi and Dodo draw in the lounge, depth-sorted with the room');
+const talksBefore = RP.run('Number(state.stats.talks) || 0');
+assert.equal(RP.run("roomExtrasAction('attack')"), true, 'Space opens the talk');
+assert.equal(RP.run('hallwayTalk.npc.id'), 'dodo');
+assert.ok(RP.run('HALLWAY_LINES.dodo.talks.map(t => hallwayFill(t.say[0][1])).includes(hallwayTalk.lines[0].text)'), 'off Dodo’s own deck');
+RP.run('drawRoomOverlay(c, 1000, 625)');
+RP.run('for (let i = 0; i < 40 && hallwayTalk; i++) { updateRoomExtras(0.2); roomExtrasAction("attack"); updateRoomExtras(0.1); }');
+assert.equal(RP.run('hallwayTalk'), null, 'and closes at the end');
+assert.equal(RP.run('state.stats.talks'), talksBefore + 1, 'it counts as a talk');
+assert.ok(RP.run('state.cards.some(c => c.who === "dodo")'), 'and leaves a card');
+// Standing by them: the greeting (a group greets as one).
+RP.run(`(() => {
+  const dodo = hallwayCast.find(n => n.id === 'dodo'), mimi = hallwayCast.find(n => n.id === 'mimi');
+  for (const n of [dodo, mimi]) { n.greeted = false; n.greetCd = 0; n.act = null; }
+  player.x = dodo.x + 50; player.y = dodo.y;
+  for (let i = 0; i < 60 * 3; i++) updateRoomExtras(1 / 60);
+  globalThis.loungeGreet = [dodo.act && dodo.act.kind, mimi.act && mimi.act.kind, dodo.greeted, mimi.greeted];
+})()`);
+assert.deepEqual(JSON.parse(RP.run('JSON.stringify(loungeGreet)')), ['hug', 'hug', true, true], 'Mimi and Dodo both step in for the hug');
+// Away from Macy they keep their spot, and nobody ever steps toward her.
+RP.run(`(() => {
+  hallwayResetCast(); for (const e of hallwayEntities()) hallwayPlaceEntity(e, 6);
+  hallwayPlaceEntity('dad', 0); hallwayPlaceEntity('friends', 0); hallwayPlaceEntity('stephanie', 0);
+  loadRoom(0); hallwayRoam.next = 1e9; hallwayEnsure.due = 1e9;
+  const here = hallwayCast.filter(n => hallwayShown(n));
+  here.forEach(n => { n.idle = Math.max(0, n.restless - 10); });
+  const prev = new Map(), bad = [], moved = new Set(), offFloor = [];
+  for (let i = 0; i < 60 * 150; i++) {
+    player.x = 505; player.y = 470; player.moving = false;
+    updateRoomExtras(1 / 60);
+    for (const n of here) {
+      const d = dist(n, player), p = prev.get(n);
+      if (p && p.d < HALLWAY_APPROACH && d < p.d - 1e-6 && !n.trip) bad.push(n.id + ' ' + p.d.toFixed(1) + ' -> ' + d.toFixed(1));
+      if (p && Math.hypot(n.x - p.x, n.y - p.y) > 0.01) moved.add(n.id);
+      if (!hallwayFloorFree(0, n.x, n.y)) offFloor.push(n.id);
+      prev.set(n, { d, x: n.x, y: n.y });
+    }
+  }
+  globalThis.roomStand = { bad: bad.slice(0, 4), moved: [...moved], offFloor: offFloor.slice(0, 3), count: here.length };
+})()`);
+const roomStand = JSON.parse(RP.run('JSON.stringify(roomStand)'));
+assert.equal(roomStand.count, 5, 'Dad, the three friends and Nurse Stephanie in her room');
+assert.deepEqual(roomStand.bad, [], 'in a room, too, nobody steps toward her');
+assert.deepEqual(roomStand.offFloor, [], 'and nobody stands in the furniture');
+assert.ok(roomStand.moved.length >= 2, `a long idle still ends in a stroll (${roomStand.moved})`);
+console.log('PASS: in a room: the TALK prompt, the same decks and speech box, cards and counters, the greeting, strolls, and no approach.');
+
+// Staff in a cleared ward: a clipboard look at the machine, a word about the scanner.
+RP.run(`(() => {
+  hallwayResetCast(); for (const e of hallwayEntities()) hallwayPlaceEntity(e, 6);
+  hallwayPlaceEntity('julez', 1);
+  loadRoom(1); enemies = []; hallwayRoam.next = 1e9; hallwayEnsure.due = 1e9;
+  player.x = 505; player.y = 470;
+  const julez = hallwayCast.find(n => n.id === 'julez');
+  julez.x = 700; julez.y = 470; julez.chore = 1;
+  const acts = [], says = [];
+  for (let i = 0; i < 60 * 60; i++) {
+    updateRoomExtras(1 / 60);
+    if (julez.act && !acts.includes(julez.act.kind)) acts.push(julez.act.kind);
+    if (julez.bark && !says.includes(julez.bark.text)) says.push(julez.bark.text);
+  }
+  globalThis.chores = { acts, says, calm: encounter.complete && encounter.calm };
+})()`);
+const chores = JSON.parse(RP.run('JSON.stringify(chores)'));
+assert.equal(chores.calm, true, 'the MRI is cleared and calm');
+assert.ok(chores.acts.includes('clipboard'), 'Julez checks the machine over her clipboard');
+const mriLines = JSON.parse(RP.run('JSON.stringify(HALLWAY_WARD_LINES[1])'));
+assert.ok(chores.says.some(t => mriLines.includes(t)), `and says something about the scanner (${chores.says.join(' / ')})`);
+console.log('PASS: staff in a cleared ward glance at the machine and talk shop.');
+
+// Barb in a room: in by the corner, the tray to Macy, the offer, out by the corner.
+RP.run(`(() => {
+  hallwayResetCast(); for (const e of hallwayEntities()) hallwayPlaceEntity(e, 6);
+  loadRoom(0); hallwayRoam.next = 1e9; hallwayEnsure.due = 0.5;
+  player.x = 505; player.y = 470;
+  const barb = hallwayCast.find(n => n.ensure);
+  let first = null, closest = 1e9;
+  for (let i = 0; i < 60 * 40; i++) {
+    updateRoomExtras(1 / 60);
+    if (barb.present && !first) first = [barb.x, barb.y, barb.room];
+    if (barb.present) closest = Math.min(closest, dist(barb, player));
+    if (closest < 70) break;
+  }
+  updateRoomExtras(0.2);
+  globalThis.barbRoom = { first, closest, target: hallwayTarget && hallwayTarget.npc && hallwayTarget.npc.ensure };
+})()`);
+const barbRoom = JSON.parse(RP.run('JSON.stringify(barbRoom)'));
+assert.ok(barbRoom.first[0] > 935 && barbRoom.first[1] < 212 && barbRoom.first[2] === 0, `Barb comes into her room by the corner (${barbRoom.first})`);
+assert.ok(barbRoom.closest < 70, `and brings the tray right to her (${barbRoom.closest.toFixed(0)} px)`);
+assert.equal(barbRoom.target, true, 'TALK is Barb');
+RP.run("roomExtrasAction('attack'); for (let i = 0; i < 30 && hallwayTalk; i++) { updateRoomExtras(0.2); roomExtrasAction('attack'); updateRoomExtras(0.1); }");
+assert.equal(RP.run('hallwayEnsure.phase'), 'leaving', 'told no, she heads out');
+assert.equal(RP.run('hallwayBottles.length'), 0, 'the hallway pile stays a hallway thing');
+RP.run('for (let i = 0; i < 60 * 30 && hallwayEnsure.phase !== "away"; i++) updateRoomExtras(1 / 60)');
+assert.equal(RP.run('hallwayEnsure.phase'), 'away', 'and leaves by the corner');
+// She follows Macy out of a room with the tray.
+RP.run(`hallwayEnsure.due = 0.2; for (let i = 0; i < 60; i++) updateRoomExtras(1 / 60);`);
+assert.equal(RP.run('hallwayEnsure.phase'), 'out');
+RP.run('loadRoom(2)');
+assert.equal(RP.run('hallwayEnsure.phase === "away" && hallwayEnsure.due < 9'), true, 'Macy walks off: Barb is right behind her');
+RP.run('for (let i = 0; i < 60 * 10 && hallwayEnsure.phase === "away"; i++) updateRoomExtras(1 / 60)');
+assert.equal(RP.run('hallwayCast.find(n => n.ensure).room'), 2, 'into the lounge');
+// Never into a room that is full.
+RP.run(`hallwayEnsureGone(hallwayCast.find(n => n.ensure), 0.1); hallwayPlaceEntity('dad', 2); hallwayPlaceEntity('brother', 2); hallwayPlaceEntity('casey', 2);
+  loadRoom(2); hallwayEnsure.due = 0.1; for (let i = 0; i < 60 * 5; i++) updateRoomExtras(1 / 60);`);
+assert.equal(RP.run('hallwayCast.find(n => n.ensure).present'), false, 'three visits already in the lounge: Barb waits');
+console.log('PASS: Barb works the rooms too: in by the corner, the tray, the no, out again, after Macy, never into a full room.');
+
+// ---- The rematch, and Ralph ----
+RP.run(`(() => {
+  hallwayResetCast(); for (const e of hallwayEntities()) hallwayPlaceEntity(e, 6);
+  hallwayPlaceEntity('stephanie', 1); hallwayPlaceEntity('lori', 1);
+  loadRoom(1); enemies = []; hallwayRoam.next = 1e9; hallwayEnsure.due = 1e9;
+  updateRoomExtras(1 / 60);
+  globalThis.beforeRematch = hallwayCast.filter(n => hallwayShown(n)).map(n => n.id).sort();
+  floats = [];
+  wardRematch();
+  updateRoomExtras(1 / 60);
+  globalThis.afterRematch = { here: hallwayCast.filter(n => hallwayShown(n)).map(n => n.id), rooms: [hallwayEntityRoom('stephanie'), hallwayEntityRoom('lori')],
+    note: floats.some(f => f.text === 'VISITORS OUT'), complete: encounter.complete };
+  // While the fight is on, nobody comes in.
+  hallwayRoam.next = 0;
+  for (let i = 0; i < 60 * 120; i++) { hallwayRoam.next = Math.min(hallwayRoam.next, 1); updateRoomExtras(1 / 60); }
+  globalThis.duringFight = Object.values(roomsOf()).filter(r => r === 1).length;
+})()`);
+assert.deepEqual(JSON.parse(RP.run('JSON.stringify(beforeRematch)')), ['lori', 'stephanie']);
+const afterRematch = JSON.parse(RP.run('JSON.stringify(afterRematch)'));
+assert.equal(afterRematch.complete, false, 'Ralph’s grudge: gremlins are back');
+assert.deepEqual(afterRematch.here, [], 'everyone leaves the MRI at once');
+assert.deepEqual(afterRematch.rooms, [6, 6], 'into the hallway');
+assert.equal(afterRematch.note, true, 'VISITORS OUT');
+assert.equal(RP.run('duringFight'), 0, 'and nobody comes in mid-fight');
+RP.run(`(() => {
+  for (const k in state.wardFights) delete state.wardFights[k];
+  hallwayPlaceEntity('dad', 0); hallwayPlaceEntity('family', 0);
+  loadRoom(6); state.ralphReady = true; state.ralph = false;
+  updateRoomExtras(1 / 60);
+  globalThis.ralphOut = [hallwayEntityRoom('dad'), hallwayEntityRoom('family')];
+  state.ralphReady = false;
+})()`);
+assert.deepEqual(JSON.parse(RP.run('JSON.stringify(ralphOut)')), [6, 6], 'Ralph turns up under the bed: the family clears out of her room');
+console.log('PASS: a rematch empties the room at once and keeps it empty mid-fight; Ralph empties her room.');
+
+// ---- Remembering who is where ----
+RP.run(`(() => {
+  hallwayResetCast(); for (const e of hallwayEntities()) hallwayPlaceEntity(e, 6);
+  hallwayMoveEntity('dad', 2, true); hallwayMoveEntity('julez', 4, true); hallwayMoveEntity('friends', 0, true); hallwayMoveEntity('lori', 3, true);
+  globalThis.arrangement = JSON.stringify(roomsOf());
+  hallwayResetCast();
+  globalThis.afterReset = JSON.stringify(roomsOf());
+})()`);
+const arrangement = JSON.parse(RP.run('arrangement'));
+assert.deepEqual(arrangement, { dad: 2, stephanie: 6, lori: 3, family: 6, friends: 0, julez: 4, brother: 6, casey: 6, benedetto: 6 });
+assert.deepEqual(JSON.parse(RP.run('afterReset')), arrangement, 'a cast reset keeps everyone where they were');
+const savedVisits = RP.run("localStorage.getItem('gut-feeling-convos')");
+assert.deepEqual(JSON.parse(savedVisits)._rooms, arrangement, 'stored beside the conversation decks');
+delete require.cache[require.resolve('./harness.cjs')];
+const R2 = require('./harness.cjs');
+R2.run(`state.wardClears = state.wardClears.map((v, i) => (i >= 1 && i <= 4 ? 1 : 0));
+  localStorage.setItem('gut-feeling-convos', ${JSON.stringify(savedVisits)}); hallwayConvos = null; hallwayResetCast();`);
+assert.deepEqual(
+  JSON.parse(R2.run('JSON.stringify(Object.fromEntries(hallwayEntities().map(e => [e, hallwayEntityRoom(e)])))')),
+  arrangement,
+  'a reload keeps everyone where they were'
+);
+assert.equal(R2.run('hallwayCast.find(n => n.id === "mimi").count'), 0, 'and the decks are untouched by it');
+R2.run(`localStorage.setItem('gut-feeling-convos', '{"_rooms": {"dad": 3, "julez": 2, "casey": "x"}}'); hallwayConvos = null; hallwayResetCast();`);
+assert.deepEqual(
+  JSON.parse(R2.run('JSON.stringify([hallwayEntityRoom("dad"), hallwayEntityRoom("julez"), hallwayEntityRoom("casey")])')),
+  [6, 6, 6],
+  'a stored room someone may not be in sends them to the hallway'
+);
+console.log('PASS: who is where survives a cast reset and a reload; a bad record falls back to the hallway.');
+
+// ---- Every room draws with visitors in it ----
+const rStrict = [];
+RP.box.roomStrict = new Proxy(
+  {},
+  {
+    get(t, k) {
+      if (typeof k === 'symbol') return undefined;
+      if (k in t) return t[k];
+      if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({ addColorStop: () => {} });
+      if (k === 'measureText') return s => ({ width: String(s).length * 7 });
+      return (...a) => a.forEach((v, i) => { if (typeof v === 'number' && !Number.isFinite(v)) rStrict.push(`${String(k)} arg ${i}`); });
+    },
+    set(t, k, v) {
+      t[k] = v;
+      return true;
+    }
+  }
+);
+const castIn = { 0: ['dad', 'family', 'lori'], 1: ['stephanie', 'benedetto'], 2: ['friends', 'casey', 'brother'], 3: ['julez', 'lori'], 4: ['benedetto', 'stephanie'], 5: ['dad', 'friends', 'julez'] };
+for (const [room, ents] of Object.entries(castIn)) {
+  RP.run(`(() => {
+    hallwayResetCast(); for (const e of hallwayEntities()) hallwayPlaceEntity(e, 6);
+    for (const e of ${JSON.stringify(ents)}) hallwayPlaceEntity(e, hallwayKey(${room}));
+    loadRoom(${room}); enemies = []; hallwayRoam.next = 1e9; hallwayEnsure.due = 1e9;
+    for (let i = 0; i < 30; i++) updateRoomExtras(1 / 30);
+    viewport.w = 844; viewport.h = 390;
+    drawWorld();
+    const here = hallwayCast.filter(n => hallwayShown(n));
+    here.forEach(n => { n.bark = { text: 'Knock knock.', life: 1, max: 2 }; });
+    const n = here[0]; player.x = clamp(n.x + 44, 80, 920); player.y = n.y; updateRoomExtras(0.1); hallwayOpenTalk(n);
+    roomExtraRenderables().forEach(r => r.draw(roomStrict));
+    drawRoomOverlay(roomStrict, 844, 390);
+    drawWorld();
+    globalThis.drawn = { here: here.length, list: roomExtraRenderables().length };
+    hallwayCloseTalk();
+  })()`);
+  const drawn = JSON.parse(RP.run('JSON.stringify(drawn)'));
+  const want = RP.run(`${JSON.stringify(ents)}.reduce((a, e) => a + hallwayMembers(e).length, 0)`);
+  assert.equal(drawn.here, want, `room ${room}: everyone placed there is in view`);
+  assert.equal(drawn.list, want, `room ${room}: each one is a depth-sorted renderable`);
+}
+assert.deepEqual(rStrict.slice(0, 5), [], 'every room, visitors, barks and the speech box draw with finite numbers');
+RP.run('viewport.w = 1000; viewport.h = 625');
+console.log('PASS: her room (lights on and out), the MRI, the lounge, CT and ultrasound all draw with visitors, barks and a talk.');
