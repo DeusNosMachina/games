@@ -21801,13 +21801,19 @@ function wardDrawHint(g, vw) {
 // Framework contract (world.js and input.js call these when they exist):
 //   hallwayInstall()             adds room 6 to rooms and its furniture to roomProps (idempotent)
 //   hallwayRoomBg(g)             paints the full 3200 × 625 corridor once for the room cache
-//   updateRoomExtras(dt)         every simulation step: visitors, prompts, door zones, Barb's timer
-//   roomExtraRenderables(all)    [{y, draw(g)}] depth-sorted with Macy and the furniture
+//   updateRoomExtras(dt)         every simulation step, in every room: the visitors in Macy's room,
+//                                prompts, door zones, Barb's timer, and who moves to which room
+//   roomExtraRenderables(all)    [{y, draw(g)}] depth-sorted with Macy and the furniture (in a room,
+//                                just the visitors there)
 //   drawRoomOverlay(g, vw, vh)   screen space after the camera: barks, prompts, the speech box
 //   roomExtrasAction(kind, p)    'attack' | 'use' | 'enter' | 'tap' (p in world coordinates) |
-//                                'jump' | 'dash' | 'escape'; true when the hallway handled it
+//                                'jump' | 'dash' | 'escape'; true when a visitor (or a door) took it
 //   hallwayEnter(fromRoom)       the room-exit hotspot: remember the door, then goRoom(6)
-//   onRoomLoaded(id)             after loadRoom: puts Macy outside the door she came out of
+//   onRoomLoaded(id)             after loadRoom: puts Macy outside the door she came out of; in a room,
+//                                its visitors take their spots and anyone mid-walk arrives
+//
+// Visitors live in rooms too ("Visitors in the rooms" below): her room, the lounge and the cleared wards,
+// by who they are, three visits a room at most, never where there are gremlins.
 
 const HALLWAY_ID = 6,
   HALLWAY_W = 3200,
@@ -23240,7 +23246,7 @@ function hallwayDadValid(d) {
 function hallwayDadShuffle(last, keep = {}) {
   const order = hallwayShuffle(HALLWAY_DAD_JOKES.map((_, i) => i));
   if (order.length > 1 && order[0] === last) {
-    const j = 1 + Math.floor(rand(0, order.length - 1));
+    const j = 1 + Math.floor(hallwayRand(0, order.length - 1));
     order[0] = order[j];
     order[j] = last;
   }
@@ -23275,7 +23281,7 @@ function hallwayDadDeepCheck(d) {
   if (ok && d.deepPos < n) return d;
   const order = hallwayShuffle(HALLWAY_DAD_DEEP.map((_, i) => i));
   if (order.length > 1 && order[0] === d.deepLast) {
-    const j = 1 + Math.floor(rand(0, order.length - 1));
+    const j = 1 + Math.floor(hallwayRand(0, order.length - 1));
     order[0] = order[j];
     order[j] = d.deepLast;
   }
@@ -23317,7 +23323,7 @@ function hallwayDadConvo(npc) {
   }
   hallwayDadDeepCheck(deck);
   const reactive = HALLWAY_DAD_REACTIVE.find(r => r.when() && !npc.heard.includes(r.id)),
-    deep = !reactive && deck.talks > 0 && !deck.wasDeep && rand(0, 1) < HALLWAY_DAD_DEEP_ODDS;
+    deep = !reactive && deck.talks > 0 && !deck.wasDeep && hallwayRand(0, 1) < HALLWAY_DAD_DEEP_ODDS;
   deck.talks++;
   deck.wasDeep = deep;
   if (deep) {
@@ -23345,7 +23351,7 @@ function hallwayDadConvo(npc) {
   }
   const lines = [{ who: 'npc', text: hallwayFill(cheer), cheer: true }];
   for (const text of [].concat(HALLWAY_DAD_JOKES[joke])) lines.push({ who: 'npc', text: hallwayFill(text), joke });
-  if (rand(0, 1) < 0.5) {
+  if (hallwayRand(0, 1) < 0.5) {
     lines.push({ who: 'macy', text: HALLWAY_DAD_GROANS[deck.groan % HALLWAY_DAD_GROANS.length], groan: true });
     deck.groan = (deck.groan + 1) % HALLWAY_DAD_GROANS.length;
   }
@@ -23563,10 +23569,26 @@ function npcShade(hex, k = 0.85) {
   return out;
 }
 
+// Dice. In the hallway, the game's rand() (tests seed it). Anywhere else the visitors roll their own,
+// a small seeded stream, so people strolling in her room or moving house never shift the ward's dice:
+// a gremlin wave plays out the same with or without company.
+let hallwayDiceState = 0x2f6b9d3;
+
+function hallwayRand(a, b) {
+  if (typeof state === 'object' && state && state.room === HALLWAY_ID) return rand(a, b);
+  hallwayDiceState = (hallwayDiceState + 0x6d2b79f5) | 0;
+  let t = hallwayDiceState;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return a + (((t ^ (t >>> 14)) >>> 0) / 4294967296) * (b - a);
+}
+
+const hallwayPick = list => list[Math.floor(hallwayRand(0, list.length))];
+
 function hallwayShuffle(list) {
   const out = [...list];
   for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand(0, i + 1));
+    const j = Math.floor(hallwayRand(0, i + 1));
     const keep = out[i];
     out[i] = out[j];
     out[j] = keep;
@@ -23580,7 +23602,6 @@ const hallwayName = () => (typeof state.name === 'string' && state.name.trim()) 
       .replace(/\{name\}/g, hallwayName())
       .replace(/\{NAME\}/g, hallwayName().toUpperCase())
       .replace(/\{machine\}/g, () => (hallwayMachine() || { name: 'The MRI' }).name.replace(/^The /, 'the ')),
-  hallwayHere = () => state.room === HALLWAY_ID && hallwayCast.length > 0,
   hallwayBusy = () => mini.open || (typeof isModal === 'function' && isModal()) || state.paused;
 
 // ---- The cast ----
@@ -23628,7 +23649,7 @@ function npcLook(over) {
     tieColor: '',
     handlebar: false,
     age: 0,
-    seed: rand(0, 10),
+    seed: hallwayRand(0, 10),
     ...over
   };
 }
@@ -24021,7 +24042,7 @@ const HALLWAY_LOOKS = {
 };
 
 function hallwayNpc(id, name, voice, look, x, y, range, speed, extra = {}) {
-  const dir = rand(0, 1) < 0.5 ? -1 : 1;
+  const dir = hallwayRand(0, 1) < 0.5 ? -1 : 1;
   return {
     id,
     name,
@@ -24043,7 +24064,7 @@ function hallwayNpc(id, name, voice, look, x, y, range, speed, extra = {}) {
     slot: extra.slot ? extra.slot.slice() : [0, 0],
     home: extra.slot ? extra.slot.slice() : [0, 0],
     mode: 'idle',
-    wait: rand(0.5, 3),
+    wait: hallwayRand(0.5, 3),
     tx: x,
     ty: y,
     dir,
@@ -24056,14 +24077,14 @@ function hallwayNpc(id, name, voice, look, x, y, range, speed, extra = {}) {
     count: 0,
     last: -1,
     bark: null,
-    barkN: Math.floor(rand(0, 3)),
-    barkCd: rand(0, 3),
+    barkN: Math.floor(hallwayRand(0, 3)),
+    barkCd: hallwayRand(0, 3),
     whoa: 0,
     whoaCd: 0,
     // Standing still: how long, and how long until a stroll (see hallwayStandStep).
     idle: 0,
-    restless: rand(...(extra.group ? HALLWAY_GROUP_IDLE : HALLWAY_STROLL_IDLE)),
-    glance: rand(5, 12),
+    restless: hallwayRand(...(extra.group ? HALLWAY_GROUP_IDLE : HALLWAY_STROLL_IDLE)),
+    glance: hallwayRand(5, 12),
     // Doctors and nurses: hang at the station, run errands into rooms.
     staff: !!extra.staff,
     spot: extra.spot ? extra.spot.slice() : [x, y],
@@ -24074,7 +24095,15 @@ function hallwayNpc(id, name, voice, look, x, y, range, speed, extra = {}) {
     near: 0,
     greeted: false,
     greetCd: 0,
-    snapIn: rand(14, 30)
+    snapIn: hallwayRand(14, 30),
+    // Where they are (6 the hallway, 0 her room at any hour, 2 the lounge, 1, 3 and 4 the wards), the
+    // walk between rooms while she can see it ({from, to, phase, dest, ...}), and a route around furniture.
+    room: HALLWAY_ID,
+    trip: null,
+    path: null,
+    chore: 8,
+    choreN: 0,
+    roomBarkN: 0
   };
 }
 
@@ -24157,7 +24186,7 @@ function hallwayResetCast() {
     npc.tx = npc.x;
     npc.ty = npc.y;
     // Staff stagger their first errand, so the station never empties all at once.
-    if (npc.staff) npc.wait = rand(8, 45);
+    if (npc.staff) npc.wait = hallwayRand(8, 45);
     // Who said what last time: the rotation carries on across visits and reloads.
     hallwayConvoRestore(npc);
   }
@@ -24170,6 +24199,8 @@ function hallwayResetCast() {
   hallwayBarkGap = 0;
   hallwayPressAt = -1;
   hallwayPressTook = false;
+  // Who is in which room: picked up from last time, or spread out fresh.
+  hallwayRoamReset();
 }
 
 // Adds room 6 and its furniture. world.js calls it at startup; calling it again changes nothing.
@@ -24186,25 +24217,27 @@ function hallwayInstall() {
 // new spot in their range (always one that is not closer to her); a visiting group waits longer and moves
 // together. Doctors and nurses hang at the nurses' station and now and then walk the hallway into a
 // room, vanish for a while, and come back out. Rowdy runs on his own brain (src/rowdy.js).
+// The floor the visitor is on: the hallway, or whichever room they are in (her room at night included).
+// Someone walking between rooms (npc.trip) slips past the other visitors and may pass close by Macy on
+// the way to the door, though never onto her.
 function hallwayBlocked(x, y, self) {
-  if (x < HALLWAY_LEFT || x > HALLWAY_RIGHT || y < HALLWAY_TOP || y > HALLWAY_BOTTOM) return true;
-  for (const p of HALLWAY_PROPS) {
-    const [bx, by, bw, bh] = p.box;
-    if (x + 13 > bx && x - 13 < bx + bw && y + 5 > by && y - 8 < by + bh) return true;
-  }
+  const room = self && Number.isInteger(self.room) ? hallwayWhere(self) : hallwayKey(state.room),
+    travel = !!(self && self.trip);
+  if (!hallwayFloorFree(room, x, y)) return true;
   for (const o of hallwayCast) {
     // Friends in one group brush past each other instead of blocking.
-    if (o === self || !o.present || (self.group && o.group === self.group)) continue;
+    if (travel || o === self || !hallwayShown(o, room) || (self.group && o.group === self.group)) continue;
     const now = Math.hypot(o.x - self.x, o.y - self.y),
       next = Math.hypot(o.x - x, o.y - y);
     if (next < 24 && next < now) return true;
   }
   // Nobody walks onto Macy, and nobody but Barb walks toward her: inside HALLWAY_APPROACH, a step that
   // brings a visitor closer is not taken. (Rowdy moves on his own rules.)
-  if (self && !self.rowdy && Number.isFinite(self.x) && typeof player === 'object' && player) {
+  if (self && !self.rowdy && Number.isFinite(self.x) && typeof player === 'object' && player && room === hallwayKey(state.room)) {
     const now = Math.hypot(player.x - self.x, player.y - self.y),
       next = Math.hypot(player.x - x, player.y - y);
     if (next < HALLWAY_SPACE && next < now) return true;
+    if (travel) return false;
     if (!self.ensure && now < HALLWAY_APPROACH && next < now - 1e-9) return true;
   }
   return false;
@@ -24235,9 +24268,9 @@ function hallwayWalkTo(npc, tx, ty, speed, dt) {
     moved = true;
   }
   // A friend who is blocked, or only sliding along someone, steps sideways around them to whichever side
-  // is clear.
+  // is clear. Barb, on a mission with a tray, does the same; so does anyone on the way to another room.
   const progress = Math.hypot(npc.x - x0, npc.y - y0);
-  if (npc.group && progress < step * 0.5)
+  if ((npc.group || npc.ensure || npc.trip || npc.errand) && progress < step * 0.5)
     for (const [px, py] of [
       [-my / step, mx / step],
       [my / step, -mx / step]
@@ -24252,8 +24285,21 @@ function hallwayWalkTo(npc, tx, ty, speed, dt) {
     npc.y += step;
     moved = true;
   }
+  // Two small moves in one step (along, then around) may not add up to a step toward Macy either.
+  if (moved && !npc.ensure && !npc.trip && typeof player === 'object' && player && hallwayWhere(npc) === hallwayKey(state.room)) {
+    const d0 = Math.hypot(player.x - x0, player.y - y0);
+    if (d0 < HALLWAY_APPROACH && Math.hypot(player.x - npc.x, player.y - npc.y) < d0 - 1e-9) {
+      npc.x = x0;
+      npc.y = y0;
+      moved = false;
+    }
+  }
   npc.moving = moved;
-  npc.stuck = moved ? 0 : npc.stuck + dt;
+  // On an errand or a trip, stuck means no headway toward the target, so jiggling in place against
+  // someone counts too and they find another way; a stroller just stops when nothing moves.
+  const headway = len - Math.hypot(tx - npc.x, ty - npc.y),
+    going = npc.errand || npc.trip;
+  npc.stuck = moved && (!going || headway > step * 0.2) ? 0 : npc.stuck + dt;
   if (moved) {
     npc.walk += dt * (6 + speed / 14);
     if (Math.abs(mx) > 0.01) npc.dir = mx > 0 ? 1 : -1;
@@ -24264,12 +24310,19 @@ function hallwayWalkTo(npc, tx, ty, speed, dt) {
 // A new spot to stroll to: inside the range, a real move (60 to 420 px), never beside Macy, and never
 // toward her: the walk's direction points away from her or across, so the distance only grows.
 function hallwayPickTarget(npc) {
+  if (hallwayWhere(npc) !== HALLWAY_ID) {
+    hallwayPickSpot(npc);
+    return;
+  }
+  npc.path = null;
   for (let i = 0; i < 12; i++) {
-    const tx = clamp(npc.x + rand(-420, 420), npc.range[0], npc.range[1]),
-      ty = rand(HALLWAY_TOP + 40, HALLWAY_BOTTOM - 10),
+    const tx = clamp(npc.x + hallwayRand(-420, 420), npc.range[0], npc.range[1]),
+      ty = hallwayRand(HALLWAY_TOP + 40, HALLWAY_BOTTOM - 10),
       hop = Math.hypot(tx - npc.x, ty - npc.y),
-      away = (tx - npc.x) * (npc.x - player.x) + (ty - npc.y) * (npc.y - player.y);
-    if (hop < 60 || away < 0) continue;
+      away = (tx - npc.x) * (npc.x - player.x) + (ty - npc.y) * (npc.y - player.y),
+      // Toward her is fine while it ends far off (else someone at the end of their stretch never moves).
+      near = Math.hypot(tx - player.x, ty - player.y) < HALLWAY_APPROACH * 1.5;
+    if (hop < 60 || (away < 0 && near)) continue;
     if (hallwayBlocked(tx, ty, npc) || Math.hypot(tx - player.x, ty - player.y) < HALLWAY_SPACE * 2) continue;
     npc.tx = tx;
     npc.ty = ty;
@@ -24277,7 +24330,7 @@ function hallwayPickTarget(npc) {
     npc.stuck = 0;
     return;
   }
-  npc.wait = rand(1, 2);
+  npc.wait = hallwayRand(1, 2);
 }
 
 function hallwayFace(npc) {
@@ -24289,7 +24342,7 @@ function hallwayFace(npc) {
 function hallwayGlance(npc, dt) {
   npc.glance -= dt;
   if (npc.glance > 0) return;
-  npc.glance = rand(5, 12);
+  npc.glance = hallwayRand(5, 12);
   npc.dir = -npc.dir || 1;
 }
 
@@ -24301,10 +24354,19 @@ function hallwaySay(npc, text, life = 2.6) {
 // Barks go round in order and never repeat until every one has been said; the place is remembered.
 function hallwayMaybeBark(npc, d) {
   if (d > HALLWAY_BARK_RANGE || npc.barkCd > 0 || hallwayBarkGap > 0 || hallwayTalk || npc.bark || npc.act) return;
+  // In a room the laps talk would be odd: a line for the room instead, round in order.
+  const roomLines = hallwayRoomBarks(npc);
+  if (roomLines) {
+    hallwaySay(npc, roomLines[npc.roomBarkN++ % roomLines.length]);
+    npc.barkCd = hallwayRand(40, 70);
+    hallwayBarkGap = 2.2;
+    if (npc.group) for (const o of hallwayCast) if (o !== npc && o.group === npc.group) o.barkCd = Math.max(o.barkCd, 20);
+    return;
+  }
   const barks = HALLWAY_LINES[npc.lines].barks;
   hallwaySay(npc, barks[npc.barkN % barks.length]);
   npc.barkN = (npc.barkN + 1) % barks.length;
-  npc.barkCd = rand(30, 55);
+  npc.barkCd = hallwayRand(30, 55);
   hallwayBarkGap = 2.2;
   hallwayConvoRemember(npc);
   // A group calls out once per pass, not three times in a row.
@@ -24317,12 +24379,12 @@ function hallwayMaybeBark(npc, d) {
 // to their slot off her, a little looser each time. When Macy comes near any of them, or talks to one,
 // they all turn to her together. Standing around on their own, they turn in to talk to each other.
 function hallwayCrew(group) {
-  return hallwayCast.filter(n => n.group === group && n.present);
+  return hallwayCast.filter(n => n.group === group && hallwayShown(n) && !n.trip);
 }
 
 function hallwayGroupNear(group) {
   if (hallwayTalk && hallwayTalk.npc.group === group) return true;
-  return hallwayCast.some(n => n.group === group && n.present && dist(n, player) < HALLWAY_FACE_RANGE);
+  return hallwayCast.some(n => n.group === group && hallwayShown(n) && !n.trip && dist(n, player) < HALLWAY_FACE_RANGE);
 }
 
 function hallwayGroupTurnIn(npc, crew) {
@@ -24353,21 +24415,23 @@ function hallwayGroupStep(npc, dt) {
       hallwayPickTarget(npc);
       if (npc.mode === 'walk') {
         npc.idle = 0;
-        npc.restless = rand(...HALLWAY_GROUP_IDLE);
-        for (const o of crew) if (o !== npc) o.slot = [o.home[0] + rand(-8, 8), o.home[1] + rand(-6, 6)];
-      } else npc.restless = npc.idle + rand(2, 5);
+        npc.restless = hallwayRand(...HALLWAY_GROUP_IDLE);
+        for (const o of crew) if (o !== npc) o.slot = [o.home[0] + hallwayRand(-8, 8), o.home[1] + hallwayRand(-6, 6)];
+      } else npc.restless = npc.idle + hallwayRand(2, 5);
       return;
     }
-    if (hallwayWalkTo(npc, npc.tx, npc.ty, npc.speed, dt) || npc.stuck > 0.6) {
+    if (hallwayStroll(npc, npc.speed, dt) || npc.stuck > 0.6) {
       npc.mode = 'idle';
       npc.idle = 0;
       npc.moving = false;
       npc.walk = 0;
+      npc.path = null;
     }
     return;
   }
-  const tx = clamp(lead.x + npc.slot[0], HALLWAY_LEFT, HALLWAY_RIGHT),
-    ty = clamp(lead.y + npc.slot[1], HALLWAY_TOP, HALLWAY_BOTTOM),
+  const fl = hallwayFloor(hallwayWhere(npc)),
+    tx = clamp(lead.x + npc.slot[0], fl.l, fl.r),
+    ty = clamp(lead.y + npc.slot[1], fl.t, fl.b),
     gap = Math.hypot(tx - npc.x, ty - npc.y);
   if (npc.mode === 'walk' || gap > 16) {
     npc.mode = 'walk';
@@ -24402,15 +24466,16 @@ function hallwayStandStep(npc, dt, d) {
     hallwayPickTarget(npc);
     if (npc.mode === 'walk') {
       npc.idle = 0;
-      npc.restless = rand(...HALLWAY_STROLL_IDLE);
-    } else npc.restless = npc.idle + rand(2, 5);
+      npc.restless = hallwayRand(...HALLWAY_STROLL_IDLE);
+    } else npc.restless = npc.idle + hallwayRand(2, 5);
     return;
   }
-  if (hallwayWalkTo(npc, npc.tx, npc.ty, npc.speed, dt) || npc.stuck > 0.6) {
+  if (hallwayStroll(npc, npc.speed, dt) || npc.stuck > 0.6) {
     npc.mode = 'idle';
     npc.idle = 0;
     npc.moving = false;
     npc.walk = 0;
+    npc.path = null;
   }
 }
 
@@ -24423,7 +24488,7 @@ const HALLWAY_STAFF_DOOR_Y = 232;
 
 function hallwayStaffErrand(npc) {
   const doors = HALLWAY_DOORS.filter(d => !npc.errand || d !== npc.errand.door),
-    door = doors[Math.floor(rand(0, doors.length))];
+    door = doors[Math.floor(hallwayRand(0, doors.length))];
   npc.errand = { door, tries: 0 };
   npc.mode = 'walk';
   npc.tx = door.x;
@@ -24449,7 +24514,7 @@ function hallwayStaffStep(npc, dt, d) {
     npc.x = door.x;
     npc.y = HALLWAY_STAFF_DOOR_Y + 8;
     npc.dir = npc.vdir = npc.spot[0] >= door.x ? 1 : -1;
-    if (rand(0, 1) < 1 / 3) hallwayStaffErrand(npc);
+    if (hallwayRand(0, 1) < 1 / 3) hallwayStaffErrand(npc);
     else hallwayStaffHome(npc);
     return;
   }
@@ -24481,12 +24546,12 @@ function hallwayStaffStep(npc, dt, d) {
     npc.moving = false;
     npc.walk = 0;
     npc.mode = 'inside';
-    npc.inside = rand(...HALLWAY_STAFF_INSIDE);
+    npc.inside = hallwayRand(...HALLWAY_STAFF_INSIDE);
     return;
   }
   if (!errand && there) {
     npc.mode = 'idle';
-    npc.wait = rand(...HALLWAY_STAFF_HANG);
+    npc.wait = hallwayRand(...HALLWAY_STAFF_HANG);
     return;
   }
   // Waiting on Macy (or a crowd): a few seconds, then another route.
@@ -24495,7 +24560,7 @@ function hallwayStaffStep(npc, dt, d) {
     else if (errand) hallwayStaffHome(npc);
     else {
       npc.mode = 'idle';
-      npc.wait = rand(4, 8);
+      npc.wait = hallwayRand(4, 8);
     }
   }
 }
@@ -24519,6 +24584,11 @@ function hallwayNpcStep(npc, dt) {
     return;
   }
   if (!npc.present) return;
+  // On the way to another room, or walking into this one.
+  if (npc.trip) {
+    hallwayTripStep(npc, dt);
+    return;
+  }
   const d = dist(npc, player);
   // A dash through someone gets a "whoa" and a little hop.
   if (player.dash > 0 && d < 40 && npc.whoaCd <= 0) {
@@ -24550,10 +24620,12 @@ function hallwayNpcStep(npc, dt) {
     hallwayGroupStep(npc, dt);
     return;
   }
-  if (npc.staff) {
+  // The nurses' station is a hallway thing; in a room, staff stand like anyone and do staff things.
+  if (npc.staff && hallwayWhere(npc) === HALLWAY_ID) {
     hallwayStaffStep(npc, dt, d);
     return;
   }
+  if (npc.staff) hallwayChoreStep(npc, dt, d);
   hallwayStandStep(npc, dt, d);
 }
 
@@ -24562,7 +24634,7 @@ function hallwaySnapStep(npc, dt, d) {
   if (npc.look.item !== 'camera' || npc.act || npc.moving) return;
   npc.snapIn -= dt;
   if (npc.snapIn > 0) return;
-  npc.snapIn = rand(16, 34);
+  npc.snapIn = hallwayRand(16, 34);
   npc.act = { kind: 'camera', t: 0, max: 1.4 };
   if (d < 520 && typeof sfx === 'function') sfx('lock', { vol: clamp(0.5 - d / 1200, 0.1, 0.4) });
 }
@@ -24581,19 +24653,26 @@ function hallwayEnsureTick(dt, here) {
   if (npc) hallwayEnsureArrive(npc);
 }
 
+// In the hallway she rides up in the elevator; in a room she comes in by the door, like everyone.
 function hallwayEnsureArrive(npc) {
-  const en = hallwayEnsure;
+  const en = hallwayEnsure,
+    hall = state.room === HALLWAY_ID;
   npc.present = true;
-  npc.x = HALLWAY_ELEVATOR_X;
-  npc.y = HALLWAY_TOP + 6;
-  npc.dir = 1;
-  npc.vdir = 1;
+  npc.room = hallwayKey(state.room);
+  npc.trip = null;
+  npc.path = null;
+  npc.x = hall ? HALLWAY_ELEVATOR_X : HALLWAY_ROOM_DOOR[0];
+  npc.y = hall ? HALLWAY_TOP + 6 : HALLWAY_ROOM_DOOR[1];
+  npc.dir = hall ? 1 : -1;
+  npc.vdir = npc.dir;
   npc.mode = 'walk';
   npc.stuck = 0;
+  npc.routeIn = 0;
+  npc.exiting = false;
   en.phase = 'out';
   en.patience = 45;
   en.trips++;
-  hallwayElevator.hold = 1.6;
+  if (hall) hallwayElevator.hold = 1.6;
   // The last delivery is one bottle with a bow on it; after that she comes up sheepish, once a visit.
   const finale = hallwayTrophyDue(),
     sheepish = hallwayTrophy(),
@@ -24616,15 +24695,35 @@ function hallwayEnsureMove(npc, dt, d) {
       return;
     }
     if (d > 64) {
-      const side = player.x >= npc.x ? -1 : 1,
-        tx = clamp(player.x + side * 52, HALLWAY_LEFT, HALLWAY_RIGHT),
-        ty = clamp(player.y, HALLWAY_TOP, HALLWAY_BOTTOM);
-      hallwayWalkTo(npc, tx, ty, npc.speed, dt);
+      const fl = hallwayFloor(npc.room),
+        side = player.x >= npc.x ? -1 : 1,
+        tx = clamp(player.x + side * 52, fl.l, fl.r),
+        ty = clamp(player.y, fl.t, fl.b);
+      if (npc.room === HALLWAY_ID) hallwayWalkTo(npc, tx, ty, npc.speed, dt);
+      else {
+        // A room has furniture in the way: she takes the route round it, rechecked as Macy moves.
+        npc.routeIn -= dt;
+        if (npc.routeIn <= 0 || !npc.path || !npc.path.length) {
+          npc.routeIn = 0.8;
+          npc.path = hallwayPath(npc.room, [npc.x, npc.y], [tx, ty]);
+        }
+        if (hallwayFollow(npc, npc.speed, dt)) npc.path = null;
+      }
       return;
     }
     npc.moving = false;
     npc.walk = 0;
     hallwayFace(npc);
+    return;
+  }
+  if (en.phase === 'leaving' && npc.room !== HALLWAY_ID) {
+    // Out of a room the way she came in.
+    if (!npc.exiting) {
+      npc.exiting = true;
+      npc.stuck = 0;
+      npc.path = hallwayExitPath(npc.room, npc);
+    }
+    if (hallwayFollow(npc, 120, dt) || npc.stuck > 3) hallwayEnsureGone(npc);
     return;
   }
   if (en.phase === 'leaving') {
@@ -24645,13 +24744,19 @@ function hallwayEnsureMove(npc, dt, d) {
     npc.moving = false;
     npc.walk = 0;
     en.board -= dt;
-    if (en.board <= 0) {
-      npc.present = false;
-      npc.bark = null;
-      en.phase = 'away';
-      en.due = rand(100, 160);
-    }
+    if (en.board <= 0) hallwayEnsureGone(npc);
   }
+}
+
+// Back downstairs until the next round.
+function hallwayEnsureGone(npc, due = hallwayRand(100, 160)) {
+  npc.present = false;
+  npc.bark = null;
+  npc.path = null;
+  npc.moving = false;
+  npc.walk = 0;
+  hallwayEnsure.phase = 'away';
+  hallwayEnsure.due = due;
 }
 
 function hallwayEnsureDrop(npc, ignored) {
@@ -24663,9 +24768,12 @@ function hallwayEnsureDrop(npc, ignored) {
     };
   const fx = bottle.x,
     fy = bottle.y - 46;
-  hallwayBottles.push(bottle);
-  if (hallwayCultAt(HALLWAY_CULT.rows)) hallwayBottleRows();
-  else if (hallwayBottles.length > HALLWAY_MAX_BOTTLES) hallwayBottles.shift();
+  // The pile is a hallway thing; in a room the bottle goes on the nearest table and out of the story.
+  if (npc.room === HALLWAY_ID) {
+    hallwayBottles.push(bottle);
+    if (hallwayCultAt(HALLWAY_CULT.rows)) hallwayBottleRows();
+    else if (hallwayBottles.length > HALLWAY_MAX_BOTTLES) hallwayBottles.shift();
+  }
   if (typeof floating === 'function') floating('+1 ENSURE · STILL NOT ALLOWED', fx, fy, '#f7c6d2');
   if (ignored) hallwaySay(npc, "I'll leave it here!", 2.4);
 }
@@ -24829,7 +24937,7 @@ function hallwayRowdy() {
   npc.say = null;
   npc.cheer = null;
   npc.prop = null;
-  npc.nextCheer = rand(spec.timing.autoCheer[0], spec.timing.autoCheer[1]);
+  npc.nextCheer = hallwayRand(spec.timing.autoCheer[0], spec.timing.autoCheer[1]);
   npc.greeted = false;
   npc.entered = false;
   npc.ralphCheered = false;
@@ -25059,9 +25167,10 @@ const HALLWAY_GREETS = {
 
 // Can this visitor be greeted right now?
 function hallwayGreetable(npc) {
-  if (!npc.present || npc.greeted || npc.greetCd > 0 || npc.act) return false;
+  if (!hallwayShown(npc) || npc.trip || npc.greeted || npc.greetCd > 0 || npc.act) return false;
   if (npc.rowdy) return npc.mode === 'idle';
-  if (npc.ensure) return hallwayEnsure.phase === 'out';
+  // In a room Barb is all business: the offer, no wave.
+  if (npc.ensure) return hallwayEnsure.phase === 'out' && npc.room === HALLWAY_ID;
   return !npc.moving;
 }
 
@@ -25080,7 +25189,7 @@ function hallwayGreetStep(dt) {
   let best = null,
     bestD = HALLWAY_GREET_RANGE;
   for (const npc of hallwayCast) {
-    if (!npc.present) continue;
+    if (!hallwayShown(npc) || npc.trip) continue;
     const d = dist(npc, player);
     if (d < bestD) {
       best = npc;
@@ -25099,7 +25208,7 @@ function hallwayGreetStep(dt) {
 
 function hallwayGreet(npc) {
   const crew = npc.group ? hallwayCrew(npc.group) : [npc],
-    flick = npc.id === 'brother' && rand(0, 1) < 1 / 3,
+    flick = npc.id === 'brother' && hallwayRand(0, 1) < 1 / 3,
     [pose, kind, secs, word, sound] = HALLWAY_GREETS[flick ? 'brotherFlick' : npc.group || npc.id] || HALLWAY_GREETS.casey,
     dir = npc.x >= player.x ? 1 : -1;
   for (const o of crew) {
@@ -25112,7 +25221,7 @@ function hallwayGreet(npc) {
   }
   // Dodo sometimes gets the camera up right after.
   const dodo = crew.find(o => o.look && o.look.item === 'camera');
-  if (dodo && rand(0, 1) < 0.6) dodo.act.then = { kind: 'camera', max: 1.3 };
+  if (dodo && hallwayRand(0, 1) < 0.6) dodo.act.then = { kind: 'camera', max: 1.3 };
   if (npc.rowdy) npc.greetPose = 2;
   player.dir = dir;
   if (typeof macyGreet === 'function') {
@@ -25154,7 +25263,7 @@ function hallwayNextConvo(npc) {
   let i;
   if (reactive.length) i = reactive[0];
   else if (npc.count === 0) i = pool[0];
-  else i = pool[Math.floor(rand(0, pool.length))];
+  else i = pool[Math.floor(hallwayRand(0, pool.length))];
   if (talks[i].when && !npc.primed.includes(i)) npc.primed.push(i);
   npc.count++;
   npc.last = i;
@@ -25195,7 +25304,7 @@ function hallwayEndTalk(finished, walked = false) {
   const npc = tk.npc,
     line = tk.lines[tk.i],
     seen = finished ? tk.lines.length : tk.i + (line && tk.shown >= line.text.length ? 1 : 0);
-  npc.wait = rand(1.2, 2.5);
+  npc.wait = hallwayRand(1.2, 2.5);
   npc.barkCd = Math.max(npc.barkCd, 20);
   if (npc.rowdy) {
     // Walk out on a cheer and he sulks for a second, then waves you off; his brain does the rest.
@@ -25212,7 +25321,7 @@ function hallwayEndTalk(finished, walked = false) {
       npc.mode = 'idle';
       npc.pose = 'idle';
       npc.timer = 0;
-      npc.nextCheer = rand(T.autoCheer[0], T.autoCheer[1]);
+      npc.nextCheer = hallwayRand(T.autoCheer[0], T.autoCheer[1]);
     }
   }
   if (npc.ensure && finished && hallwayEnsure.phase === 'out') {
@@ -25248,7 +25357,7 @@ function hallwayAdvance() {
 function hallwayTalkStep(dt) {
   const tk = hallwayTalk;
   if (!tk) return;
-  if (!tk.npc.present || dist(tk.npc, player) > HALLWAY_LEAVE_RANGE) {
+  if (!hallwayShown(tk.npc) || dist(tk.npc, player) > HALLWAY_LEAVE_RANGE) {
     hallwayEndTalk(false, true);
     return;
   }
@@ -25288,12 +25397,13 @@ function hallwayDoorAt(x, y) {
 
 function hallwayFindTarget() {
   if (hallwayTalk) return null;
-  const door = hallwayDoorAt(player.x, player.y);
+  const hall = state.room === HALLWAY_ID,
+    door = hall ? hallwayDoorAt(player.x, player.y) : null;
   if (door) return { kind: 'door', door };
   let best = null,
     bestD = HALLWAY_TALK_RANGE;
   for (const npc of hallwayCast) {
-    if (!npc.present || (npc.rowdy && npc.mode === 'run')) continue;
+    if (!hallwayShown(npc) || npc.trip || (npc.rowdy && npc.mode === 'run')) continue;
     const d = dist(npc, player);
     if (d < bestD) {
       best = npc;
@@ -25301,6 +25411,7 @@ function hallwayFindTarget() {
     }
   }
   if (best) return { kind: 'talk', npc: best };
+  if (!hall) return null;
   if (Math.abs(player.x - HALLWAY_SHOP_X) < 70 && player.y < 252) return { kind: 'shop' };
   if (player.x > HALLWAY_EXIT_X - 120 && player.y < 262) return { kind: 'exit' };
   return null;
@@ -25370,11 +25481,12 @@ function hallwayTap(p) {
       top = npc.y - hallwayNpcTop(npc);
     if (Math.abs(p.x - npc.x) < (npc.rowdy ? 32 : 26) && p.y > top - 6 && p.y < npc.y + 8) return hallwayOpenTalk(npc);
   }
-  for (const d of HALLWAY_DOORS) {
-    const half = d.double ? 74 : 50;
-    if (Math.abs(player.x - d.x) < 150 && player.y < 340 && Math.abs(p.x - d.x) < half && p.y > 22 && p.y < 230)
-      return hallwayUseDoor(d);
-  }
+  if (state.room === HALLWAY_ID)
+    for (const d of HALLWAY_DOORS) {
+      const half = d.double ? 74 : 50;
+      if (Math.abs(player.x - d.x) < 150 && player.y < 340 && Math.abs(p.x - d.x) < half && p.y > 22 && p.y < 230)
+        return hallwayUseDoor(d);
+    }
   if (tg && (tg.kind === 'shop' || tg.kind === 'exit')) {
     const x = tg.kind === 'shop' ? HALLWAY_SHOP_X : HALLWAY_EXIT_X;
     if (Math.abs(p.x - x) < 80 && p.y < 230) return hallwayAct(tg);
@@ -25382,30 +25494,704 @@ function hallwayTap(p) {
   return false;
 }
 
-// ---- Framework hooks ----
-function updateRoomExtras(dt) {
-  if (!Number.isFinite(dt) || dt <= 0 || !hallwayCast.length) return;
-  if (state.room !== HALLWAY_ID) {
-    hallwayGreetTick(dt);
-    hallwayLastRoom = state.room;
-    hallwayTalk = null;
-    hallwayInside = false;
-    hallwayEnsureTick(dt, false);
+// ---- Visitors in the rooms ----
+// Everyone has a room, not only the hallway. Who may be where: doctors and nurses anywhere but the family
+// lounge; family and friends in her room (lights on or out), the lounge or the hallway; Barb wherever
+// Macy is; Rowdy in the hallway, always. Mimi and Dodo count as one visit, and so do Presley, Norah and
+// Taylor. Never anyone in a ward that still has gremlins: a ward is safe once it has been cleared with no
+// fight left half-done, and the room Macy stands in is safe only while its encounter is over and calm.
+// A rematch empties it at once; Ralph waiting in her room keeps the family out. Three visits at most to
+// a room, Barb included. Every 20 to 60 s one visit that has stayed its 60 to 180 s moves on, to a room
+// with space that its people like (the family her room and the lounge, the staff the wards), steering
+// the count toward half the cast in rooms and always leaving somebody besides Rowdy in the hallway.
+// Where everyone is lives beside the conversation decks in localStorage, so a reload keeps them put.
+const HALLWAY_ROOM_CAP = 3,
+  HALLWAY_ROAM_GAP = [20, 60],
+  HALLWAY_ROAM_DWELL = [60, 180],
+  HALLWAY_ROAM_STORE = '_rooms',
+  // Room preferences: the family likes her room and the lounge, the staff the wards.
+  HALLWAY_ROAM_LIKES = {
+    kin: { 0: 3, 2: 3, 6: 2 },
+    staff: { 0: 1.5, 1: 3, 3: 3, 4: 3, 6: 2 }
+  },
+  // A room's way in and out is the corner Macy leaves by (world.js sends her to the hallway there).
+  HALLWAY_ROOM_DOOR = [950, 196],
+  HALLWAY_ROOM_LANE = [950, 300],
+  // Where Macy lands when she walks into a room; nobody takes that spot.
+  HALLWAY_ROOM_LANDING = [505, 470],
+  HALLWAY_PATH_CELL = 20,
+  // Where the machine is, for a clipboard glance at it.
+  HALLWAY_MACHINE_X = { 0: 160, 1: 480, 3: 474, 4: 175 },
+  HALLWAY_KNOCKS = {
+    kin: ['Knock knock.', 'Room service. Kidding.', 'Just us. Act natural.', 'We come bearing snacks.', 'Is this a good time? Too late.'],
+    staff: ['Knock knock.', 'Room service. Kidding.', 'Just checking in.', 'Vitals? Vitals.', "Don't get up. Seriously."]
+  },
+  HALLWAY_BYES = ['Back in a bit.', 'Be right back.', 'Stretching my legs.', 'Holler if you need us.'],
+  HALLWAY_ROOM_BARKS = {
+    0: ['Nice room. Very you.', 'That E-Type is museum quality.', 'The cats would love this bed.', "We'll be quiet. Mostly."],
+    2: ['This couch has opinions.', 'The vending machine owes me a dollar.', 'Best seat on the floor.', 'We saved you a spot.'],
+    staff0: ['Vitals look good. You look better.', 'Just checking your drip.', 'Pain, one to ten? Be honest.', 'Love what you did with the cards.']
+  },
+  // Staff in a cleared ward talk shop about the machine.
+  HALLWAY_WARD_LINES = {
+    1: ["The magnet's happy. Don't tell it about the bedpans.", 'No metal in your pockets? Good.', 'MRI says hi. Loudly.', 'Helium topped up. Very cool. Literally.'],
+    3: ['CT spins. That is the whole trick.', 'Donut II is clean. Thanks to you.', 'No contrast today. You are off the hook.', 'Scanner is warm. Gremlins are not. Good trade.'],
+    4: ['Gel is warm. Small mercies.', 'Probe calibrated. Floor still slippery.', 'Mind the gel. I never do.', 'Clean pictures today. Clean room too.']
+  };
+
+// The hallway sim runs this; tests switch it off to keep the whole cast in the hallway.
+let hallwayRoaming = true,
+  hallwayRoam = { clock: 0, next: 30, ents: {} },
+  hallwayRoomNow = -1;
+
+const hallwaySpotCache = {},
+  hallwayGridCache = {};
+
+// Her room after dark is still her room.
+const hallwayKey = id => (id === 5 ? 0 : id),
+  hallwayEntityOf = npc => npc.group || npc.id,
+  hallwayRoamer = npc => !!npc && !npc.rowdy && !npc.ensure,
+  hallwayKind = ent => (HALLWAY_STAFF.includes(ent) ? 'staff' : 'kin');
+
+// Where someone can be seen: the room they are leaving while they walk out, else the room they are in.
+function hallwayWhere(npc) {
+  return npc.trip && npc.trip.phase === 'out' ? npc.trip.from : npc.room;
+}
+
+// Visible in this room right now (someone still waiting to come through the door is not).
+function hallwayShown(npc, room = hallwayKey(state.room)) {
+  return !!npc.present && hallwayWhere(npc) === room && !(npc.trip && npc.trip.wait > 0);
+}
+
+function hallwayEntities() {
+  return [...new Set(hallwayCast.filter(hallwayRoamer).map(hallwayEntityOf))];
+}
+
+function hallwayMembers(ent) {
+  return hallwayCast.filter(n => hallwayRoamer(n) && hallwayEntityOf(n) === ent);
+}
+
+function hallwayEntityRoom(ent) {
+  const m = hallwayMembers(ent)[0];
+  return m ? m.room : HALLWAY_ID;
+}
+
+function hallwayAllowed(ent, room) {
+  return Object.prototype.hasOwnProperty.call(HALLWAY_ROAM_LIKES[hallwayKind(ent)], hallwayKey(room));
+}
+
+// No gremlins: a ward cleared with no fight left in it, and her room while Ralph is not waiting. The
+// room Macy is in also needs its encounter over and calm (a rematch, a wave, Ralph himself).
+function hallwayRoomSafe(room) {
+  const k = hallwayKey(room);
+  if (k === HALLWAY_ID) return true;
+  if (k === 0 && hallwayRalphWaiting()) return false;
+  const combat = typeof wardCombatRoom === 'function' ? wardCombatRoom(k) : k !== 0;
+  if (combat) {
+    if (!(Number(state.wardClears[k]) > 0)) return false;
+    if (state.wardFights && state.wardFights[k]) return false;
+  }
+  if (hallwayKey(state.room) === k && typeof encounter === 'object' && encounter && encounter.room === state.room)
+    if (!encounter.complete || !encounter.calm) return false;
+  return true;
+}
+
+// Visits in a room: the scheduled ones (by where they are headed) plus Barb while she is up there.
+function hallwayRoomCount(room, except = null) {
+  const k = hallwayKey(room);
+  let n = hallwayEntities().filter(e => e !== except && hallwayEntityRoom(e) === k).length;
+  const barb = hallwayCast.find(o => o.ensure);
+  if (barb && barb.present && barb.room === k) n++;
+  return n;
+}
+
+// ---- Floors, spots and routes ----
+function hallwayFloor(room) {
+  if (room === HALLWAY_ID) return { l: HALLWAY_LEFT, r: HALLWAY_RIGHT, t: HALLWAY_TOP, b: HALLWAY_BOTTOM };
+  return { l: 60, r: roomWidth(room) - 50, t: 188, b: 560 };
+}
+
+function hallwayPropsOf(room) {
+  if (room === HALLWAY_ID) return HALLWAY_PROPS;
+  return roomProps[room === 0 && state.room === 5 ? 5 : room] || [];
+}
+
+// Open floor for a pair of feet (pad widens the berth round the furniture).
+function hallwayFloorFree(room, x, y, pad = 0) {
+  const f = hallwayFloor(room);
+  if (!(x >= f.l && x <= f.r && y >= f.t && y <= f.b)) return false;
+  for (const p of hallwayPropsOf(room)) {
+    const [bx, by, bw, bh] = p.box;
+    if (x + 13 + pad > bx && x - 13 - pad < bx + bw && y + 5 + pad > by && y - 8 - pad < by + bh) return false;
+  }
+  return true;
+}
+
+// Places to stand in a room: open floor clear of the beacon, the snack cart, the room's hotspots (the TV,
+// the switch, the get-well wall), the way in and out, and the spot Macy lands on when she walks in.
+function hallwayRoomSpots(room) {
+  if (hallwaySpotCache[room]) return hallwaySpotCache[room];
+  const out = [],
+    st = rooms[room] && rooms[room].station,
+    cart = typeof SNACK_CARTS === 'object' && SNACK_CARTS ? SNACK_CARTS[room] : null,
+    spots = (typeof ROOM_SPOTS === 'object' && ROOM_SPOTS && ROOM_SPOTS[room]) || [];
+  for (let x = 110; x <= 880; x += 30)
+    for (let y = 240; y <= 540; y += 25) {
+      if (!hallwayFloorFree(room, x, y, 10)) continue;
+      if (st && Math.hypot(x - st[0], y - st[1]) < 100) continue;
+      if (cart && Math.hypot(x - cart.x, (y - cart.y) * 1.3) < 95) continue;
+      if (
+        spots.some(s => {
+          const [zx, zy, zw, zh] = s.zone;
+          return (x > zx - 25 && x < zx + zw + 25 && y > zy - 25 && y < zy + zh + 25) || Math.hypot(x - s.at[0], y - s.at[1]) < 90;
+        })
+      )
+        continue;
+      if (x > 780 && y < 340) continue;
+      if (Math.hypot(x - HALLWAY_ROOM_LANDING[0], y - HALLWAY_ROOM_LANDING[1]) < 150) continue;
+      out.push([x, y]);
+    }
+  if (!out.length) out.push([300, 400]);
+  hallwaySpotCache[room] = out;
+  return out;
+}
+
+// The member's offset off the visit's anchor: the lead stands on it, the rest hold their slots.
+const hallwaySlotOf = npc => (npc.group && !npc.lead ? npc.home : [0, 0]);
+
+// Somewhere for a whole visit to stand in a room: every member on open floor, apart from the other
+// visits, and clear of Macy when she is there.
+function hallwayRoomAnchor(ent, room) {
+  const members = hallwayMembers(ent),
+    spots = hallwayRoomSpots(room),
+    others = hallwayCast.filter(o => o.present && o.room === room && hallwayEntityOf(o) !== ent && !o.rowdy),
+    macyHere = hallwayKey(state.room) === room,
+    fits = ([x, y], strict) =>
+      members.every(m => {
+        const [sx, sy] = hallwaySlotOf(m),
+          px = x + sx,
+          py = y + sy;
+        if (!hallwayFloorFree(room, px, py, 6)) return false;
+        if (!strict) return true;
+        if (others.some(o => Math.hypot(o.x - px, o.y - py) < 75)) return false;
+        return !macyHere || Math.hypot(player.x - px, player.y - py) > 130;
+      });
+  for (const strict of [true, false])
+    for (let i = 0; i < 24; i++) {
+      const s = spots[Math.floor(hallwayRand(0, spots.length))];
+      if (s && fits(s, strict)) return s;
+    }
+  return spots[0];
+}
+
+// Somewhere in the hallway: staff at their station spot, the rest in their own stretch of it.
+function hallwayHallAnchor(ent) {
+  const members = hallwayMembers(ent),
+    lead = members.find(m => m.lead) || members[0];
+  if (lead.staff) return lead.spot.slice();
+  for (let i = 0; i < 24; i++) {
+    const x = hallwayRand(lead.range[0], lead.range[1]),
+      y = hallwayRand(HALLWAY_TOP + 60, HALLWAY_BOTTOM - 20);
+    if (
+      members.every(m => {
+        const [sx, sy] = hallwaySlotOf(m);
+        return hallwayFloorFree(HALLWAY_ID, x + sx, y + sy, 4);
+      })
+    )
+      return [x, y];
+  }
+  return [(lead.range[0] + lead.range[1]) / 2, 400];
+}
+
+// Where each member of a visit ends up in a room: [[npc, x, y], ...].
+function hallwayDestinations(ent, room) {
+  const [ax, ay] = room === HALLWAY_ID ? hallwayHallAnchor(ent) : hallwayRoomAnchor(ent, room),
+    f = hallwayFloor(room);
+  return hallwayMembers(ent).map(m => {
+    const [sx, sy] = hallwaySlotOf(m);
+    return [m, clamp(ax + sx, f.l, f.r), clamp(ay + sy, f.t, f.b)];
+  });
+}
+
+// Standing still in a fresh spot: no walk, no errand, no route.
+function hallwaySettle(npc, x, y) {
+  npc.x = x;
+  npc.y = y;
+  npc.tx = x;
+  npc.ty = y;
+  npc.trip = null;
+  npc.path = null;
+  npc.mode = 'idle';
+  npc.moving = false;
+  npc.walk = 0;
+  npc.stuck = 0;
+  npc.idle = 0;
+  npc.errand = null;
+  npc.inside = 0;
+  npc.present = true;
+  if (npc.staff && npc.room === HALLWAY_ID) npc.wait = hallwayRand(...HALLWAY_STAFF_HANG);
+}
+
+// Puts a whole visit straight into a room, out of sight.
+function hallwayPlaceEntity(ent, room) {
+  for (const m of hallwayMembers(ent)) m.room = room;
+  for (const [m, x, y] of hallwayDestinations(ent, room)) hallwaySettle(m, x, y);
+}
+
+// The room's walking grid: which 20 px cells are open floor.
+function hallwayGrid(room) {
+  const key = room === 0 && state.room === 5 ? 5 : room;
+  if (hallwayGridCache[key]) return hallwayGridCache[key];
+  const f = hallwayFloor(room),
+    c = HALLWAY_PATH_CELL,
+    cols = Math.floor((f.r - f.l) / c) + 1,
+    rows = Math.floor((f.b - f.t) / c) + 1,
+    free = [];
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) free.push(hallwayFloorFree(room, f.l + i * c, f.t + j * c, 2));
+  return (hallwayGridCache[key] = { f, c, cols, rows, free });
+}
+
+function hallwayClearLine(room, a, b) {
+  const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 8);
+  for (let i = 1; i < n; i++) if (!hallwayFloorFree(room, a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n)) return false;
+  return true;
+}
+
+// A route round the furniture from a to b: a breadth-first walk over the grid, pulled tight. The
+// hallway is one long open lane, so there it is a straight line.
+function hallwayPath(room, a, b) {
+  if (room === HALLWAY_ID || hallwayClearLine(room, a, b)) return [[b[0], b[1]]];
+  const g = hallwayGrid(room),
+    cell = ([x, y]) => [clamp(Math.round((x - g.f.l) / g.c), 0, g.cols - 1), clamp(Math.round((y - g.f.t) / g.c), 0, g.rows - 1)],
+    nearest = p => {
+      const [ci, cj] = cell(p);
+      let best = -1,
+        bestD = Infinity;
+      for (let j = 0; j < g.rows; j++)
+        for (let i = 0; i < g.cols; i++) {
+          const d = (i - ci) ** 2 + (j - cj) ** 2;
+          if (g.free[j * g.cols + i] && d < bestD) {
+            best = j * g.cols + i;
+            bestD = d;
+          }
+        }
+      return best;
+    },
+    start = nearest(a),
+    goal = nearest(b);
+  if (start < 0 || goal < 0) return [[b[0], b[1]]];
+  const prev = new Int32Array(g.free.length).fill(-2);
+  prev[start] = -1;
+  const queue = [start];
+  for (let q = 0; q < queue.length && prev[goal] === -2; q++) {
+    const at = queue[q],
+      i = at % g.cols,
+      j = Math.floor(at / g.cols);
+    for (const [di, dj] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1]
+    ]) {
+      const ni = i + di,
+        nj = j + dj,
+        n = nj * g.cols + ni;
+      if (ni < 0 || nj < 0 || ni >= g.cols || nj >= g.rows || prev[n] !== -2 || !g.free[n]) continue;
+      if (di && dj && (!g.free[j * g.cols + ni] || !g.free[nj * g.cols + i])) continue;
+      prev[n] = at;
+      queue.push(n);
+    }
+  }
+  if (prev[goal] === -2) return [[b[0], b[1]]];
+  const pts = [];
+  for (let at = goal; at >= 0; at = prev[at]) pts.unshift([g.f.l + (at % g.cols) * g.c, g.f.t + Math.floor(at / g.cols) * g.c]);
+  pts.push([b[0], b[1]]);
+  // Pull the string: skip every corner the line of sight does not need.
+  const out = [];
+  let from = [a[0], a[1]];
+  for (let k = 0; k < pts.length; k++) {
+    const next = pts[k + 1];
+    if (next && hallwayClearLine(room, from, next)) continue;
+    out.push(pts[k]);
+    from = pts[k];
+  }
+  return out;
+}
+
+// One step along npc.path; true once the last point is reached.
+function hallwayFollow(npc, speed, dt) {
+  const path = npc.path;
+  if (!path || !path.length) return true;
+  if (hallwayWalkTo(npc, path[0][0], path[0][1], speed, dt)) {
+    path.shift();
+    npc.stuck = 0;
+  }
+  return !path.length;
+}
+
+// A stroll: along the route when there is one, else straight at the target.
+function hallwayStroll(npc, speed, dt) {
+  if (npc.path && npc.path.length) return hallwayFollow(npc, speed, dt);
+  return hallwayWalkTo(npc, npc.tx, npc.ty, speed, dt);
+}
+
+// A new spot in the room to stroll to, by the same rules as the hallway: a real move, never toward her.
+function hallwayPickSpot(npc) {
+  const room = hallwayWhere(npc),
+    spots = hallwayRoomSpots(room),
+    slots = npc.group ? hallwayCrew(npc.group).map(hallwaySlotOf) : [[0, 0]];
+  for (let i = 0; i < 12; i++) {
+    // A room is small, so the rule is the plain one: the new spot is never closer to her than this one
+    // (hallwayBlocked says no to a closer spot), whichever way the walk goes.
+    const [tx, ty] = spots[Math.floor(hallwayRand(0, spots.length))] || [npc.x, npc.y],
+      hop = Math.hypot(tx - npc.x, ty - npc.y);
+    if (hop < 60) continue;
+    if (hallwayBlocked(tx, ty, npc) || Math.hypot(tx - player.x, ty - player.y) < HALLWAY_SPACE * 2) continue;
+    if (!slots.every(([sx, sy]) => hallwayFloorFree(room, tx + sx, ty + sy, 4))) continue;
+    if (hallwayCast.some(o => o !== npc && hallwayShown(o, room) && (!npc.group || o.group !== npc.group) && Math.hypot(o.x - tx, o.y - ty) < 60))
+      continue;
+    npc.tx = tx;
+    npc.ty = ty;
+    npc.path = hallwayPath(room, [npc.x, npc.y], [tx, ty]);
+    npc.mode = 'walk';
+    npc.stuck = 0;
     return;
   }
-  if (hallwayBusy()) return;
+  npc.wait = hallwayRand(1, 2);
+}
+
+// Lines for a room, or null in the hallway (the hallway has its own barks).
+function hallwayRoomBarks(npc) {
+  const room = hallwayWhere(npc);
+  if (room === HALLWAY_ID || npc.ensure || npc.rowdy) return null;
+  if (npc.staff) return HALLWAY_WARD_LINES[room] || HALLWAY_ROOM_BARKS.staff0;
+  return HALLWAY_ROOM_BARKS[room] || HALLWAY_ROOM_BARKS[0];
+}
+
+// Doctors and nurses in a room: now and then a look at the machine over the clipboard, and a word on it.
+function hallwayChoreStep(npc, dt, d) {
+  if (npc.moving || npc.act || npc.mode === 'walk' || d < HALLWAY_FACE_RANGE) return;
+  npc.chore -= dt;
+  if (npc.chore > 0) return;
+  npc.chore = hallwayRand(14, 26);
+  const room = hallwayWhere(npc),
+    mx = HALLWAY_MACHINE_X[room];
+  if (mx !== undefined && Math.abs(mx - npc.x) > 6) npc.dir = mx > npc.x ? 1 : -1;
+  npc.act = { kind: 'clipboard', t: 0, max: 1.8 };
+  npc.glance = hallwayRand(5, 12);
+  const lines = hallwayRoomBarks(npc);
+  if (lines && hallwayBarkGap <= 0 && !npc.bark && !hallwayTalk && d < 700) {
+    hallwaySay(npc, lines[npc.choreN++ % lines.length], 2.8);
+    npc.barkCd = Math.max(npc.barkCd, 25);
+    hallwayBarkGap = 2.2;
+  }
+}
+
+// ---- Travel ----
+// Moving while Macy can see either end: out through a door (a hallway door, or a room's exit corner),
+// then in through the far side's and over to a spot. A visiting group goes together, a beat apart.
+const hallwayDoorFor = room => HALLWAY_DOORS.find(d => d.room === hallwayKey(room)) || HALLWAY_DOORS[0];
+
+function hallwayExitPath(room, npc) {
+  if (room === HALLWAY_ID) return [];
+  return hallwayPath(room, [npc.x, npc.y], HALLWAY_ROOM_LANE).concat([HALLWAY_ROOM_DOOR.slice()]);
+}
+
+function hallwayPathLength(npc) {
+  let len = 0,
+    at = [npc.x, npc.y];
+  for (const p of npc.path || []) {
+    len += Math.hypot(p[0] - at[0], p[1] - at[1]);
+    at = p;
+  }
+  return len;
+}
+
+// One visit to another room. Seen at either end, they walk it; otherwise they are simply there.
+function hallwayMoveEntity(ent, to, instant = false) {
+  const members = hallwayMembers(ent),
+    from = hallwayEntityRoom(ent),
+    here = hallwayKey(state.room),
+    seen = !instant && (from === here || to === here),
+    dests = hallwayDestinations(ent, to);
+  hallwayRoam.ents[ent] = { since: hallwayRoam.clock, dwell: hallwayRand(...HALLWAY_ROAM_DWELL) };
+  members.forEach((m, i) => {
+    const [, dx, dy] = dests.find(d => d[0] === m);
+    m.room = to;
+    m.errand = null;
+    m.inside = 0;
+    if (m.act && m.act.greet) m.act = null;
+    if (!seen || !m.present) {
+      hallwaySettle(m, dx, dy);
+      return;
+    }
+    m.trip = { from, to, phase: 'out', dest: [dx, dy], t: 0, wait: 0, lead: i === 0, limit: 20 };
+    m.mode = 'walk';
+    m.stuck = 0;
+    m.idle = 0;
+    if (from === here) {
+      if (from === HALLWAY_ID) {
+        const door = hallwayDoorFor(to);
+        m.path = [
+          [door.x + (i - (members.length - 1) / 2) * 14, HALLWAY_STAFF_DOOR_Y + 14],
+          [door.x, HALLWAY_STAFF_DOOR_Y - 18]
+        ];
+      } else m.path = hallwayExitPath(from, m);
+      m.trip.limit = 8 + hallwayPathLength(m) / (m.speed * 1.25);
+      if (i === 0 && from !== HALLWAY_ID && hallwayRand(0, 1) < 0.6) hallwaySay(m, hallwayPick(HALLWAY_BYES), 2.2);
+    } else hallwayTripIn(m, i * 0.6);
+  });
+  hallwayRoamSave();
+}
+
+// Coming in: at the door (or waiting a beat behind the one in front), then a walk to the spot.
+function hallwayTripIn(npc, wait) {
+  const tr = npc.trip;
+  tr.phase = 'in';
+  tr.wait = wait;
+  tr.t = 0;
+  if (tr.to === HALLWAY_ID) {
+    const door = hallwayDoorFor(tr.from);
+    npc.x = door.x;
+    npc.y = HALLWAY_STAFF_DOOR_Y + 8;
+    npc.path = [[door.x, HALLWAY_STAFF_DOOR_Y + 36], tr.dest.slice()];
+  } else {
+    npc.x = HALLWAY_ROOM_DOOR[0];
+    npc.y = HALLWAY_ROOM_DOOR[1];
+    npc.path = [HALLWAY_ROOM_LANE.slice()].concat(hallwayPath(tr.to, HALLWAY_ROOM_LANE, tr.dest));
+  }
+  npc.dir = npc.vdir = tr.dest[0] >= npc.x ? 1 : -1;
+  npc.bark = null;
+  npc.stuck = 0;
+  tr.limit = 8 + hallwayPathLength(npc) / (npc.speed * 1.25);
+}
+
+function hallwayTripStep(npc, dt) {
+  const tr = npc.trip;
+  if (tr.wait > 0) {
+    tr.wait -= dt;
+    if (tr.wait > 0) return;
+    tr.wait = 0;
+  }
+  // Through the door of the room she is in: the lead knocks.
+  if (tr.phase === 'in' && tr.t === 0 && tr.lead && tr.to !== HALLWAY_ID) {
+    hallwaySay(npc, hallwayPick(HALLWAY_KNOCKS[hallwayKind(hallwayEntityOf(npc))]), 2.4);
+    if (typeof sfx === 'function') sfx('ui', { vol: 0.35 });
+  }
+  tr.t += dt;
+  const done = hallwayFollow(npc, npc.speed * 1.25, dt),
+    late = npc.stuck > 3 || tr.t > tr.limit;
+  if (tr.phase === 'out') {
+    if (!done && !late) return;
+    // Through the door: on to the far side, in view if Macy is there, else straight to the spot.
+    npc.bark = null;
+    if (tr.to === hallwayKey(state.room)) hallwayTripIn(npc, 0);
+    else hallwaySettle(npc, tr.dest[0], tr.dest[1]);
+    return;
+  }
+  if (!done && !late) return;
+  npc.trip = null;
+  npc.path = null;
+  npc.mode = 'idle';
+  npc.idle = 0;
+  npc.moving = false;
+  npc.walk = 0;
+  npc.stuck = 0;
+  npc.tx = npc.x;
+  npc.ty = npc.y;
+  if (npc.staff && npc.room === HALLWAY_ID) npc.wait = hallwayRand(...HALLWAY_STAFF_HANG);
+}
+
+// Macy changed rooms: everyone mid-walk finishes the trip at once.
+function hallwayTripsFinish() {
+  for (const npc of hallwayCast) if (npc.trip) hallwaySettle(npc, npc.trip.dest[0], npc.trip.dest[1]);
+}
+
+// ---- The scheduler ----
+function hallwayRoamBusy(ent) {
+  return hallwayMembers(ent).some(m => m.trip || (hallwayTalk && hallwayTalk.npc === m) || (m.act && m.act.greet));
+}
+
+// Everyone out of a room that is not safe any more, straight into the hallway. With Macy there they
+// bolt at once (a rematch, Ralph); elsewhere nobody sees it.
+function hallwayEvict(room) {
+  const here = hallwayKey(state.room) === room;
+  let fled = null;
+  for (const ent of hallwayEntities()) {
+    if (hallwayEntityRoom(ent) !== room) continue;
+    for (const m of hallwayMembers(ent)) {
+      if (here && hallwayShown(m)) fled = fled || { x: m.x, y: m.y };
+      if (hallwayTalk && hallwayTalk.npc === m) hallwayTalk = null;
+    }
+    hallwayPlaceEntity(ent, HALLWAY_ID);
+    hallwayRoam.ents[ent] = { since: hallwayRoam.clock, dwell: hallwayRand(...HALLWAY_ROAM_DWELL) };
+  }
+  const barb = hallwayCast.find(o => o.ensure);
+  if (barb && barb.present && barb.room === room && room !== HALLWAY_ID) {
+    if (here && !fled) fled = { x: barb.x, y: barb.y };
+    if (hallwayTalk && hallwayTalk.npc === barb) hallwayTalk = null;
+    hallwayEnsureGone(barb, hallwayRand(60, 100));
+  }
+  if (fled && typeof floating === 'function') floating('VISITORS OUT', fled.x, fled.y - 120, '#fff1c2');
+  hallwayRoamSave();
+}
+
+// One visit moves on: someone who has stayed long enough, to a room their people like that has space,
+// nudged toward half the cast in rooms, and never the last visitor out of the hallway.
+function hallwayRoamMove(force = false) {
+  const R = hallwayRoam,
+    ents = hallwayEntities(),
+    target = Math.floor(ents.length / 2),
+    inRooms = ents.filter(e => hallwayEntityRoom(e) !== HALLWAY_ID).length;
+  for (const ent of hallwayShuffle(ents)) {
+    const rec = R.ents[ent];
+    if (!force && rec && R.clock - rec.since < rec.dwell) continue;
+    if (hallwayRoamBusy(ent)) continue;
+    const from = hallwayEntityRoom(ent),
+      inHall = ents.filter(e => e !== ent && hallwayEntityRoom(e) === HALLWAY_ID).length,
+      opts = [];
+    for (const [key, like] of Object.entries(HALLWAY_ROAM_LIKES[hallwayKind(ent)])) {
+      const r = Number(key);
+      if (r === from || !hallwayRoomSafe(r)) continue;
+      if (r !== HALLWAY_ID && hallwayRoomCount(r, ent) >= HALLWAY_ROOM_CAP) continue;
+      let w = like;
+      if (r === HALLWAY_ID) w *= inRooms > target ? 3 : inRooms < target ? 0.25 : 1;
+      else if (from === HALLWAY_ID) {
+        if (inHall < 1 || inRooms > target) w = 0;
+        else if (inRooms < target) w *= 2;
+      }
+      if (w > 0) opts.push([r, w]);
+    }
+    if (!opts.length) continue;
+    let roll = hallwayRand(0, opts.reduce((a, o) => a + o[1], 0));
+    const choice = opts.find(o => (roll -= o[1]) <= 0) || opts[opts.length - 1];
+    hallwayMoveEntity(ent, choice[0], force);
+    return true;
+  }
+  return false;
+}
+
+function hallwayRoamStep(dt) {
+  if (!hallwayRoaming || !hallwayCast.length) return;
+  const R = hallwayRoam;
+  R.clock += dt;
+  // Gremlins back (a rematch, a fight walked out of, Ralph waiting): everyone out, now.
+  const unsafe = new Set();
+  for (const ent of hallwayEntities()) {
+    const r = hallwayEntityRoom(ent);
+    if (r !== HALLWAY_ID && !hallwayRoomSafe(r)) unsafe.add(r);
+  }
+  const barb = hallwayCast.find(o => o.ensure);
+  if (barb && barb.present && barb.room !== HALLWAY_ID && !hallwayRoomSafe(barb.room)) unsafe.add(barb.room);
+  for (const r of unsafe) hallwayEvict(r);
+  // Nobody moves house while she is mid-fight; the clock waits for the room to go quiet.
+  if (typeof encounter === 'object' && encounter && encounter.room === state.room && !encounter.complete) return;
+  R.next -= dt;
+  if (R.next > 0) return;
+  R.next = hallwayRoamMove() ? hallwayRand(...HALLWAY_ROAM_GAP) : hallwayRand(5, 12);
+}
+
+// ---- Remembering who is where ----
+function hallwayRoamSave() {
+  if (!hallwayRoaming) return;
+  const out = {};
+  for (const ent of hallwayEntities()) out[ent] = hallwayEntityRoom(ent);
+  hallwayConvoStore()[HALLWAY_ROAM_STORE] = out;
+  hallwayConvoSave();
+}
+
+// hallwayResetCast: everyone back where they were, or a fresh spread of about half the cast into rooms.
+function hallwayRoamReset() {
+  hallwayRoam = { clock: 0, next: hallwayRand(...HALLWAY_ROAM_GAP), ents: {} };
+  hallwayRoomNow = hallwayKey(state.room);
+  if (!hallwayRoaming) return;
+  const saved = hallwayConvoStore()[HALLWAY_ROAM_STORE],
+    ents = hallwayEntities();
+  // Fresh dwell clocks, part spent, so the first moves come along in a minute or two.
+  for (const ent of ents) hallwayRoam.ents[ent] = { since: -hallwayRand(0, 60), dwell: hallwayRand(...HALLWAY_ROAM_DWELL) };
+  if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+    for (const ent of ents) {
+      const r = Number(saved[ent]);
+      if (Number.isInteger(r) && r !== HALLWAY_ID && hallwayAllowed(ent, r)) hallwayPlaceEntity(ent, hallwayKey(r));
+    }
+    return;
+  }
+  const target = Math.floor(ents.length / 2);
+  for (let i = 0; i < target; i++) if (!hallwayRoamMove(true)) break;
+  for (const ent of ents) hallwayRoam.ents[ent].since = -hallwayRand(0, 60);
+  hallwayRoamSave();
+}
+
+// Macy walked into a room (onRoomLoaded): trips end, a room's visitors take fresh spots (the light switch
+// keeps them where they stand), nobody stays where there are gremlins, and Barb follows her with the tray.
+function hallwayRoomArrive(id) {
+  const k = hallwayKey(id),
+    fresh = k !== hallwayRoomNow;
+  hallwayRoomNow = k;
+  hallwayTripsFinish();
+  if (fresh && k !== HALLWAY_ID)
+    for (const ent of hallwayEntities())
+      if (hallwayEntityRoom(ent) === k) {
+        hallwayPlaceEntity(ent, k);
+        for (const m of hallwayMembers(ent)) m.greeted = false;
+      }
+  if (hallwayRoaming && !hallwayRoomSafe(k)) hallwayEvict(k);
+  const barb = hallwayCast.find(o => o.ensure);
+  if (fresh && barb && barb.present && barb.room !== k) hallwayEnsureGone(barb, hallwayEnsure.phase === 'out' ? hallwayRand(4, 8) : hallwayRand(100, 160));
+}
+
+// Barb may come up wherever Macy is, if the room is safe and has space.
+function hallwayBarbWelcome() {
+  const k = hallwayKey(state.room);
+  return k === HALLWAY_ID || (hallwayRoomSafe(k) && hallwayRoomCount(k) < HALLWAY_ROOM_CAP);
+}
+
+// Anyone to see or talk to in the room Macy is in (the hallway always counts).
+function hallwayActive() {
+  if (!hallwayCast.length) return false;
+  if (state.room === HALLWAY_ID) return true;
+  return !!hallwayTalk || hallwayCast.some(n => hallwayShown(n));
+}
+
+// ---- Framework hooks ----
+// Every room, not only the hallway: the visitors in the room Macy is in walk, talk and greet; the
+// scheduler moves visits between rooms wherever she is.
+function updateRoomExtras(dt) {
+  if (!Number.isFinite(dt) || dt <= 0 || !hallwayCast.length) return;
+  const hall = state.room === HALLWAY_ID,
+    here = hallwayKey(state.room);
+  if (!hall) {
+    hallwayLastRoom = state.room;
+    hallwayInside = false;
+  }
+  if (hallwayBusy()) {
+    // Away from the hallway, Barb's clock and the greeting cooldowns still run.
+    if (!hall) {
+      hallwayGreetTick(dt);
+      hallwayEnsureTick(dt, false);
+    }
+    return;
+  }
   hallwayGreetTick(dt);
   hallwayClock += dt;
-  hallwayArrival = Math.max(0, hallwayArrival - dt);
-  hallwayPaStep(dt);
   hallwayBarkGap = Math.max(0, hallwayBarkGap - dt);
-  hallwayElevator.hold = Math.max(0, hallwayElevator.hold - dt);
-  hallwayElevator.open += ((hallwayElevator.hold > 0 ? 1 : 0) - hallwayElevator.open) * (1 - Math.exp(-dt * 7));
-  hallwayEnsureTick(dt, true);
-  for (const npc of hallwayCast) hallwayNpcStep(npc, dt);
+  hallwayRoamStep(dt);
+  if (hall) {
+    hallwayArrival = Math.max(0, hallwayArrival - dt);
+    hallwayPaStep(dt);
+    hallwayElevator.hold = Math.max(0, hallwayElevator.hold - dt);
+    hallwayElevator.open += ((hallwayElevator.hold > 0 ? 1 : 0) - hallwayElevator.open) * (1 - Math.exp(-dt * 7));
+  }
+  hallwayEnsureTick(dt, hallwayBarbWelcome());
+  for (const npc of hallwayCast) if (hallwayWhere(npc) === here) hallwayNpcStep(npc, dt);
   hallwayGreetStep(dt);
   hallwayTalkStep(dt);
   hallwayTarget = hallwayFindTarget();
+  if (!hall) return;
   // Walking fully into a door (pushing up against it) goes through.
   const door = hallwayTarget && hallwayTarget.kind === 'door' ? hallwayTarget.door : null;
   if (door && hallwayArrival <= 0 && player.y < HALLWAY_DOOR_IN && player.moving && player.lastDy < -0.4)
@@ -25413,7 +26199,7 @@ function updateRoomExtras(dt) {
 }
 
 function roomExtrasAction(kind, point) {
-  if (!hallwayHere() || hallwayBusy()) return false;
+  if (!hallwayActive() || hallwayBusy()) return false;
   if (kind === 'escape' || kind === 'back' || kind === 'cancel') return hallwayCloseTalk();
   if (kind === 'tap') return hallwayTap(point);
   if (kind !== 'attack' && kind !== 'use' && kind !== 'enter') return false;
@@ -25422,7 +26208,8 @@ function roomExtrasAction(kind, point) {
   hallwayPressAt = hallwayClock;
   if (held) return hallwayPressTook;
   hallwayPressTook = hallwayInteract();
-  if (!hallwayPressTook && kind === 'enter') {
+  // In a room, Enter with nobody to talk to is the room's (the arcade beacon).
+  if (!hallwayPressTook && kind === 'enter' && state.room === HALLWAY_ID) {
     if (typeof toast === 'function') toast('Walk up to a door to go in, or say hi to someone.', 2.2);
     hallwayPressTook = true;
   }
@@ -25456,13 +26243,16 @@ function hallwayPlace(from) {
 }
 
 function onRoomLoaded(id) {
+  if (!hallwayCast.length) hallwayResetCast();
+  hallwayRoomArrive(id);
   if (id !== HALLWAY_ID) {
     hallwayLastRoom = id;
     hallwayTalk = null;
+    hallwayTarget = null;
     hallwayInside = false;
+    if (hallwayEnsure.phase === 'away') hallwayEnsure.due = Math.max(hallwayEnsure.due, 5);
     return;
   }
-  if (!hallwayCast.length) hallwayResetCast();
   // A fresh entry (not a repeated load of the same visit) reads the Ensure count and dresses the floor.
   const fresh = !hallwayInside;
   if (fresh) hallwayCultRead();
@@ -27394,7 +28184,10 @@ function hallwayDrawNpc(g, npc) {
 }
 
 function roomExtraRenderables(all = false) {
-  if (!hallwayHere()) return [];
+  if (!hallwayCast.length) return [];
+  // A room: just the visitors in it, depth-sorted with the furniture.
+  if (state.room !== HALLWAY_ID)
+    return hallwayCast.filter(npc => hallwayShown(npc)).map(npc => ({ y: npc.y, draw: g => hallwayDrawNpc(g, npc) }));
   const vw = typeof viewport === 'object' && viewport ? viewport.w : 1000,
     mid = cameraX + vw / 2,
     seen = x => all || Math.abs(x - mid) < vw / 2 + 160,
@@ -27403,7 +28196,7 @@ function roomExtraRenderables(all = false) {
     list.push({ y: HALLWAY_CRATE[1], draw: g => hallwayCrateArt(g, HALLWAY_CRATE[0], HALLWAY_CRATE[1]) });
   for (const b of hallwayBottles)
     if (seen(b.x)) list.push({ y: b.y, draw: g => hallwayBottle(g, b.x, b.y, b.flavor, b.row ? 1.1 : 1.3, true) });
-  for (const npc of hallwayCast) if (npc.present && seen(npc.x)) list.push({ y: npc.y, draw: g => hallwayDrawNpc(g, npc) });
+  for (const npc of hallwayCast) if (hallwayShown(npc) && seen(npc.x)) list.push({ y: npc.y, draw: g => hallwayDrawNpc(g, npc) });
   return list;
 }
 
@@ -27596,15 +28389,15 @@ function hallwaySpeechBox(g, vw, vh, css) {
 function drawRoomOverlay(g, vw = 1000, vh = 625) {
   // The ward strip pill sits where the speech box goes on phones; hide it while anyone is talking.
   if (typeof document !== 'undefined' && document.body && document.body.classList) document.body.classList.toggle('talking', !!hallwayTalk);
-  if (!hallwayHere()) return;
+  if (!hallwayActive()) return;
   const css = hallwayCssScale(vw);
   hallwayUi.css = css;
   hallwayUi.prompt = clamp(Math.round(12 / css), 13, 26);
   const barkSize = clamp(Math.round(11 / css), 12, 24);
   const prompt = !hallwayTalk && hallwayTarget ? hallwayPromptBox(hallwayTarget, vw) : null;
-  for (const npc of hallwayCast) if (npc.present && npc.bark) hallwayDrawBark(g, npc, vw, barkSize, prompt);
+  for (const npc of hallwayCast) if (hallwayShown(npc) && npc.bark) hallwayDrawBark(g, npc, vw, barkSize, prompt);
   if (prompt) hallwayDrawPrompt(g, hallwayTarget, vw);
-  if (hallwayCult.pa) hallwayDrawPa(g, vw, barkSize);
+  if (hallwayCult.pa && state.room === HALLWAY_ID) hallwayDrawPa(g, vw, barkSize);
   if (hallwayTalk) hallwaySpeechBox(g, vw, vh, css);
 }
 
@@ -27636,7 +28429,7 @@ function hallwayDrawPa(g, vw, fs) {
 
 // Escape closes a conversation instead of pausing (input.js's own handler runs later, on window).
 function hallwayKeydown(e) {
-  if (!e || e.key !== 'Escape' || !hallwayTalk || !hallwayHere() || hallwayBusy()) return;
+  if (!e || e.key !== 'Escape' || !hallwayTalk || !hallwayActive() || hallwayBusy()) return;
   hallwayCloseTalk();
   if (typeof e.preventDefault === 'function') e.preventDefault();
   if (typeof e.stopPropagation === 'function') e.stopPropagation();
