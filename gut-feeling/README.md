@@ -107,7 +107,7 @@ A light switch on the wall between the get-well board and the monitor turns her 
 
 Refuse Barb's Ensure often enough and the hospital fills with it: bottles in rows, a storage closet on the map you are not to ask about, gremlins carrying bottles as shields, a cafeteria renamed The Ensure Experience, and finally one bottle that reads FINE. YOU WIN. on a pedestal in her room.
 
-Idle long enough in bed after dark and Macy dreams: a 40-second interlude from a pool of vignettes, with its own woozy theme, until a nurse wakes her.
+Stand at the foot of her bed and NAP: the lights go out and Macy dreams on the spot, a 40-second interlude from a pool of vignettes, with its own woozy theme, until a nurse wakes her (lying still in the dark for a while drifts off too). Visitors leave her room when the lights are out.
 
 Medals land with a stamp, confetti and a sting (Rowdy gallops across on gold). There is a sheet of 36 stickers to earn, and a Share button that renders a card as a PNG for the family chat.
 
