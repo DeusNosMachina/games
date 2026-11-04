@@ -333,17 +333,27 @@ function roomToast(id) {
 // at: where Macy stands once the room is loaded (the light switch leaves her where she is, with no iris).
 // Without it she starts in the middle of the room.
 // What the big touch button does here: SWING where there are gremlins, TALK in the hallway, USE in her room.
+// A fight going on in this room right now (Ralph in her room counts): the full kit is needed.
+function wardActFight(id = state.room) {
+  return typeof encounter === 'object' && !!encounter && encounter.room === id && !encounter.complete;
+}
+
 function wardActLabel(id = state.room) {
+  if (wardActFight(id)) return 'SWING';
   if (id === 6) return 'TALK';
   if (typeof wardCombatRoom === 'function' ? !wardCombatRoom(id) : id === 0 || id === 5) return 'USE';
   return 'SWING';
 }
 
 // In a safe room the big button reads TALK while a visitor is the thing in front of her, USE otherwise.
+// Also keeps the slim safe-room cluster honest: Ralph arriving in her room brings every button back,
+// and beating him sends them away again.
 function wardActRefresh() {
-  const base = wardActLabel();
-  if (base === 'SWING') return;
-  const talk = typeof hallwayTarget !== 'undefined' && hallwayTarget && hallwayTarget.kind === 'talk',
+  const base = wardActLabel(),
+    safe = base !== 'SWING';
+  if (document.body && document.body.classList && document.body.classList.contains('safe-room') !== safe)
+    document.body.classList.toggle('safe-room', safe);
+  const talk = safe && typeof hallwayTarget !== 'undefined' && hallwayTarget && hallwayTarget.kind === 'talk',
     want = talk ? 'TALK' : base,
     btn = $('attackBtn'),
     span = btn && btn.querySelector ? btn.querySelector('span') : null;

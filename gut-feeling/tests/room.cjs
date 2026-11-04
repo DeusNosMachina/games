@@ -543,3 +543,12 @@ assert.equal(run('typeof dreamActive === "function" ? dreamActive() : true'), tr
 assert.equal(run('state.stats.naps'), 1, 'naps are counted');
 run('if (typeof dreamWake === "function") dreamWake(); loadRoom(0)');
 console.log('PASS: the bed offers NAP, turns the lights out and starts a dream on the spot.');
+
+// ---- Ralph in her room brings the whole kit back ----
+run("loadRoom(0); encounter = { room: 0, wave: 1, rest: 0, complete: false, calm: false, grudge: 0, pace: 1, boss: true }; wardActRefresh()");
+assert.equal(run('wardActLabel(0)'), 'SWING', 'a fight in her room means SWING');
+assert.equal(nodes.attackBtnchild.textContent, 'SWING', 'and the button says so');
+run('encounter.complete = true; encounter.calm = true; wardActRefresh()');
+assert.equal(run('wardActLabel(0)'), 'USE', 'Ralph gone, the room is safe again');
+assert.equal(nodes.attackBtnchild.textContent, 'USE');
+console.log('PASS: a boss fight in her room restores the full kit; the slim cluster returns after.');
