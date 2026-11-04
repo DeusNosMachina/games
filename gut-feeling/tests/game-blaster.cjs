@@ -110,8 +110,8 @@ for (const tall of [false, true]) {
   assert.ok(L.stick.y > C.h * (tall ? 0.8 : 0.7) && L.fire.y > C.h * (tall ? 0.8 : 0.7), `${tag}: stick and FIRE sit at the bottom`);
   assert.ok(circles.filter(c => c.k === 'stick' || c.k === 'fire').every(c => c.y + c.r >= C.h - 70), `${tag}: stick and FIRE right down at the bottom edge`);
   assert.equal(n('mini.blasterOwnControls'), true, `${tag}: a touch screen runs its own controls`);
-  assert.equal(n('$("miniControls").dataset.count'), '1', `${tag}: no FIRE or RELOAD buttons from the framework`);
-  assert.equal(n('$("miniControls").querySelector("[data-action=assist]").style.display'), 'none', `${tag}: and its assist is hidden`);
+  assert.equal(n('$("miniControls").dataset.count'), '0', `${tag}: no framework buttons at all, the game draws its own`);
+  assert.equal(n('$("miniControls").innerHTML'), '', `${tag}: and no assist button either`);
   assert.deepEqual(j('blasterCover()'), { bottom: 0, left: 0, right: 0 }, `${tag}: so nothing covers the canvas`);
   // Where the framework's own buttons would sit over the canvas (its geometry for a phone with one
   // button), everything lifts clear of what they cover.

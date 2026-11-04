@@ -86,7 +86,7 @@ Arcade controls:
 - **Bricks:** slide a finger (or the mouse) to move the tray; press to serve; arrows or A/D slide, Space serves, Up or W fires a pillow.
 - **Race:** hold left or right (arrows, A/D) to steer, drag to steer gently, swipe up or Shift to boost, tap a gurney or Space to throw.
 - **Gel:** press and swipe; a press on a gremlin slices it at once. Bombs only count on a moving swipe through their middle; purple gas fogs the screen instead of costing a heart. E freezes the gel for five seconds.
-- **Blaster:** tap to shoot, or slide and let go; tap an edge arrow or slide into the edge to look; hold and release to pierce; STICK (by the charges) shows a thumbstick, remembered. Mouse: the sight follows the pointer, click fires, right-drag looks. R reloads; tap R again in the green for an instant reload.
+- **Blaster:** on a phone the thumbstick sits bottom left (the chip above it hides it, remembered), FIRE is the big button bottom right with the stun above it and RELOAD beside; tap the room to shoot, or slide and let go; tap an edge arrow or slide gently into the edge to look; hold FIRE and release to pierce. Mouse: the sight follows the pointer, click fires, right-drag looks. R reloads; tap R again in the green for an instant reload.
 - **All games:** E uses a limited assist; Escape pauses.
 
 ## Progression and difficulty

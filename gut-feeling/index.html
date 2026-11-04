@@ -33202,7 +33202,7 @@ function miniOverlayFrame(viewW, viewH, aspect, sizes, inset = { t: 0, r: 0, b: 
     band = Math.min(sizes.hud, slack),
     // Corner buttons stay clear of the HUD on the shortest screens.
     thumbH = Math.max(sizes.btn, Math.min(sizes.thumbH, (boxH - sizes.hud) * 0.4)),
-    ctlH = (corners ? thumbH : sizes.btn) + gap * 2,
+    ctlH = count === 0 ? 0 : (corners ? thumbH : sizes.btn) + gap * 2,
     below = slack - band,
     // Spare height past the buttons is split above and below, so canvas and buttons stay together.
     extra = Math.max(0, below - ctlH),
@@ -33233,6 +33233,7 @@ function miniOverlayFrame(viewW, viewH, aspect, sizes, inset = { t: 0, r: 0, b: 
     if (r.at === 'left') cover.left = Math.max(cover.left, r.x + r.w - cvL);
     if (r.at === 'right') cover.right = Math.max(cover.right, canvasRight - r.x);
   }
+  if (count === 0) rects.length = 0;
   return {
     side: 'over',
     ctl: corners ? 'corners' : 'strip',
@@ -33585,11 +33586,14 @@ function syncMiniTip() {
 }
 
 // Buttons: {id, text, key?, hot?, pad?}. Each click sends miniAction(id); the assist button is always appended.
-function setControls(buttons) {
-  const before = miniButtonCount();
+// opts.assist === false leaves the assist button out too (a game that draws its own controls on the
+// canvas), so the count is 0 and the overlay reserves nothing.
+function setControls(buttons, opts = {}) {
+  const before = miniButtonCount(),
+    assist = opts.assist !== false;
   $('miniControls').dataset.game = mini.id;
   // Arcade mode lays out by button count (the assist included).
-  $('miniControls').dataset.count = String(buttons.length + 1);
+  $('miniControls').dataset.count = String(buttons.length + (assist ? 1 : 0));
   const html = buttons.map(
     b =>
       `<button data-action="${b.id}" class="${b.hot ? 'hot ' : ''}${b.pad ? 'pad' : ''}" ${b.pad ? `style="--pad:${b.pad}"` : ''}` +
@@ -33597,7 +33601,9 @@ function setControls(buttons) {
   );
   $('miniControls').innerHTML =
     html.join('') +
-    `<button class="assist muted" data-action="assist" aria-label="Use limited assist">ASSIST · ${mini.helps} left <small>(E)</small></button>`;
+    (assist
+      ? `<button class="assist muted" data-action="assist" aria-label="Use limited assist">ASSIST · ${mini.helps} left <small>(E)</small></button>`
+      : '');
   // A relabel that changes the count mid-run moves the buttons, so the frame and its cover follow.
   if (mini.initialized && mini.open && miniButtonCount() !== before) applyMiniFrame();
 }
@@ -49633,11 +49639,23 @@ function sliceCallout(g, x, y, text, W) {
 // Bedside Blaster (your room, after dark). Macy sits up in bed with a toy blaster and a flashlight
 // while gremlins crawl out from behind the furniture. Tap or click where the shot should land, slide
 // the sight to an edge (or tap an edge arrow) to look around a three-layer room, and splat everything
-// before it lands on your face. An optional thumbstick steers the sight for anyone who wants one.
-// Canvas 600 × 600.
+// before it lands on your face.
+// The room is always 600 × 600 and every rule works in its coordinates. On a touch screen the canvas is
+// wider or taller than the room so the controls have somewhere to live: 1120 × 600 on its side (the room
+// in the middle, a gutter either side) and 600 × 1040 upright (the room on top, the blanket below). The
+// gutters hold the game's own controls, drawn on the canvas and read through touch(): the thumbstick
+// bottom left with its show/hide chip above it, FIRE big at the bottom right, the flashlight stun above
+// it and RELOAD beside them. With a mouse the canvas is just the room and the DOM buttons do the job.
+const BLASTER_CANVAS = { square: { w: 600, h: 600 }, wide: { w: 1120, h: 600 }, tall: { w: 600, h: 1040 } };
+
 const BLASTER = registerGame({
   id: 5,
-  canvas: { w: 600, h: 600 },
+  get canvas() {
+    return blasterTouchScreen() ? BLASTER_CANVAS.wide : BLASTER_CANVAS.square;
+  },
+  get portraitCanvas() {
+    return blasterTouchScreen() ? BLASTER_CANVAS.tall : undefined;
+  },
   layout: 'gesture',
   info: {
     game: 'Bedside Blaster',
@@ -49647,7 +49665,7 @@ const BLASTER = registerGame({
       'Lights out, gremlins in. Sweep a flashlight across your dark room, tap whatever moves and splat it before it lands on your face. Seven charges, one pump, zero chill.',
     goal: 'Survive three night watches and hit the eviction quota.',
     control:
-      'Tap a gremlin to shoot it, or slide your finger and the sight rides along: let go to shoot. Tap an edge arrow, or slide to the edge, to look around. Hold still before you let go for a piercing shot. Tap STICK for a thumbstick. Mouse: the sight follows the pointer, click fires, right-drag or Shift-drag looks around. Space fires, R reloads, arrows look.',
+      'Tap a gremlin to shoot it, or slide your finger and the sight rides along: let go to shoot. Or steer the sight with the thumbstick and hit FIRE. Tap an edge arrow, or push the sight to the edge, to look around. Hold before you let go for a piercing shot. Mouse: the sight follows the pointer, click fires, right-drag or Shift-drag looks around. Space fires, R reloads, arrows look.',
     avoid:
       'Glowing eyes mean company. An orange ring means it is about to jump at your face. Bedpan helmets pop off with a headshot, bruisers shrug off body shots, and pouncers barely wait. Reload in the green for a hot magazine.',
     cue: 'Tap or slide, let go to shoot · arrows and edges look · hold to pierce · R in the green · E stun'
@@ -49666,7 +49684,14 @@ const BLASTER = registerGame({
     initArcadeRun(105 + mini.tier * 15);
     initShooter();
   },
+  // A touch screen gets the canvas controls in the gutters, so the framework's own buttons go away (the
+  // assist it always appends included). Mouse and keyboard keep the DOM row.
   controls() {
+    mini.blasterOwnControls = blasterTouchScreen();
+    if (mini.blasterOwnControls) {
+      setControls([], { assist: false });
+      return;
+    }
     setControls([
       { id: 'fire', text: 'HOLD FIRE', key: 'Space', hot: true },
       { id: 'reload', text: 'RELOAD', key: 'R' }
@@ -49678,20 +49703,19 @@ const BLASTER = registerGame({
   draw(g) {
     drawShooter(g);
   },
-  // Canvas presses. Touch: a tap fires where it lands, a slide carries the sight and fires on release
-  // (the edges scroll the room), an edge arrow turns to face its gremlin, a held finger charges, the
-  // chip shows or hides the stick, and the stick steers when it is shown.
+  // Every finger on the canvas, in canvas coordinates, several at once. In the room a tap fires where it
+  // lands, a slide carries the sight and fires on release (the edges scroll the room), an edge arrow
+  // turns to face its gremlin and a held finger charges. In the gutters: the stick steers, FIRE fires
+  // (held, it charges), the flashlight stuns, RELOAD reloads and the chip shows or hides the stick.
   // Mouse: the left button aims and fires at the pointer, the right button or Shift drags the room.
-  down(p) {
-    const meta = blasterPointerMeta;
-    blasterPointerMeta = null;
-    blasterPressStart('main', p, meta && meta.mouse ? (meta.pan ? 'pan' : 'aim') : 'touch');
-  },
-  move(p) {
-    blasterPressMove('main', p);
-  },
-  up(cancel) {
-    blasterPressEnd('main', cancel);
+  touch(kind, p, id) {
+    const key = 'p' + id;
+    if (kind === 'down') {
+      const meta = blasterPointerMeta && blasterPointerMeta.id === id ? blasterPointerMeta : null;
+      blasterPointerMeta = null;
+      blasterPressStart(key, p, meta && meta.mouse ? (meta.pan ? 'pan' : 'aim') : 'touch');
+    } else if (kind === 'move') blasterPressMove(key, p);
+    else blasterPressEnd(key, kind === 'cancel');
   },
   action(a) {
     if (a === 'fire') blasterTriggerPress();
@@ -49914,13 +49938,17 @@ const BLASTER_MAGAZINE = 7,
   BLASTER_YAW = [300, 1500],
   BLASTER_PITCH = [190, 320],
   BLASTER_GUN = { x: 452, y: 662, reach: 224 },
-  // Touch aiming: a sliding finger carries the sight, and inside this band the room scrolls that way.
+  // Touch aiming: a sliding finger (or the stick) carries the sight, and inside this band the room
+  // scrolls that way: slowly where the band starts, up to these rates on the very edge, so a look can
+  // be feathered. An edge arrow is the quick turn.
   BLASTER_EDGE = 70,
-  BLASTER_EDGE_YAW = 2200, // yaw per second with the finger on the very edge
-  BLASTER_EDGE_PITCH = 320,
-  // The thumbstick (an option, remembered in state.stats.blasterStick) and its show/hide chip.
-  BLASTER_STICK = { x: 76, y: 452, r: 48, grab: 66, speed: 760, dead: 0.15 },
-  BLASTER_CHIP = { x: 222, y: 544, w: 76, h: 42 };
+  BLASTER_EDGE_RAMP = 1.8, // how gently the scroll builds across the band
+  BLASTER_EDGE_YAW = 400, // yaw per second with the sight on the very edge
+  BLASTER_EDGE_PITCH = 200,
+  // The thumbstick: r is how far the knob travels, speed the sight's top speed, dead the slack in the
+  // middle. It is on by default on touch; the chip above it hides it (state.stats.blasterStick 0).
+  BLASTER_STICK = { r: 62, speed: 760, dead: 0.15 },
+  BLASTER_ROOM = 600; // the room's size; the canvas around it is wider or taller
 
 // Parallax layers: screen x = layer x - 600 + rate × (900 - yaw). Scale sizes what lives there.
 const BLASTER_LAYERS = {
@@ -50088,7 +50116,8 @@ function initShooter() {
     blasterFirstHit: false,
     blasterPanned: false,
     blasterMouse: false,
-    blasterMouseIn: false
+    blasterMouseIn: false,
+    blasterOwnControls: false
   });
   blasterPointerMeta = null;
 }
@@ -50457,7 +50486,7 @@ function blasterShoot(x, y, charged = false) {
   sfx(charged ? 'explode' : 'shot');
   if (!hits.length) {
     mini.combo = 0;
-    arcadeBurst(x, y, '#6f8797', 4);
+    blasterBurst(x, y, '#6f8797', 4);
   } else {
     mini.shotsHit++;
     mini.aimFlash = 0.16;
@@ -50481,7 +50510,7 @@ function blasterApplyHit(h, charged, hot) {
     mini.bottlesShot++;
     mini.score += 40;
     sfx('powerup');
-    arcadeBurst(p.x, p.y, '#ffb347', 14);
+    blasterBurst(p.x, p.y, '#ffb347', 14);
     blasterPop(p.x, p.y - 26, '+3 JUICE', '#ffd27a');
     return false;
   }
@@ -50516,7 +50545,7 @@ function blasterApplyHit(h, charged, hot) {
   if (hot && head) dmg *= 2;
   if (dmg === 0) {
     sfx('ricochet');
-    arcadeBurst(p.x, p.y - 4 * p.s, '#ffe6a6', 6);
+    blasterBurst(p.x, p.y - 4 * p.s, '#ffe6a6', 6);
     blasterPop(p.x, p.y - 30 * p.s, text, '#ffd7a0');
     return false;
   }
@@ -50524,7 +50553,7 @@ function blasterApplyHit(h, charged, hot) {
   mini.blasterFirstHit = true;
   e.hp -= dmg;
   e.hit = 0.13;
-  arcadeBurst(p.x, p.y, head ? '#ffe4a1' : '#b8e07a', head ? 14 : 10);
+  blasterBurst(p.x, p.y, head ? '#ffe4a1' : '#b8e07a', head ? 14 : 10);
   sfx(head ? 'headshot' : 'hit');
   if (e.hp > 0) {
     blasterPop(p.x, p.y - 30 * p.s, text || 'HIT', '#ffe9b8');
@@ -50543,7 +50572,7 @@ function blasterApplyHit(h, charged, hot) {
   }
   praise(k.points + (head ? 60 : 0) + (midAir ? 80 : 0) + (hot ? 40 : 0), head ? 1 : charged ? 0.85 : 0.72);
   sfx(e.kind === 'boss' ? 'clear' : 'squelch');
-  arcadeBurst(p.x, p.y + 8 * p.s, '#9be15d', e.kind === 'boss' ? 30 : 16);
+  blasterBurst(p.x, p.y + 8 * p.s, '#9be15d', e.kind === 'boss' ? 30 : 16);
   mini.flash = e.kind === 'boss' ? 1.8 : 0.6;
   mini.flashText =
     e.kind === 'boss'
@@ -50626,34 +50655,128 @@ function blasterAimAt(x, y, dur) {
   mini.sweep = { fx: mini.sight.x, fy: mini.sight.y, tx: x, ty: y, t: 0, dur };
 }
 
-// The stick is a touch option: it shows when she turned it on and the last press was a finger.
+// ---- The canvas around the room ----
+// Where the room sits on the active canvas: centred between the gutters when wide, on top when tall.
+function blasterRoomBox() {
+  const { w, h } = activeCanvas();
+  return { x: Math.round((w - BLASTER_ROOM) / 2), y: w > h ? Math.round((h - BLASTER_ROOM) / 2) : 0 };
+}
+
+function blasterToRoom(p) {
+  const B = blasterRoomBox();
+  return { x: p.x - B.x, y: p.y - B.y };
+}
+
+function blasterInRoom(r) {
+  return r.x >= 0 && r.x <= BLASTER_ROOM && r.y >= 0 && r.y <= BLASTER_ROOM;
+}
+
+// Particles go through the framework, which draws them in canvas coordinates.
+function blasterBurst(x, y, col, n) {
+  const B = blasterRoomBox();
+  arcadeBurst(x + B.x, y + B.y, col, n);
+}
+
+// A touch screen (the framework's own test for floating its buttons) gets the canvas with gutters and
+// the touch controls in them. Anything else gets the room alone and the DOM buttons.
+function blasterTouchScreen() {
+  return typeof miniCoarse === 'function' && miniCoarse();
+}
+
+function blasterTouchUI() {
+  return blasterTouchScreen();
+}
+
+// The stick is on by default; the chip hides it and the choice is remembered.
+function blasterStickOn() {
+  return !(state.stats && state.stats.blasterStick === 0);
+}
+
 function blasterStickShown() {
-  return !!(state.stats && state.stats.blasterStick === 1) && !mini.blasterMouse;
+  return blasterTouchUI() && blasterStickOn();
 }
 
-function blasterInStick(p) {
-  return Math.hypot(p.x - BLASTER_STICK.x, p.y - BLASTER_STICK.y) <= BLASTER_STICK.grab;
+// What the framework's own buttons hide, in canvas pixels. When the blaster runs its own controls it has
+// hidden the only one left (the assist), so nothing is covered.
+function blasterCover() {
+  const c = (mini.frame && mini.frame.cover) || {};
+  if (mini.blasterOwnControls) return { bottom: 0, left: 0, right: 0 };
+  return { bottom: c.bottom || 0, left: c.left || 0, right: c.right || 0 };
 }
 
-function blasterInChip(p) {
-  const c = BLASTER_CHIP;
-  return p.x >= c.x - 6 && p.x <= c.x + c.w + 6 && p.y >= c.y - 6 && p.y <= c.y + c.h + 6;
+// The touch controls, in canvas coordinates, for the active canvas: thumbstick bottom left with its chip
+// above it, FIRE big at the bottom right, the flashlight stun above FIRE and RELOAD beside them. Anything
+// the framework's buttons would hide lifts the lot clear of them. Circles have x, y, r; the chip is a box.
+function blasterLayout(cover = blasterCover()) {
+  const { w, h } = activeCanvas(),
+    B = blasterRoomBox(),
+    lift = cover.bottom || 0;
+  if (w > h) {
+    const lx = B.x / 2,
+      rx = w - B.x / 2,
+      base = h - 18 - lift,
+      stick = { x: lx, y: base - 92, r: BLASTER_STICK.r },
+      fire = { x: rx + 5, y: base - 100, r: 92 };
+    return {
+      wide: true,
+      stick,
+      // A thumb anywhere in the gutter below the chip grabs the stick.
+      stickZone: { x: 0, y: stick.y - 120, w: B.x, h: h - stick.y + 120 },
+      chip: { x: lx - 52, y: stick.y - 168, w: 104, h: 44 },
+      fire,
+      flash: { x: rx + 25, y: fire.y - 170, r: 52 },
+      reload: { x: B.x + BLASTER_ROOM + 46, y: fire.y - 132, r: 40 }
+    };
+  }
+  // Upright: the band under the room. When something lifts the controls the stun keeps off the room
+  // and FIRE shrinks a little to make room for it.
+  const top = B.y + BLASTER_ROOM,
+    base = h - 24 - lift,
+    stick = { x: 140, y: base - 110, r: BLASTER_STICK.r },
+    fire = { x: w - 132, y: base - 112, r: 96 },
+    flash = { x: fire.x + 20, y: Math.max(top + 66, fire.y - 178), r: 54 };
+  fire.r = Math.min(fire.r, Math.hypot(fire.x - flash.x, fire.y - flash.y) - flash.r - 12);
+  return {
+    wide: false,
+    stick,
+    stickZone: { x: 0, y: stick.y - 112, w: w * 0.45, h: h - stick.y + 112 },
+    chip: { x: stick.x - 52, y: Math.max(top + 14, stick.y - 160), w: 104, h: 44 },
+    fire,
+    flash,
+    reload: { x: w * 0.53, y: Math.max(top + 54, fire.y - 150), r: 42 }
+  };
+}
+
+// The touch control under a canvas point, if any. Circles get a forgiving margin around them.
+function blasterControlAt(p) {
+  if (!blasterTouchUI()) return null;
+  const L = blasterLayout(),
+    near = (c, pad) => Math.hypot(p.x - c.x, p.y - c.y) <= c.r + pad,
+    inBox = (b, pad) => p.x >= b.x - pad && p.x <= b.x + b.w + pad && p.y >= b.y - pad && p.y <= b.y + b.h + pad;
+  if (inBox(L.chip, 10)) return 'chip';
+  if (near(L.flash, 12)) return 'flash';
+  if (near(L.reload, 12)) return 'reload';
+  if (near(L.fire, 28)) return 'fire';
+  if (blasterStickOn() && inBox(L.stickZone, 0)) return 'stick';
+  return null;
 }
 
 function blasterToggleStick() {
-  const on = !(state.stats && state.stats.blasterStick === 1);
+  const on = !blasterStickOn();
   (state.stats ||= {}).blasterStick = on ? 1 : 0;
   save();
   sfx('ui');
   mini.flash = 1;
-  mini.flashText = on ? 'THUMBSTICK ON · FIRE ON THE BUTTON' : 'THUMBSTICK OFF · YOUR FINGER IS THE SIGHT';
+  mini.flashText = on ? 'THUMBSTICK ON · STEER, THEN FIRE' : 'THUMBSTICK OFF · YOUR FINGER IS THE SIGHT';
 }
 
-// How deep a point sits in the scroll band on each axis, -1 (left or top) to 1 (right or bottom).
+// How deep a point sits in the scroll band on each axis, -1 (left or top) to 1 (right or bottom). It
+// builds gently from the band's inner edge to full at the room's edge.
 function blasterEdge(x, y) {
   const E = BLASTER_EDGE,
-    d = v => (v <= 0 ? 0 : Math.min(1, v) ** 1.6);
-  return { x: d((x - (600 - E)) / E) - d((E - x) / E), y: d((y - (600 - E)) / E) - d((E - y) / E) };
+    R = BLASTER_ROOM,
+    d = v => (v <= 0 ? 0 : Math.min(1, v) ** BLASTER_EDGE_RAMP);
+  return { x: d((x - (R - E)) / E) - d((E - x) / E), y: d((y - (R - E)) / E) - d((E - y) / E) };
 }
 
 // The edge arrows: one per side with gremlins past it, at their average height.
@@ -50693,48 +50816,65 @@ function blasterFollowArrow(a) {
   mini.blasterPanned = true;
 }
 
+// p is in canvas coordinates. Presses on the touch controls never aim or shoot; anything else outside
+// the room is ignored, except a mouse drag that looks around.
 function blasterPressStart(id, p, how) {
-  // The chip and the arrows give way to a gremlin in view that is right under the finger.
-  const finger = how === 'touch' && !mini.blasterMouse,
-    clear = () => !blasterHitsAt(p.x, p.y).some(h => h.e.kind !== 'bottle'),
-    arrow = how === 'touch' ? blasterArrowAt(p) : null;
-  if (finger && blasterInChip(p) && clear()) {
-    blasterToggleStick();
-    how = 'chip';
+  // The touch controls answer a mouse click too (a tablet with a trackpad).
+  mini.blasterMouse = how !== 'touch';
+  const r = blasterToRoom(p),
+    control = how !== 'pan' ? blasterControlAt(p) : null;
+  if (control) how = control;
+  else if (!blasterInRoom(r) && how !== 'pan') return;
+  else if (how === 'touch') {
+    // An edge arrow gives way to a gremlin in view right under the finger.
+    const arrow = blasterArrowAt(r);
+    if (arrow && !blasterHitsAt(r.x, r.y).some(h => h.e.kind !== 'bottle')) {
+      blasterFollowArrow(arrow);
+      how = 'arrow';
+    }
   }
-  // A thumb on the stick's corner grabs it even right after a mouse hid it (a tablet with a trackpad).
-  else if (how === 'touch' && state.stats && state.stats.blasterStick === 1 && blasterInStick(p)) how = 'stick';
-  else if (arrow && clear()) {
-    blasterFollowArrow(arrow);
-    how = 'arrow';
-  }
-  mini.blasterMouse = how === 'aim' || how === 'pan';
-  const b = { sx: p.x, sy: p.y, lastX: p.x, lastY: p.y, t: 0, how, moved: false, hold: false, scrolled: false };
+  const b = { sx: r.x, sy: r.y, lastX: r.x, lastY: r.y, t: 0, how, moved: false, hold: false, scrolled: false };
   b.kx = b.ky = 0;
   mini.blasterPresses[id] = b;
-  if (how === 'aim') blasterAimAt(p.x, p.y, 0);
-  if (how === 'stick') blasterStickAt(b, p);
+  if (how === 'aim') blasterAimAt(r.x, r.y, 0);
+  else if (how === 'stick') {
+    // The stick centres where the thumb lands, unless it lands on the stick itself.
+    const S = blasterLayout().stick,
+      on = Math.hypot(p.x - S.x, p.y - S.y) <= S.r;
+    b.cx = on ? S.x : p.x;
+    b.cy = on ? S.y : p.y;
+    blasterStickAt(b, p);
+  } else if (how === 'fire') {
+    if (!mini.blasterTrigger) mini.blasterTrigger = { t: 0 };
+  } else if (how === 'flash') miniAction('assist');
+  else if (how === 'reload') reloadBlaster();
+  else if (how === 'chip') blasterToggleStick();
 }
 
 function blasterStickAt(b, p) {
-  const S = BLASTER_STICK,
-    dx = p.x - S.x,
-    dy = p.y - S.y,
+  const R = BLASTER_STICK.r,
+    dx = p.x - b.cx,
+    dy = p.y - b.cy,
     d = Math.hypot(dx, dy),
-    k = d > S.r ? S.r / d : 1;
-  b.kx = (dx * k) / S.r;
-  b.ky = (dy * k) / S.r;
+    k = d > R ? R / d : 1;
+  b.kx = (dx * k) / R;
+  b.ky = (dy * k) / R;
+}
+
+function blasterFireFinger() {
+  return Object.values(mini.blasterPresses || {}).some(b => b.how === 'fire');
 }
 
 function blasterPressMove(id, p) {
   const b = mini.blasterPresses && mini.blasterPresses[id];
   if (!b) return;
-  const dx = p.x - b.lastX,
-    dy = p.y - b.lastY;
-  b.lastX = p.x;
-  b.lastY = p.y;
+  const r = blasterToRoom(p),
+    dx = r.x - b.lastX,
+    dy = r.y - b.lastY;
+  b.lastX = r.x;
+  b.lastY = r.y;
   if (b.how === 'aim') {
-    blasterAimAt(p.x, p.y, 0);
+    blasterAimAt(r.x, r.y, 0);
     return;
   }
   if (b.how === 'stick') {
@@ -50747,19 +50887,27 @@ function blasterPressMove(id, p) {
     return;
   }
   if (b.how !== 'touch') return;
-  // A finger that slides carries the sight with it, anywhere in the room, and keeps its charge.
+  // A finger that slides carries the sight with it, anywhere in the room (past its edge the sight stays
+  // on the edge), and keeps its charge.
   if (!b.moved) {
-    if (Math.hypot(p.x - b.sx, p.y - b.sy) <= BLASTER_SLOP) return;
+    if (Math.hypot(r.x - b.sx, r.y - b.sy) <= BLASTER_SLOP) return;
     b.moved = true;
   }
-  blasterAimAt(p.x, p.y, 0);
+  blasterAimAt(r.x, r.y, 0);
 }
 
 function blasterPressEnd(id, cancel) {
   const b = mini.blasterPresses && mini.blasterPresses[id];
   if (!b) return;
   delete mini.blasterPresses[id];
-  if (cancel || b.how === 'pan' || b.how === 'stick' || b.how === 'chip' || b.how === 'arrow') return;
+  // FIRE shoots when the last finger on it lifts (charged if it was held), unless the press was lost.
+  if (b.how === 'fire') {
+    if (!mini.blasterTrigger || mini.fireHeld || blasterFireFinger()) return;
+    if (cancel || mini.screen !== 'play' || mini.paused) mini.blasterTrigger = null;
+    else blasterTriggerRelease();
+    return;
+  }
+  if (cancel || (b.how !== 'touch' && b.how !== 'aim')) return;
   if (mini.screen !== 'play' || mini.paused) return;
   const charged = b.t >= BLASTER_CHARGE;
   if (b.how === 'aim') blasterQueueShot(mini.sight.x, mini.sight.y, charged);
@@ -50773,6 +50921,8 @@ function blasterPressEnd(id, cancel) {
 
 // A tap sweeps the sight to the spot, then the shot resolves against whatever is under it.
 function blasterQueueShot(x, y, charged) {
+  x = clamp(x, 0, BLASTER_ROOM);
+  y = clamp(y, 0, BLASTER_ROOM);
   const d = Math.hypot(x - mini.sight.x, y - mini.sight.y),
     wait = d > 4 ? BLASTER_SWEEP : 0;
   blasterAimAt(x, y, wait);
@@ -50835,44 +50985,40 @@ function blasterDropHeld() {
   mini.blasterQueue = [];
 }
 
-// The framework follows one canvas pointer and reports no hover or buttons, so this capture-phase
-// listener adds them for this game only: mouse hover moves the sight, the right button or Shift
-// drags, and a second finger can tap or look while the first is down.
+// Every press arrives through touch(), which does not say what kind of pointer it was or which mouse
+// button, and nothing reports a mouse that only hovers. This capture-phase listener fills both in for
+// this game: it notes the pointer kind and button before touch() hears of the press, and mouse hover
+// moves the sight (the cursor hides over the room).
 function blasterPointerEvent(e) {
   const cv = $('miniCanvas'),
     active = mini.open && mini.id === BLASTER.id && mini.screen === 'play' && !mini.paused && !!mini.blasterPresses,
-    onCanvas = e.target === cv;
+    onCanvas = e.target === cv,
+    cursor = hide => {
+      if (hide === blasterCursorHidden) return;
+      cv.style.cursor = hide ? 'none' : '';
+      blasterCursorHidden = hide;
+    };
   if (!active) {
-    if (blasterCursorHidden) {
-      cv.style.cursor = '';
-      blasterCursorHidden = false;
-    }
+    cursor(false);
     return;
   }
-  const key = 'p' + e.pointerId,
-    press = mini.blasterPresses[key];
   if (e.type === 'pointerdown') {
     if (!onCanvas) return;
-    blasterPointerMeta = { mouse: e.pointerType === 'mouse', pan: e.button === 1 || e.button === 2 || !!e.shiftKey };
-    if (arcadePointer !== null && e.pointerId !== arcadePointer && e.pointerType !== 'mouse')
-      blasterPressStart(key, miniPoint(e), 'touch');
+    blasterPointerMeta = {
+      id: e.pointerId,
+      mouse: e.pointerType === 'mouse',
+      pan: e.button === 1 || e.button === 2 || !!e.shiftKey
+    };
   } else if (e.type === 'pointermove') {
-    if (press) blasterPressMove(key, miniPoint(e));
-    else if (e.pointerType === 'mouse' && arcadePointer === null) {
-      mini.blasterMouseIn = onCanvas;
-      if (onCanvas) {
-        blasterHover(miniPoint(e));
-        if (!blasterCursorHidden) {
-          cv.style.cursor = 'none';
-          blasterCursorHidden = true;
-        }
-      } else if (blasterCursorHidden) {
-        cv.style.cursor = '';
-        blasterCursorHidden = false;
-      }
+    if (e.pointerType !== 'mouse' || mini.blasterPresses['p' + e.pointerId]) return;
+    mini.blasterMouseIn = onCanvas;
+    if (!onCanvas) {
+      cursor(false);
+      return;
     }
-  } else if (e.type === 'pointerup' || e.type === 'pointercancel') {
-    if (press) blasterPressEnd(key, e.type !== 'pointerup');
+    const r = blasterToRoom(miniPoint(e));
+    blasterHover(r);
+    cursor(blasterInRoom(r));
   } else if (e.type === 'pointerout' && onCanvas && e.pointerType === 'mouse') mini.blasterMouseIn = false;
 }
 
@@ -50910,15 +51056,23 @@ function blasterUpdateLook(dt) {
     if (y < 90) dpitch -= ((90 - y) / 90) * 220 * dt;
     if (y > 540) dpitch += ((y - 540) / 60) * 220 * dt;
   }
-  // Touch play: a sliding finger or the stick scrolls the room while the sight is in the edge band.
+  // Touch play: a sliding finger or the stick scrolls the room while the sight is in the edge band. A
+  // slide scrolls by how deep the sight sits in the band; the stick also by how hard it pushes that way,
+  // so easing off the stick eases off the turn.
   const drivers = Object.values(mini.blasterPresses).filter(
     b => (b.how === 'touch' && b.moved) || (b.how === 'stick' && Math.hypot(b.kx, b.ky) > BLASTER_STICK.dead)
   );
   if (drivers.length) {
     const edge = blasterEdge(mini.sight.x, mini.sight.y),
       yaw = mini.lookTarget.yaw,
-      pitch = mini.lookTarget.pitch;
-    blasterPan(edge.x * BLASTER_EDGE_YAW * dt, edge.y * BLASTER_EDGE_PITCH * dt);
+      pitch = mini.lookTarget.pitch,
+      slide = drivers.some(b => b.how === 'touch'),
+      push = (axis, sign) =>
+        slide ? 1 : Math.max(0, ...drivers.map(b => clamp((axis === 'x' ? b.kx : b.ky) * sign, 0, 1)));
+    blasterPan(
+      edge.x * push('x', Math.sign(edge.x)) * BLASTER_EDGE_YAW * dt,
+      edge.y * push('y', Math.sign(edge.y)) * BLASTER_EDGE_PITCH * dt
+    );
     if (Math.abs(mini.lookTarget.yaw - yaw) + Math.abs(mini.lookTarget.pitch - pitch) > 1e-6) {
       mini.blasterPanned = true;
       for (const b of drivers) b.scrolled = true;
@@ -50941,7 +51095,7 @@ function blasterUpdateInput(dt) {
     if (u >= 1) mini.sweep = null;
   }
   if (mini.blasterTrigger) {
-    if (mini.fireHeld) mini.blasterTrigger.t += dt;
+    if (mini.fireHeld || blasterFireFinger()) mini.blasterTrigger.t += dt;
     else blasterTriggerRelease();
   }
   for (const b of Object.values(mini.blasterPresses)) {
@@ -51181,9 +51335,24 @@ const blasterHash = n => {
 
 let blasterMaskCanvas = null;
 
+// The canvas: the blanket around the room, the room itself (clipped to its 600 × 600, in room
+// coordinates), then the touch controls (or, for a mouse, the key legend) in canvas coordinates.
 function drawShooter(g) {
   // Held presses never survive a pause; otherwise resuming would fire a shot nobody asked for.
   if (mini.paused) blasterDropHeld();
+  const B = blasterRoomBox();
+  blasterGutters(g, B);
+  g.save();
+  g.translate(B.x, B.y);
+  g.beginPath();
+  g.rect(0, 0, BLASTER_ROOM, BLASTER_ROOM);
+  g.clip();
+  blasterRoom(g);
+  g.restore();
+  blasterControlsArt(g);
+}
+
+function blasterRoom(g) {
   rect(g, 0, 0, 600, 600, '#081324');
   blasterLayer(g, 'far', blasterFarBack);
   blasterTargets(g, 'far', true);
@@ -51976,42 +52145,107 @@ function blasterHud(g) {
     const m = x + clamp(mini.reloadT / D, 0, 1) * w;
     line(g, [[m, y - 4], [m, y + 28]], '#ffe0a1', 3);
   }
-  blasterStickArt(g);
 }
 
-// The thumbstick, bottom left, and the chip that shows or hides it. Neither appears for a mouse.
-function blasterStickArt(g) {
-  if (mini.blasterMouse) return;
-  const C = BLASTER_CHIP,
-    on = blasterStickShown();
-  rr(g, C.x, C.y, C.w, C.h, 13, on ? '#2c5a55dd' : '#0b1d30dd', on ? '#9fe0c4aa' : '#5f8a9a88', 1.5);
-  label(g, on ? 'HIDE' : 'STICK', C.x + C.w / 2, C.y + 19, 12, on ? '#d8f5e6' : '#b9d3dc', 'center');
-  label(g, on ? 'STICK' : 'SHOW', C.x + C.w / 2, C.y + 34, 9, '#8fb0bb', 'center');
-  if (!on) return;
-  const S = BLASTER_STICK,
-    b = Object.values(mini.blasterPresses || {}).find(p => p.how === 'stick'),
-    kx = b ? b.kx * S.r : 0,
-    ky = b ? b.ky * S.r : 0;
-  g.globalAlpha = b ? 0.9 : 0.6;
-  ellipse(g, S.x, S.y, S.r + 8, S.r + 8, '#0b1d30aa');
-  g.strokeStyle = '#9fd8c899';
-  g.lineWidth = 2;
-  g.beginPath();
-  g.arc(S.x, S.y, S.r + 8, 0, Math.PI * 2);
-  g.stroke();
-  for (const [ax, ay] of [[0, -1], [1, 0], [0, 1], [-1, 0]])
-    poly(
-      g,
-      [
-        [S.x + ax * 46 - ay * 5, S.y + ay * 46 + ax * 5],
-        [S.x + ax * 46 + ay * 5, S.y + ay * 46 - ax * 5],
-        [S.x + ax * 53, S.y + ay * 53]
-      ],
-      '#9fd8c877'
-    );
-  ellipse(g, S.x + kx, S.y + ky, 24, 24, b ? '#c8f0da' : '#7fa9a6');
-  ellipse(g, S.x + kx - 6, S.y + ky - 7, 8, 6, '#ffffff55');
+// ---- Around the room (canvas coordinates) ----
+// Macy's blanket fills the gutters (or the band under the room), a quilt in the dark, with the bed rail
+// framing the room.
+function blasterGutters(g, B) {
+  const { w, h } = activeCanvas(),
+    S = 64;
+  if (w <= BLASTER_ROOM && h <= BLASTER_ROOM) return;
+  rect(g, 0, 0, w, h, gradient(g, 0, 0, 0, h, '#0d1a2c', '#08111f'));
+  for (let y = 0; y < h; y += S)
+    for (let x = 0; x < w; x += S) {
+      if (x >= B.x - S && x < B.x + BLASTER_ROOM && y >= B.y - S && y < B.y + BLASTER_ROOM) continue;
+      const odd = (x / S + y / S) % 2;
+      rr(g, x + 3, y + 3, S - 6, S - 6, 10, odd ? '#14263b' : '#101f33');
+      g.setLineDash([4, 5]);
+      rr(g, x + 9, y + 9, S - 18, S - 18, 7, null, odd ? '#2a4660' : '#233b54', 1);
+      g.setLineDash([]);
+    }
+  rr(g, B.x - 4, B.y - 4, BLASTER_ROOM + 8, BLASTER_ROOM + 8, 8, null, '#3d5f73', 4);
+}
+
+// The touch controls on the blanket.
+function blasterControlsArt(g) {
+  if (!blasterTouchUI()) return;
+  const L = blasterLayout(),
+    presses = Object.values(mini.blasterPresses || {}),
+    held = how => presses.find(b => b.how === how);
+  // The chip that shows or hides the stick.
+  const C = L.chip,
+    on = blasterStickOn();
+  rr(g, C.x, C.y, C.w, C.h, 14, on ? '#2c5a55dd' : '#0b1d30dd', on ? '#9fe0c4aa' : '#5f8a9a88', 1.5);
+  label(g, on ? 'HIDE STICK' : 'SHOW STICK', C.x + C.w / 2, C.y + 27, 12, on ? '#d8f5e6' : '#b9d3dc', 'center');
+  if (on) {
+    const b = held('stick'),
+      S = b ? { x: b.cx, y: b.cy, r: L.stick.r } : L.stick,
+      kx = b ? b.kx * S.r : 0,
+      ky = b ? b.ky * S.r : 0;
+    g.globalAlpha = b ? 0.95 : 0.75;
+    ellipse(g, S.x, S.y, S.r + 12, S.r + 12, '#0b1d30cc');
+    g.strokeStyle = '#9fd8c8aa';
+    g.lineWidth = 2.5;
+    g.beginPath();
+    g.arc(S.x, S.y, S.r + 12, 0, Math.PI * 2);
+    g.stroke();
+    for (const [ax, ay] of [[0, -1], [1, 0], [0, 1], [-1, 0]])
+      poly(
+        g,
+        [
+          [S.x + ax * (S.r - 4) - ay * 7, S.y + ay * (S.r - 4) + ax * 7],
+          [S.x + ax * (S.r - 4) + ay * 7, S.y + ay * (S.r - 4) - ax * 7],
+          [S.x + ax * (S.r + 5), S.y + ay * (S.r + 5)]
+        ],
+        '#9fd8c899'
+      );
+    ellipse(g, S.x + kx, S.y + ky, 30, 30, b ? '#c8f0da' : '#7fa9a6');
+    ellipse(g, S.x + kx - 8, S.y + ky - 9, 10, 7, '#ffffff55');
+    g.globalAlpha = 1;
+    label(g, 'AIM', L.stick.x, L.stick.y + L.stick.r + 30, 11, '#7fa3b0', 'center');
+  }
+  // FIRE: the blaster's orange, with the charge filling its rim while it is held.
+  const F = L.fire,
+    down = !!held('fire'),
+    charge = mini.blasterTrigger ? clamp(mini.blasterTrigger.t / BLASTER_CHARGE, 0, 1) : 0,
+    dry = mini.reload > 0 || mini.ammo <= 0,
+    fy = F.y + (down ? 4 : 0);
+  ellipse(g, F.x, F.y + 7, F.r, F.r, '#3a1a0c');
+  ellipse(g, F.x, fy, F.r, F.r, gradient(g, F.x - F.r, fy - F.r, F.r * 2, F.r * 2, '#ffbb57', '#c9561f'));
+  ellipse(g, F.x, fy, F.r - 14, F.r - 14, down ? '#e2672f' : '#f0823d');
+  ellipse(g, F.x - F.r * 0.3, fy - F.r * 0.38, F.r * 0.3, F.r * 0.16, '#ffffff44');
+  if (charge > 0) {
+    g.strokeStyle = charge >= 1 ? '#d6ffb8' : '#a6ff8f';
+    g.lineWidth = 7;
+    g.beginPath();
+    g.arc(F.x, fy, F.r - 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * charge);
+    g.stroke();
+  }
+  g.globalAlpha = dry ? 0.55 : 1;
+  label(g, 'FIRE', F.x, fy + 8, 30, '#3a1405', 'center');
+  label(g, dry ? 'RELOADING' : 'HOLD TO PIERCE', F.x, fy + 32, 10, '#5c2610', 'center');
   g.globalAlpha = 1;
+  // The flashlight stun, above FIRE: a lens that goes dark once the stuns are spent.
+  const A = L.flash,
+    left = mini.helps,
+    ay = A.y + (held('flash') ? 3 : 0);
+  ellipse(g, A.x, A.y + 5, A.r, A.r, '#11202a');
+  ellipse(g, A.x, ay, A.r, A.r, '#3c4f59');
+  ellipse(g, A.x, ay, A.r - 9, A.r - 9, left > 0 ? '#fff6c8' : '#5b6a70');
+  if (left > 0) glow(g, A.x, ay, A.r + 14, '#fff2c444');
+  label(g, 'STUN', A.x, ay + 2, 15, left > 0 ? '#5a4a12' : '#2b363b', 'center');
+  label(g, left + ' LEFT', A.x, ay + 19, 10, left > 0 ? '#7a6418' : '#2b363b', 'center');
+  // RELOAD, beside them: teal like the pump, green while the hot-reload window is open.
+  const R = L.reload,
+    [wa, wb] = mini.reload > 0 ? blasterReloadWindow() : [0, 0],
+    green = mini.reload > 0 && !mini.reloadTry && mini.reloadT >= wa && mini.reloadT <= wb,
+    ry = R.y + (held('reload') ? 3 : 0);
+  ellipse(g, R.x, R.y + 5, R.r, R.r, '#0f3a36');
+  ellipse(g, R.x, ry, R.r, R.r, green ? '#7fe08a' : gradient(g, R.x - R.r, ry, R.r * 2, 0, '#2f9a90', '#1a5f59'));
+  for (let i = -1; i <= 1; i++) line(g, [[R.x - 18, ry - 15 + i * 6], [R.x + 18, ry - 15 + i * 6]], '#0f3a3688', 2);
+  label(g, 'RELOAD', R.x, ry + 9, 12, green ? '#123b18' : '#d8f5e6', 'center');
+  label(g, mini.ammo + '/' + mini.magazine, R.x, ry + 24, 10, green ? '#123b18' : '#9fd8c8', 'center');
 }
 
 function blasterTag(g, text, x, y, arrow) {
@@ -52044,7 +52278,7 @@ function blasterHints(g) {
     blasterTag(
       g,
       mini.blasterMouse ? 'R IN THE GREEN = HOT RELOAD' : 'RELOAD: TAP IN THE GREEN',
-      blasterStickShown() ? 236 : 114,
+      114,
       486,
       true
     );

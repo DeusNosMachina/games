@@ -51,9 +51,7 @@ const BLASTER = registerGame({
   controls() {
     mini.blasterOwnControls = blasterTouchScreen();
     if (mini.blasterOwnControls) {
-      setControls([]);
-      const a = $('miniControls').querySelector('[data-action="assist"]');
-      if (a && a.style) a.style.display = 'none';
+      setControls([], { assist: false });
       return;
     }
     setControls([

@@ -255,7 +255,7 @@ function miniOverlayFrame(viewW, viewH, aspect, sizes, inset = { t: 0, r: 0, b: 
     band = Math.min(sizes.hud, slack),
     // Corner buttons stay clear of the HUD on the shortest screens.
     thumbH = Math.max(sizes.btn, Math.min(sizes.thumbH, (boxH - sizes.hud) * 0.4)),
-    ctlH = (corners ? thumbH : sizes.btn) + gap * 2,
+    ctlH = count === 0 ? 0 : (corners ? thumbH : sizes.btn) + gap * 2,
     below = slack - band,
     // Spare height past the buttons is split above and below, so canvas and buttons stay together.
     extra = Math.max(0, below - ctlH),
@@ -286,6 +286,7 @@ function miniOverlayFrame(viewW, viewH, aspect, sizes, inset = { t: 0, r: 0, b: 
     if (r.at === 'left') cover.left = Math.max(cover.left, r.x + r.w - cvL);
     if (r.at === 'right') cover.right = Math.max(cover.right, canvasRight - r.x);
   }
+  if (count === 0) rects.length = 0;
   return {
     side: 'over',
     ctl: corners ? 'corners' : 'strip',
@@ -638,11 +639,14 @@ function syncMiniTip() {
 }
 
 // Buttons: {id, text, key?, hot?, pad?}. Each click sends miniAction(id); the assist button is always appended.
-function setControls(buttons) {
-  const before = miniButtonCount();
+// opts.assist === false leaves the assist button out too (a game that draws its own controls on the
+// canvas), so the count is 0 and the overlay reserves nothing.
+function setControls(buttons, opts = {}) {
+  const before = miniButtonCount(),
+    assist = opts.assist !== false;
   $('miniControls').dataset.game = mini.id;
   // Arcade mode lays out by button count (the assist included).
-  $('miniControls').dataset.count = String(buttons.length + 1);
+  $('miniControls').dataset.count = String(buttons.length + (assist ? 1 : 0));
   const html = buttons.map(
     b =>
       `<button data-action="${b.id}" class="${b.hot ? 'hot ' : ''}${b.pad ? 'pad' : ''}" ${b.pad ? `style="--pad:${b.pad}"` : ''}` +
@@ -650,7 +654,9 @@ function setControls(buttons) {
   );
   $('miniControls').innerHTML =
     html.join('') +
-    `<button class="assist muted" data-action="assist" aria-label="Use limited assist">ASSIST · ${mini.helps} left <small>(E)</small></button>`;
+    (assist
+      ? `<button class="assist muted" data-action="assist" aria-label="Use limited assist">ASSIST · ${mini.helps} left <small>(E)</small></button>`
+      : '');
   // A relabel that changes the count mid-run moves the buttons, so the frame and its cover follow.
   if (mini.initialized && mini.open && miniButtonCount() !== before) applyMiniFrame();
 }
