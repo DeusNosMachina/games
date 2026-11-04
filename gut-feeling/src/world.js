@@ -339,6 +339,17 @@ function wardActLabel(id = state.room) {
   return 'SWING';
 }
 
+// In a safe room the big button reads TALK while a visitor is the thing in front of her, USE otherwise.
+function wardActRefresh() {
+  const base = wardActLabel();
+  if (base === 'SWING') return;
+  const talk = typeof hallwayTarget !== 'undefined' && hallwayTarget && hallwayTarget.kind === 'talk',
+    want = talk ? 'TALK' : base,
+    btn = $('attackBtn'),
+    span = btn && btn.querySelector ? btn.querySelector('span') : null;
+  if (span && span.textContent !== want) span.textContent = want;
+}
+
 function loadRoom(id, at = null) {
   hitStop = 0;
   state.room = id;
@@ -2025,6 +2036,7 @@ function updateWorld(dt) {
   if (keys.has(' ') || heldAttack) attack();
   updateCombat(dt);
   if (typeof updateRoomExtras === 'function') updateRoomExtras(dt);
+  wardActRefresh();
   macyReactions();
   wardHpSeen = state.hp;
   for (let s of supplies.filter(supplyAvailable))

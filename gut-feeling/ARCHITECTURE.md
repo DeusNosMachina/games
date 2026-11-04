@@ -120,6 +120,8 @@ Game-owned: `limit` (set it in `init`; the HUD clock and default `timeUp` use it
 
 ## Room extras (the hallway)
 
+The hooks below run in every room. hallway.js answers in room 6 and in any room with visitors in it (the roaming rules and scheduler live under "Visitors in the rooms"); elsewhere it returns early, and `roomExtrasAction` returns false when there is nobody to talk to.
+
 Another file may add places that are not arcades. Every call below is guarded with `typeof`, so the game runs the same without them.
 
 | Hook | Called |

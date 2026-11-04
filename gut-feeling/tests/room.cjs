@@ -523,3 +523,10 @@ console.log('PASS: safe rooms relabel the big button TALK or USE; wards keep SWI
   assert.match(html, /double-tap it \(the » on the stick\) to dash/i, 'How to play says how to dash');
 }
 console.log('PASS: the touch cluster has no DASH or TRAP; the stick wears the dash mark; safe rooms keep EAT.');
+
+// A visitor in her room turns the USE button into TALK while she is next to them, and back.
+run("loadRoom(0); hallwayTarget = { kind: 'talk', npc: hallwayCast[0] }; wardActRefresh()");
+assert.equal(nodes.attackBtnchild.textContent, 'TALK', 'next to a visitor in her room the button talks');
+run('hallwayTarget = null; wardActRefresh()');
+assert.equal(nodes.attackBtnchild.textContent, 'USE', 'and reads USE again when nobody is near');
+console.log('PASS: the safe-room button reads TALK by a visitor and USE otherwise.');
