@@ -142,3 +142,143 @@ run("macyGreet('hug', 5, 1); player.inv = 0; player.shield = 0; player.z = 0; st
 for (let i = 0; i < 12 && run('player.pose') !== 'flinch'; i++) run('advanceSimulation(1 / 60)');
 assert.equal(run('player.pose'), 'flinch', 'a hit still flinches');
 console.log('PASS: a step, the stick or a dash cancels a greeting; a hit flinches over it.');
+
+// ---- Turning ----
+// A turn picks a hand-drawn view (side, three-quarter, front) and mirrors it, never squashing her
+// through zero width. The probe records the narrowest x-to-y scale ratio any girl() call draws at.
+run(`var macyTurnProbe = { minSx: Infinity, bad: [], depth: 0, calls: 0 };
+var macyTurnCtx = new Proxy({}, {
+  get(t, k) {
+    if (k in t) return t[k];
+    if (k === 'save') return () => { macyTurnProbe.depth++; };
+    if (k === 'restore') return () => { macyTurnProbe.depth--; };
+    return (...args) => {
+      macyTurnProbe.calls++;
+      for (const a of args) if (typeof a === 'number' && !Number.isFinite(a)) macyTurnProbe.bad.push(String(k));
+      if (k === 'ellipse' && (args[2] < 0 || args[3] < 0)) macyTurnProbe.bad.push('negative ellipse');
+      // A squash is x shrunk against y: the ratio, not the overall size.
+      if (k === 'scale') macyTurnProbe.minSx = Math.min(macyTurnProbe.minSx, Math.abs(args[0] / args[1]));
+      if (k === 'createLinearGradient' || k === 'createRadialGradient') return { addColorStop() {} };
+    };
+  },
+  set(t, k, v) { t[k] = v; return true; }
+});`);
+assert.deepEqual(
+  json('[1, 0.8, 0.7, 0.6, 0.3, 0.25, 0.2, 0, -0.2, -0.5, -0.9, -1].map(facingView)'),
+  ['side', 'side', 'side', 'three', 'three', 'three', 'front', 'front', 'front', 'three', 'side', 'side'],
+  'facingView: side, three-quarter, front by how far round'
+);
+const FACINGS = [1, 0.85, 0.6, 0.4, 0.2, 0.05, 0, -0.05, -0.2, -0.4, -0.6, -0.85, -1];
+const ACTS = [
+  'null',
+  ...['hug', 'fistbump', 'selfie', 'highfive', 'wave', 'flinch', 'look', 'ball', 'scrunchie', 'dance', 'yawn', 'iv', 'pump', 'grin'].map(
+    k => `{ kind: '${k}', t: MACY_POSES.${k} * 0.5 }`
+  )
+];
+for (const scale of SCALES)
+  for (const f of FACINGS)
+    for (const act of ACTS)
+      for (const walk of [0, 1.3, 4.1]) {
+        const head = Math.max(-1, Math.min(1, f - 0.6)),
+          tail = Math.max(-1.3, Math.min(1.3, f + 0.5));
+        run(`girl(macyTurnCtx, 300, 400, ${scale}, ${walk}, ${f}, false, true, ${act}, { head: ${head}, tail: ${tail} })`);
+      }
+// Odd inputs fall back to her right side.
+run('girl(macyTurnCtx, 0, 0, 1, 0, NaN, false, true, null, { head: NaN, tail: Infinity }); girl(macyTurnCtx, 0, 0, 1, 0, 0, false, true, null, null)');
+assert.equal(run('macyTurnProbe.depth'), 0, 'every save() has its restore()');
+assert.deepEqual(json('macyTurnProbe.bad'), [], 'no NaN or Infinity coordinates, no negative radii');
+assert.ok(run('macyTurnProbe.minSx') >= 0.5, `never a squash: smallest x scale ${run('macyTurnProbe.minSx')}`);
+console.log(`PASS: every view draws at ${SCALES.length} scales, ${FACINGS.length} facings, ${ACTS.length} poses and the walk, never squashed.`);
+
+// The views really differ: the three-quarter hoodie is narrower than the side and front ones.
+run(`var macyRects = []; var macyRectCtx = new Proxy({}, {
+  get(t, k) {
+    if (k in t) return t[k];
+    if (k === 'roundRect') return (...a) => macyRects.push(a);
+    return (...a) => (k === 'createLinearGradient' || k === 'createRadialGradient' ? { addColorStop() {} } : undefined);
+  },
+  set(t, k, v) { t[k] = v; return true; }
+});`);
+const torsoW = f =>
+  json(`(() => { macyRects = []; girl(macyRectCtx, 0, 0, 1, 0, ${f}, false, false); return macyRects.filter(r => r[1] === -51 && r[3] === 28).map(r => r[2]); })()`);
+assert.deepEqual(torsoW(1), [27], 'side: the full hoodie');
+assert.deepEqual(torsoW(-0.45), [23], 'three-quarter: narrower');
+assert.deepEqual(torsoW(0), [27], 'front: square on');
+
+// A turn in the ward: head first, then the body through three-quarter and front, then the ponytail.
+run('begin(); loadRoom(0); player.x = 505; player.y = 470; enemies = []; player.dir = 1; macyClearPose()');
+step(1, 1 / 60);
+assert.deepEqual(json('[player.facing.body, player.facing.head, player.visualDir]'), [1, 1, 1], 'settled facing right');
+run('player.dir = -1; macyTurnProbe.minSx = Infinity');
+const frames = [];
+for (let i = 0; i < 45; i++) {
+  run('advanceSimulation(1 / 60)');
+  frames.push(json('[player.facing.head, player.facing.body, player.facing.tail, player.visualDir]'));
+  run('girl(macyTurnCtx, 0, 0, MACY_SCALE, player.walk, player.visualDir, false, true, macyAct(), player.facing); drawWorld()');
+}
+const views = frames.map(F => run(`facingView(${F[1]})`));
+const firstAt = (k, v) => frames.findIndex(F => F[k] <= v);
+assert.ok(views.includes('three') && views.includes('front'), `the body turns through three-quarter and front: ${views.join(' ')}`);
+assert.ok(views.indexOf('three') < views.indexOf('front') && views.lastIndexOf('three') > views.indexOf('front'), 'side, three-quarter, front, three-quarter, side');
+const headDone = firstAt(0, -1),
+  bodyDone = firstAt(1, -1),
+  tailCross = firstAt(2, 0),
+  bodyCross = firstAt(1, 0);
+assert.ok(headDone >= 0 && bodyDone >= 0, 'both get there');
+assert.ok(bodyDone - headDone >= 3, `the head leads by a few frames (${headDone} vs ${bodyDone})`);
+assert.ok(bodyDone <= Math.ceil(0.25 * 60), `the body turns in about 0.22 s (${bodyDone} frames)`);
+assert.ok(tailCross > bodyCross, `the ponytail lags the body (${tailCross} vs ${bodyCross})`);
+assert.ok(Math.min(...frames.map(F => F[2])) < -1.01, 'the ponytail swings past and settles');
+assert.ok(Math.abs(frames[frames.length - 1][2] + 1) < 0.05, 'settled');
+assert.ok(frames.every(F => F[3] === F[1]), 'visualDir follows the body');
+assert.ok(run('macyTurnProbe.minSx') >= 0.5, 'never drawn squashed during the turn');
+console.log(`PASS: a turn: head first (${headDone} frames), body through three-quarter and front (${bodyDone} frames), the ponytail a beat behind.`);
+
+// A quick flip mid-turn reverses smoothly: no frame jumps more than the turn's own speed.
+run('player.dir = 1');
+let prev = json('player.facing.body'),
+  maxJump = 0;
+for (let i = 0; i < 40; i++) {
+  if (i === 5) run('player.dir = -1');
+  if (i === 9) run('player.dir = 1');
+  run('advanceSimulation(1 / 60)');
+  const b = json('player.facing.body');
+  maxJump = Math.max(maxJump, Math.abs(b - prev));
+  prev = b;
+}
+assert.ok(maxJump <= 2 / (0.22 * 60) + 1e-9, `no jumps (${maxJump.toFixed(3)} per frame)`);
+assert.equal(json('player.facing.body'), 1, 'back where she started');
+// Something that sets visualDir outright (a room entry, the send-off) snaps the whole turn.
+run('player.dir = -1; player.visualDir = -1; advanceSimulation(1 / 60)');
+assert.deepEqual(json('[player.facing.head, player.facing.body, player.facing.tail]'), [-1, -1, -1], 'a snap is a snap');
+console.log('PASS: a flip mid-turn heads back smoothly; writing visualDir snaps the turn.');
+
+// Turning to greet someone uses the same turn, and the greeting plays through it.
+run('player.dir = 1; player.visualDir = 1; advanceSimulation(1 / 60)');
+run("macyGreet('wave', 2, -1)");
+const seen = new Set();
+for (let i = 0; i < 20; i++) {
+  run('advanceSimulation(1 / 60); girl(macyTurnCtx, 0, 0, MACY_SCALE, 0, player.visualDir, false, true, macyAct(), player.facing)');
+  seen.add(run('facingView(player.facing.body)'));
+  assert.equal(run('player.pose'), 'wave', 'the wave holds through the turn');
+}
+assert.ok(seen.has('front') && seen.has('three'), 'she turns round to wave, she does not flip');
+assert.equal(run('player.facing.body'), -1);
+// The walk keeps going through a turn.
+run('macyClearPose(); player.dir = 1; player.visualDir = 1; advanceSimulation(1 / 60)');
+key('d');
+step(0.3, 1 / 60);
+keyUp('d');
+key('a');
+const walks = [];
+for (let i = 0; i < 16; i++) {
+  run('advanceSimulation(1 / 60); girl(macyTurnCtx, 0, 0, MACY_SCALE, player.walk, player.visualDir, false, true, macyAct(), player.facing)');
+  walks.push(json('[player.walk, player.facing.body]'));
+}
+keyUp('a');
+assert.ok(walks.every((w, i) => !i || w[0] > walks[i - 1][0]), 'the stride never stops mid-turn');
+assert.ok(walks.some(w => run(`facingView(${w[1]})`) === 'front'), 'and she turns round while walking');
+assert.equal(run('macyTurnProbe.depth'), 0);
+assert.deepEqual(json('macyTurnProbe.bad'), []);
+assert.ok(run('macyTurnProbe.minSx') >= 0.5);
+console.log('PASS: greeting and walking both turn her round through the views, pose and stride intact.');

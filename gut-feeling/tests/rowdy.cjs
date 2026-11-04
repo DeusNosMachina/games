@@ -354,3 +354,80 @@ run(`rowdyNpc = { x: 812, y: 270 }; var mx = 812, my = 300, illegal = 0, px = 81
   }`);
 assert.equal(run('illegal'), 0, 'no step outside a run-through');
 console.log('PASS: 400 s of Macy wandering: he moves only on his run-throughs.');
+
+// ---- Turning ----
+// He turns through hand-drawn views (side, three-quarter, front) and a mirror, never a squash: the
+// probe records the narrowest x-to-y scale ratio any draw uses.
+run(`var rowdyTurnProbe = { minSx: Infinity, bad: [], depth: 0 };
+var rowdyTurnCtx = new Proxy({}, {
+  get(t, k) {
+    if (k in t) return t[k];
+    if (k === 'save') return () => { rowdyTurnProbe.depth++; };
+    if (k === 'restore') return () => { rowdyTurnProbe.depth--; };
+    return (...args) => {
+      for (const a of args) if (typeof a === 'number' && !Number.isFinite(a)) rowdyTurnProbe.bad.push(String(k));
+      if (k === 'ellipse' && (args[2] < 0 || args[3] < 0)) rowdyTurnProbe.bad.push('negative ellipse');
+      if (k === 'scale') rowdyTurnProbe.minSx = Math.min(rowdyTurnProbe.minSx, Math.abs(args[0] / args[1]));
+      if (k === 'createLinearGradient' || k === 'createRadialGradient') return { addColorStop() {} };
+    };
+  },
+  set(t, k, v) { t[k] = v; return true; }
+});`);
+for (const pose of poses)
+  for (const scale of [0.5, 1.45, 3])
+    for (const t of [0, 0.37, 1.9, 13.3])
+      for (const face of [1, 0.6, 0.3, 0, -0.3, -0.6, -1]) {
+        const head = Math.max(-1, Math.min(1, face - 0.5));
+        run(`drawRowdy(rowdyTurnCtx, 320, 400, ${scale}, '${pose}', ${t}, { face: ${face}, head: ${head}, prop: 'flag' })`);
+        run(`drawRowdy(rowdyTurnCtx, 320, 400, ${scale}, '${pose}', ${t}, { face: ${face}, poms: true, dust: true })`);
+      }
+run("drawRowdy(rowdyTurnCtx, 0, 0, 1, 'idle', 0, { face: NaN, head: Infinity })");
+assert.equal(run('rowdyTurnProbe.depth'), 0, 'every save() has its restore()');
+assert.deepEqual(json('rowdyTurnProbe.bad'), [], 'no NaN or Infinity coordinates, no negative radii');
+assert.ok(run('rowdyTurnProbe.minSx') >= 0.5, `never a squash: narrowest ratio ${run('rowdyTurnProbe.minSx')}`);
+// The spin goes all the way round: his front, the far side, his back, and back again.
+const spinViews = new Set();
+for (let i = 0; i < 60; i++) {
+  const t = (i / 60) * ((2 * Math.PI) / 7),
+    P = json(`(() => { const P = rowdyPose('spin', ${t}); return [P.spinTurn, P.back]; })()`);
+  spinViews.add(run(`facingView(${P[0]})`) + (P[1] ? '-back' : ''));
+}
+for (const v of ['side', 'three', 'front', 'three-back', 'front-back']) assert.ok(spinViews.has(v), `the spin shows ${v}`);
+console.log(`PASS: every pose draws at every facing in between, never squashed; the spin goes round through ${spinViews.size} views.`);
+
+// The hallway's npc: a change of face turns him head first through the views, in about 0.22 s.
+run("var rowdyTurner = { x: 400, y: 300, pose: 'cheer', face: 1 }; rowdyTurnProbe.minSx = Infinity");
+run('rowdySpec.draw(rowdyTurnCtx, rowdyTurner, 10)');
+run('rowdyTurner.face = -1');
+const rt = [];
+for (let i = 1; i <= 30; i++) {
+  run(`rowdySpec.draw(rowdyTurnCtx, rowdyTurner, 10 + ${i} / 60)`);
+  rt.push(json('[rowdyTurner.rowdyTurn.head, rowdyTurner.rowdyTurn.body]'));
+}
+const rviews = rt.map(F => run(`facingView(${F[1]})`)),
+  rHead = rt.findIndex(F => F[0] <= -1),
+  rBody = rt.findIndex(F => F[1] <= -1);
+assert.ok(rviews.includes('three') && rviews.includes('front'), `he turns through three-quarter and front: ${rviews.join(' ')}`);
+assert.ok(rHead >= 0 && rBody - rHead >= 3, `his head leads (${rHead} vs ${rBody})`);
+assert.ok(rBody <= 15, `done in about 0.22 s (${rBody} frames)`);
+assert.ok(run('rowdyTurnProbe.minSx') >= 0.5, 'never squashed mid-turn');
+// Back the other way mid-turn: no jumps.
+run('rowdyTurner.face = 1');
+let rPrev = json('rowdyTurner.rowdyTurn.body'),
+  rJump = 0;
+for (let i = 1; i <= 30; i++) {
+  if (i === 4) run('rowdyTurner.face = -1');
+  if (i === 7) run('rowdyTurner.face = 1');
+  run(`rowdySpec.draw(rowdyTurnCtx, rowdyTurner, 10.5 + ${i} / 60)`);
+  const b = json('rowdyTurner.rowdyTurn.body');
+  rJump = Math.max(rJump, Math.abs(b - rPrev));
+  rPrev = b;
+}
+assert.ok(rJump <= 2 / (0.22 * 60) + 1e-9, `a flip mid-turn heads back smoothly (${rJump.toFixed(3)} per frame)`);
+assert.equal(json('rowdyTurner.rowdyTurn.body'), 1);
+// A clock that jumps back (a new visit) never turns him backwards in time.
+run('rowdySpec.draw(rowdyTurnCtx, rowdyTurner, 2)');
+assert.equal(json('rowdyTurner.rowdyTurn.body'), 1);
+assert.equal(run('rowdyTurnProbe.depth'), 0);
+assert.deepEqual(json('rowdyTurnProbe.bad'), []);
+console.log(`PASS: npc.face turns him head first (${rHead} frames) and body after (${rBody} frames), cheering all the way.`);

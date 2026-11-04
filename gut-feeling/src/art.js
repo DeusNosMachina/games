@@ -142,7 +142,7 @@ function macyLook() {
 // small offsets (arms, eyes, mouth, head, a prop). Idles play in the ward when she stands still;
 // reactions play on a hit, a cleared wave and a medal; greetings play next to the visitors in the
 // hallway (macyGreet in world.js). act.len, when set, stretches a pose to that many seconds.
-// With no act, girl() draws exactly as before.
+// With no act, she stands in her plain resting pose.
 const MACY_IDLES = ['look', 'ball', 'scrunchie', 'dance', 'yawn', 'iv'],
   MACY_GREETS = ['hug', 'fistbump', 'selfie', 'highfive', 'wave'],
   MACY_POSES = {
@@ -192,7 +192,7 @@ function macyBallY(p) {
   return -6.5 - 26.5 * (2 * s - s * s);
 }
 
-function macyRig(act, dir) {
+function macyRig(act, dir, flip = 1) {
   const kind = act.kind,
     len = act.len > 0 ? act.len : MACY_POSES[kind] || 1,
     t = clamp(Number.isFinite(act.t) ? act.t : 0, 0, len),
@@ -300,7 +300,10 @@ function macyRig(act, dir) {
         const q = (t * 0.7 + i * 0.5) % 1;
         g.save();
         g.globalAlpha *= k * Math.sin(q * Math.PI);
-        label(g, i ? '♫' : '♪', back * (18 + q * 8) + i * dir * 30, -84 - q * 22, 10, '#fff3c4', 'center');
+        // Notes read the right way round in a mirrored frame (flip is its x sign on screen).
+        g.translate(back * (18 + q * 8) + i * dir * 30, -84 - q * 22);
+        g.scale(flip, 1);
+        label(g, i ? '♫' : '♪', 0, 0, 10, '#fff3c4', 'center');
         g.restore();
       }
     };
@@ -453,12 +456,12 @@ function macyRig(act, dir) {
   return rig;
 }
 
-// One posed arm: shoulder to hand, the hand, and the IV tape on her right wrist.
-function macyDrawArm(g, side, a, hood) {
+// One posed arm: shoulder (sx) to hand, the hand, and the IV tape on her right wrist.
+function macyDrawArm(g, side, a, hood, sx = side * 11) {
   path(
     g,
     p => {
-      p.moveTo(side * 11, -48);
+      p.moveTo(sx, -48);
       p.quadraticCurveTo(a.cx, a.cy, a.x, a.y);
     },
     null,
@@ -581,82 +584,199 @@ function vectorDigits(g, text, x, y, size, ink, edge = null, rot = 0) {
   g.restore();
 }
 
-// act (optional): { kind, t } plays a pose from MACY_POSES. Every other caller draws her as always.
-function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow = true, act = null) {
-  const look = macyLook(),
-    hood = look.hoodie,
-    rig = act && MACY_POSES[act.kind] ? macyRig(act, dir < 0 ? -1 : 1) : null;
+// ---- Turning ----
+// A character's facing is a number in [-1, 1]: 1 is her right-facing side view, -1 the left, 0 straight
+// at the camera. The art never squashes a sprite through zero width: facingView picks one of three
+// hand-drawn views (side, three-quarter, front) and the sign mirrors it. facingStep turns a
+// { body, head, tail, tailV } record toward a side: the head gets there first (FACING_HEAD_SECONDS),
+// the body follows (FACING_BODY_SECONDS), and the tail (a ponytail) springs after the body, overshoots
+// a little and settles. Reversing mid-turn just heads back from wherever each part is.
+const FACING_BODY_SECONDS = 0.22,
+  FACING_HEAD_SECONDS = 0.15,
+  FACING_TAIL_K = 700,
+  FACING_TAIL_C = 24;
+
+function facingView(f) {
+  const a = Math.abs(Number.isFinite(f) ? f : 1);
+  return a >= 0.7 ? 'side' : a >= 0.25 ? 'three' : 'front';
+}
+
+function facingSign(f, fallback = 1) {
+  return f > 0 ? 1 : f < 0 ? -1 : fallback < 0 ? -1 : 1;
+}
+
+function facingNew(dir) {
+  const d = dir < 0 ? -1 : 1;
+  return { body: d, head: d, tail: d, tailV: 0 };
+}
+
+function facingStep(T, dir, dt) {
+  const to = dir < 0 ? -1 : 1,
+    d = clamp(Number.isFinite(dt) ? dt : 0, 0, 0.1),
+    move = (v, secs) => {
+      const now = Number.isFinite(v) ? clamp(v, -1, 1) : to,
+        r = (2 / secs) * d;
+      return now + clamp(to - now, -r, r);
+    };
+  T.head = move(T.head, FACING_HEAD_SECONDS);
+  T.body = move(T.body, FACING_BODY_SECONDS);
+  if (!Number.isFinite(T.tail)) T.tail = T.body;
+  if (!Number.isFinite(T.tailV)) T.tailV = 0;
+  for (let left = d; left > 1e-6; ) {
+    const h = Math.min(left, 1 / 120);
+    T.tailV += (FACING_TAIL_K * (T.body - T.tail) - FACING_TAIL_C * T.tailV) * h;
+    T.tail = clamp(T.tail + T.tailV * h, -1.35, 1.35);
+    left -= h;
+  }
+  return T;
+}
+
+// Macy's head per view, in her own frame facing +x. fx shifts the features, eyes are [x, width],
+// ears lists the ears drawn, bangs picks the fringe.
+const MACY_HEADS = {
+  side: { face: 1, eyes: [[-4.8, 1], [6, 1]], look: 0.5, mouth: 0, cheeks: [-6.5, 9], ears: [-1, 1], bangs: 'swoop' },
+  three: { face: 0.6, eyes: [[-5, 1], [5.6, 0.96]], look: 0.3, mouth: -0.6, cheeks: [-6.8, 8.4], ears: [-1, 1], bangs: 'swoop' },
+  front: { face: 0, eyes: [[-5.3, 1], [5.3, 1]], look: 0, mouth: -2.5, cheeks: [-7.6, 7.6], ears: [-1, 1], bangs: 'part' }
+};
+
+// The jersey number, upright whatever the mirror (flip is the frame's x sign).
+function macyNumberAt(g, x, y, size, ink, edge, rot, flip) {
   g.save();
   g.translate(x, y);
-  g.scale(scale, scale);
-  const walk = Math.sin(pose),
-    bounce = pose ? Math.abs(walk) * 1.7 : Math.sin(time * 2.3) * 0.45;
-  if (groundShadow) shadow(g, 0, 2, 19, 5);
-  if (inv) g.globalAlpha = 0.64 + 0.36 * Math.sin(time * 18);
-  g.translate(0, -bounce);
-  if (rig) {
-    g.translate(rig.dx || 0, rig.dy || 0);
-    if (rig.lean) g.rotate(rig.lean);
-    if (rig.sy) g.scale(1 / Math.sqrt(rig.sy), rig.sy);
-  }
-  // The ponytail trails behind the facing direction and follows the stride.
-  const back = -dir,
-    tail = back * (21 + Math.sin(time * 4.1 + pose * 0.35) * 3) + (rig && rig.tail ? rig.tail : 0);
-  path(
-    g,
-    p => {
-      p.moveTo(back * 11, -77);
-      p.bezierCurveTo(back * 33, -83, back * 23, -50, tail, -41);
-      p.bezierCurveTo(tail + back * 15, -27, back * 15, -30, back * 13, -45);
-      p.bezierCurveTo(back * 11, -56, back * 26, -70, back * 11, -72);
-    },
-    gradient(g, 0, -80, 28, 50, '#704c3e', '#3c2830'),
-    '#352a31',
-    1.2
-  );
-  // The stride and sleeves move independently.
-  const legWalk = rig && rig.walk !== undefined ? rig.walk : walk;
-  for (let i = 0; i < 2; i++) {
-    let side = i ? 1 : -1,
-      step = side * legWalk * 5;
-    line(
-      g,
-      [
-        [side * 6, -26],
-        [side * 7 + step * 0.27, -13],
-        [side * 7 + step, 0]
-      ],
-      i ? '#33475e' : '#28394d',
-      7
-    );
-    if (look.socks) {
-      // Softball-stitch socks: white with two red seams.
-      line(g, [[side * 7 + step, -9], [side * 7 + step, -1]], '#fbf4e6', 5.5);
-      line(g, [[side * 7 + step - 2.6, -6.5], [side * 7 + step + 2.6, -6.5]], '#de5b66', 1.4);
-      line(g, [[side * 7 + step - 2.6, -3.6], [side * 7 + step + 2.6, -3.6]], '#de5b66', 1.4);
-    } else line(g, [[side * 7 + step, -6], [side * 7 + step, -1]], '#f3bb99', 5);
-    rr(g, side * 7 + step - 6, -2, 15, 7, 3, '#f6f3de', '#61777f', 0.8);
-    line(g, [[side * 7 + step - 4, 3], [side * 7 + step + 7, 3]], '#86b7b4', 1.5);
-  }
-  for (let side of [-1, 1]) {
-    const arm = rig && rig.arms[side < 0 ? 0 : 1];
-    if (arm) {
-      if (!arm.front && !arm.top) macyDrawArm(g, side, arm, hood);
-      continue;
-    }
-    let swing = -side * walk * 3;
+  g.scale(flip, 1);
+  macyNumber(g, 0, 0, size, ink, edge, rot);
+  g.restore();
+}
+
+// The ponytail in a frame facing +x (so it trails toward -x), drawn by view. swing pushes the tip out
+// (the overshoot as it settles), extra is a pose's own sway.
+function macyPonytail(g, view, pose, swing, extra) {
+  const fill = gradient(g, -28, -80, 28, 50, '#704c3e', '#3c2830'),
+    sway = Math.sin(time * 4.1 + pose * 0.35) * 3;
+  if (view === 'front') {
+    // Straight at the camera: it hangs down her back and peeks out behind one shoulder.
+    const tx = -20.5 - sway * 0.4 - swing * 10 - extra * 0.5;
     path(
       g,
       p => {
-        p.moveTo(side * 11, -48);
-        p.quadraticCurveTo(side * 19, -38, side * 17 + swing, -28);
+        p.moveTo(-5, -81);
+        p.bezierCurveTo(-19, -84, -24, -68, tx, -53);
+        p.bezierCurveTo(tx + 1, -47, -12, -48, -8, -60);
+        p.closePath();
+      },
+      fill,
+      '#352a31',
+      1.2
+    );
+    return;
+  }
+  if (view === 'three') {
+    // Mid-turn it swings out to the side, higher and wider.
+    const tx = -(27 + sway) - swing * 18 - extra;
+    path(
+      g,
+      p => {
+        p.moveTo(-9, -78);
+        p.bezierCurveTo(-30, -87, -31, -62, tx, -52);
+        p.bezierCurveTo(tx - 9, -38, -19, -42, -14, -53);
+        p.bezierCurveTo(-12, -61, -24, -71, -9, -73);
+      },
+      fill,
+      '#352a31',
+      1.2
+    );
+    return;
+  }
+  const tail = -(21 + sway) - swing * 24 - extra;
+  path(
+    g,
+    p => {
+      p.moveTo(-11, -77);
+      p.bezierCurveTo(-33, -83, -23, -50, tail, -41);
+      p.bezierCurveTo(tail - 15, -27, -15, -30, -13, -45);
+      p.bezierCurveTo(-11, -56, -26, -70, -11, -72);
+    },
+    fill,
+    '#352a31',
+    1.2
+  );
+}
+
+// One leg, sock and sneaker. The sneaker points +x, or at the camera in the front view.
+function macyLeg(g, look, view, side, legWalk, i) {
+  const hip = view === 'three' ? side * 5 + 1 : side * 6,
+    foot = view === 'three' ? side * 5.5 + 1.5 : side * 7,
+    step = side * legWalk * (view === 'front' ? 2.5 : 5);
+  line(g, [[hip, -26], [foot + step * 0.27, -13], [foot + step, 0]], i ? '#33475e' : '#28394d', 7);
+  if (look.socks) {
+    // Softball-stitch socks: white with two red seams.
+    line(g, [[foot + step, -9], [foot + step, -1]], '#fbf4e6', 5.5);
+    line(g, [[foot + step - 2.6, -6.5], [foot + step + 2.6, -6.5]], '#de5b66', 1.4);
+    line(g, [[foot + step - 2.6, -3.6], [foot + step + 2.6, -3.6]], '#de5b66', 1.4);
+  } else line(g, [[foot + step, -6], [foot + step, -1]], '#f3bb99', 5);
+  if (view === 'front') {
+    rr(g, foot + step - 5, -2, 10, 7, 3.4, '#f6f3de', '#61777f', 0.8);
+    line(g, [[foot + step - 3.4, 3], [foot + step + 3.4, 3]], '#86b7b4', 1.5);
+  } else {
+    const w = view === 'three' ? 13 : 15;
+    rr(g, foot + step - 6, -2, w, 7, 3, '#f6f3de', '#61777f', 0.8);
+    line(g, [[foot + step - 4, 3], [foot + step + w - 8, 3]], '#86b7b4', 1.5);
+  }
+}
+
+// A resting arm with the walk's swing: shoulder (sx), elbow bend (cx), hand (hx).
+function macyRestArm(g, hood, sx, cx, hx, swing, tape) {
+  path(
+    g,
+    p => {
+      p.moveTo(sx, -48);
+      p.quadraticCurveTo(cx, -38, hx + swing, -28);
+    },
+    null,
+    hood[3],
+    8
+  );
+  ellipse(g, hx + swing, -26, 3.3, 4.4, '#e8ac8b');
+  if (tape) line(g, [[hx - 2 + swing, -30], [hx + 3 + swing, -29]], '#ecf4e8', 2);
+}
+
+// The hoodie body by view, in her frame facing +x. flip is that frame's x sign on screen (numbers).
+function macyTorso(g, hood, view, flip) {
+  if (view === 'front') {
+    rr(g, -13.5, -51, 27, 28, 8, gradient(g, -13, -50, 26, 25, hood[0], hood[1]), hood[2], 1.1);
+    path(
+      g,
+      p => {
+        p.moveTo(-8.5, -48);
+        p.quadraticCurveTo(0, -40.5, 8.5, -48);
       },
       null,
-      hood[3],
-      8
+      '#e1f0d9',
+      2.2
     );
-    ellipse(g, side * 17 + swing, -26, 3.3, 4.4, '#e8ac8b');
-    if (side === 1) line(g, [[side * 15 + swing, -30], [side * 20 + swing, -29]], '#ecf4e8', 2);
+    line(g, [[-9, -28], [9, -28]], hood[4], 1);
+    line(g, [[-6, -31], [6, -31]], hood[4] + '88', 1);
+    line(g, [[-9, -42], [-8, -30]], '#bcf0d344', 1.5);
+    macyNumberAt(g, 0, -37.6, 4.2, '#fbfff4', hood[2], 0, flip);
+    return;
+  }
+  if (view === 'three') {
+    rr(g, -11, -51, 23, 28, 8, gradient(g, -11, -50, 22, 25, hood[0], hood[1]), hood[2], 1.1);
+    path(
+      g,
+      p => {
+        p.moveTo(-5, -48);
+        p.quadraticCurveTo(2.5, -41, 10, -48);
+      },
+      null,
+      '#e1f0d9',
+      2.2
+    );
+    line(g, [[-6, -28], [10, -28]], hood[4], 1);
+    spark(g, 0.5, -38, '#e5e5ac', 0.5);
+    line(g, [[-7, -42], [-6, -30]], '#bcf0d344', 1.5);
+    macyNumberAt(g, 6.4, -36.6, 3.6, '#fbfff4', hood[2], 0, flip);
+    return;
   }
   rr(g, -13, -51, 27, 28, 8, gradient(g, -13, -50, 26, 25, hood[0], hood[1]), hood[2], 1.1);
   path(
@@ -673,36 +793,47 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
   spark(g, 2, -38, '#e5e5ac', 0.55);
   line(g, [[-8, -42], [-7, -30]], '#bcf0d344', 1.5);
   // Jersey 22: big on the back shoulder, small on the front of the chest.
-  macyNumber(g, back * 7.2, -43.8, 5.4, '#fbfff4', hood[2], back * 0.12);
-  macyNumber(g, dir * 8.4, -36.4, 3.6, '#fbfff4', hood[2]);
-  if (rig)
-    for (let side of [-1, 1]) {
-      const arm = rig.arms[side < 0 ? 0 : 1];
-      if (arm && arm.front) macyDrawArm(g, side, arm, hood);
-    }
-  rr(g, -3, -57, 8, 9, 3, '#dca17f');
-  const headMoves = !!(rig && (rig.headDx || rig.headDy));
-  if (headMoves) {
-    g.save();
-    g.translate(rig.headDx || 0, rig.headDy || 0);
+  macyNumberAt(g, -7.2, -43.8, 5.4, '#fbfff4', hood[2], -0.12 * flip, flip);
+  macyNumberAt(g, 8.4, -36.4, 3.6, '#fbfff4', hood[2], 0, flip);
+}
+
+// Her head by view, in a frame facing +x.
+function macyHead(g, look, rig, view, tug) {
+  const H = MACY_HEADS[view] || MACY_HEADS.side;
+  // From the front the scrunchie peeks over her head from behind.
+  if (view === 'front') {
+    ellipse(g, -10.5, -81 + tug, 4, 3.6, look.scrunchie);
+    ellipse(g, -10, -82 + tug, 1.6, 1.2, '#ffffff66');
   }
-  // Hair cap, face, eyebrows, brown eyes and a little patient optimism.
   ellipse(g, 0, -68, 15, 17, '#493039');
-  ellipse(g, 1, -65, 12.7, 14.4, gradient(g, -10, -76, 22, 25, '#ffdab3', '#e9ad8c'));
-  ellipse(g, -11, -63, 3.3, 4.6, '#e8ae8b');
-  ellipse(g, 12, -63, 3.1, 4.4, '#efb997');
-  path(
-    g,
-    p => {
-      p.moveTo(-14, -68);
-      p.bezierCurveTo(-17, -89, 18, -92, 16, -68);
-      p.bezierCurveTo(9, -68, 6, -77, 1, -77);
-      p.bezierCurveTo(-1, -69, -8, -73, -10, -62);
-      p.lineTo(-13, -61);
-      p.closePath();
-    },
-    gradient(g, -10, -83, 28, 20, '#76513f', '#4b3035')
-  );
+  ellipse(g, H.face, -65, 12.7, 14.4, gradient(g, -10, -76, 22, 25, '#ffdab3', '#e9ad8c'));
+  if (H.ears.includes(-1)) ellipse(g, view === 'front' ? -11.5 : -11, -63, 3.3, 4.6, '#e8ae8b');
+  if (H.ears.includes(1)) ellipse(g, view === 'front' ? 11.5 : 12, -63, view === 'front' ? 3.3 : 3.1, 4.4, '#efb997');
+  if (H.bangs === 'part')
+    path(
+      g,
+      p => {
+        p.moveTo(-14.5, -66);
+        p.bezierCurveTo(-17, -89, 17, -89, 14.5, -66);
+        p.bezierCurveTo(11, -70, 6, -76, 0, -77.5);
+        p.bezierCurveTo(-6, -76, -11, -70, -14.5, -66);
+        p.closePath();
+      },
+      gradient(g, -10, -83, 28, 20, '#76513f', '#4b3035')
+    );
+  else
+    path(
+      g,
+      p => {
+        p.moveTo(-14, -68);
+        p.bezierCurveTo(-17, -89, 18, -92, 16, -68);
+        p.bezierCurveTo(9, -68, 6, -77, 1, -77);
+        p.bezierCurveTo(-1, -69, -8, -73, -10, -62);
+        p.lineTo(-13, -61);
+        p.closePath();
+      },
+      gradient(g, -10, -83, 28, 20, '#76513f', '#4b3035')
+    );
   path(
     g,
     p => {
@@ -713,61 +844,111 @@ function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow =
     '#a577515e',
     2
   );
-  if (rig) macyFace(g, rig);
-  else {
-    const blink = time % 5.2 > 5.04;
-    for (let ex of [-4.8, 6]) {
-      if (blink)
-        line(g, [[ex - 2.5, -65], [ex + 2.5, -65]], '#543c34', 1.2);
-      else {
-        ellipse(g, ex, -65, 2.5, 3.5, '#fff8e9');
-        ellipse(g, ex + 0.5, -64.8, 1.65, 2.7, '#735037');
-        ellipse(g, ex + 0.8, -64.5, 0.85, 1.8, '#322c31');
-        ellipse(g, ex, -66, 0.65, 0.85, '#ffffff');
-      }
-      line(g, [[ex - 2.4, -70], [ex + 2, -70.5]], '#654636', 1.1);
-    }
-    ellipse(g, -6.5, -59, 3, 1.5, '#ef9e8b55');
-    ellipse(g, 9, -59, 2.5, 1.4, '#ef9e8b55');
-    path(
-      g,
-      p => {
-        p.moveTo(-1, -55);
-        p.quadraticCurveTo(3, -52.3, 6, -55);
-      },
-      null,
-      '#a7645d',
-      1
-    );
+  macyFace(g, rig, H);
+  if (view !== 'front') {
+    ellipse(g, -15 + (view === 'three' ? 1.5 : 0), -77 + tug, 4, 3.6, look.scrunchie);
+    ellipse(g, -15.6 + (view === 'three' ? 1.5 : 0), -78 + tug, 1.6, 1.2, '#ffffff66');
   }
-  const tug = rig && rig.scrunchieDy ? rig.scrunchieDy : 0;
-  ellipse(g, back * 15, -77 + tug, 4, 3.6, look.scrunchie);
-  ellipse(g, back * 15.6, -78 + tug, 1.6, 1.2, '#ffffff66');
-  if (headMoves) g.restore();
+}
+
+// act (optional): { kind, t } plays a pose from MACY_POSES. Every other caller draws her as always.
+// dir is her facing: 1 right, -1 left, anything between is mid-turn (0 is straight at the camera).
+// turn (optional): { head, tail } facings for a turn in progress (world.js passes player.facing):
+// the head leads the body and the ponytail lags it. Both default to dir.
+function girl(g, x, y, scale = 1, pose = 0, dir = 1, inv = false, groundShadow = true, act = null, turn = null) {
+  const look = macyLook(),
+    hood = look.hoodie,
+    fb = Number.isFinite(dir) ? clamp(dir, -1, 1) : 1,
+    fh = turn && Number.isFinite(turn.head) ? clamp(turn.head, -1, 1) : fb,
+    ft = turn && Number.isFinite(turn.tail) ? clamp(turn.tail, -1.35, 1.35) : fb,
+    bs = facingSign(fb, facingSign(fh)),
+    hs = facingSign(fh, bs),
+    ts = facingSign(ft, bs),
+    view = facingView(fb),
+    headView = facingView(fh),
+    tailView = facingView(ft),
+    rig = act && MACY_POSES[act.kind] ? macyRig(act, 1, bs) : null;
+  g.save();
+  g.translate(x, y);
+  g.scale(scale, scale);
+  const walk = Math.sin(pose),
+    bounce = pose ? Math.abs(walk) * 1.7 : Math.sin(time * 2.3) * 0.45;
+  if (groundShadow) shadow(g, 0, 2, 19, 5);
+  if (inv) g.globalAlpha = 0.64 + 0.36 * Math.sin(time * 18);
+  g.translate(0, -bounce);
+  // Everything below is drawn facing +x and mirrored by her side: a mirror, never a squash.
+  g.scale(bs, 1);
+  if (rig) {
+    g.translate(rig.dx || 0, rig.dy || 0);
+    if (rig.lean) g.rotate(rig.lean);
+    if (rig.sy) g.scale(1 / Math.sqrt(rig.sy), rig.sy);
+  }
+  // The ponytail trails behind the way it is facing, which lags the body a beat.
+  g.save();
+  g.scale(bs * ts, 1);
+  macyPonytail(g, tailView, pose, Math.max(0, Math.abs(ft) - 1), (rig && rig.tail ? rig.tail : 0) * -bs * ts);
+  g.restore();
+  // The stride and sleeves move independently.
+  const legWalk = rig && rig.walk !== undefined ? rig.walk : walk;
+  for (let i = 0; i < 2; i++) macyLeg(g, look, view, i ? 1 : -1, legWalk, i);
+  // Shoulders by view. Three-quarters on, the far arm (+x) tucks behind her and the near one crosses
+  // in front.
+  const shoulder = side => (view === 'three' ? side * 9 - (side < 0 ? 0 : 1) : view === 'front' ? side * 12 : side * 11);
+  for (let side of [-1, 1]) {
+    const arm = rig && rig.arms[side < 0 ? 0 : 1];
+    if (arm) {
+      if (!arm.front && !arm.top) macyDrawArm(g, side, arm, hood, shoulder(side));
+      continue;
+    }
+    const swing = -side * walk * 3;
+    if (view === 'three') {
+      if (side > 0) macyRestArm(g, hood, 8, 12, 11, swing * 0.6, false);
+    } else if (view === 'front') macyRestArm(g, hood, side * 12, side * 19.5, side * 18, swing * 0.4, side > 0);
+    else macyRestArm(g, hood, side * 11, side * 19, side * 17, swing, side > 0);
+  }
+  macyTorso(g, hood, view, bs);
+  if (view === 'three' && !(rig && rig.arms[0])) macyRestArm(g, hood, -7, -14, -12, walk * 3, true);
+  if (rig)
+    for (let side of [-1, 1]) {
+      const arm = rig.arms[side < 0 ? 0 : 1];
+      if (arm && arm.front) macyDrawArm(g, side, arm, hood, shoulder(side));
+    }
+  rr(g, view === 'front' ? -4 : -3, -57, 8, 9, 3, '#dca17f');
+  // The head turns on its own and gets there first.
+  g.save();
+  if (rig && (rig.headDx || rig.headDy)) g.translate(rig.headDx || 0, rig.headDy || 0);
+  g.scale(bs * hs, 1);
+  macyHead(g, look, rig, headView, rig && rig.scrunchieDy ? rig.scrunchieDy : 0);
+  g.restore();
   if (rig) {
     for (let side of [-1, 1]) {
       const arm = rig.arms[side < 0 ? 0 : 1];
-      if (arm && arm.top) macyDrawArm(g, side, arm, hood);
+      if (arm && arm.top) macyDrawArm(g, side, arm, hood, shoulder(side));
     }
     if (rig.prop) rig.prop(g);
   }
   g.restore();
 }
 
-// Eyes, brows, cheeks and mouth for a posed Macy.
-function macyFace(g, rig) {
-  const lx = rig.lookX || 0,
-    ly = rig.lookY || 0,
-    browY = rig.browY || 0,
-    blink = !rig.eyes && !rig.wink && time % 5.2 > 5.04;
-  for (let ex of [-4.8, 6]) {
-    const eyes = rig.wink && ex > 0 ? 'happy' : rig.eyes;
-    if (eyes === 'shut' || blink)
+// Eyes, brows, cheeks and mouth, in the head's frame facing +x. rig null is her resting face. H is the
+// head view's layout (MACY_HEADS).
+function macyFace(g, rig, H = MACY_HEADS.side) {
+  const plain = !rig,
+    R = rig || {},
+    lx = R.lookX || 0,
+    ly = R.lookY || 0,
+    browY = R.browY || 0,
+    blink = !R.eyes && !R.wink && time % 5.2 > 5.04,
+    m = H.mouth;
+  for (const [ex, k] of H.eyes) {
+    const eyes = R.wink && ex > 0 ? 'happy' : R.eyes;
+    if (plain && blink) line(g, [[ex - 2.5 * k, -65], [ex + 2.5 * k, -65]], '#543c34', 1.2);
+    else if (eyes === 'shut' || blink)
       path(
         g,
         p => {
-          p.moveTo(ex - 2.5, -65.4);
-          p.quadraticCurveTo(ex, -63.6, ex + 2.5, -65.4);
+          p.moveTo(ex - 2.5 * k, -65.4);
+          p.quadraticCurveTo(ex, -63.6, ex + 2.5 * k, -65.4);
         },
         null,
         '#543c34',
@@ -777,8 +958,8 @@ function macyFace(g, rig) {
       path(
         g,
         p => {
-          p.moveTo(ex - 2.5, -64.2);
-          p.quadraticCurveTo(ex, -67.4, ex + 2.5, -64.2);
+          p.moveTo(ex - 2.5 * k, -64.2);
+          p.quadraticCurveTo(ex, -67.4, ex + 2.5 * k, -64.2);
         },
         null,
         '#543c34',
@@ -788,28 +969,28 @@ function macyFace(g, rig) {
       const s = ex < 0 ? 1 : -1;
       line(g, [[ex - 2.4 * s, -66.6], [ex + 2 * s, -65], [ex - 2.4 * s, -63.4]], '#543c34', 1.2);
     } else {
-      ellipse(g, ex, -65, 2.5, 3.5, '#fff8e9');
-      ellipse(g, ex + 0.5 + lx, -64.8 + ly, 1.65, 2.7, '#735037');
-      ellipse(g, ex + 0.8 + lx, -64.5 + ly, 0.85, 1.8, '#322c31');
+      ellipse(g, ex, -65, 2.5 * k, 3.5, '#fff8e9');
+      ellipse(g, ex + H.look + lx, -64.8 + ly, 1.65 * k, 2.7, '#735037');
+      ellipse(g, ex + H.look * 1.6 + lx, -64.5 + ly, 0.85 * k, 1.8, '#322c31');
       ellipse(g, ex + lx * 0.6, -66 + ly * 0.6, 0.65, 0.85, '#ffffff');
     }
-    const tilt = rig.eyes === 'squeeze' ? (ex < 0 ? 1.2 : -1.2) : 0;
+    const tilt = R.eyes === 'squeeze' ? (ex < 0 ? 1.2 : -1.2) : 0;
     line(g, [[ex - 2.4, -70 + browY + tilt], [ex + 2, -70.5 + browY - tilt]], '#654636', 1.1);
   }
-  const rosy = rig.mouth === 'grin' || rig.eyes === 'happy';
-  ellipse(g, -6.5, -59, 3, 1.5, rosy ? '#ef9e8b88' : '#ef9e8b55');
-  ellipse(g, 9, -59, 2.5, 1.4, rosy ? '#ef9e8b88' : '#ef9e8b55');
-  const mouth = rig.mouth;
+  const rosy = R.mouth === 'grin' || R.eyes === 'happy';
+  ellipse(g, H.cheeks[0], -59, 3, 1.5, rosy ? '#ef9e8b88' : '#ef9e8b55');
+  ellipse(g, H.cheeks[1], -59, 2.5, 1.4, rosy ? '#ef9e8b88' : '#ef9e8b55');
+  const mouth = R.mouth;
   if (mouth === 'o') {
-    const m = clamp(rig.mouthSize || 0, 0, 1);
-    ellipse(g, 2.5, -54.5, 1.4 + 1.3 * m, 1.2 + 2.6 * m, '#7a3b3f');
-    ellipse(g, 2.5, -53.4 + m, 1 + 0.6 * m, 0.7 + 0.6 * m, '#e58a8a');
+    const o = clamp(R.mouthSize || 0, 0, 1);
+    ellipse(g, 2.5 + m, -54.5, 1.4 + 1.3 * o, 1.2 + 2.6 * o, '#7a3b3f');
+    ellipse(g, 2.5 + m, -53.4 + o, 1 + 0.6 * o, 0.7 + 0.6 * o, '#e58a8a');
   } else if (mouth === 'grin') {
     path(
       g,
       p => {
-        p.moveTo(-2.2, -56);
-        p.quadraticCurveTo(2.5, -48.6, 7.4, -56);
+        p.moveTo(-2.2 + m, -56);
+        p.quadraticCurveTo(2.5 + m, -48.6, 7.4 + m, -56);
         p.closePath();
       },
       '#7a3b3f'
@@ -817,20 +998,20 @@ function macyFace(g, rig) {
     path(
       g,
       p => {
-        p.moveTo(-1.6, -55.7);
-        p.lineTo(6.8, -55.7);
-        p.quadraticCurveTo(2.5, -53.9, -1.6, -55.7);
+        p.moveTo(-1.6 + m, -55.7);
+        p.lineTo(6.8 + m, -55.7);
+        p.quadraticCurveTo(2.5 + m, -53.9, -1.6 + m, -55.7);
       },
       '#fffaf0'
     );
-  } else if (mouth === 'wince') line(g, [[-1, -54.4], [1.2, -55.4], [3.4, -54.4], [5.6, -55.4]], '#a7645d', 1);
-  else if (mouth === 'flat') line(g, [[0, -54.6], [5, -54.9]], '#a7645d', 1);
+  } else if (mouth === 'wince') line(g, [[-1 + m, -54.4], [1.2 + m, -55.4], [3.4 + m, -54.4], [5.6 + m, -55.4]], '#a7645d', 1);
+  else if (mouth === 'flat') line(g, [[0 + m, -54.6], [5 + m, -54.9]], '#a7645d', 1);
   else if (mouth === 'smile')
     path(
       g,
       p => {
-        p.moveTo(-1.6, -55.6);
-        p.quadraticCurveTo(2.8, -51.2, 7, -55.6);
+        p.moveTo(-1.6 + m, -55.6);
+        p.quadraticCurveTo(2.8 + m, -51.2, 7 + m, -55.6);
       },
       null,
       '#a7645d',
@@ -840,8 +1021,8 @@ function macyFace(g, rig) {
     path(
       g,
       p => {
-        p.moveTo(-1, -55);
-        p.quadraticCurveTo(3, -52.3, 6, -55);
+        p.moveTo(-1 + m, -55);
+        p.quadraticCurveTo(3 + m, -52.3, 6 + m, -55);
       },
       null,
       '#a7645d',
