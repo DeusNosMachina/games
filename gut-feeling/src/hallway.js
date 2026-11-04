@@ -225,8 +225,8 @@ const HALLWAY_LINES = {
       }
     ]
   },
-  // Mimi: almost eighty, quick on her feet, her hair done every few weeks and always up in a bun, her
-  // good monogram purse on her arm. She worries, mostly about whether Macy has eaten.
+  // Mimi: almost eighty, quick on her feet, her hair done every few weeks and swept up short at the
+  // back, an early-90s teal and purple track suit, her good monogram purse on her arm. She worries, mostly about whether Macy has eaten.
   mimi: {
     whoa: 'Whoa! My heart, sweetie.',
     barks: [
@@ -1837,6 +1837,7 @@ function npcLook(over) {
     topC: '#3d6c6a',
     pants: '#4f5d6b',
     cuffs: false,
+    stripe: '',
     shoes: 'sneaker',
     shoeColor: '#f4f2ea',
     shoeAccent: '',
@@ -1927,24 +1928,27 @@ const HALLWAY_LOOKS = {
       head: 12.2,
       skin: '#f6d2b8',
       skinShade: '#e2ad92',
-      // Almost eighty and still colored every few weeks: a light blondish brown, always up in a bun.
-      hair: '#c9a57c',
-      hairDark: '#9e7b55',
-      hairStyle: 'bun',
+      // Almost eighty and still colored every few weeks: a light blondish brown, cut short and swept up
+      // and clipped at the back, not quite a ponytail.
+      hair: '#d2ad80',
+      hairDark: '#a8835a',
+      hairStyle: 'crop',
       eyes: '#6f8a9a',
       brows: '#a58866',
-      age: 1,
-      top: 'cardigan',
-      topA: '#b49acb',
-      topB: '#f4ecd8',
-      topC: '#f8f3e6',
-      pants: '#7d6f8e',
-      shoes: 'flat',
-      shoeColor: '#6b5a52',
+      // An early-90s track suit: teal jacket with purple shoulder panels and white piping, purple
+      // pants with a teal stripe, white sneakers. Vibrant, and no wrinkles drawn in.
+      top: 'track',
+      topA: '#1fa89c',
+      topB: '#7a3fb5',
+      topC: '#f7f4ee',
+      pants: '#6d3aa8',
+      stripe: '#2fc4b6',
+      shoes: 'sneaker',
+      shoeColor: '#f6f4ee',
+      shoeAccent: '#7a3fb5',
       // Her good purse: brown monogram canvas, tan leather trim, snacks inside.
       item: 'purse',
-      glasses: '#8a6d5a',
-      pearls: true
+      glasses: '#7a3fb5'
     }),
   dodo: () =>
     npcLook({
@@ -4516,7 +4520,7 @@ function onRoomLoaded(id) {
 // the near arm in front and the far one tucked behind); and a front view (symmetric, both arms down,
 // the face centred, toes at the camera).
 function npcTop(k) {
-  const extra = { wavy: 9, bun: 9, cap: 5, pony: 4, net: 6, curly: 6, side: 6 }[k.hairStyle] || 4;
+  const extra = { wavy: 9, bun: 9, cap: 5, pony: 4, net: 6, curly: 6, side: 6, crop: 7 }[k.hairStyle] || 4;
   return k.leg + k.torso + 5 + k.head * 2.24 - 3 + extra;
 }
 
@@ -4805,6 +4809,18 @@ function npcLegs(g, k, hipY, walk, view = 'side') {
     // Volleyball kneepads.
     if (k.kneepads) rr(g, hx + step * 0.3 - k.legW * 0.78, hipY * 0.5 - 3.6, k.legW * 1.56, 7.2, 3, k.kneepads);
     if (k.cuffs) line(g, [[fx, -9], [fx, -4]], npcShade(k.pants, 0.76), k.legW + 1.6);
+    // A track-suit stripe down the outside of each leg.
+    if (k.stripe)
+      line(
+        g,
+        [
+          [hx + side * k.legW * 0.28, hipY + 2],
+          [hx + step * 0.3 + side * k.legW * 0.28, hipY * 0.5],
+          [fx + side * k.legW * 0.28, -5]
+        ],
+        k.stripe,
+        1.4
+      );
     npcShoe(g, k, fx, view);
   }
 }
@@ -4947,6 +4963,28 @@ function npcTorso(g, k, shY, hipY, flip, view = 'side') {
       line(g, [[side * (S - 1.5), hipY - 1], [side * 5, hipY - 1]], c, 1.2);
     }
     line(g, [[-S + 3, shY + 9], [-S + 3, shY + 13]], '#5b8ac9', 1.4);
+  } else if (k.top === 'track') {
+    // A zipped track jacket: the body in a, purple shoulder panels in b that sweep down toward the
+    // zipper, white piping along the panels and the zipper tape, a ribbed hem.
+    rr(g, -S, shY - 0.5, S * 2, h, 7, gradient(g, -S, shY, S * 2, h, npcShade(a, 1.1), a), dark, 0.8);
+    for (const side of [-1, 1]) {
+      path(
+        g,
+        p => {
+          p.moveTo(side * (S - 0.5), shY + 0.5);
+          p.lineTo(side * 3.2, shY + 0.5);
+          p.lineTo(side * 2.2, shY + 13);
+          p.lineTo(side * (S - 0.5), shY + 8.5);
+          p.closePath();
+        },
+        b
+      );
+      line(g, [[side * (S - 0.5), shY + 8.5], [side * 2.2, shY + 13]], c, 1);
+    }
+    line(g, [[0, shY + 2], [0, hipY + 4]], c, 1.3);
+    for (let y = shY + 6; y < hipY + 3; y += 3) line(g, [[-0.6, y], [0.6, y]], npcShade(c, 0.8), 0.6);
+    rr(g, -S, hipY + 1, S * 2, 4.6, 2, dark);
+    line(g, [[-S + 1, hipY + 3.3], [S - 1, hipY + 3.3]], c, 0.8);
   } else if (k.top === 'cardigan') {
     rr(g, -S + 3, shY, S * 2 - 6, h, 6, b);
     rr(g, -S, shY - 0.5, S - 2.5, h + 1, 7, a);
@@ -5046,6 +5084,10 @@ function npcCollar(g, k, shY, view = 'side') {
   } else if (k.top === 'hoodie') {
     line(g, [[-3.5, shY + 2], [-4, shY + 12]], k.topB, 1.1);
     line(g, [[3.5, shY + 2], [4.2, shY + 11]], k.topB, 1.1);
+  } else if (k.top === 'track') {
+    // A stand collar in the panel colour, piped in white.
+    rr(g, -5.2, shY - 2.6, 10.4, 4, 1.6, k.topB, npcShade(k.topB, 0.8), 0.6);
+    line(g, [[-5, shY - 2.4], [5, shY - 2.4]], k.topC, 0.8);
   } else if (k.top === 'letter') {
     // Striped knit collar on the varsity jacket.
     const neck = p => {
@@ -5460,6 +5502,21 @@ function npcBackHair(g, k, hy, hr, hry, t, view = 'side') {
       gradient(g, 0, hy - 5, 0, 34, k.hair, k.hairDark)
     );
   else if (k.hairStyle === 'bob') rr(g, -hr - 2.6, hy - 6, hr * 2 + 5, hry + 9, 7, k.hairDark);
+  else if (k.hairStyle === 'crop') {
+    // The clipped-up tuft behind the crown, a little sway in it: from the front it peeks over the top
+    // of the head, from the side it sits behind the flick.
+    const cx = view === 'front' ? 0 : -hr - 1;
+    path(
+      g,
+      p => {
+        p.moveTo(cx - 3.5, top + 2);
+        p.quadraticCurveTo(cx - 2 + sway * 0.3, top - 3.5, cx + 0.5 + sway * 0.4, top - 3);
+        p.quadraticCurveTo(cx + 3, top - 2.5, cx + 3.5, top + 2);
+        p.closePath();
+      },
+      k.hairDark
+    );
+  }
   else if (k.hairStyle === 'curly' || k.hairStyle === 'net') ellipse(g, 0.5, hy - 2, hr + 4, hry + 3, k.hairDark);
 }
 
@@ -5687,6 +5744,48 @@ function npcHair(g, k, hy, hr, hry, fx, view = 'side') {
       '#ffffff26',
       1.4
     );
+  } else if (style === 'crop') {
+    // Mimi: short all round, swept up and clipped at the back of the crown, not quite a ponytail.
+    path(
+      g,
+      p => {
+        p.moveTo(-hr - 0.5, hy + 3);
+        p.bezierCurveTo(-hr - 2.5, top - 5, hr + 3, top - 5, hr + 1.5, hy + 1);
+        p.quadraticCurveTo(hr - 1, hy - 7, fx + 5, hy - 7.5);
+        p.quadraticCurveTo(fx + 1, hy - 4.5, fx - 2, hy - 8);
+        p.quadraticCurveTo(-6, hy - 4.5, -hr + 1.5, hy - 3);
+        p.lineTo(-hr + 1, hy + 4);
+        p.closePath();
+      },
+      fill
+    );
+    // The lift: from the side, the hair at the nape sweeps up and back into a short flick that ends
+    // about level with the crown. From the front it is only the tuft behind the head (npcBackHair).
+    if (view !== 'front') {
+      path(
+        g,
+        p => {
+          p.moveTo(-hr + 3, hy - 1);
+          p.quadraticCurveTo(-hr - 3.5, hy - 6, -hr - 5, top - 2.5);
+          p.quadraticCurveTo(-hr - 2, top + 1.5, -hr + 0.5, top + 4);
+          p.closePath();
+        },
+        k.hair
+      );
+      ellipse(g, -hr - 1.2, hy - 3.4, 1.6, 1.1, k.hairDark);
+    }
+    path(
+      g,
+      p => {
+        p.moveTo(-6, top - 1.5);
+        p.quadraticCurveTo(0, top - 4.5, 6, top - 1);
+      },
+      null,
+      '#ffffff26',
+      1.3
+    );
+    ellipse(g, -hr + 0.5, hy - 1, 3, 3.4, k.hair);
+    ellipse(g, hr + 0.8, hy - 1.5, 2.8, 3.2, k.hair);
   } else if (style === 'bun') {
     ellipse(g, fx - 1, top - 4.5, 6.8, 5.8, k.hairDark);
     ellipse(g, fx - 1.5, top - 5.2, 5.2, 4.2, k.hair);

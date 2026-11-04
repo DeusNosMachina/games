@@ -1670,7 +1670,9 @@ const mimiLook = JSON.parse(run('JSON.stringify(hallwayCast.find(n => n.id === "
 {
   const [r, g, b] = rgb(mimiLook.hair);
   assert.ok(r > 0xb0 && r - b > 40 && g > b, `Mimi's hair is a light blondish brown, not grey (${mimiLook.hair})`);
-  assert.equal(mimiLook.hairStyle, 'bun', 'always up in a bun');
+  assert.equal(mimiLook.hairStyle, 'crop', 'short, swept up at the back');
+  assert.equal(mimiLook.top, 'track', 'an early-90s track suit');
+  assert.ok(mimiLook.stripe && !mimiLook.age && !mimiLook.pearls, 'striped pants, no wrinkles, no pearls');
   assert.equal(mimiLook.item, 'purse', 'with her purse on her arm');
   const [sr, sg, sb] = rgb(dodoLook.hair);
   assert.ok(Math.max(sr, sg, sb) - Math.min(sr, sg, sb) < 12 && sr > 0xc0, `Dodo is silver (${dodoLook.hair})`);
