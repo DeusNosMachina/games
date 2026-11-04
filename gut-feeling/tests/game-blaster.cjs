@@ -1,7 +1,8 @@
-// Bedside Blaster: direct aim (tap, slide, mouse, two fingers, edge scrolling, edge arrows, the
-// optional thumbstick), damage zones, armor, the charged pierce, the
-// active reload, juice pickups, pouncer timing, Ralph Jr.'s weak spot, pacing, and determinism.
-// Test objects live on T so they never collide with the game's globals.
+// Bedside Blaster: the canvas around the room (wide with gutters, tall with a control band), direct aim
+// (tap, slide, mouse, several fingers, gentle edge scrolling, edge arrows), the on-canvas touch controls
+// (thumbstick, FIRE, flashlight stun, RELOAD and the stick chip, all through touch()), damage zones,
+// armor, the charged pierce, the active reload, juice pickups, pouncer timing, Ralph Jr.'s weak spot,
+// pacing, and determinism. Test objects live on T so they never collide with the game's globals.
 const {run,close,assert}=require('./harness.cjs');
 run('let rng=4242;Math.random=()=>{rng=(rng*1664525+1013904223)>>>0;return rng/4294967296}');
 run(`
@@ -10,61 +11,148 @@ function bbStart(tier, difficulty = 1) {
   state.difficulty = difficulty; openMini(5); mini.tier = tier; startMini(); launchMini(); updateMini(3.3);
   mini.spawn = 999; mini.bottleT = 999; mini.targets = []; T = {};
 }
-// Spawns a frozen gremlin with its head centred on screen point (hx, hy).
+// Spawns a frozen gremlin with its head centred on room point (hx, hy).
 function bbGremlin(kind, hx, hy) {
   const e = spawnCrawler(kind, 'bin'), o = blasterOffset(e.r);
   e.mode = 'crawl'; e.stun = 99; e.x = hx - e.s - o.x; e.y = hy - 2 * e.s - o.y;
   return e;
 }
 function bbTick(seconds) { for (let t = 0; t < seconds - 1e-9; t += 0.02) updateMini(0.02); }
-function bbMouse(type, x, y, extra = {}) {
-  blasterPointerEvent({ type, pointerType: 'mouse', pointerId: 1, button: 0, target: $('miniCanvas'),
-    ...bbClient(x, y), ...extra });
+// Room coordinates to canvas coordinates.
+function bbAt(x, y) { const B = blasterRoomBox(); return { x: x + B.x, y: y + B.y }; }
+// A finger straight into the touch() hook, in room coordinates.
+function bbDown(x, y, id = 1) { BLASTER.touch('down', bbAt(x, y), id); }
+function bbMove(x, y, id = 1) { BLASTER.touch('move', bbAt(x, y), id); }
+function bbUp(id = 1, kind = 'up') { BLASTER.touch(kind, bbAt(0, 0), id); }
+// A finger in canvas coordinates: the touch controls live outside the room. A box press lands mid-box.
+function bbPress(kind, p, id) {
+  BLASTER.touch(kind, p.w ? { x: p.x + p.w / 2, y: p.y + p.h / 2 } : { x: p.x, y: p.y }, id);
 }
-function bbTouch(type, id, x, y) {
-  blasterPointerEvent({ type, pointerType: 'touch', pointerId: id, button: 0, target: $('miniCanvas'),
-    ...bbClient(x, y) });
-}
-// A real finger: the blaster's window listener first (capture), then the framework's canvas listener.
-function bbFinger(type, id, x, y) {
-  const ev = { type, pointerType: 'touch', pointerId: id, button: 0, target: $('miniCanvas'),
-    currentTarget: $('miniCanvas'), preventDefault() {}, ...bbClient(x, y) };
+// A real pointer event at canvas point (cx, cy): the blaster's window listener first (capture), then
+// the framework's canvas listener, which hands every pointer to touch().
+function bbEvent(type, pointerType, id, cx, cy, extra = {}) {
+  const ev = { type, pointerType, pointerId: id, button: 0, target: $('miniCanvas'), currentTarget: $('miniCanvas'),
+    preventDefault() {}, ...bbClient(cx, cy), ...extra };
   blasterPointerEvent(ev);
-  $('miniCanvas').events[type](ev);
+  const fn = $('miniCanvas').events[type];
+  if (fn) fn(ev);
 }
+function bbFinger(type, id, x, y) { const p = bbAt(x, y); bbEvent(type, 'touch', id, p.x, p.y); }
+function bbMouse(type, x, y, extra = {}) { const p = bbAt(x, y); bbEvent(type, 'mouse', 1, p.x, p.y, extra); }
 // Invert miniPoint's letterboxed mapping for the harness's canvas rect (1000x625 unless a test swaps it).
 function bbClient(x, y) {
-  const r = $('miniCanvas').getBoundingClientRect(), { w, h } = games[mini.id].canvas,
+  const r = $('miniCanvas').getBoundingClientRect(), { w, h } = activeCanvas(),
     s = Math.min(r.width / w, r.height / h) || 1;
   return { clientX: r.left + (r.width - w * s) / 2 + x * s, clientY: r.top + (r.height - h * s) / 2 + y * s };
+}
+function bbCoarse(on) { matchMedia = q => ({ matches: on && /coarse/.test(q) }); }
+function bbTall(on) {
+  if (on) { window.innerWidth = 390; window.innerHeight = 844; }
+  else { delete window.innerWidth; delete window.innerHeight; }
 }
 `);
 const n=s=>run(s),j=s=>JSON.parse(run('JSON.stringify('+s+')'));
 const sight=()=>j('[Math.round(mini.sight.x),Math.round(mini.sight.y)]');
 
+// The canvas: wide on a landscape screen with the room centred between two gutters, tall on an upright
+// one with the room on top and a control band under it. Both are for touch screens; with a mouse the
+// canvas is the room alone.
+n('bbCoarse(true);bbStart(1)');
+assert.deepEqual(j('activeCanvas()'), { w: 1120, h: 600 }, 'a wide canvas on a landscape touch screen');
+assert.deepEqual(j('blasterRoomBox()'), { x: 260, y: 0 }, 'the room sits in the middle');
+close();
+n('bbTall(true);bbStart(1)');
+assert.equal(n('mini.portrait'), true, 'an upright screen picks the tall canvas');
+assert.deepEqual(j('activeCanvas()'), { w: 600, h: 1040 });
+assert.deepEqual(j('blasterRoomBox()'), { x: 0, y: 0 }, 'the room sits on top');
+close();
+n('bbCoarse(false);bbStart(1)');
+assert.equal(n('mini.portrait'), false, 'with a mouse an upright window keeps the room');
+assert.deepEqual(j('activeCanvas()'), { w: 600, h: 600 }, 'and the canvas is the room alone');
+assert.deepEqual(j('blasterRoomBox()'), { x: 0, y: 0 });
+close();
+n('bbTall(false);resize();bbStart(1)');
+assert.deepEqual(j('activeCanvas()'), { w: 600, h: 600 }, 'so is a laptop window');
+n('drawMini()');
+close();
+
+// The touch controls: on the canvas, off the room, clear of each other, where the thumbs are; the
+// framework draws no buttons of its own; and where its buttons would cover the canvas, they lift clear.
+for (const tall of [false, true]) {
+  const tag = tall ? 'tall' : 'wide';
+  n(`bbTall(${tall});bbCoarse(true);bbStart(1);T.L=blasterLayout();T.C=activeCanvas();T.B=blasterRoomBox()`);
+  const C = j('T.C'), B = j('T.B');
+  const check = (L, why) => {
+    const circles = ['stick', 'fire', 'flash', 'reload'].map(k => ({ k, x: L[k].x, y: L[k].y, r: L[k].r + (k === 'stick' ? 12 : 0) }));
+    for (const c of circles) {
+      assert.ok(c.x - c.r >= 0 && c.x + c.r <= C.w && c.y - c.r >= 0 && c.y + c.r <= C.h, `${tag}${why}: ${c.k} is on the canvas`);
+      const dx = Math.max(B.x - c.x, 0, c.x - (B.x + 600)), dy = Math.max(B.y - c.y, 0, c.y - (B.y + 600));
+      assert.ok(Math.hypot(dx, dy) >= c.r, `${tag}${why}: ${c.k} stays off the room`);
+    }
+    for (let a = 0; a < circles.length; a++)
+      for (let b = a + 1; b < circles.length; b++) {
+        const p = circles[a], q = circles[b];
+        assert.ok(Math.hypot(p.x - q.x, p.y - q.y) >= p.r + q.r, `${tag}${why}: ${p.k} and ${q.k} do not overlap`);
+      }
+    const ch = L.chip;
+    assert.ok(ch.x >= 0 && ch.x + ch.w <= C.w && ch.y + ch.h <= C.h, `${tag}${why}: the chip is on the canvas`);
+    assert.ok(tall ? ch.y >= B.y + 600 : ch.x + ch.w <= B.x, `${tag}${why}: the chip stays off the room`);
+    assert.ok(ch.y + ch.h < L.stick.y - L.stick.r - 12, `${tag}${why}: the chip sits above the stick`);
+    assert.ok(L.fire.r > L.flash.r && L.fire.r > L.reload.r && L.fire.r >= 80, `${tag}${why}: FIRE is the big one`);
+    assert.ok(L.flash.y < L.fire.y, `${tag}${why}: the stun sits above FIRE`);
+    assert.ok(Math.hypot(L.reload.x - L.fire.x, L.reload.y - L.fire.y) < 240, `${tag}${why}: RELOAD sits near FIRE`);
+    if (tall) assert.ok(L.stick.x < C.w / 2 && L.fire.x > C.w / 2, `${tag}${why}: stick left, FIRE right`);
+    else assert.ok(L.stick.x < B.x && L.fire.x > B.x + 600 && L.flash.x > B.x + 600 && L.reload.x > B.x + 600,
+      `${tag}${why}: stick in the left gutter, the buttons in the right one`);
+    return circles;
+  };
+  const L = j('T.L'), circles = check(L, '');
+  assert.ok(L.stick.y > C.h * (tall ? 0.8 : 0.7) && L.fire.y > C.h * (tall ? 0.8 : 0.7), `${tag}: stick and FIRE sit at the bottom`);
+  assert.ok(circles.filter(c => c.k === 'stick' || c.k === 'fire').every(c => c.y + c.r >= C.h - 70), `${tag}: stick and FIRE right down at the bottom edge`);
+  assert.equal(n('mini.blasterOwnControls'), true, `${tag}: a touch screen runs its own controls`);
+  assert.equal(n('$("miniControls").dataset.count'), '1', `${tag}: no FIRE or RELOAD buttons from the framework`);
+  assert.equal(n('$("miniControls").querySelector("[data-action=assist]").style.display'), 'none', `${tag}: and its assist is hidden`);
+  assert.deepEqual(j('blasterCover()'), { bottom: 0, left: 0, right: 0 }, `${tag}: so nothing covers the canvas`);
+  // Where the framework's own buttons would sit over the canvas (its geometry for a phone with one
+  // button), everything lifts clear of what they cover.
+  const cover = j(`(()=>{const vw=${tall ? 390 : 844},vh=${tall ? 700 : 390},f=miniOverlayFrame(vw,vh,T.C.w/T.C.h,MINI_FRAME_SIZES.phone,{t:0,r:0,b:0,l:0},'bottom',1),k=T.C.w/f.fitW;return {bottom:Math.round(f.coverCss.bottom*k),left:Math.round(f.coverCss.left*k),right:Math.round(f.coverCss.right*k)}})()`);
+  assert.ok(cover.bottom > 40, `${tag}: the framework would cover a band along the bottom`);
+  const lifted = j(`blasterLayout(${JSON.stringify(cover)})`);
+  for (const c of check(lifted, ' under a cover')) assert.ok(c.y + c.r <= C.h - cover.bottom, `${tag}: ${c.k} clears the covered band`);
+  assert.ok(lifted.chip.y + lifted.chip.h <= C.h - cover.bottom);
+  n('mini.blasterOwnControls=false');
+  assert.deepEqual(j('blasterCover()'), j('mini.frame.cover'), `${tag}: otherwise the blaster reads the framework's cover`);
+  n('drawMini()');
+  close();
+  n('bbCoarse(false);bbTall(false);resize()');
+}
+console.log('PASS: wide and tall canvases, controls in the gutters or the band, nothing under the cover.');
+
 // Tap anywhere: the sight sweeps to the tap, then the shot lands on whatever is under it.
-n('bbStart(1);T.a=bbGremlin("crawler",200,260);arcadeDown({x:200,y:260});arcadeUp()');
+n('bbStart(1);T.a=bbGremlin("crawler",200,260);bbDown(200,260);bbUp()');
 assert.equal(n('mini.blasterQueue.length'),1,'a tap queues a shot while the sight sweeps');
 assert.equal(n('T.a.hp'),1,'the shot has not landed mid-sweep');
 n('bbTick(.1)');
 assert.equal(n('T.a.mode'),'dying','the tap hit the gremlin under it');
 assert.deepEqual(sight(),[200,260],'the sight snapped to the tap');
 assert.equal(n('mini.ammo'),6);assert.equal(n('mini.got'),1);assert.equal(n('mini.headshots'),1);
-n('mini.targets=[];bbTick(.2);arcadeDown({x:520,y:120});arcadeUp();bbTick(.1)');
+n('mini.targets=[];bbTick(.2);bbDown(520,120);bbUp();bbTick(.1)');
 assert.equal(n('mini.shotsFired'),2);assert.equal(n('mini.shotsHit'),1,'a tap on empty floor misses');
-// A second finger can tap while the first one is down.
-n('bbTick(.5);arcadeDown({x:300,y:300});arcadePointer=1;T.b=bbGremlin("crawler",420,240);bbTouch("pointerdown",9,420,240);bbTouch("pointerup",9,420,240)');
-n('arcadeUp();arcadePointer=null;bbTick(.3)');
+// A second finger can tap while the first one is down, through the real pointer path.
+n('bbTick(.5);bbFinger("pointerdown",1,300,300);T.b=bbGremlin("crawler",420,240);bbFinger("pointerdown",9,420,240);bbFinger("pointerup",9,420,240)');
+n('bbFinger("pointerup",1,300,300);bbTick(.3)');
 assert.equal(n('mini.shotsFired'),4,'the second finger fired, and so did the first one\'s tap');
 assert.equal(n('T.b.mode'),'dying','the second finger tap hit its target');
 close();
-console.log('PASS: tap-to-fire with a sight sweep, misses, and two-finger tapping.');
+console.log('PASS: tap-to-fire with a sight sweep, misses, two-finger tapping.');
 
 // Touch aiming: a sliding finger carries the sight anywhere, ceiling and top corners included, and
-// letting go shoots there. Checked through the real pointer path in a wide and a tall canvas box.
-for (const box of [{ left: 0, top: 0, width: 1000, height: 625 }, { left: 8, top: 150, width: 374, height: 600 }]) {
-  n(`bbStart(1);mini.ammo=mini.magazine=60;$("miniCanvas").getBoundingClientRect=()=>(${JSON.stringify(box)})`);
-  const tag = box.width > box.height ? 'wide' : 'tall';
+// letting go shoots there. Checked through the real pointer path on the mouse screen's square canvas and
+// the touch screen's wide and tall ones.
+for (const tag of ['square', 'wide', 'tall']) {
+  const tall = tag === 'tall',
+    box = tall ? { left: 8, top: 100, width: 374, height: 648 } : { left: 0, top: 0, width: 1000, height: 625 };
+  n(`bbCoarse(${tag !== 'square'});bbTall(${tall});bbStart(1);mini.ammo=mini.magazine=60;$("miniCanvas").getBoundingClientRect=()=>(${JSON.stringify(box)})`);
   for (const [x, y] of [[3, 3], [597, 3], [300, 2], [2, 300]]) {
     n(`T.shots=mini.shotsFired;bbFinger("pointerdown",5,${x},${y});bbFinger("pointerup",5,${x},${y});bbTick(.2)`);
     assert.deepEqual(sight(), [x, y], `${tag}: a tap reaches ${x},${y}`);
@@ -83,95 +171,155 @@ for (const box of [{ left: 0, top: 0, width: 1000, height: 625 }, { left: 8, top
   // Into the top-left corner: the sight gets there, the room scrolls that way, and the lift is only a look.
   n('T.yaw=mini.lookTarget.yaw;T.pitch=mini.lookTarget.pitch;T.shots=mini.shotsFired;bbFinger("pointerdown",5,300,300);bbFinger("pointermove",5,150,150);bbFinger("pointermove",5,2,2);bbTick(.3)');
   assert.deepEqual(sight(), [2, 2], `${tag}: the sight reaches the top-left corner`);
-  assert.ok(n('mini.lookTarget.yaw') < n('T.yaw') - 300, `${tag}: the left edge scrolls the room left`);
+  assert.ok(n('mini.lookTarget.yaw') < n('T.yaw') - 80, `${tag}: the left edge scrolls the room left`);
   assert.ok(n('mini.lookTarget.pitch') < n('T.pitch'), `${tag}: the top edge tilts it up`);
   n('bbFinger("pointerup",5,2,2);bbTick(.2)');
   assert.equal(n('mini.shotsFired'), n('T.shots'), `${tag}: lifting while it scrolls never fires`);
-  n('$("miniCanvas").getBoundingClientRect=()=>({width:1000,height:625,left:0,top:0})');
+  // A slide that runs off the room onto the blanket keeps the sight on the edge.
+  n('bbFinger("pointerdown",5,300,300);bbFinger("pointermove",5,-80,300);bbTick(.05)');
+  assert.deepEqual(sight(), [0, 300], `${tag}: past the room's edge the sight stays on it`);
+  n('bbFinger("pointerup",5,-80,300);$("miniCanvas").getBoundingClientRect=()=>({width:1000,height:625,left:0,top:0})');
   close();
+  n('bbCoarse(false);bbTall(false);resize()');
 }
 // The right edge scrolls the other way; at the end of the room a slide into the band still shoots.
-n('bbStart(1);T.yaw=mini.lookTarget.yaw;arcadeDown({x:300,y:300});arcadeMove({x:598,y:300});bbTick(.25)');
-assert.ok(n('mini.lookTarget.yaw') > n('T.yaw') + 300, 'the right edge scrolls right');
-n('arcadeUp();mini.lookTarget.yaw=BLASTER_YAW[1];T.shots=mini.shotsFired;arcadeDown({x:300,y:300});arcadeMove({x:590,y:300});bbTick(.1);arcadeUp();bbTick(.2)');
+n('bbStart(1);T.yaw=mini.lookTarget.yaw;bbDown(300,300);bbMove(598,300);bbTick(.25)');
+assert.ok(n('mini.lookTarget.yaw') > n('T.yaw') + 60, 'the right edge scrolls right');
+n('bbUp();mini.lookTarget.yaw=BLASTER_YAW[1];T.shots=mini.shotsFired;bbDown(300,300);bbMove(590,300);bbTick(.1);bbUp();bbTick(.2)');
 assert.equal(n('mini.shotsFired-T.shots'), 1, 'nothing left to scroll, so the lift shoots');
 // Hold still, then slide: the charge keeps building and the piercing shot goes where the finger ends up.
-n('mini.targets=[];T.c=bbGremlin("bruiser",420,250);arcadeDown({x:250,y:330});bbTick(.3);arcadeMove({x:420,y:250});bbTick(.4)');
+n('mini.targets=[];T.c=bbGremlin("bruiser",420,250);bbDown(250,330);bbTick(.3);bbMove(420,250);bbTick(.4)');
 assert.equal(n('blasterChargeLevel()'), 1, 'a held, sliding finger charges');
-n('arcadeUp();bbTick(.1)');
+n('bbUp();bbTick(.1)');
 assert.equal(n('mini.chargedShots'), 1);assert.equal(n('T.c.mode'), 'dying', 'the charged shot landed where the slide ended');
 close();
-// An edge arrow: a tap on it turns the room to face its gremlin, and is not a shot.
-n('bbStart(1);T.ar=spawnCrawler("crawler","cabinetR");T.ar.mode="crawl";T.ar.stun=99;T.a=blasterArrows()[0]');
+// The look-around is gentle: a few hundred a second on the very edge, far less where the band starts.
+assert.ok(n('BLASTER_EDGE_YAW') >= 250 && n('BLASTER_EDGE_YAW') <= 500, 'the edge turns a few hundred a second');
+assert.ok(n('BLASTER_EDGE_PITCH') <= 250, 'and tilts gently');
+n('bbStart(1);mini.lookTarget.yaw=mini.look.yaw=800;bbDown(300,300);bbMove(599,300);bbTick(1);T.full=mini.lookTarget.yaw-800;bbUp()');
+n('mini.lookTarget.yaw=mini.look.yaw=800;bbDown(300,300);bbMove(565,300);bbTick(1);T.mid=mini.lookTarget.yaw-800;bbUp()');
+assert.ok(n('T.full') > 300 && n('T.full') <= n('BLASTER_EDGE_YAW'), `a second on the very edge turns ${n('T.full').toFixed(0)}`);
+assert.ok(n('T.mid') > 0 && n('T.mid') < n('T.full') * 0.4, `half way into the band it barely turns (${n('T.mid').toFixed(0)})`);
+// An edge arrow: a tap on it turns the room to face its gremlin, and is not a shot. It is the quick turn.
+n('T.ar=spawnCrawler("crawler","cabinetR");T.ar.mode="crawl";T.ar.stun=99;T.a=blasterArrows()[0]');
 assert.equal(n('T.a&&T.a.side'), 1, 'a gremlin past the right edge gets an arrow');
-n('T.shots=mini.shotsFired;arcadeDown({x:T.a.x+30,y:T.a.y});arcadeUp();bbTick(.4);T.px=shooterProjection(T.ar).x');
+n('T.shots=mini.shotsFired;bbDown(T.a.x+30,T.a.y);bbUp();bbTick(.4);T.px=shooterProjection(T.ar).x');
 assert.ok(n('T.px>300&&T.px<560'), 'the arrow brought it into view');
 assert.equal(n('mini.shotsFired'), n('T.shots'), 'the arrow tap did not fire');
 close();
-console.log('PASS: touch aims anywhere in a wide and a tall box, slides carry the sight, edges and arrows look.');
+console.log('PASS: touch aims anywhere on both canvases, slides carry the sight, edges scroll gently, arrows turn.');
 
-// The thumbstick: off by default, the chip shows it and the choice is saved, it steers the sight, a
-// finger still aims and fires with it shown, and the chip hides it again.
-n('bbStart(1);delete state.stats.blasterStick');
-assert.equal(n('blasterStickShown()'), false, 'no stick until she asks');
-n('arcadeDown({x:260,y:565});arcadeUp();bbTick(.1)');
-assert.equal(n('state.stats.blasterStick'), 1, 'the chip turns the stick on');
-assert.equal(n('blasterStickShown()'), true);
-assert.equal(n('mini.shotsFired'), 0, 'the chip is not a shot');
-assert.equal(JSON.parse(n('localStorage.getItem(STORE)')).stats.blasterStick, 1, 'and the choice is saved');
-n('T.chipG=bbGremlin("crawler",250,560);arcadeDown({x:250,y:560});arcadeUp();bbTick(.12)');
-assert.equal(n('T.chipG.mode'), 'dying', 'a gremlin over the chip gets shot, not the setting');
-assert.equal(n('state.stats.blasterStick'), 1);
-n('mini.targets=[];bbTick(.3)');
-n('mini.sight={x:300,y:300};arcadeDown({x:76,y:452});arcadeMove({x:76,y:380});bbTick(.3)');
+// The touch controls, every one through touch(): the stick (on by default) steers and scrolls gently,
+// FIRE fires (held, it pierces), the stun stuns, RELOAD reloads, the chip hides the stick and the choice
+// is remembered, and the stick, FIRE and a finger in the room all work at once.
+n('bbCoarse(true);bbStart(1);delete state.stats.blasterStick;T.L=blasterLayout();mini.ammo=mini.magazine=60');
+assert.equal(n('blasterStickShown()'), true, 'the stick is on by default on a touch screen');
+n('T.shots=mini.shotsFired;BLASTER.touch("down",{x:40,y:60},3);BLASTER.touch("up",{x:40,y:60},3);BLASTER.touch("down",{x:1100,y:40},3);BLASTER.touch("up",{x:1100,y:40},3);bbTick(.2)');
+assert.equal(n('mini.shotsFired'), n('T.shots'), 'the blanket away from the controls is not the room');
+n('mini.sight={x:300,y:300};bbPress("down",T.L.stick,2);bbPress("move",{x:T.L.stick.x,y:T.L.stick.y-T.L.stick.r},2);bbTick(.3)');
 assert.ok(n('mini.sight.y') < 150 && Math.abs(n('mini.sight.x') - 300) < 1, 'pushing the stick up raises the sight');
-n('arcadeMove({x:180,y:452});T.sx=mini.sight.x;bbTick(.2)');
+n('bbPress("move",{x:T.L.stick.x+T.L.stick.r,y:T.L.stick.y},2);T.sx=mini.sight.x;bbTick(.2)');
 assert.ok(n('mini.sight.x') > n('T.sx') + 80, 'and right moves it right');
-n('T.sy=mini.sight.y;arcadeMove({x:80,y:455});bbTick(.3)');
-assert.ok(Math.abs(n('mini.sight.y') - n('T.sy')) < 2, 'a centred stick holds the sight still');
-n('T.yaw=mini.lookTarget.yaw;arcadeMove({x:10,y:452});bbTick(1.2)');
+n('T.sy=mini.sight.y;T.sx=mini.sight.x;bbPress("move",{x:T.L.stick.x+3,y:T.L.stick.y+2},2);bbTick(.3)');
+assert.ok(Math.abs(n('mini.sight.y') - n('T.sy')) < 2 && Math.abs(n('mini.sight.x') - n('T.sx')) < 2, 'a centred stick holds the sight still');
+n('bbPress("up",T.L.stick,2);T.off={x:T.L.stick.x-70,y:T.L.stick.y+40};bbPress("down",T.off,2);T.b=mini.blasterPresses.p2');
+assert.ok(n('T.b.how==="stick"&&T.b.kx===0&&T.b.ky===0&&T.b.cx===T.off.x'), 'a thumb that lands off the stick centres it there');
+n('bbPress("up",T.off,2)');
+// Pinned on an edge, the stick turns the room gently, and easing off eases the turn.
+n('mini.lookTarget.yaw=mini.look.yaw=1300;mini.sight={x:300,y:300};T.shots=mini.shotsFired;bbPress("down",T.L.stick,2);bbPress("move",{x:T.L.stick.x-T.L.stick.r,y:T.L.stick.y},2);bbTick(1.2)');
 assert.deepEqual(sight().map(v => v === 0), [true, false], 'the stick pins the sight on the left edge');
-assert.ok(n('mini.lookTarget.yaw') < n('T.yaw') - 200, 'where it scrolls the room');
-n('T.shots=mini.shotsFired;arcadeUp();bbTick(.1)');
-assert.equal(n('mini.shotsFired'), n('T.shots'), 'letting go of the stick never fires');
-n('T.st=bbGremlin("crawler",420,240);mini.sight={x:300,y:300};arcadeDown({x:76,y:452});arcadeMove({x:76,y:420});arcadePointer=1;bbTouch("pointerdown",9,420,240);bbTouch("pointerup",9,420,240);bbTick(.3)');
-assert.equal(n('T.st.mode'), 'dying', 'a second finger taps and fires with a thumb on the stick');
-n('arcadeUp();arcadePointer=null;mini.fireHeld=false;mini.sight={x:200,y:200};miniAction("fire");bbTick(.05)');
-assert.equal(n('mini.shotsFired'), n('T.shots') + 2, 'FIRE shoots at the sight');
-n('T.f=bbGremlin("crawler",450,300);arcadeDown({x:450,y:300});arcadeUp();bbTick(.12)');
-assert.equal(n('T.f.mode'), 'dying', 'a tap in the room still fires where it lands with the stick shown');
-n('drawMini();arcadeDown({x:90,y:440});drawMini();arcadeUp();mini.ammo=0;reloadBlaster();drawMini()');
-n('arcadeDown({x:260,y:565});arcadeUp()');
-assert.equal(n('state.stats.blasterStick'), 0, 'the chip hides it again');
-assert.equal(JSON.parse(n('localStorage.getItem(STORE)')).stats.blasterStick, 0);
-n('mini.sight={x:300,y:300};arcadeDown({x:76,y:452});arcadeMove({x:76,y:380});bbTick(.3);arcadeUp();bbTick(.12)');
-assert.deepEqual(sight(), [76, 380], 'hidden, that corner is just room again: the finger slid the sight');
+assert.ok(n('mini.lookTarget.yaw') < 1300 - 150, 'where it scrolls the room');
+assert.ok(n('mini.lookTarget.yaw') > 1300 - n('BLASTER_EDGE_YAW') * 1.2, 'no faster than the edge allows');
+n('T.yaw=mini.lookTarget.yaw;bbPress("move",{x:T.L.stick.x-T.L.stick.r*.45,y:T.L.stick.y},2);bbTick(.5);T.half=T.yaw-mini.lookTarget.yaw');
+n('T.yaw=mini.lookTarget.yaw;bbPress("move",{x:T.L.stick.x-T.L.stick.r,y:T.L.stick.y},2);bbTick(.5);T.full=T.yaw-mini.lookTarget.yaw');
+assert.ok(n('T.half') > 0 && n('T.half') < n('T.full') * 0.65, 'a lighter push on the edge turns slower');
+n('bbPress("up",T.L.stick,2);bbTick(.1)');
+assert.equal(n('mini.shotsFired'), n('T.shots'), 'the stick never fires');
+// FIRE shoots at the sight; held, it charges and pierces.
+n('mini.sight={x:200,y:200};bbPress("down",T.L.fire,3);bbPress("up",T.L.fire,3)');
+assert.equal(n('mini.shotsFired'), n('T.shots') + 1, 'FIRE shoots at the sight');
+assert.equal(n('mini.chargedShots'), 0);
+n('bbTick(.3);T.g=bbGremlin("bruiser",200,200);bbPress("down",{x:T.L.fire.x+T.L.fire.r,y:T.L.fire.y},3);bbTick(.7)');
+assert.equal(n('blasterChargeLevel()'), 1, 'a held FIRE charges, even pressed near its rim');
+n('bbPress("up",T.L.fire,3)');
+assert.equal(n('mini.chargedShots'), 1, 'and lets go a piercing shot');
+assert.equal(n('T.g.mode'), 'dying');
+n('bbTick(.3);bbPress("down",T.L.fire,3);bbTick(.2);bbPress("cancel",T.L.fire,3);T.shots=mini.shotsFired;bbTick(.2)');
+assert.equal(n('mini.shotsFired'), n('T.shots'), 'a lost FIRE press never fires');
+assert.equal(n('mini.blasterTrigger'), null);
+// The stick, FIRE and a finger in the room, all at once.
+n('mini.targets=[];T.shots=mini.shotsFired;mini.sight={x:300,y:300};bbPress("down",T.L.stick,2);bbPress("move",{x:T.L.stick.x,y:T.L.stick.y-30},2);bbPress("down",T.L.fire,3)');
+n('T.g2=bbGremlin("crawler",420,240);bbDown(420,240,4);bbUp(4);bbTick(.2)');
+assert.equal(n('T.g2.mode'), 'dying', 'a finger in the room shoots while the stick and FIRE are held');
+n('T.sy=mini.sight.y;bbTick(.2)');
+assert.ok(n('mini.sight.y') < n('T.sy'), 'and the stick keeps steering');
+n('bbPress("up",T.L.fire,3);bbPress("up",T.L.stick,2);bbTick(.1)');
+assert.equal(n('mini.shotsFired') - n('T.shots'), 2, 'FIRE fired on release too');
+// The flashlight stun, above FIRE.
+n('T.h=mini.helps;T.shots=mini.shotsFired;T.sw=spawnCrawler("crawler","bin");T.sw.mode="wind";T.sw.wind=.5;bbPress("down",T.L.flash,5);bbPress("up",T.L.flash,5)');
+assert.equal(n('mini.helps'), n('T.h') - 1, 'the stun button spends an assist');
+assert.ok(n('T.sw.stun>0'), 'and stuns what is in view');
+assert.ok(n('mini.flashText').includes('STUN'));
+assert.equal(n('mini.shotsFired'), n('T.shots'), 'it is not a shot');
+// RELOAD, beside FIRE: a press starts the reload and a second one in the green makes it hot.
+n('mini.targets=[];mini.magazine=7;mini.ammo=3;bbPress("down",T.L.reload,6);bbPress("up",T.L.reload,6)');
+assert.ok(n('mini.reload>0'), 'RELOAD reloads');
+n('T.w=blasterReloadWindow();bbTick(T.w[0]+.04);bbPress("down",T.L.reload,6);bbPress("up",T.L.reload,6)');
+assert.equal(n('mini.cleanReloads'), 1, 'and a press in the green is a hot reload');
+assert.equal(n('mini.ammo'), 7);
+// The chip hides the stick and remembers it; hidden, that corner of the blanket does nothing.
+n('T.shots=mini.shotsFired;bbPress("down",T.L.chip,7);bbPress("up",T.L.chip,7)');
+assert.equal(n('state.stats.blasterStick'), 0, 'the chip hides the stick');
+assert.equal(JSON.parse(n('localStorage.getItem(STORE)')).stats.blasterStick, 0, 'and the choice is saved');
+assert.equal(n('blasterStickShown()'), false);
+n('mini.sight={x:300,y:300};bbPress("down",T.L.stick,2);T.p=mini.blasterPresses.p2||null;bbPress("move",{x:T.L.stick.x,y:T.L.stick.y-60},2);bbTick(.3);bbPress("up",T.L.stick,2);bbTick(.1)');
+assert.equal(n('T.p'), null, 'hidden, the stick is not there to grab');
+assert.deepEqual(sight(), [300, 300]);
+assert.equal(n('mini.shotsFired'), n('T.shots'), 'and nothing fired');
+n('T.f=bbGremlin("crawler",450,300);bbDown(450,300);bbUp();bbTick(.12)');
+assert.equal(n('T.f.mode'), 'dying', 'a finger in the room still fires where it lands');
+n('drawMini();bbPress("down",T.L.fire,3);drawMini();bbPress("up",T.L.fire,3);mini.ammo=0;reloadBlaster();drawMini()');
 close();
-n('bbStart(1);state.stats.blasterStick=1;bbMouse("pointermove",76,452)');
+n('bbStart(1)');
+assert.equal(n('blasterStickShown()'), false, 'the next night remembers the stick is hidden');
+n('T.L=blasterLayout();bbPress("down",T.L.chip,7);bbPress("up",T.L.chip,7)');
+assert.equal(n('state.stats.blasterStick'), 1, 'the chip shows it again');
+assert.equal(JSON.parse(n('localStorage.getItem(STORE)')).stats.blasterStick, 1);
+assert.equal(n('blasterStickShown()'), true);
+close();
+n('bbCoarse(false)');
+// A mouse screen keeps the DOM buttons and has no touch controls; a finger still taps in the room.
+n('bbStart(1)');
+assert.equal(n('mini.blasterOwnControls'), false, 'with a mouse the framework buttons stay');
+assert.ok(n('$("miniControls").innerHTML').includes('data-action="fire"') && n('$("miniControls").innerHTML').includes('data-action="reload"'));
+assert.equal(n('$("miniControls").dataset.count'), '3', 'FIRE, RELOAD and the assist');
+assert.equal(n('blasterTouchUI()'), false, 'and no touch controls');
+n('bbMouse("pointermove",76,452)');
 assert.equal(n('blasterStickShown()'), false, 'a mouse never sees the stick');
 assert.deepEqual(sight(), [76, 452], 'and aims there as before');
-n('bbMouse("pointerdown",260,565);arcadeDown({x:260,y:565});arcadeUp()');
-assert.equal(n('state.stats.blasterStick'), 1, 'nor toggles it with a click');
-n('bbMouse("pointermove",300,300);arcadeDown({x:76,y:452});T.how=mini.blasterPresses.main.how;arcadeUp()');
-assert.equal(n('T.how'), 'stick', 'a thumb after the mouse still grabs the stick');
-n('state.stats.blasterStick=0');
+n('T.shots=mini.shotsFired;bbFinger("pointerdown",7,76,452);T.how=mini.blasterPresses.p7&&mini.blasterPresses.p7.how;bbFinger("pointerup",7,76,452);bbTick(.2)');
+assert.equal(n('T.how'), 'touch', 'where the stick would be is just room');
+assert.equal(n('mini.shotsFired'), n('T.shots') + 1, 'so a finger taps and fires there');
+n('mini.sight={x:300,y:300};mini.fireHeld=false;bbTick(.3);miniAction("fire")');
+assert.equal(n('mini.shotsFired'), n('T.shots') + 2, 'and the FIRE button shoots at the sight');
 close();
-console.log('PASS: thumbstick off by default, chip toggles and saves, stick steers and scrolls, fingers still fire.');
+console.log('PASS: stick, FIRE, stun, RELOAD and chip through touch(), all at once, remembered; mouse keeps the DOM row.');
 
 // Mouse: the sight follows the pointer, a left click fires there, right-drag or Shift-drag looks, edges auto-pan.
 n('bbStart(1);bbMouse("pointermove",150,330)');
 assert.deepEqual(sight(),[150,330],'the sight follows the mouse');
-n('T.c=bbGremlin("crawler",150,330);bbMouse("pointerdown",150,330);arcadeDown({x:150,y:330});arcadeUp()');
+n('T.c=bbGremlin("crawler",150,330);bbMouse("pointerdown",150,330);bbMouse("pointerup",150,330)');
 assert.equal(n('T.c.mode'),'dying','a click fires at the pointer immediately');
-n('T.yaw=mini.lookTarget.yaw;bbMouse("pointerdown",300,300,{button:2});arcadeDown({x:300,y:300});arcadeMove({x:250,y:300});arcadeUp()');
-assert.equal(n('mini.lookTarget.yaw'),n('T.yaw')-90,'right-drag pans');
+n('T.yaw=mini.lookTarget.yaw;bbMouse("pointerdown",300,300,{button:2});bbMouse("pointermove",250,300,{button:2});bbMouse("pointerup",250,300,{button:2})');
+assert.equal(n('Math.round(mini.lookTarget.yaw-T.yaw)'),-90,'right-drag pans');
 assert.equal(n('mini.shotsFired'),1,'right-drag never fires');
-n('bbMouse("pointerdown",300,300,{shiftKey:true});arcadeDown({x:300,y:300});arcadeMove({x:350,y:300});arcadeUp()');
-assert.equal(n('mini.lookTarget.yaw'),n('T.yaw'),'Shift-drag pans');
+n('bbMouse("pointerdown",300,300,{shiftKey:true});bbMouse("pointermove",350,300);bbMouse("pointerup",350,300)');
+assert.equal(n('Math.round(mini.lookTarget.yaw-T.yaw)'),0,'Shift-drag pans');
 n('bbMouse("pointermove",595,300);T.yaw=mini.lookTarget.yaw;bbTick(.3)');
 assert.ok(n('mini.lookTarget.yaw')>n('T.yaw')+50,'the room drifts when the sight nears an edge');
 n('bbMouse("pointerout",595,300);T.yaw=mini.lookTarget.yaw;bbTick(.3)');
 assert.equal(n('mini.lookTarget.yaw'),n('T.yaw'),'auto-pan stops when the mouse leaves');
+n('drawMini()');
 close();
 console.log('PASS: mouse sight follow, click to fire, right/Shift drag, edge auto-pan.');
 
@@ -192,7 +340,7 @@ n('bbStart(1);mini.sight={x:300,y:300};T.M=blasterMuzzle();T.L=Math.hypot(300-T.
 n('T.p1=bbGremlin("crawler",300,300);T.p2=bbGremlin("crawler",300+T.ux*130,300+T.uy*130);fireBlaster(300,300)');
 assert.equal(n('T.p1.mode'),'dying');assert.equal(n('T.p2.mode'),'crawl','a normal shot stops at the first gremlin');
 n('mini.targets=[];bbTick(.3);mini.sight={x:300,y:300};T.q1=bbGremlin("crawler",300,300);T.q2=bbGremlin("crawler",300+T.ux*130,300+T.uy*130);T.q3=bbGremlin("bruiser",80,120)');
-n('arcadeDown({x:300,y:300});bbTick(.66);arcadeUp()');
+n('bbDown(300,300);bbTick(.66);bbUp()');
 assert.equal(n('mini.chargedShots'),1,'a still hold fired a charged shot on release');
 assert.equal(n('T.q1.mode'),'dying');assert.equal(n('T.q2.mode'),'dying','the charged shot pierced the second gremlin');
 assert.equal(n('T.q3.hp'),3,'nothing off the line was touched');
@@ -336,9 +484,9 @@ for (let d = 0; d < 3; d++) {
   assert.equal(n('mini.screen'), 'result');assert.equal(n('mini.win'), false, `idle Legendary P${d} lost`);
   close();
 }
-// Every screen of a Legendary run draws, in a wide and a tall window.
-for (const tall of [false, true]) {
-  if (tall) n('window.innerWidth=390;window.innerHeight=844');
+// Every screen of a Legendary run draws, in a wide and a tall window, on a touch screen and with a mouse.
+for (const [tall, touch] of [[false, false], [true, false], [false, true], [true, true]]) {
+  n(`bbCoarse(${touch});bbTall(${tall})`);
   n('state.difficulty=2;openMini(5);mini.tier=3;startMini();drawMini();launchMini();drawMini();updateMini(3.3);drawMini()');
   assert.equal(n('mini.screen'), 'play');
   n('for(let i=0;i<70;i++){updateMini(.05);drawMini()}');
@@ -346,6 +494,6 @@ for (const tall of [false, true]) {
   n('finishMini(true);drawMini();updateMini(2.3);drawResultArt();drawMini()');
   assert.equal(n('mini.screen'), 'result');
   close();
-  if (tall) n('delete window.innerWidth;delete window.innerHeight;resize()');
+  n('bbCoarse(false);bbTall(false);resize()');
 }
 console.log('PASS: Legendary: every breed, short fuses, six charges, Ralph Jr. twice, idle loses, every screen draws.');

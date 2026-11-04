@@ -28,6 +28,15 @@ const REACT = +process.argv[2] || 0.25,
 if (process.env.PATCH) run(process.env.PATCH);
 run(`
 var hu = null;
+// One finger through the touch() hook a phone uses. The player thinks in room coordinates; the room sits
+// at blasterRoomBox() inside the wider canvas.
+function huTouch(kind, p) {
+  const B = blasterRoomBox();
+  BLASTER.touch(kind, { x: p.x + B.x, y: p.y + B.y }, 1);
+}
+function huDown(p) { huTouch('down', p); }
+function huMove(p) { huTouch('move', p); }
+function huUp() { huTouch('up', hu.finger); }
 function huReset(seed) {
   let s = seed >>> 0;
   hu = { hist: [], plan: null, look: null, busy: 0, sent: {}, taps: {}, finger: { x: 300, y: 430 }, reloadAt: -1,
@@ -64,7 +73,7 @@ function huTick(R, assist) {
     if (!p || (p.x > 150 && p.x < 450 && p.y > 60 && p.y < 560))
       L.liftAt = Math.min(L.liftAt, now + 0.06 + hu.rnd() * 0.05);
     if (now >= L.liftAt) {
-      arcadeUp();
+      huUp();
       hu.look = null;
       hu.busy = now + 0.04;
     }
@@ -89,20 +98,20 @@ function huTick(R, assist) {
       const a = blasterArrows().find(q => q.side === P.side);
       if (!a) return;
       const x = a.x + 30 + hu.gauss() * 6, y = a.y + hu.gauss() * 6;
-      arcadeDown({ x, y });
-      arcadeUp();
+      huDown({ x, y });
+      huUp();
       hu.finger = { x, y };
       hu.busy = now + 0.15;
       return;
     }
     if (P.look) {
-      arcadeDown({ x: hu.finger.x, y: hu.finger.y });
-      arcadeMove({ x: P.x, y: P.y });
+      huDown({ x: hu.finger.x, y: hu.finger.y });
+      huMove({ x: P.x, y: P.y });
       hu.look = { id: P.id, liftAt: now + P.hold };
       return;
     }
-    arcadeDown({ x: P.x, y: P.y });
-    arcadeUp();
+    huDown({ x: P.x, y: P.y });
+    huUp();
     hu.finger = { x: P.x, y: P.y };
     // Armor gets a quick double tap; otherwise wait to see the shot land before going again.
     hu.taps[P.id] = (hu.taps[P.id] || 0) + 1;

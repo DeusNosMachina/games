@@ -1,7 +1,10 @@
 // Bedside Blaster controller: taps the most urgent gremlin's head (leading crawlers a little), taps the
 // edge arrow (or slides into the edge band) when the target is off-screen, hits the green on every
-// reload, and shoots juice when low.
+// reload, and shoots juice when low. Input only, through the same touch() hook a phone uses, in canvas
+// coordinates: the room sits at blasterRoomBox() inside the wider (or taller) canvas.
 module.exports = {id: 5, policy: `
+const B = blasterRoomBox(), at = (x, y) => ({x: x + B.x, y: y + B.y});
+const down = (x, y) => BLASTER.touch('down', at(x, y), 1), up = () => BLASTER.touch('up', at(bot.lx || 300, bot.ly || 300), 1);
 if (mini.reload > 0) {
   const w = blasterReloadWindow();
   if (!mini.reloadTry && mini.reloadT > w[0] + 0.02 && mini.reloadT < w[1] - 0.02) miniAction('reload');
@@ -19,7 +22,7 @@ if ((!e || urgency(e) < 3) && bottle && mini.ammo <= 4) e = bottle;
 if (!e) {
   if (bot.look) {
     bot.look = false;
-    arcadeUp();
+    up();
   }
   if (mini.ammo < 4) miniAction('reload');
   return;
@@ -33,25 +36,29 @@ const off = ax < 30 || ax > 570 || ay < 60 || ay > 540;
 if (bot.look) {
   if (off) return;
   bot.look = false;
-  arcadeUp();
+  up();
   return;
 }
 // Past the edge: tap its arrow, which turns the room to face it.
 if (ax < 0 || ax > 600) {
   const a = blasterArrows().find(q => q.side === (ax < 0 ? -1 : 1));
   if (a) {
-    arcadeDown({x: a.x + 30, y: a.y});
-    arcadeUp();
+    down(a.x + 30, a.y);
+    bot.lx = a.x + 30; bot.ly = a.y;
+    up();
     bot.wait = mini.total + 0.15;
     return;
   }
 }
 if (off) {
   bot.look = true;
-  arcadeDown({x: 300, y: 300});
-  arcadeMove({x: ax < 30 ? 2 : ax > 570 ? 598 : 300, y: ay < 60 ? 2 : ay > 540 ? 598 : 300});
+  down(300, 300);
+  bot.lx = ax < 30 ? 2 : ax > 570 ? 598 : 300;
+  bot.ly = ay < 60 ? 2 : ay > 540 ? 598 : 300;
+  BLASTER.touch('move', at(bot.lx, bot.ly), 1);
   return;
 }
-arcadeDown({x: ax, y: ay});
-arcadeUp();
+down(ax, ay);
+bot.lx = ax; bot.ly = ay;
+up();
 `};
