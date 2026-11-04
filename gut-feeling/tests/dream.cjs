@@ -1,6 +1,6 @@
 // Macy's dream (src/dream.js): when one starts (room 5 only, 14 s idle, no gremlins, no dialog, never
 // on the title or under reduced motion), how long it runs, what it is made of (5 or 6 distinct vignettes
-// from a pool of 12, different each night), waking early on a key or a tap (the event is swallowed),
+// from a pool of 25, different each night; dream logic and psychology jokes throughout; a false wake inside the dream; dreamBegin() for the bed), waking early on a key or a tap (the event is swallowed),
 // the stats, the music and the whooshes, every vignette on a strict canvas, and the dream track and
 // effects on a fake Web Audio. world.js does not call these hooks in this build, so the test drives
 // updateDream and drawDream itself.
@@ -402,6 +402,139 @@ assert.equal(run('dreamDraws'), 0, 'drawing never draws randomness');
 run('Math.random = dreamKeepRandom; dream.active = false; dream.waking = false');
 assert.ok(calls > 50000, 'the strict canvas saw the drawing');
 console.log(`PASS: ${pool.length} vignettes x 3 variants x 3 widths x ${TIMES.length} times, the bedside and whole dreams draw on a strict canvas.`);
+
+// ---- The bigger pool, the dream logic and the Easter eggs ----
+const NEW_IDS = ['school', 'doctor', 'snack', 'blink', 'bedroom', 'tryout', 'mirror', 'flying', 'door', 'elevator', 'inkblot', 'stairs', 'falsewake'];
+assert.equal(pool.length, 25, 'twenty-five vignettes: the first twelve and thirteen new ones');
+for (const id of NEW_IDS) assert.ok(pool.includes(id), `${id} is in the pool`);
+assert.deepEqual(
+  [...new Set(json('Array.from({ length: 60 }, (_, i) => dreamJersey(i * 0.37))'))].sort(),
+  ['2', '22', '23'],
+  'her number drifts: 22, 23, 2, and back to 22'
+);
+assert.deepEqual(json('[0, 2, 4.5].map(t => dreamFlip(t, 2, 3).i)'), [0, 1, 2], 'signs read differently the second time');
+assert.ok(json('DREAM_DOC_FIX') === 'I meant to say gallbladder.', 'the Freudian slip, corrected');
+
+// Every vignette, alone in a dream of its own, through the whole pipeline at phone landscape, phone
+// portrait and laptop sizes, with the setups made first and randomness watched while it draws.
+const SCREENS = [
+  [844, 390],
+  [390, 844],
+  [1440, 900]
+];
+run(`var dreamSolo = DREAM_POOL.map(d => [d.setup(), d.setup()]);
+var dreamDraws2 = 0, dreamKeep2 = Math.random;
+Math.random = function () { dreamDraws2++; return dreamKeep2(); };
+function dreamOnly(i, k) {
+  var d = DREAM_POOL[i];
+  dream.plan = [{ id: d.id, def: d, start: DREAM_INTRO, dur: 6.5, v: dreamSolo[i][k] }];
+  dream.wakeAt = DREAM_INTRO + 6.5;
+  dream.wakeLen = DREAM_WAKE;
+  dream.active = true;
+  dream.waking = false;
+}`);
+let soloFrames = 0;
+for (let i = 0; i < pool.length; i++)
+  for (let k = 0; k < 2; k++)
+    for (const [vw, vh] of SCREENS) {
+      run(`dreamOnly(${i}, ${k})`);
+      for (const T of [0.2, 1.7, 2.4, 3.3, 4.6, 5.5, 6.9, 7.9, 8.4, 9.2, 11.5]) {
+        run(`dream.t = ${T}; dreamPaint(dreamStrict, ${vw}, ${vh}); drawDream(dreamStrict, ${vw}, ${vh})`);
+        balanced(`${pool[i]} alone at ${T} on ${vw} x ${vh}`);
+        soloFrames++;
+      }
+    }
+// The new pieces on their own, at the sizes the vignettes hand them.
+run(`dream.ps = DREAM_ANALYSIS_PS[0]; dreamView.sw = 1000; dreamView.ui = 1.8`);
+for (const t of [0, 0.6, 1.4, 2.2, 3.9, 7]) {
+  run(`dreamGhost(dreamStrict, 300, 200, 0.8, ${t}, 1);
+dreamMeltClock(dreamStrict, 100, 100, 10, ${t}, 2);
+dreamShade(dreamStrict, 400, 500, 1.3, ${t} * 7, dreamSpan(1, 2, ${t}), ${t}, 3);
+dreamClapper(dreamStrict, 500, 500, 0.7, 2, ${t}, 4);
+dreamHorns(dreamStrict, 0, 0, 1.4, ${t}, 5);
+dreamBlinkLids(dreamStrict, { x: -50, y: -100, w: 1100, h: 825 }, ${t} / 7);
+dreamCard(dreamStrict, 600, ${t});
+dreamPajamas(() => girl(dreamStrict, 300, 560, 1.4, ${t}, 1, false, false));`);
+  balanced(`the new pieces at ${t}`);
+}
+assert.equal(run('girlLookOverride'), null, 'the pajamas come off after the drawing');
+assert.equal(run('dreamDraws2'), 0, 'none of it draws randomness');
+run('Math.random = dreamKeep2; dream.active = false; dream.waking = false; dream.t = 0');
+console.log(`PASS: every vignette alone at 844 x 390, 390 x 844 and 1440 x 900 (${soloFrames} frames), and each new piece, on a strict canvas.`);
+
+// Plans and picks vary: the false wake is never first or last, and the same vignette is a different
+// dream on a different night.
+const setups = new Map();
+for (let seed = 1; seed <= 200; seed++) {
+  const p = json(`(() => { dreamRng = ${seed * 104729}; return dreamPlan().map(p => ({ id: p.id, v: p.v })); })()`);
+  const fw = p.findIndex(q => q.id === 'falsewake');
+  assert.ok(fw !== 0 && fw !== p.length - 1, `seed ${seed}: the false wake sits inside the dream (at ${fw} of ${p.length})`);
+  for (const q of p) setups.set(q.id, (setups.get(q.id) || new Set()).add(JSON.stringify(q.v)));
+}
+for (const id of pool) {
+  const n = setups.get(id) ? setups.get(id).size : 0;
+  assert.ok(n >= 2, `${id} dreams differently from night to night (${n} versions)`);
+}
+console.log('PASS: the false wake never opens or closes a night, and every vignette varies its picks.');
+
+// ---- A dream within a dream ----
+// The nurse wakes her, it passes for real for three seconds, and she is still dreaming: no wake-up, no
+// stats, the next vignette plays. A key during it wakes her properly.
+run(`state.room = 5; dreamCalls = []; dreamBegin();
+var dreamFw = DREAM_BY_ID.falsewake, dreamFwV = dreamFw.setup();
+dream.plan = [
+  { id: 'map', def: DREAM_BY_ID.map, start: DREAM_INTRO, dur: 6, v: DREAM_BY_ID.map.setup() },
+  { id: 'falsewake', def: dreamFw, start: DREAM_INTRO + 6, dur: 6.5, v: dreamFwV },
+  { id: 'clouds', def: DREAM_BY_ID.clouds, start: DREAM_INTRO + 12.5, dur: 6, v: DREAM_BY_ID.clouds.setup() }
+];
+dream.wakeAt = DREAM_INTRO + 18.5;`);
+const dreamsBefore = run('state.stats.dreams');
+const fw = json(`(() => {
+  var out = { calm: [], sat: [], waking: false, talk: 0 };
+  while (dream.t < DREAM_INTRO + 12.6) {
+    updateDream(1 / 60);
+    if (dream.waking) out.waking = true;
+    var seg = dreamSegmentAt(dream.t);
+    if (seg.p && seg.p.id === 'falsewake') {
+      if (seg.local > 1 && seg.local < 2.9) { out.calm.push(dreamWobble(dream.t)); out.sat.push(dreamSat(seg)); }
+      if (seg.local > 4.5) out.late = { wob: dreamWobble(dream.t), sat: dreamSat(seg) };
+    }
+  }
+  out.after = dreamSegmentAt(dream.t).p.id;
+  out.talk = dreamCalls.filter(c => c === 'sfx:talk').length;
+  return out;
+})()`);
+assert.ok(Math.max(...fw.calm) < 0.05, 'while it passes for real, the frame holds still');
+assert.ok(Math.min(...fw.sat) > 0.99, 'and the room is in full color');
+assert.ok(fw.late.wob > 0.5 && fw.late.sat < 0.6, 'then the dream seeps back in');
+assert.equal(fw.waking, false, 'a false wake is not a wake-up');
+assert.equal(run('state.stats.dreams'), dreamsBefore, 'and does not count as one');
+assert.equal(fw.after, 'clouds', 'the dream carries on with the next vignette');
+assert.ok(fw.talk > 0, 'the nurse in the false wake talks in blips');
+assert.equal(run('dreamActive()'), true);
+run('dream.t = DREAM_INTRO + 8; dream.blipKey = ""');
+e = fire('keydown', { key: 'x' });
+assert.ok(e.stopped && run('dream.waking'), 'a key during the false wake wakes her for real');
+assert.equal(run('state.stats.dreams'), dreamsBefore + 1);
+run('dreamRun(6)');
+assert.equal(run('dreamActive()'), false, 'and she is properly awake');
+console.log('PASS: the dream within a dream holds for three seconds, carries on, and still wakes on a key.');
+
+// ---- dreamBegin(), called directly (the bed hotspot) ----
+run('state.room = 5; enemies = []; dream.idle = 0; dreamCalls = []');
+assert.equal(run('dreamActive()'), false);
+run('dreamBegin()');
+assert.equal(run('dreamActive()'), true, 'dreamBegin() starts a dream at once, no idle wait');
+assert.ok([5, 6].includes(run('dream.plan.length')), 'a full plan');
+assert.ok(json('DREAM_ANALYSIS_PS').includes(run('dream.ps')), 'with a P.S. for the analysis card');
+assert.equal(count('music:dream'), 1);
+assert.equal(count('sfx:dreamIn'), 1);
+assert.equal(run('updateDream(1 / 60)'), true, 'and the ward waits while it plays');
+e = fire('pointerdown');
+assert.ok(e.stopped && run('dream.waking'), 'any action still wakes her');
+run('dreamRun(6)');
+assert.equal(run('dreamActive()'), false);
+console.log('PASS: dreamBegin() starts a dream in room 5 right away; a tap still wakes her.');
 
 // ---- Reduced motion: no dreams at all ----
 {
