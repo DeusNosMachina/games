@@ -5502,7 +5502,44 @@ function npcBackHair(g, k, hy, hr, hry, t, view = 'side') {
       gradient(g, 0, hy - 5, 0, 34, k.hair, k.hairDark)
     );
   else if (k.hairStyle === 'bob') rr(g, -hr - 2.6, hy - 6, hr * 2 + 5, hry + 9, 7, k.hairDark);
-  else if (k.hairStyle === 'crop') {
+  else if (k.hairStyle === 'pigtails') {
+    // Casey: two pigtails tied behind the ears, hanging smooth and tapered down behind the shoulders
+    // with a soft outward curve and a lighter strand down each. From the front one hangs either side
+    // of the neck; from the side both fall down her back, one a little behind the other; mid-turn
+    // the near one peeks out below the ear and the far one hangs behind.
+    const S = k.shoulder,
+      band = k.band || '#e8b84a',
+      tails = view === 'front' ? [[-1, -hr + 1], [1, hr - 1]] : view === 'three' ? [[-1, -hr - 1], [1, hr - 4.5]] : [[-1, -hr - 1.5], [-1, -hr + 2]];
+    for (const [side, bx0] of tails) {
+      const bx = bx0,
+        by = hy + 1,
+        out = view === 'front' ? side * (S + 1) : view === 'three' ? (side < 0 ? -S - 3 : S - 5) : bx0 - 3,
+        ex = out + sway * 0.25,
+        ey = hy + 25;
+      path(
+        g,
+        p => {
+          p.moveTo(bx - 2.6, by);
+          p.bezierCurveTo(bx - 3.4, by + 10, ex - 2.2, ey - 8, ex - 1.7, ey);
+          p.quadraticCurveTo(ex, ey + 4.5, ex + 1.7, ey);
+          p.bezierCurveTo(ex + 2.2, ey - 8, bx + 3.4, by + 10, bx + 2.6, by);
+          p.closePath();
+        },
+        gradient(g, bx, by, 0, 30, k.hair, k.hairDark)
+      );
+      path(
+        g,
+        p => {
+          p.moveTo(bx + 0.3, by + 3);
+          p.bezierCurveTo(bx - 0.2, by + 12, ex - 0.5, ey - 12, ex - 0.2, ey - 4);
+        },
+        null,
+        '#ffffff2e',
+        1.1
+      );
+      rr(g, bx - 2.6, by - 0.4, 5.2, 2.6, 1.2, band, npcShade(band, 0.78), 0.5);
+    }
+  } else if (k.hairStyle === 'crop') {
     // From the front the clipped-up tufts peek over the top of the head; from the side a little base
     // of hair behind the clip.
     if (view === 'front') for (const [x, y, r] of [[-3.2, -1.5, 2.2], [0, -3, 2.4], [3.2, -1.5, 2.2]]) ellipse(g, x + sway * 0.2, top + y, r, r * 1.3, k.hairDark);
@@ -5942,41 +5979,7 @@ function npcHair(g, k, hy, hr, hry, fx, view = 'side') {
       fill
     );
     line(g, [[fx + 1, top - 0.5], [fx + 1, hy - 8.5]], k.hairDark, 0.9);
-    const S = k.shoulder,
-      band = k.band || '#e8b84a';
-    // Two pigtails tied high on the head, just behind the temples, hanging smooth and tapered past
-    // the shoulders with a soft outward curve and a lighter strand down each.
-    for (const side of [-1, 1]) {
-      const bx = side * (hr + 1.6) + fx * 0.3,
-        by = hy - 2,
-        ex = side * (S + 1.5) + fx * 0.3,
-        ey = hy + 25;
-      path(
-        g,
-        p => {
-          p.moveTo(bx - side * 2.6, by);
-          p.bezierCurveTo(bx - side * 3.2, by + 10, ex - side * 2.2, ey - 8, ex - side * 1.6, ey);
-          p.quadraticCurveTo(ex, ey + 4.5, ex + side * 1.8, ey);
-          p.bezierCurveTo(ex + side * 2.6, ey - 8, bx + side * 4.2, by + 10, bx + side * 2.6, by);
-          p.closePath();
-        },
-        gradient(g, bx, by, 0, 30, k.hair, k.hairDark)
-      );
-      path(
-        g,
-        p => {
-          p.moveTo(bx + side * 0.4, by + 3);
-          p.bezierCurveTo(bx - side * 0.2, by + 12, ex - side * 0.6, ey - 12, ex - side * 0.2, ey - 4);
-        },
-        null,
-        '#ffffff2e',
-        1.1
-      );
-      // The tie at the top, and the tail's end flared a little below the tie-less tip.
-      rr(g, bx - 2.4, by - 0.6, 4.8, 2.6, 1.2, band, npcShade(band, 0.78), 0.5);
-      // The gathered hair above the tie, tucked against the side of the head.
-      ellipse(g, bx - side * 0.8, by - 2.4, 3.2, 2.4, k.hair);
-    }
+    // The pigtails themselves hang behind the head (npcBackHair).
   } else if (style === 'slick') {
     // Dr. Benedetto: slicked straight back, a high shine, not one hair out of place.
     path(
