@@ -1302,7 +1302,7 @@ run('hallwayResetCast(); state.room = 6; cameraX = 0; wardCameraY = 0');
 for (const ctx of ['c', 'strictCtx']) {
   run(`hallwayRoomBg(${ctx}); roomProps[6].forEach(p => p.draw(${ctx}))`);
   run(`hallwayEnsureArrive(hallwayCast.find(n => n.ensure)); hallwayEnsureDrop(hallwayCast.find(n => n.ensure), true)`);
-  run(`hallwayCast.forEach((n, i) => { n.walk = i; n.moving = i % 2 === 0; n.vdir = i % 3 ? 1 : -0.05; n.whoa = 0.2; })`);
+  run(`hallwayCast.forEach((n, i) => { n.walk = i; n.moving = i % 2 === 0; n.vdir = i % 3 ? 1 : -0.05; n.turn = { body: n.vdir, head: i % 3 ? 1 : 0.4, tail: n.vdir, tailV: 0 }; n.whoa = 0.2; })`);
   assert.ok(run(`roomExtraRenderables(true).length`) >= 13, 'wall, bottles and the whole cast');
   run(`roomExtraRenderables(true).forEach(r => r.draw(${ctx}))`);
   run(`hallwayCast.forEach(n => { n.bark = { text: 'Whoa! Watch the tray!', life: 1, max: 2 }; }); drawRoomOverlay(${ctx}, 1000, 625)`);
@@ -1707,7 +1707,7 @@ for (const kind of JSON.parse(run('JSON.stringify(NPC_GESTURES)')))
       run(`(() => {
         const n = hallwayCast.find(x => x.id === '${id}');
         n.present = true; n.act = { kind: '${kind}', t: ${t}, max: 1.4, greet: true };
-        hallwayDrawNpc(strictCtx, n); n.vdir = -1; hallwayDrawNpc(strictCtx, n); n.vdir = 1; n.act = null;
+        hallwayDrawNpc(strictCtx, n); n.turn = facingNew(-1); hallwayDrawNpc(strictCtx, n); n.turn = { body: 0.1, head: -0.5, tail: 0.1, tailV: 0 }; hallwayDrawNpc(strictCtx, n); n.turn = facingNew(1); n.act = null;
       })()`);
 run('hallwayPortrait(strictCtx, 0, 0, 120, 120, hallwayCast.find(n => n.id === "dodo"), true)');
 run('hallwayPortrait(strictCtx, 0, 0, 120, 120, hallwayCast.find(n => n.id === "mimi"), false)');
@@ -1720,6 +1720,207 @@ run(`drawLog = []; hallwayDrawNpc(logCtx, hallwayCast.find(x => x.id === 'mimi')
   drawLog = []; var m = hallwayCast.find(x => x.id === 'mimi'); m.look.item = ''; hallwayDrawNpc(logCtx, m); m.look.item = 'purse';`);
 assert.ok(run('withPurse - drawLog.length') >= 12, 'the purse has its little repeating print');
 console.log('PASS: Mimi (light blondish-brown bun, the purse, the worrying) and Dodo (silver side part, beard, camera and flash) draw; every gesture draws.');
+
+// ---- Turning: three real views, never a paper flip ----
+// The visitors turn the way Macy and Rowdy do (art.js facingStep): the head first, the body through a
+// three-quarter and a front view, mirrored by its side and never scaled through zero width.
+run(`var turnProbe = { minRatio: Infinity, bad: [], depth: 0, ops: [], text: [] };
+  var turnCtx = (() => {
+    let det = 1;
+    const stack = [];
+    return new Proxy({}, {
+      get(t, k) {
+        if (typeof k === 'symbol') return undefined;
+        if (k in t) return t[k];
+        if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({ addColorStop() {} });
+        if (k === 'measureText') return s => ({ width: String(s).length * 6 });
+        return (...a) => {
+          for (const v of a) if (typeof v === 'number' && !Number.isFinite(v)) turnProbe.bad.push(String(k));
+          if (k === 'ellipse' && (a[2] < 0 || a[3] < 0)) turnProbe.bad.push('negative ellipse');
+          if (k === 'save') { turnProbe.depth++; stack.push(det); }
+          else if (k === 'restore') { turnProbe.depth--; det = stack.pop(); }
+          else if (k === 'scale') {
+            turnProbe.minRatio = Math.min(turnProbe.minRatio, Math.abs(a[0] / a[1]));
+            det *= Math.sign(a[0] * a[1]);
+          } else if (k === 'fillText') turnProbe.text.push([String(a[0]), det]);
+          turnProbe.ops.push(k + (k === 'save' || k === 'restore' ? '' : a.map(v => (typeof v === 'number' ? Math.round(v * 10) : '')).join()));
+        };
+      },
+      set(t, k, v) { t[k] = v; return true; }
+    });
+  })();`);
+const lookIds = JSON.parse(run('JSON.stringify(Object.keys(HALLWAY_LOOKS))'));
+const faceSets = [
+  [1, 1],
+  [0.5, 0.5],
+  [0, 0],
+  [-0.1, -0.1],
+  [-0.5, -0.5],
+  [-1, -1],
+  [0.5, -0.2],
+  [-0.1, -0.8]
+];
+for (const id of lookIds) {
+  const views = {};
+  for (const [body, head] of faceSets)
+    for (const pose of [0, 1.3]) {
+      run(`turnProbe.ops = []; npcFigure(turnCtx, 400, 300, hallwayNpcScale(), HALLWAY_LOOKS.${id}(), ${pose}, ${body}, 2, { head: ${head} })`);
+      if (pose === 0 && body === head) views[run(`facingView(${body})`) + (body < 0 ? '-' : '+')] = run('turnProbe.ops.join("|")');
+    }
+  // The seed is random per look; the views are compared on one look object.
+  run(`var turnLook = HALLWAY_LOOKS.${id}()`);
+  const drawn = {};
+  for (const f of [1, 0.5, 0]) {
+    run(`turnProbe.ops = []; npcFigure(turnCtx, 400, 300, hallwayNpcScale(), turnLook, 0, ${f}, 2)`);
+    drawn[f] = run('turnProbe.ops.join("|")');
+  }
+  assert.notEqual(drawn[1], drawn[0.5], `${id}: the three-quarter view is its own drawing`);
+  assert.notEqual(drawn[0.5], drawn[0], `${id}: the front view is its own drawing`);
+  assert.notEqual(drawn[1], drawn[0], `${id}: the front view is not the side view`);
+  assert.deepEqual(Object.keys(views).sort(), ['front+', 'front-', 'side+', 'side-', 'three+', 'three-'].sort(), `${id}: all three views both ways`);
+}
+assert.equal(run('turnProbe.depth'), 0, 'every save() has its restore()');
+assert.deepEqual(run('JSON.stringify(turnProbe.bad.slice(0, 5))'), '[]', 'no NaN coordinates or negative radii in any view');
+assert.ok(run('turnProbe.minRatio') >= 0.5, `never a squash: the narrowest x-to-y scale is ${run('turnProbe.minRatio')}`);
+// Numbers and letters (Presley's 9, Norah's softball number, Taylor's letter jacket) read the right way round.
+const texts = JSON.parse(run('JSON.stringify(turnProbe.text)'));
+assert.ok(texts.length > 0, 'the shirts have their numbers and letters');
+assert.deepEqual(texts.filter(([, det]) => det < 0), [], 'no mirrored text in any view');
+// A held item stays drawn in every view: Dodo's camera turns its lens to the camera from the front.
+for (const id of ['dodo', 'mimi', 'barb', 'dad', 'presley', 'stephanie', 'lori'])
+  for (const f of [1, 0.5, 0, -0.5, -1]) {
+    run(`turnProbe.ops = []; var withItem = HALLWAY_LOOKS.${id}(); npcFigure(turnCtx, 0, 0, 1, withItem, 0, ${f}, 2); var n1 = turnProbe.ops.length;
+      withItem.item = ''; turnProbe.ops = []; npcFigure(turnCtx, 0, 0, 1, withItem, 0, ${f}, 2);`);
+    assert.ok(run('n1 - turnProbe.ops.length') >= 3, `${id} keeps the item in hand at facing ${f}`);
+  }
+console.log(`PASS: all ${lookIds.length} looks draw a side, a three-quarter and a front view both ways, with no squash and no mirrored text.`);
+
+// One visitor's turn, frame by frame: side, three-quarter, front, three-quarter, side, the head leading.
+function turnRun(expr, frames, each = '') {
+  return JSON.parse(
+    run(`(() => {
+      const out = [];
+      for (let i = 0; i < ${frames}; i++) {
+        ${expr};
+        ${each};
+        out.push([turnNpc.turn.body, turnNpc.turn.head, turnNpc.vdir, turnNpc.x, turnNpc.y]);
+      }
+      return JSON.stringify(out);
+    })()`)
+  );
+}
+const views = f => run(`facingView(${f})`);
+const squeeze = list => list.filter((v, i) => i === 0 || v !== list[i - 1]);
+run(`var turnNpc = hallwayCast.find(n => n.id === 'dad'); hallwayFaceNow(turnNpc, 1); turnNpc.dir = -1`);
+let frames = turnRun('hallwayTurnStep(turnNpc, 1 / 60)', 30, 'turnProbe.minRatio = Math.min(turnProbe.minRatio, 9); hallwayDrawNpc(turnCtx, turnNpc)');
+const sided = f => (views(f) === 'front' ? 'front' : views(f) + (f < 0 ? '-' : '+'));
+assert.deepEqual(squeeze(frames.map(f => sided(f[0]))), ['side+', 'three+', 'front', 'three-', 'side-'], 'the body: side, three-quarter, front, three-quarter, side');
+assert.deepEqual(squeeze(frames.map(f => views(f[1]))), ['side', 'three', 'front', 'three', 'side'], 'the head goes through the same views');
+assert.ok(frames.every(([b, h]) => h <= b + 1e-9), 'the head is never behind the body');
+assert.ok(frames.some(([b, h]) => views(h) !== views(b)), 'and leads it into a view');
+assert.ok(frames.every(([b, , v]) => v === b), 'vdir follows the body');
+const turnFrames = frames.findIndex(f => f[0] === -1);
+assert.ok(turnFrames >= 8 && turnFrames <= 20, `a turn takes about a fifth of a second (${turnFrames} frames)`);
+assert.ok(run('turnProbe.minRatio') >= 0.5, 'drawn mid-turn without a squash');
+// Changing her mind halfway turns back from wherever each part is.
+run('hallwayFaceNow(turnNpc, 1); turnNpc.dir = -1');
+frames = turnRun('hallwayTurnStep(turnNpc, 1 / 60); if (i === 6) turnNpc.dir = 1', 40);
+for (let i = 1; i < frames.length; i++) assert.ok(Math.abs(frames[i][0] - frames[i - 1][0]) <= (2 / 0.22) / 60 + 1e-9, 'the body never jumps a view');
+assert.equal(frames[frames.length - 1][0], 1, 'back where she started');
+// The real thing: Macy walks past a standing visitor, who turns to her through the views.
+run(`hallwayRoaming = false; hallwayResetCast(); state.room = 6; hallwayTalk = null;
+  turnNpc = hallwayCast.find(n => n.id === 'brother'); turnNpc.present = true; turnNpc.mode = 'idle'; turnNpc.idle = 0; turnNpc.restless = 1e9;
+  hallwayFaceNow(turnNpc, -1); player.x = turnNpc.x - 60; player.y = turnNpc.y;`);
+run('hallwayNpcStep(turnNpc, 1 / 60); player.x = turnNpc.x + 60');
+frames = turnRun('hallwayNpcStep(turnNpc, 1 / 60)', 30);
+assert.deepEqual(squeeze(frames.map(f => views(f[0]))), ['side', 'three', 'front', 'three', 'side'], 'Riley turns to her through every view');
+assert.ok(frames.every(f => f[3] === frames[0][3] && f[4] === frames[0][4]), 'and stays put while he turns');
+console.log('PASS: a visitor turns side, three-quarter, front, three-quarter, side in about a fifth of a second, head first, and can change his mind.');
+
+// The friends turn together to face her without jumping: every frame each one moves a step at most and
+// turns at the body's rate.
+run(`hallwayResetCast(); state.room = 6; hallwayTalk = null;
+  var crewIds = ['taylor', 'presley', 'norah'], crew = crewIds.map(id => hallwayCast.find(n => n.id === id));
+  crew.forEach(n => { n.present = true; n.mode = 'idle'; hallwayFaceNow(n, -1); });
+  var lead = crew.find(n => n.lead) || crew[0]; lead.restless = 1e9;
+  crew.forEach(n => { if (n !== lead) { n.x = lead.x + n.slot[0]; n.y = lead.y + n.slot[1]; } });
+  player.x = Math.max(...crew.map(n => n.x)) + 70; player.y = lead.y;`);
+const crewFrames = JSON.parse(
+  run(`(() => {
+    const out = [];
+    for (let i = 0; i < 40; i++) {
+      crew.forEach(n => hallwayNpcStep(n, 1 / 60));
+      out.push(crew.map(n => [n.turn.body, n.turn.head, n.x, n.y]));
+      crew.forEach(n => hallwayDrawNpc(turnCtx, n));
+    }
+    return JSON.stringify(out);
+  })()`)
+);
+for (let m = 0; m < 3; m++) {
+  const seq = crewFrames.map(f => f[m]);
+  for (let i = 1; i < seq.length; i++) {
+    assert.ok(Math.abs(seq[i][0] - seq[i - 1][0]) <= (2 / 0.22) / 60 + 1e-9, 'no one in the group snaps around');
+    assert.ok(Math.hypot(seq[i][2] - seq[i - 1][2], seq[i][3] - seq[i - 1][3]) < 3, 'no one in the group jumps across the floor');
+  }
+  assert.equal(seq[seq.length - 1][0], 1, `friend ${m + 1} ends up facing her`);
+  assert.ok(seq.some(f => views(f[0]) === 'front'), `friend ${m + 1} passes through the front view`);
+}
+assert.ok(run('turnProbe.minRatio') >= 0.5);
+console.log('PASS: the friends turn to her together, smoothly, without a jump.');
+
+// The greetings play through a turn: each one starts with the visitor facing away, turns, and finishes.
+strictErrors.length = 0;
+for (const kind of ['hug', 'fistbump', 'selfie', 'highfive', 'thumbs', 'clipboard', 'handshake', 'bottle', 'lean', 'flick', 'camera'])
+  for (const id of ['dad', 'mimi', 'dodo', 'presley', 'barb', 'lori', 'stephanie'])
+    for (const [body, head] of [
+      [1, 1],
+      [0.5, 0.1],
+      [0.05, -0.4],
+      [-0.5, -1]
+    ]) {
+      run(`(() => {
+        const n = hallwayCast.find(x => x.id === '${id}');
+        n.present = true; n.turn = { body: ${body}, head: ${head}, tail: ${body}, tailV: 0 };
+        n.act = null; turnProbe.ops = []; hallwayDrawNpc(turnCtx, n); globalThis.noAct = turnProbe.ops.join('|');
+        n.act = { kind: '${kind}', t: 0.7, max: 1.4, greet: true }; turnProbe.ops = []; hallwayDrawNpc(turnCtx, n); hallwayDrawNpc(strictCtx, n);
+        globalThis.withAct = turnProbe.ops.join('|'); n.act = null; n.turn = facingNew(1);
+      })()`);
+      assert.notEqual(run('withAct'), run('noAct'), `${id}: the ${kind} draws mid-turn (${body}, ${head})`);
+    }
+assert.deepEqual(strictErrors.slice(0, 5), [], 'every greeting draws cleanly in every view');
+run(`hallwayResetCast(); state.room = 6; hallwayTalk = null; var greeter = hallwayCast.find(n => n.id === 'dad');
+  greeter.present = true; greeter.mode = 'idle'; greeter.restless = 1e9; hallwayFaceNow(greeter, -1);
+  player.x = greeter.x + 50; player.y = greeter.y; greeter.greeted = false; greeter.greetCd = 0; hallwayGreet(greeter);
+  var greetLog = [];
+  for (let i = 0; i < 150; i++) {
+    hallwayNpcStep(greeter, 1 / 60); hallwayGreetTick(1 / 60); hallwayDrawNpc(turnCtx, greeter);
+    greetLog.push([greeter.turn.body, greeter.act ? greeter.act.kind : '']);
+  }`);
+const greetLog = JSON.parse(run('JSON.stringify(greetLog)'));
+assert.ok(greetLog[0][1] !== '' && greetLog[0][0] < 0, 'Dad starts his greeting facing away');
+assert.ok(greetLog.slice(0, 20).some(([b, k]) => k && views(b) === 'front'), 'and turns through the front view mid-greeting');
+assert.ok(greetLog.slice(20).every(([b]) => b === 1), 'then faces her for the rest of it');
+assert.equal(greetLog[greetLog.length - 1][1], '', 'and the greeting finishes');
+// A bark mid-turn still hangs over the head.
+run(`greeter.turn = { body: 0.02, head: 0.3, tail: 0, tailV: 0 }; greeter.bark = { text: 'There she is!', life: 1, max: 2 }; drawRoomOverlay(strictCtx, 844, 390); greeter.bark = null`);
+assert.deepEqual(strictErrors.slice(0, 5), [], 'a bark over a visitor mid-turn draws');
+console.log('PASS: hug, fist bump, selfie, high five, wave, clipboard, handshake and bottle all play through a turn; barks too.');
+
+// Rowdy's Ensure bottles ride his body's side, not where he means to face: mid-turn they stay put
+// until his body crosses over.
+run(`var rowdyB = hallwayCast.find(n => n.rowdy); var bottleXs = [];
+  var bottleCtx = new Proxy({}, { get: (t, k) => (k in t ? t[k] : k === 'translate' ? (x) => bottleXs.push(x) : k === 'createLinearGradient' || k === 'createRadialGradient' ? () => ({ addColorStop() {} }) : () => {}), set: (t, k, v) => ((t[k] = v), true) });
+  var bottleSide = (face, body) => { rowdyB.face = face; rowdyB.rowdyTurn = body === null ? undefined : { body, head: body, tail: body, tailV: 0 }; bottleXs = []; hallwayRowdyBottles(bottleCtx, rowdyB); return bottleXs.map(x => Math.round(x - rowdyB.x)).filter(x => Math.abs(x) < 300); };`);
+if (run('typeof rowdyPose === "function"')) {
+  const right = JSON.parse(run('JSON.stringify(bottleSide(1, 1))')),
+    left = JSON.parse(run('JSON.stringify(bottleSide(-1, -1))'));
+  assert.ok(right.length >= 2 && right.every(Number.isFinite), 'a bottle in each pom hand');
+  assert.deepEqual(left, right.map(x => -x), 'facing left, the bottles mirror');
+  assert.deepEqual(JSON.parse(run('JSON.stringify(bottleSide(-1, 0.4))')), right, 'turning left but still facing right: the bottles stay on the right');
+  assert.deepEqual(JSON.parse(run('JSON.stringify(bottleSide(1, -0.4))')), left, 'turning right but still facing left: on the left');
+  assert.deepEqual(JSON.parse(run('JSON.stringify(bottleSide(-1, null))')), left, 'no turn on record: by his face');
+  console.log("PASS: Rowdy's Ensure bottles follow his body through a turn.");
+}
 
 // A room with nobody in it (roaming is off here, so the whole cast is in the hallway): the hooks stay
 // out of the way.
