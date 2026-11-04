@@ -1921,11 +1921,25 @@ function drawWardTaps(g) {
   g.lineDashOffset = 0;
 }
 
+// Macy's turn (art.js facingStep): player.facing holds head, body and ponytail facings. The head gets
+// round first, the body follows in about 0.22 s, the ponytail swings after and settles. It chases
+// player.dir, so every way of turning her (a step, a talk, a greeting) turns her the same way.
+// player.visualDir mirrors the body; anything that writes visualDir straight (a room entry, the
+// send-off) snaps the whole turn to it.
+function macyTurnStep(dt) {
+  const F = player.facing && typeof player.facing === 'object' ? player.facing : (player.facing = facingNew(player.dir));
+  if (Number.isFinite(player.visualDir) && player.visualDir !== F.body) {
+    const v = clamp(player.visualDir, -1, 1);
+    F.body = F.head = F.tail = v;
+    F.tailV = 0;
+  }
+  facingStep(F, player.dir, dt);
+  player.visualDir = F.body;
+}
+
 function updateWorld(dt) {
   time += dt;
-  player.visualDir =
-    (player.visualDir ?? player.dir) +
-    (player.dir - (player.visualDir ?? player.dir)) * (1 - Math.exp(-dt * 16));
+  macyTurnStep(dt);
   // Poses run on their own clock, so the medal grin plays out on the result screen too.
   macyPoseTick(dt);
   if (toastTimer > 0) {
@@ -2160,7 +2174,8 @@ function drawWorld() {
         player.visualDir ?? player.dir,
         player.inv > 0 && player.vomit <= 0,
         player.z <= 0,
-        macyAct()
+        macyAct(),
+        player.facing
       );
       g.restore();
       vomitArt(g, player.x, player.y - player.z, player.dir, player.vomit, MACY_SCALE);

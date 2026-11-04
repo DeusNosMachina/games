@@ -3,7 +3,11 @@
 //
 // Drawing: drawRowdy(g, x, y, scale, pose, t, opts) puts his feet at (x, y), like girl().
 // At scale 1 he stands ROWDY_HEIGHT (86) units tall, horns included; ROWDY_SCALE (1.45) makes him
-// a head taller than Macy in the ward (girl() at 1.24). opts.face is 1 (right) or -1 (left);
+// a head taller than Macy in the ward (girl() at 1.24). opts.face is his facing: 1 (right), -1 (left),
+// anything between mid-turn (0 is straight at the camera); opts.head is his head's facing during a
+// turn (default face). A turn picks a hand-drawn view (side, three-quarter, front: facingView in
+// art.js) and mirrors it by side, never squashing him through zero width. rowdyNpcSpec().draw turns
+// him head first on its own whenever npc.face changes.
 // opts.prop 'flag' swaps the cheer's front pom-pom for a spirit flag; opts.shadow false skips it;
 // opts.poms puts the gallop's poms up (the run-through) and opts.dust kicks dust behind him.
 //
@@ -60,7 +64,8 @@ const ROWDY_COL = {
 };
 
 // ---- Pose skeletons ----
-// Every pose is built facing right (+x is his front side); drawRowdy mirrors it for face -1.
+// Every pose is built facing right (+x is his front side); drawRowdy mirrors it for face -1 and picks
+// the view (side, three-quarter or front) from how far round he is.
 // Joints are in body units with the feet at (0, 0). dip lowers everything above the knees.
 
 function rowdyShoulder(s, dip) {
@@ -231,9 +236,12 @@ function rowdyPose(pose, t, opts = {}) {
     P.arms = [-1, 1].map(s => rowdyArmsDown(s, P.dip));
     P.fx = 'tear';
   } else if (pose === 'spin') {
+    // A real 360: through the front, the far side, his back, and round again. spinTurn is the facing
+    // drawRowdy turns him to; the back half shows the 77 on his back.
     const ph = t * 7;
-    P.spin = Math.sign(Math.cos(ph)) * Math.max(0.3, Math.sqrt(Math.abs(Math.cos(ph))));
-    P.back = P.spin < 0;
+    P.spinTurn = Math.cos(ph);
+    P.spin = P.spinTurn < 0 ? -1 : 1;
+    P.back = Math.sin(ph) < 0;
     P.lift = 1.6;
     P.mouth = 1;
     P.arms = [-1, 1].map(s => ({ s, e: [s * 21, -55], h: [s * 29, -61], kind: 'open' }));
@@ -404,22 +412,26 @@ function rowdySeven(g, x, y, s, mir) {
   g.restore();
 }
 
-function rowdyTorso(g, P, mir) {
-  const C = ROWDY_COL;
+function rowdyTorso(g, P, mir, view = 'side') {
+  const C = ROWDY_COL,
+    three = view === 'three';
   g.save();
   g.translate(0, P.dip);
+  // Three-quarters on, the jersey is a touch narrower and the 77 slides toward his front.
+  if (three) g.translate(0.8, 0);
+  const w = three ? 0.88 : 1;
   path(
     g,
     p => {
-      p.moveTo(-5, -50.6);
-      p.quadraticCurveTo(0, -49.2, 5, -50.6);
-      p.quadraticCurveTo(10.6, -50.2, 13.4, -47.4);
-      p.lineTo(12.2, -41);
-      p.quadraticCurveTo(12.5, -36, 13.1, -30.4);
-      p.quadraticCurveTo(0, -28.8, -13.1, -30.4);
-      p.quadraticCurveTo(-12.5, -36, -12.2, -41);
-      p.lineTo(-13.4, -47.4);
-      p.quadraticCurveTo(-10.6, -50.2, -5, -50.6);
+      p.moveTo(-5 * w, -50.6);
+      p.quadraticCurveTo(0, -49.2, 5 * w, -50.6);
+      p.quadraticCurveTo(10.6 * w, -50.2, 13.4 * w, -47.4);
+      p.lineTo(12.2 * w, -41);
+      p.quadraticCurveTo(12.5 * w, -36, 13.1 * w, -30.4);
+      p.quadraticCurveTo(0, -28.8, -13.1 * w, -30.4);
+      p.quadraticCurveTo(-12.5 * w, -36, -12.2 * w, -41);
+      p.lineTo(-13.4 * w, -47.4);
+      p.quadraticCurveTo(-10.6 * w, -50.2, -5 * w, -50.6);
       p.closePath();
     },
     gradient(g, -9, -50, 12, 22, C.jersey, C.jerseyShade),
@@ -431,12 +443,12 @@ function rowdyTorso(g, P, mir) {
     path(
       g,
       p => {
-        p.moveTo(-13.4, -47.4);
-        p.quadraticCurveTo(-10.6, -50.2, -5, -50.6);
-        p.quadraticCurveTo(0, -51, 5, -50.6);
-        p.quadraticCurveTo(10.6, -50.2, 13.4, -47.4);
-        p.lineTo(12.6, -44);
-        p.quadraticCurveTo(0, -45.6, -12.6, -44);
+        p.moveTo(-13.4 * w, -47.4);
+        p.quadraticCurveTo(-10.6 * w, -50.2, -5 * w, -50.6);
+        p.quadraticCurveTo(0, -51, 5 * w, -50.6);
+        p.quadraticCurveTo(10.6 * w, -50.2, 13.4 * w, -47.4);
+        p.lineTo(12.6 * w, -44);
+        p.quadraticCurveTo(0, -45.6, -12.6 * w, -44);
         p.closePath();
       },
       gradient(g, 0, -51, 0, 7, C.royal, C.royalDark)
@@ -448,21 +460,26 @@ function rowdyTorso(g, P, mir) {
       path(
         g,
         p => {
-          p.moveTo(s * 4.6, -50.6);
-          p.quadraticCurveTo(s * 10.6, -50.2, s * 13.4, -47.4);
-          p.lineTo(s * 12.2, -41);
-          p.quadraticCurveTo(s * 9.6, -45.2, s * 6.3, -46.6);
-          p.quadraticCurveTo(s * 4.8, -48.2, s * 4.6, -50.6);
+          p.moveTo(s * 4.6 * w, -50.6);
+          p.quadraticCurveTo(s * 10.6 * w, -50.2, s * 13.4 * w, -47.4);
+          p.lineTo(s * 12.2 * w, -41);
+          p.quadraticCurveTo(s * 9.6 * w, -45.2, s * 6.3 * w, -46.6);
+          p.quadraticCurveTo(s * 4.8 * w, -48.2, s * 4.6 * w, -50.6);
           p.closePath();
         },
         gradient(g, s * 5, -51, s * 8, 9, C.royal, C.royalDark)
       );
     }
-    line(g, [[-3.6, -50.4], [0.6, -46.8], [4.6, -50.4]], C.royal, 1.3);
-    rowdySeven(g, -2.3, -42.4, 0.95, mir);
-    rowdySeven(g, 3.1, -42.4, 0.95, mir);
+    // The V-neck and the front 77: just right of center in the side view (he is turned a little
+    // toward his facing), dead center from the front, further round at three-quarters.
+    const nx = view === 'front' ? -0.4 : three ? 0.9 : 0;
+    line(g, [[-3.6 + nx, -50.4], [0.6 + nx, -46.8], [4.6 + nx, -50.4]], C.royal, 1.3);
+    const sx = view === 'front' ? -0.4 : three ? 1.2 : 0,
+      ss = three ? 0.9 : 0.95;
+    rowdySeven(g, -2.3 * (three ? 0.9 : 1) + sx, -42.4, ss, mir);
+    rowdySeven(g, 3.1 * (three ? 0.9 : 1) + sx, -42.4, ss, mir);
   }
-  line(g, [[-12.8, -31], [0, -29.6], [12.8, -31]], '#c8c3b9', 0.8);
+  line(g, [[-12.8 * w, -31], [0, -29.6], [12.8 * w, -31]], '#c8c3b9', 0.8);
   g.restore();
 }
 
@@ -540,8 +557,13 @@ function rowdyHorn(g, side, u0, u1) {
   );
 }
 
-function rowdyEar(g, s) {
+// k shortens an ear that points away from the camera.
+function rowdyEar(g, s, k = 1) {
   const C = ROWDY_COL;
+  g.save();
+  g.translate(s * 9.8, 0);
+  g.scale(k, 1);
+  g.translate(-s * 9.8, 0);
   path(
     g,
     p => {
@@ -564,6 +586,7 @@ function rowdyEar(g, s) {
     },
     '#b5a08f'
   );
+  g.restore();
 }
 
 function rowdyHeadShape(p) {
@@ -648,9 +671,17 @@ function rowdyEye(g, ex, ey, s, sc, P, t) {
   line(g, [[ex - 2.2 * sc, ey + 1.9], [ex + 2.2 * sc, ey + 1.9]], '#3b313466', 0.4);
 }
 
-function rowdyFace(g, P, t) {
+// Rowdy's face per head view, in his frame facing +x: f shifts the blaze, nose and mouth toward his
+// front, sc is the [back, front] eye size (the front eye a touch bigger: a 3/4 turn toward his facing).
+const ROWDY_HEADS = {
+  side: { f: 1.1, sc: [0.92, 1.04], ears: [1, 1] },
+  three: { f: 0.55, sc: [0.96, 1.01], ears: [1, 0.85] },
+  front: { f: 0, sc: [1, 1], ears: [1, 1] }
+};
+
+function rowdyFace(g, P, t, H = ROWDY_HEADS.side) {
   const C = ROWDY_COL,
-    f = 1.1;
+    f = H.f;
   // White blaze from the forehead down the nose, widening into the muzzle.
   path(
     g,
@@ -685,7 +716,7 @@ function rowdyFace(g, P, t) {
   );
   // Eyes and brows. The front-side eye (+x) is a touch bigger: a 3/4 turn toward his facing.
   for (const s of [-1, 1]) {
-    const sc = s > 0 ? 1.04 : 0.92,
+    const sc = H.sc[s > 0 ? 1 : 0],
       ex = f + s * 4.6,
       ey = -2.9;
     rowdyEye(g, ex, ey, s, sc, P, t);
@@ -765,12 +796,15 @@ function rowdyFace(g, P, t) {
   }
 }
 
-function rowdyHead(g, P, t) {
-  const C = ROWDY_COL;
+// rel is the head's x sign relative to the body (-1 while his head has turned ahead of his body).
+function rowdyHead(g, P, t, view = 'side', rel = 1) {
+  const C = ROWDY_COL,
+    H = ROWDY_HEADS[view] || ROWDY_HEADS.side;
   g.save();
-  g.translate(P.head[0], P.head[1]);
+  g.translate(view === 'front' && !P.back ? 0 : P.head[0], P.head[1]);
+  if (rel < 0) g.scale(-1, 1);
   g.rotate(P.tilt);
-  for (const s of [-1, 1]) rowdyEar(g, s);
+  for (const s of [-1, 1]) rowdyEar(g, s, H.ears[s > 0 ? 1 : 0]);
   for (const s of [-1, 1]) rowdyHorn(g, s, 0, P.back ? 1 : 0.66);
   path(g, rowdyHeadShape, gradient(g, -8, -13, 14, 26, C.furLight, C.furDark), C.edge, 0.9);
   // Fur texture on the brow and cheeks.
@@ -782,7 +816,7 @@ function rowdyHead(g, P, t) {
     line(g, [[-4, 6], [0, 9], [4, 6]], '#6f62567a', 0.7);
     rowdyTuft(g);
   } else {
-    rowdyFace(g, P, t);
+    rowdyFace(g, P, t, H);
     rowdyTuft(g);
     for (const s of [-1, 1]) rowdyHorn(g, s, 0.56, 1);
   }
@@ -947,9 +981,16 @@ function rowdyDust(g, t) {
 // Rowdy, feet at (x, y). See the header for scale and opts.
 function drawRowdy(g, x, y, scale = 1, pose = 'idle', t = 0, opts = {}) {
   const o = opts && typeof opts === 'object' ? opts : {},
-    face = o.face < 0 ? -1 : 1,
     tt = Number.isFinite(t) ? t : 0,
     P = rowdyPose(ROWDY_POSES.includes(pose) ? pose : 'idle', tt, o);
+  let fb = Number.isFinite(o.face) ? clamp(o.face, -1, 1) : 1,
+    fh = Number.isFinite(o.head) ? clamp(o.head, -1, 1) : fb;
+  // The spin turns him all the way round from whichever side he faces.
+  if (Number.isFinite(P.spinTurn)) fb = fh = facingSign(fb) * P.spinTurn;
+  const bs = facingSign(fb, facingSign(fh)),
+    hs = facingSign(fh, bs),
+    view = facingView(fb),
+    headView = facingView(fh);
   g.save();
   g.translate(x, y);
   g.scale(scale, scale);
@@ -958,21 +999,45 @@ function drawRowdy(g, x, y, scale = 1, pose = 'idle', t = 0, opts = {}) {
     shadow(g, 0, 1.5, 20 * k, 5 * k);
   }
   g.translate(0, -P.lift);
-  g.scale(face * Math.max(0.14, Math.abs(P.spin)), 1);
+  // Drawn facing +x and mirrored by side: a mirror, never a squash.
+  g.scale(bs, 1);
   if (P.dust) rowdyDust(g, tt);
   for (const L of P.legs) rowdyLeg(g, L, P.dip);
-  for (const L of P.legs) rowdyShoe(g, L.a[0], L.a[1], L.tilt, P.back ? -0.4 : L.s > 0 ? 0.5 : 0.2);
+  for (const L of P.legs)
+    rowdyShoe(
+      g,
+      L.a[0],
+      L.a[1],
+      L.tilt,
+      P.back ? -0.4 : view === 'front' ? 0 : view === 'three' ? (L.s > 0 ? 0.3 : 0.1) : L.s > 0 ? 0.5 : 0.2
+    );
   rowdyShorts(g, P);
   g.save();
   g.translate(0, -27 + P.dip);
   g.rotate(P.lean);
   g.translate(0, 27 - P.dip);
-  rowdyTorso(g, P, face);
-  rowdyHead(g, P, tt);
-  for (const arm of P.arms) rowdyArm(g, arm, P, tt, face);
+  // Three-quarters on (from the front), his far arm (+x) goes behind the jersey and the big head.
+  const behind = view === 'three' && !P.back ? P.arms.filter(a => a.s > 0) : [];
+  for (const arm of behind) rowdyArm(g, arm, P, tt, bs);
+  rowdyTorso(g, P, bs, view);
+  // The head turns on its own and gets there first.
+  rowdyHead(g, P, tt, P.back ? 'side' : headView, bs * hs);
+  for (const arm of P.arms) if (!behind.includes(arm)) rowdyArm(g, arm, P, tt, bs);
   g.restore();
   rowdyFx(g, P, tt);
   g.restore();
+}
+
+// His turn in the hallway: npc.rowdyTurn chases npc.face on the draw clock t (art.js facingStep), so
+// any code that sets npc.face (his brain, the hallway's talk) turns him head first, never a flip.
+function rowdyTurn(npc, t) {
+  const face = npc.face < 0 ? -1 : 1;
+  let T = npc.rowdyTurn;
+  if (!T || typeof T !== 'object') T = npc.rowdyTurn = facingNew(face);
+  const dt = Number.isFinite(t) && Number.isFinite(T.t) ? t - T.t : 0;
+  T.t = Number.isFinite(t) ? t : T.t;
+  facingStep(T, face, dt);
+  return T;
 }
 
 // Speech-box bust centered in an s × s box at (x, y): horns, face, and the blue-and-white shoulders.
@@ -1512,13 +1577,17 @@ function rowdyNpcSpec() {
     // Draws him at npc.x, npc.y (feet). Reads npc.pose (one of poses), npc.face (1 or -1),
     // npc.scale (default scale) and npc.prop ('flag' for a spirit flag in the cheer pose).
     // On a run-through (npc.mode 'run') the gallop goes poms up with dust behind.
-    draw: (g, npc, t) =>
+    // A change of npc.face turns him head first over about 0.22 s (npc.rowdyTurn keeps the turn).
+    draw: (g, npc, t) => {
+      const T = rowdyTurn(npc, t);
       drawRowdy(g, npc.x, npc.y, npc.scale || ROWDY_SCALE, npc.pose || 'idle', t, {
-        face: npc.face || 1,
+        face: T.body,
+        head: T.head,
         prop: npc.prop,
         poms: npc.mode === 'run',
         dust: npc.mode === 'run'
-      }),
+      });
+    },
     // Speech-box bust in an s × s box centered at (x, y); t optional (falls back to the ward clock).
     portrait: (g, x, y, s, t) => drawRowdyPortrait(g, x, y, s, t),
     // Drawn height in world units at the default scale: bubble anchor is y - height.
