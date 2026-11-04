@@ -24081,6 +24081,8 @@ function hallwayNpc(id, name, voice, look, x, y, range, speed, extra = {}) {
     ty: y,
     dir,
     vdir: dir,
+    // The turn in progress (art.js facingStep): the head leads, the body follows. vdir mirrors turn.body.
+    turn: facingNew(dir),
     walk: 0,
     moving: false,
     stuck: 0,
@@ -24345,6 +24347,21 @@ function hallwayPickTarget(npc) {
   npc.wait = hallwayRand(1, 2);
 }
 
+// A turn plays out over about a fifth of a second through the three-quarter and front views, head
+// first (art.js facingStep). npc.dir is where they mean to face; npc.vdir mirrors the body's facing.
+function hallwayTurnStep(npc, dt) {
+  if (!npc.turn || typeof npc.turn !== 'object') npc.turn = facingNew(Number.isFinite(npc.vdir) ? npc.vdir : npc.dir);
+  facingStep(npc.turn, npc.dir, dt);
+  npc.vdir = npc.turn.body;
+}
+
+// Facing a side at once, no turn to watch: coming through a door, stepping off the elevator.
+function hallwayFaceNow(npc, d) {
+  npc.dir = d < 0 ? -1 : 1;
+  npc.vdir = npc.dir;
+  npc.turn = facingNew(npc.dir);
+}
+
 function hallwayFace(npc) {
   npc.dir = player.x >= npc.x ? 1 : -1;
   if (npc.rowdy) npc.face = npc.dir;
@@ -24525,7 +24542,7 @@ function hallwayStaffStep(npc, dt, d) {
     npc.present = true;
     npc.x = door.x;
     npc.y = HALLWAY_STAFF_DOOR_Y + 8;
-    npc.dir = npc.vdir = npc.spot[0] >= door.x ? 1 : -1;
+    hallwayFaceNow(npc, npc.spot[0] >= door.x ? 1 : -1);
     if (hallwayRand(0, 1) < 1 / 3) hallwayStaffErrand(npc);
     else hallwayStaffHome(npc);
     return;
@@ -24589,7 +24606,7 @@ function hallwayNpcStep(npc, dt) {
     npc.bark.life -= dt;
     if (npc.bark.life <= 0) npc.bark = null;
   }
-  npc.vdir += (npc.dir - npc.vdir) * (1 - Math.exp(-dt * 12));
+  hallwayTurnStep(npc, dt);
   // A nurse or doctor inside a room keeps her own clock.
   if (npc.staff && npc.mode === 'inside') {
     hallwayStaffStep(npc, dt, Infinity);
@@ -24675,8 +24692,7 @@ function hallwayEnsureArrive(npc) {
   npc.path = null;
   npc.x = hall ? HALLWAY_ELEVATOR_X : HALLWAY_ROOM_DOOR[0];
   npc.y = hall ? HALLWAY_TOP + 6 : HALLWAY_ROOM_DOOR[1];
-  npc.dir = hall ? 1 : -1;
-  npc.vdir = npc.dir;
+  hallwayFaceNow(npc, hall ? 1 : -1);
   npc.mode = 'walk';
   npc.stuck = 0;
   npc.routeIn = 0;
@@ -25976,7 +25992,7 @@ function hallwayTripIn(npc, wait) {
     npc.y = HALLWAY_ROOM_DOOR[1];
     npc.path = [HALLWAY_ROOM_LANE.slice()].concat(hallwayPath(tr.to, HALLWAY_ROOM_LANE, tr.dest));
   }
-  npc.dir = npc.vdir = tr.dest[0] >= npc.x ? 1 : -1;
+  hallwayFaceNow(npc, tr.dest[0] >= npc.x ? 1 : -1);
   npc.bark = null;
   npc.stuck = 0;
   tr.limit = 8 + hallwayPathLength(npc) / (npc.speed * 1.25);
@@ -26293,8 +26309,12 @@ function onRoomLoaded(id) {
 }
 
 // ---- Visitor art ----
-// In girl()'s style: origin at the feet, drawn facing +x, then flipped by dir. A fractional dir is the
-// mid-turn squash when someone turns to face Macy.
+// In girl()'s style: origin at the feet, drawn facing +x and mirrored by the facing, never squashed.
+// dir is the body's facing in [-1, 1] (art.js: 1 right, -1 left, 0 straight at the camera) and
+// opts.head the head's, which leads in a turn (hallwayDrawNpc passes npc.turn). Every look has three
+// views picked by facingView: the side view; a three-quarter view (narrower, the face toward the camera,
+// the near arm in front and the far one tucked behind); and a front view (symmetric, both arms down,
+// the face centred, toes at the camera).
 function npcTop(k) {
   const extra = { wavy: 9, bun: 9, cap: 5, pony: 4, net: 6, curly: 6, side: 6 }[k.hairStyle] || 4;
   return k.leg + k.torso + 5 + k.head * 2.24 - 3 + extra;
@@ -26302,6 +26322,15 @@ function npcTop(k) {
 
 function npcHeadY(k) {
   return -(k.leg + k.torso + 5 + k.head * 1.12 - 3);
+}
+
+// Three-quarters on, the body is narrower: the same look with its shoulders and hips brought in.
+function npcViewLook(k, view) {
+  if (view !== 'three') return k;
+  const v = Object.create(k);
+  v.shoulder = k.shoulder * 0.84;
+  v.hip = k.hip * 0.86;
+  return v;
 }
 
 // Sleeves: the shirt under Dodo's vest, the leather sleeves on Taylor's varsity jacket.
@@ -26325,7 +26354,15 @@ function npcText(g, text, x, y, size, color, flip) {
 }
 
 function npcFigure(g, x, y, s, k, pose = 0, dir = 1, t = 0, opts = {}) {
-  const L = k.leg,
+  const fb = Number.isFinite(dir) ? clamp(dir, -1, 1) : 1,
+    fh = Number.isFinite(opts.head) ? clamp(opts.head, -1, 1) : fb,
+    bs = facingSign(fb, facingSign(fh)),
+    hs = facingSign(fh, bs),
+    view = facingView(fb),
+    headView = facingView(fh),
+    kv = npcViewLook(k, view),
+    front = view === 'front',
+    L = k.leg,
     T = k.torso,
     S = k.shoulder,
     hipY = -L,
@@ -26335,29 +26372,38 @@ function npcFigure(g, x, y, s, k, pose = 0, dir = 1, t = 0, opts = {}) {
     hy = shY - 5 - hry + 3,
     walk = Math.sin(pose),
     bob = pose ? Math.abs(walk) * 1.6 : Math.sin(t * 2.1 + k.seed) * 0.45,
-    flip = Math.abs(dir) < 0.16 ? (dir < 0 ? -0.16 : 0.16) : dir,
     act = opts.act && NPC_GESTURES.includes(opts.act.kind) ? opts.act : null,
-    both = !act && (k.item === 'tray' || k.item === 'tin');
+    both = !act && (k.item === 'tray' || k.item === 'tin'),
+    backAct = !!act && (act.kind === 'hug' || act.kind === 'camera');
   g.save();
   g.translate(x, y);
   g.scale(s, s);
   if (opts.shadow !== false) shadow(g, 0, 2, S + 7, 5);
   g.translate(0, -bob - (opts.hop || 0));
-  g.scale(flip, 1);
-  npcBackHair(g, k, hy, hr, hry, t);
-  if (act && (act.kind === 'hug' || act.kind === 'camera')) npcGestureBack(g, k, shY, hy, hr, act);
-  else if (!both) npcArm(g, k, -1, shY, walk);
-  npcLegs(g, k, hipY, walk);
-  npcTorso(g, k, shY, hipY, flip);
+  // A mirror by the body's side, never a squash. The head turns in its own frame and gets there first.
+  g.scale(bs, 1);
+  g.save();
+  g.scale(bs * hs, 1);
+  npcBackHair(g, k, hy, hr, hry, t, headView);
+  g.restore();
+  if (backAct) npcGestureBack(g, kv, shY, hy, hr, act);
+  else if (!both && !front) npcArm(g, kv, -1, shY, walk, view === 'three' ? 'tuck' : '');
+  npcLegs(g, kv, hipY, walk, view);
+  npcTorso(g, kv, shY, hipY, bs, view);
   rr(g, -3.2, shY - 6, 6.4, 8, 3, k.skinShade);
-  npcCollar(g, k, shY);
+  npcCollar(g, kv, shY, view);
+  // From the front both arms hang down over the body's edges.
+  if (front && !both && !backAct) npcArm(g, kv, -1, shY, walk, 'front');
   if (act) {
     // The front arm belongs to the gesture, drawn over the head below.
-  } else if (both) npcHoldBoth(g, k, shY, t);
-  else if (k.item) npcHold(g, k, shY, t);
-  else npcArm(g, k, 1, shY, walk);
-  npcHead(g, k, hy, hr, hry, t, opts.speak);
-  if (act) npcGesture(g, k, shY, hy, hr, act, t);
+  } else if (both) npcHoldBoth(g, kv, shY, t, view);
+  else if (k.item) npcHold(g, kv, shY, t, view);
+  else npcArm(g, kv, 1, shY, walk, front ? 'front' : '');
+  g.save();
+  g.scale(bs * hs, 1);
+  npcHead(g, k, hy, hr, hry, t, opts.speak, headView);
+  g.restore();
+  if (act) npcGesture(g, kv, shY, hy, hr, act, t);
   g.restore();
 }
 
@@ -26503,18 +26549,21 @@ function npcGesture(g, k, shY, hy, hr, act, t) {
   }
 }
 
-function npcArm(g, k, side, shY, walk) {
-  const swing = -side * walk * 3,
+// A resting arm with the walk's swing. mode 'tuck' is the far arm three-quarters on, close in behind
+// the body; 'front' hangs straight down at the side with a smaller swing (the stride is toward the camera).
+function npcArm(g, k, side, shY, walk, mode = '') {
+  const swing = -side * walk * (mode === 'front' ? 1.2 : mode === 'tuck' ? 1.8 : 3),
     sx = side * (k.shoulder - 2.5),
     sy = shY + 5,
-    hx = side * (k.shoulder + 3.5) + swing,
-    hy = sy + k.torso * 0.86,
+    out = mode === 'tuck' ? -1.5 : mode === 'front' ? 3 : 3.5,
+    hx = side * (k.shoulder + out) + swing,
+    hy = sy + k.torso * (mode === 'tuck' ? 0.8 : 0.86),
     sleeve = npcSleeve(k);
   path(
     g,
     p => {
       p.moveTo(sx, sy);
-      p.quadraticCurveTo(side * (k.shoulder + 4.5), sy + k.torso * 0.45, hx, hy - 3);
+      p.quadraticCurveTo(side * (k.shoulder + out + 1), sy + k.torso * 0.45, hx, hy - 3);
     },
     null,
     k.shortSleeve ? k.skinShade : sleeve,
@@ -26525,7 +26574,7 @@ function npcArm(g, k, side, shY, walk) {
       g,
       p => {
         p.moveTo(sx, sy);
-        p.quadraticCurveTo(side * (k.shoulder + 3), sy + 4, side * (k.shoulder + 3.6), sy + k.torso * 0.3);
+        p.quadraticCurveTo(side * (k.shoulder + Math.min(out, 3)), sy + 4, side * (k.shoulder + Math.min(out + 0.1, 3.6)), sy + k.torso * 0.3);
       },
       null,
       sleeve,
@@ -26535,10 +26584,11 @@ function npcArm(g, k, side, shY, walk) {
   ellipse(g, hx, hy, 3.1, 3.9, k.skin);
 }
 
-function npcLegs(g, k, hipY, walk) {
+// Legs by view: from the front the stride is toward the camera, so the feet barely part.
+function npcLegs(g, k, hipY, walk, view = 'side') {
   for (let i = 0; i < 2; i++) {
     const side = i ? 1 : -1,
-      step = side * walk * k.leg * 0.16,
+      step = side * walk * k.leg * (view === 'front' ? 0.05 : view === 'three' ? 0.12 : 0.16),
       hx = side * k.hip * 0.55,
       fx = side * k.hip * 0.6 + step,
       col = i ? k.pants : npcShade(k.pants, 0.86);
@@ -26555,41 +26605,59 @@ function npcLegs(g, k, hipY, walk) {
     // Volleyball kneepads.
     if (k.kneepads) rr(g, hx + step * 0.3 - k.legW * 0.78, hipY * 0.5 - 3.6, k.legW * 1.56, 7.2, 3, k.kneepads);
     if (k.cuffs) line(g, [[fx, -9], [fx, -4]], npcShade(k.pants, 0.76), k.legW + 1.6);
-    npcShoe(g, k, fx);
+    npcShoe(g, k, fx, view);
   }
 }
 
-function npcShoe(g, k, fx) {
+// A shoe pointing +x; three-quarters on it is shorter (n), and from the front the toe is at the camera.
+function npcShoe(g, k, fx, view = 'side') {
   const c = k.shoeColor;
+  if (view === 'front') {
+    const w = k.shoes === 'moc' ? 10.5 : k.shoes === 'clog' ? 10 : 9.4,
+      h = k.shoes === 'clog' ? 8.5 : k.shoes === 'moc' ? 7.5 : 7;
+    rr(g, fx - w / 2, 2 - h, w, h, Math.min(w, h) * 0.45, c, npcShade(c, 0.7), 0.8);
+    if (k.shoes === 'moc') ellipse(g, fx, 2.4 - h, w * 0.42, 2, '#efe2c8');
+    else if (k.shoes === 'sneaker') {
+      line(g, [[fx - w * 0.4, 1], [fx + w * 0.4, 1]], '#9eb4b4', 1.4);
+      line(g, [[fx - 1.8, -3.4], [fx + 1.8, -3.4]], k.shoeAccent || '#9eb4b4', 1.1);
+    } else if (k.shoes === 'clog') {
+      ellipse(g, fx - 1.6, -3.4, 0.8, 0.8, npcShade(c, 0.7));
+      ellipse(g, fx + 1.6, -3.4, 0.8, 0.8, npcShade(c, 0.7));
+    } else if (k.shoes === 'loafer') line(g, [[fx - 2.4, -3.2], [fx + 2.4, -3.2]], npcShade(c, 1.5), 1);
+    return;
+  }
+  const n = view === 'three' ? 0.78 : 1,
+    X = v => fx + v * n;
   if (k.shoes === 'moc') {
     // Moccasin slippers: suede, a fleece collar, a stitched toe.
-    rr(g, fx - 6, -5.5, 16, 7.5, 3.8, c, npcShade(c, 0.7), 0.8);
-    ellipse(g, fx - 1, -5.2, 6.2, 2.2, '#efe2c8');
+    rr(g, X(-6), -5.5, 16 * n, 7.5, 3.8, c, npcShade(c, 0.7), 0.8);
+    ellipse(g, X(-1), -5.2, 6.2 * n, 2.2, '#efe2c8');
     path(
       g,
       p => {
-        p.moveTo(fx + 2, -3.4);
-        p.quadraticCurveTo(fx + 5.5, -5.2, fx + 8.5, -3);
+        p.moveTo(X(2), -3.4);
+        p.quadraticCurveTo(X(5.5), -5.2, X(8.5), -3);
       },
       null,
       '#e2bf92',
       1
     );
   } else if (k.shoes === 'sneaker') {
-    rr(g, fx - 6, -5, 16, 7, 3, c, '#71858c', 0.8);
-    line(g, [[fx - 4, 1], [fx + 8, 1]], '#9eb4b4', 1.4);
-    if (k.shoeAccent) line(g, [[fx - 2, -2.6], [fx + 4.5, -1.2]], k.shoeAccent, 1.6);
+    rr(g, X(-6), -5, 16 * n, 7, 3, c, '#71858c', 0.8);
+    line(g, [[X(-4), 1], [X(8), 1]], '#9eb4b4', 1.4);
+    if (k.shoeAccent) line(g, [[X(-2), -2.6], [X(4.5), -1.2]], k.shoeAccent, 1.6);
   } else if (k.shoes === 'clog') {
-    rr(g, fx - 6, -6.5, 15, 8.5, 4.2, c, npcShade(c, 0.72), 0.8);
-    ellipse(g, fx + 1, -3.6, 0.8, 0.8, npcShade(c, 0.7));
-    ellipse(g, fx + 4, -3.4, 0.8, 0.8, npcShade(c, 0.7));
+    rr(g, X(-6), -6.5, 15 * n, 8.5, 4.2, c, npcShade(c, 0.72), 0.8);
+    ellipse(g, X(1), -3.6, 0.8, 0.8, npcShade(c, 0.7));
+    ellipse(g, X(4), -3.4, 0.8, 0.8, npcShade(c, 0.7));
   } else if (k.shoes === 'loafer') {
-    rr(g, fx - 6, -4.5, 16, 6.5, 3, c, npcShade(c, 0.7), 0.8);
-    line(g, [[fx + 1, -3.4], [fx + 6, -3.4]], npcShade(c, 1.5), 1);
-  } else rr(g, fx - 5, -4, 14, 5.5, 2.6, c, npcShade(c, 0.7), 0.8);
+    rr(g, X(-6), -4.5, 16 * n, 6.5, 3, c, npcShade(c, 0.7), 0.8);
+    line(g, [[X(1), -3.4], [X(6), -3.4]], npcShade(c, 1.5), 1);
+  } else rr(g, X(-5), -4, 14 * n, 5.5, 2.6, c, npcShade(c, 0.7), 0.8);
 }
 
-function npcTorso(g, k, shY, hipY, flip) {
+// The top by view (k is already narrowed three-quarters on). flip is the frame's x sign, for the text.
+function npcTorso(g, k, shY, hipY, flip, view = 'side') {
   const a = k.topA,
     b = k.topB,
     c = k.topC,
@@ -26757,9 +26825,11 @@ function npcTorso(g, k, shY, hipY, flip) {
     rr(g, -5, hipY - 5, 10, 7, 2, npcShade(b, 0.93));
     line(g, [[-S, hipY - 12], [S, hipY - 12]], npcShade(b, 0.82), 1.4);
   } else rr(g, -S, shY - 0.5, S * 2, h, 7, a);
+  // Three-quarters on, the far side of the body turns away from the light.
+  if (view === 'three') rr(g, -S, shY + 1, 4.2, h - 2, 3, '#1c243014');
 }
 
-function npcCollar(g, k, shY) {
+function npcCollar(g, k, shY, view = 'side') {
   if (k.top === 'zip') {
     path(
       g,
@@ -26846,9 +26916,10 @@ function npcCollar(g, k, shY) {
     );
   }
   if (k.item === 'camera') {
-    // The camera strap, around the neck and down to the camera.
-    line(g, [[-4.6, shY - 0.6], [k.shoulder - 1, shY + k.torso * 0.48]], '#2b2b2e', 1.5);
-    line(g, [[4.6, shY - 0.6], [k.shoulder + 1.5, shY + k.torso * 0.46]], '#2b2b2e', 1.5);
+    // The camera strap, around the neck and down to the camera wherever the hand holds it.
+    const [hx] = npcHoldHand(k, shY, view);
+    line(g, [[-4.6, shY - 0.6], [hx - 2, shY + k.torso * 0.48]], '#2b2b2e', 1.5);
+    line(g, [[4.6, shY - 0.6], [hx + 0.5, shY + k.torso * 0.46]], '#2b2b2e', 1.5);
   }
   if (k.pearls) for (let i = 0; i < 7; i++) ellipse(g, -4.5 + i * 1.5, shY + 1.4 + Math.sin((i / 6) * Math.PI) * 2.4, 0.9, 0.9, '#fbf6ea');
   if (k.stetho) {
@@ -26877,20 +26948,27 @@ function npcCollar(g, k, shY) {
   }
 }
 
+// Where the front hand holds an item, by view: out ahead of the body from the side, in front of the
+// chest from the front (so the item sits near the middle and barely moves when the mirror changes).
+function npcHoldHand(k, shY, view = 'side') {
+  return [view === 'front' ? k.shoulder * 0.28 : k.shoulder + 1, shY + k.torso * (view === 'front' ? 0.58 : 0.55)];
+}
+
 // The front hand holds the item at chest height.
-function npcHold(g, k, shY, t) {
+function npcHold(g, k, shY, t, view = 'side') {
   const S = k.shoulder,
     T = k.torso,
+    front = view === 'front',
     sx = S - 2.5,
     sy = shY + 5,
-    hx = S + 1,
-    hy = shY + T * 0.55,
+    [hx, hy] = npcHoldHand(k, shY, view),
     sleeve = npcSleeve(k);
   path(
     g,
     p => {
       p.moveTo(sx, sy);
-      p.quadraticCurveTo(S + 5, sy + T * 0.32, hx, hy);
+      if (front) p.quadraticCurveTo(S + 3, sy + T * 0.5, hx + 1, hy + 1);
+      else p.quadraticCurveTo(S + 5, sy + T * 0.32, hx, hy);
     },
     null,
     k.shortSleeve ? k.skinShade : sleeve,
@@ -26907,16 +26985,18 @@ function npcHold(g, k, shY, t) {
       sleeve,
       k.armW + 1.2
     );
-  npcItem(g, k.item, hx + 3, hy - 1, t);
+  npcItem(g, k.item, hx + (front ? 0.5 : 3), hy - 1, t, view);
   npcCuff(g, k, hx + 0.8, hy);
   ellipse(g, hx + 1.5, hy, 3.1, 3.7, k.skin);
 }
 
-// Two hands: Barb's tray of Ensure, Mimi's cookie tin.
-function npcHoldBoth(g, k, shY, t) {
+// Two hands: Barb's tray of Ensure, Mimi's cookie tin. Centred from the front, carried a little ahead
+// from the side.
+function npcHoldBoth(g, k, shY, t, view = 'side') {
   const S = k.shoulder,
     T = k.torso,
     tray = k.item === 'tray',
+    ahead = view === 'front' ? 0 : 2,
     hy = shY + T * (tray ? 0.46 : 0.62),
     sleeve = npcSleeve(k);
   for (const side of [-1, 1]) {
@@ -26924,7 +27004,7 @@ function npcHoldBoth(g, k, shY, t) {
       g,
       p => {
         p.moveTo(side * (S - 2.5), shY + 5);
-        p.quadraticCurveTo(side * (S + 4), shY + T * 0.36, side * (S - 3.5) + 2, hy + 2);
+        p.quadraticCurveTo(side * (S + 4), shY + T * 0.36, side * (S - 3.5) + ahead, hy + 2);
       },
       null,
       k.shortSleeve ? k.skinShade : sleeve,
@@ -26943,18 +27023,22 @@ function npcHoldBoth(g, k, shY, t) {
       );
   }
   if (tray) {
-    rr(g, -S - 3, hy - 1, S * 2 + 14, 4, 2, '#c9d3d2', '#8fa2a4', 0.7);
-    for (let i = 0; i < 5; i++) hallwayBottle(g, -S + 2 + i * ((S * 2 + 6) / 4), hy - 0.5, i % 3, 0.64, false);
+    const x0 = view === 'front' ? -S - 7 : -S - 3,
+      w = S * 2 + 14;
+    rr(g, x0, hy - 1, w, 4, 2, '#c9d3d2', '#8fa2a4', 0.7);
+    for (let i = 0; i < 5; i++) hallwayBottle(g, x0 + 5 + i * ((w - 10) / 4), hy - 0.5, i % 3, 0.64, false);
   } else {
-    ellipse(g, 2, hy + 3, 12, 8, '#2f5b94');
-    ellipse(g, 2, hy - 1, 12, 5, '#3e6aa6');
-    path(g, p => p.ellipse(2, hy - 1, 12, 5, 0, 0, Math.PI * 2), null, '#e8c35a', 1.2);
-    for (let i = 0; i < 4; i++) ellipse(g, -5 + i * 4.5, hy + 4, 1.4, 1, '#e8c35a');
+    ellipse(g, ahead, hy + 3, 12, 8, '#2f5b94');
+    ellipse(g, ahead, hy - 1, 12, 5, '#3e6aa6');
+    path(g, p => p.ellipse(ahead, hy - 1, 12, 5, 0, 0, Math.PI * 2), null, '#e8c35a', 1.2);
+    for (let i = 0; i < 4; i++) ellipse(g, ahead - 7 + i * 4.5, hy + 4, 1.4, 1, '#e8c35a');
   }
-  for (const side of [-1, 1]) ellipse(g, side * (S - 3.5) + 2, hy + 2, 3.1, 3.7, k.skin);
+  for (const side of [-1, 1]) ellipse(g, side * (S - 3.5) + ahead, hy + 2, 3.1, 3.7, k.skin);
 }
 
-function npcItem(g, item, x, y, t) {
+// An item in the hand at (x, y). view 'front' turns the ones that point somewhere (Dodo's camera) to
+// the camera.
+function npcItem(g, item, x, y, t, view = 'side') {
   if (item === 'coffee') {
     rr(g, x - 4, y - 10, 9, 13, 2, '#f1ede2', '#9a8f80', 0.6);
     rr(g, x - 4.5, y - 6, 10, 5, 1.5, '#b98a5e');
@@ -27078,6 +27162,13 @@ function npcItem(g, item, x, y, t) {
     rr(g, 1.6, 4.6, 5.6, 7, 2, '#2f5fb3', '#f0c94a', 0.7);
     ellipse(g, 4.4, 8.1, 1.3, 1.3, '#f0c94a');
     g.restore();
+  } else if (item === 'camera' && view === 'front') {
+    // Lens at the camera: the body across his chest, the big lens a ring in the middle.
+    rr(g, x - 8, y - 5.5, 16, 10, 2, '#25272c', '#0f1012', 0.6);
+    rr(g, x - 5.5, y - 7.8, 5, 3, 1, '#25272c');
+    ellipse(g, x, y - 0.5, 4.4, 4.4, '#34373e');
+    ellipse(g, x, y - 0.5, 2.8, 2.8, '#5f7f9e');
+    ellipse(g, x + 0.9, y - 1.5, 0.9, 0.9, '#ffffffaa');
   } else if (item === 'camera') {
     // A serious camera at rest on the strap: body, grip, a big lens pointing ahead.
     rr(g, x - 6, y - 5, 13, 9.5, 2, '#25272c', '#0f1012', 0.6);
@@ -27114,12 +27205,37 @@ function npcItem(g, item, x, y, t) {
   }
 }
 
-function npcBackHair(g, k, hy, hr, hry, t) {
+// Hair behind the head, in the head's frame (facing +x) and by the head's view.
+function npcBackHair(g, k, hy, hr, hry, t, view = 'side') {
   // bounce: a ponytail with a life of its own (Presley's), faster and wider.
   const top = hy - hry,
     sway = Math.sin(t * (3.4 + k.bounce) + k.seed) * (1.5 + k.bounce),
     flick = k.bounce ? Math.abs(Math.sin(t * (3.4 + k.bounce) + k.seed)) * 2 : 0;
-  if (k.hairStyle === 'pony')
+  if (k.hairStyle === 'pony' && view === 'front')
+    // Straight at the camera it hangs down her back and peeks out past one side of her head.
+    path(
+      g,
+      p => {
+        p.moveTo(-3, top + 1);
+        p.bezierCurveTo(-hr - 7, top - 1 - flick, -hr - 7, hy + 8, -hr - 3 + sway * 0.4, hy + 17 - flick);
+        p.bezierCurveTo(-hr + 1, hy + 9, -hr + 3, hy - 2, 0, top + 4);
+        p.closePath();
+      },
+      gradient(g, -hr - 7, top, 14, 30, k.hair, k.hairDark)
+    );
+  else if (k.hairStyle === 'pony' && view === 'three')
+    // Mid-turn it swings out wide and high.
+    path(
+      g,
+      p => {
+        p.moveTo(-5, top + 1);
+        p.bezierCurveTo(-27, top - 7 - flick, -27, hy + 6, -21 + sway, hy + 15 - flick);
+        p.bezierCurveTo(-12, hy + 7, -11, hy - 3, -3, top + 4);
+        p.closePath();
+      },
+      gradient(g, -27, top, 22, 30, k.hair, k.hairDark)
+    );
+  else if (k.hairStyle === 'pony')
     path(
       g,
       p => {
@@ -27147,12 +27263,24 @@ function npcBackHair(g, k, hy, hr, hry, t) {
   else if (k.hairStyle === 'curly' || k.hairStyle === 'net') ellipse(g, 0.5, hy - 2, hr + 4, hry + 3, k.hairDark);
 }
 
-function npcHead(g, k, hy, hr, hry, t, speak) {
-  const fx = 0.9,
+// The face per view, in the head's frame facing +x: fx shifts the face, eyes are [x, width], look is
+// where the pupils sit (ahead from the side, at the camera from the front), nose 0 is the front-on nose,
+// mouth is the mouth's x off fx, cheeks and ears are x offsets.
+const NPC_HEADS = {
+  side: { fx: 0.9, eyes: [[-4.4, 1], [5.4, 1]], look: 0.5, nose: 1, mouth: 1.1, cheeks: [-6.5, 8.2], ears: [-0.4, 0.3] },
+  three: { fx: 0.45, eyes: [[-4.7, 1], [5, 0.9]], look: 0.3, nose: 0.6, mouth: 0.6, cheeks: [-6.9, 7.6], ears: [-0.1, 0.3] },
+  front: { fx: 0, eyes: [[-4.9, 1], [4.9, 1]], look: 0, nose: 0, mouth: 0, cheeks: [-7.4, 7.4], ears: [0.2, 0.2] }
+};
+
+// The head in its own frame facing +x, by view (NPC_HEADS).
+function npcHead(g, k, hy, hr, hry, t, speak, view = 'side') {
+  const H = NPC_HEADS[view] || NPC_HEADS.side,
+    fx = H.fx,
     es = hr / 12.5,
+    m = fx + H.mouth,
     blink = (t + k.seed * 1.3) % 4.8 > 4.64;
-  ellipse(g, -hr + 0.4, hy + 2, 2.8, 4, k.skinShade);
-  ellipse(g, hr + 1.2, hy + 2, 2.6, 3.8, k.skinShade);
+  ellipse(g, -hr - H.ears[0], hy + 2, 2.8, 4, k.skinShade);
+  ellipse(g, hr + H.ears[1] + fx, hy + 2, view === 'front' ? 2.8 : 2.6, view === 'front' ? 4 : 3.8, k.skinShade);
   ellipse(g, fx, hy, hr, hry, gradient(g, -hr, hy - hry, hr * 1.7, hry * 1.8, k.skin, k.skinShade));
   if (k.stubble)
     path(
@@ -27179,50 +27307,66 @@ function npcHead(g, k, hy, hr, hry, t, speak) {
       },
       k.beard
     );
-  for (const ex of [-4.4, 5.4]) {
+  const eyeX = [];
+  for (const [ex, ew] of H.eyes) {
     const x = fx + ex * es,
-      y = hy + 0.5;
-    if (blink) line(g, [[x - 2.2, y], [x + 2.2, y]], '#4a3a33', 1.1);
+      y = hy + 0.5,
+      lk = H.look;
+    eyeX.push(x);
+    if (blink) line(g, [[x - 2.2 * ew, y], [x + 2.2 * ew, y]], '#4a3a33', 1.1);
     else {
-      ellipse(g, x, y, 2.3, 3.1, '#fff8e9');
-      ellipse(g, x + 0.5, y + 0.2, 1.55, 2.3, k.eyes);
-      ellipse(g, x + 0.75, y + 0.45, 0.78, 1.35, '#2a2427');
+      ellipse(g, x, y, 2.3 * ew, 3.1, '#fff8e9');
+      ellipse(g, x + lk, y + 0.2, 1.55 * ew, 2.3, k.eyes);
+      ellipse(g, x + lk * 1.5, y + 0.45, 0.78 * ew, 1.35, '#2a2427');
       ellipse(g, x, y - 0.8, 0.55, 0.7, '#ffffff');
     }
-    line(g, [[x - 2.3, y - 5], [x + 2.1, y - 5.5]], k.brows, k.age ? 1.6 : 1.2);
+    line(g, [[x - 2.3 * ew, y - 5], [x + 2.1 * ew, view === 'front' && ex > 0 ? y - 5 : y - 5.5]], k.brows, k.age ? 1.6 : 1.2);
     if (k.age) {
       const out = ex < 0 ? -1 : 1;
-      line(g, [[x + out * 3.4, y + 0.6], [x + out * 4.6, y - 0.6]], npcShade(k.skinShade, 0.86), 0.7);
+      line(g, [[x + out * 3.4 * ew, y + 0.6], [x + out * 4.6 * ew, y - 0.6]], npcShade(k.skinShade, 0.86), 0.7);
     }
   }
-  path(
-    g,
-    p => {
-      p.moveTo(fx + 1.8, hy + 2.6);
-      p.quadraticCurveTo(fx + 3.4, hy + 5.6, fx + 1.2, hy + 6.2);
-    },
-    null,
-    npcShade(k.skinShade, 0.86),
-    1
-  );
-  const open = speak ? Math.max(0, Math.sin(t * 19)) : 0;
-  if (open > 0.3) ellipse(g, fx + 1.2, hy + 9.2, 2.5, 0.9 + open * 1.6, '#8a4a4a');
+  if (H.nose)
+    path(
+      g,
+      p => {
+        p.moveTo(fx + 1.8 * H.nose, hy + 2.6);
+        p.quadraticCurveTo(fx + 3.4 * H.nose, hy + 5.6, fx + 1.2 * H.nose, hy + 6.2);
+      },
+      null,
+      npcShade(k.skinShade, 0.86),
+      1
+    );
+  // Front on, the nose is just its underside.
   else
     path(
       g,
       p => {
-        p.moveTo(fx - 2.2, hy + 8.4);
-        p.quadraticCurveTo(fx + 1.2, hy + 11.2, fx + 4.4, hy + 8.2);
+        p.moveTo(fx - 1.4, hy + 5.2);
+        p.quadraticCurveTo(fx, hy + 6.6, fx + 1.4, hy + 5.2);
+      },
+      null,
+      npcShade(k.skinShade, 0.86),
+      1
+    );
+  const open = speak ? Math.max(0, Math.sin(t * 19)) : 0;
+  if (open > 0.3) ellipse(g, m + 0.1, hy + 9.2, 2.5, 0.9 + open * 1.6, '#8a4a4a');
+  else
+    path(
+      g,
+      p => {
+        p.moveTo(m - 3.3, hy + 8.4);
+        p.quadraticCurveTo(m + 0.1, hy + 11.2, m + 3.3, hy + 8.4);
       },
       null,
       '#a7645d',
       1.1
     );
-  ellipse(g, fx - 6.5, hy + 5.6, 2.6, 1.3, '#ef9e8b44');
-  ellipse(g, fx + 8.2, hy + 5.6, 2.2, 1.2, '#ef9e8b44');
+  ellipse(g, fx + H.cheeks[0], hy + 5.6, 2.6, 1.3, '#ef9e8b44');
+  ellipse(g, fx + H.cheeks[1], hy + 5.6, view === 'front' ? 2.6 : 2.2, view === 'front' ? 1.3 : 1.2, '#ef9e8b44');
   if (k.mustache && k.handlebar) {
     // Dr. Benedetto's: thick, dark, and curled up at both ends. It has been with him since residency.
-    const mx = fx + 1.2;
+    const mx = m + 0.1;
     for (const side of [-1, 1])
       path(
         g,
@@ -27241,14 +27385,14 @@ function npcHead(g, k, hy, hr, hry, t, speak) {
     path(
       g,
       p => {
-        p.moveTo(fx - 4, hy + 7.8);
-        p.quadraticCurveTo(fx + 1.2, hy + 4.4, fx + 6.4, hy + 7.8);
-        p.quadraticCurveTo(fx + 1.2, hy + 6.6, fx - 4, hy + 7.8);
+        p.moveTo(m - 5.1, hy + 7.8);
+        p.quadraticCurveTo(m + 0.1, hy + 4.4, m + 5.3, hy + 7.8);
+        p.quadraticCurveTo(m + 0.1, hy + 6.6, m - 5.1, hy + 7.8);
         p.closePath();
       },
       k.mustache
     );
-  npcHair(g, k, hy, hr, hry, fx);
+  npcHair(g, k, hy, hr, hry, fx, view);
   if (k.shades) {
     // Sunglasses parked on top of her head: the senior who drives.
     const sy = hy - hry + 2;
@@ -27259,14 +27403,19 @@ function npcHead(g, k, hy, hr, hry, t, speak) {
     line(g, [[fx + 3, sy - 1.8], [fx + 5.4, sy - 1.8]], '#ffffff55', 0.8);
   }
   if (k.glasses) {
-    rr(g, fx - 7.8, hy - 2.2, 6.6, 5.2, 2, null, k.glasses, 1);
-    rr(g, fx + 2.2, hy - 2.2, 6.6, 5.2, 2, null, k.glasses, 1);
-    line(g, [[fx - 1.2, hy - 0.4], [fx + 2.2, hy - 0.4]], k.glasses, 1);
-    line(g, [[fx - 7.8, hy - 0.8], [-hr + 1, hy - 1.5]], k.glasses, 0.9);
+    // A lens over each eye (narrower on the far one three-quarters on), the bridge, and the arms back
+    // to the ears: one from the side, both from the front.
+    const [a, b] = eyeX,
+      wb = H.eyes[1][1] * 6.6;
+    rr(g, a - 3.3, hy - 2.2, 6.6, 5.2, 2, null, k.glasses, 1);
+    rr(g, b - wb / 2, hy - 2.2, wb, 5.2, 2, null, k.glasses, 1);
+    line(g, [[a + 3.3, hy - 0.4], [b - wb / 2, hy - 0.4]], k.glasses, 1);
+    line(g, [[a - 3.3, hy - 0.8], [-hr + 1, hy - 1.5]], k.glasses, 0.9);
+    if (view === 'front') line(g, [[b + wb / 2, hy - 0.8], [hr - 1, hy - 1.5]], k.glasses, 0.9);
   }
 }
 
-function npcHair(g, k, hy, hr, hry, fx) {
+function npcHair(g, k, hy, hr, hry, fx, view = 'side') {
   const top = hy - hry,
     fill = gradient(g, -hr, top - 6, hr * 2, hry + 4, k.hair, k.hairDark),
     style = k.hairStyle;
@@ -27397,16 +27546,19 @@ function npcHair(g, k, hy, hr, hry, fx) {
       },
       gradient(g, -hr, top - 7, hr * 2, 10, k.hat, k.hatDark)
     );
-    path(
-      g,
-      p => {
-        p.moveTo(hr - 3, hy - 6.8);
-        p.quadraticCurveTo(hr + 6, hy - 7.5, hr + 8.5, hy - 4.6);
-        p.quadraticCurveTo(hr + 3, hy - 3.6, hr - 4, hy - 4.4);
-        p.closePath();
-      },
-      k.hatDark
-    );
+    // The brim points ahead; from the front it is a band across the forehead.
+    if (view === 'front') ellipse(g, fx, hy - 5.2, hr + 1.5, 2.4, k.hatDark);
+    else
+      path(
+        g,
+        p => {
+          p.moveTo(hr - 3, hy - 6.8);
+          p.quadraticCurveTo(hr + (view === 'three' ? 4 : 6), hy - 7.5, hr + (view === 'three' ? 6 : 8.5), hy - 4.6);
+          p.quadraticCurveTo(hr + 3, hy - 3.6, hr - 4, hy - 4.4);
+          p.closePath();
+        },
+        k.hatDark
+      );
     line(g, [[-hr, hy - 3], [hr + 2, hy - 6.2]], npcShade(k.hatDark, 0.8), 1);
     for (let i = 0; i < 6; i++) ellipse(g, -hr + 3 + i * 3.6, top - 1 + (i % 2) * 2, 0.6, 0.6, '#c9b99a');
   } else if (style === 'pony') {
@@ -28159,7 +28311,8 @@ function hallwayRowdyBottles(g, npc) {
   if (typeof rowdyPose !== 'function') return;
   const P = rowdyPose('cheer', hallwayClock, {}),
     s = npc.scale || npc.spec.scale || 1,
-    fx = (npc.face < 0 ? -1 : 1) * Math.max(0.14, Math.abs(Number.isFinite(P.spin) ? P.spin : 1)),
+    // His body's side mid-turn (rowdy.js keeps npc.rowdyTurn), so the bottles never sit on the wrong side.
+    fx = facingSign(npc.rowdyTurn && typeof npc.rowdyTurn === 'object' ? npc.rowdyTurn.body : npc.face, npc.face) * Math.max(0.14, Math.abs(Number.isFinite(P.spin) ? P.spin : 1)),
     pv = -27 + (P.dip || 0),
     c = Math.cos(P.lean || 0),
     sn = Math.sin(P.lean || 0);
@@ -28192,7 +28345,10 @@ function hallwayDrawNpc(g, npc) {
     act = npc.act,
     // A hug or a selfie leans in toward Macy: drawn only, the visitor's spot never moves.
     lean = act && act.greet && ['hug', 'lean', 'selfie'].includes(act.kind) ? npcActEase(act) * 10 * (player.x >= npc.x ? 1 : -1) : 0;
-  npcFigure(g, npc.x + lean, npc.y, hallwayNpcScale(), npc.look, npc.moving ? npc.walk : 0, npc.vdir, hallwayClock, { hop, speak, act });
+  const T = npc.turn && typeof npc.turn === 'object' ? npc.turn : null,
+    body = T && Number.isFinite(T.body) ? T.body : npc.vdir,
+    head = T && Number.isFinite(T.head) ? T.head : body;
+  npcFigure(g, npc.x + lean, npc.y, hallwayNpcScale(), npc.look, npc.moving ? npc.walk : 0, body, hallwayClock, { hop, speak, act, head });
 }
 
 function roomExtraRenderables(all = false) {
