@@ -5942,19 +5942,40 @@ function npcHair(g, k, hy, hr, hry, fx, view = 'side') {
       fill
     );
     line(g, [[fx + 1, top - 0.5], [fx + 1, hy - 8.5]], k.hairDark, 0.9);
-    const S = k.shoulder;
+    const S = k.shoulder,
+      band = k.band || '#e8b84a';
+    // Two pigtails tied high on the head, just behind the temples, hanging smooth and tapered past
+    // the shoulders with a soft outward curve and a lighter strand down each.
     for (const side of [-1, 1]) {
-      const at = u => [
-        (1 - u) * (1 - u) * side * (hr + 1) + 2 * (1 - u) * u * side * (hr + 4) + u * u * side * (S - 1.5) + fx * 0.5,
-        (1 - u) * (1 - u) * (hy + 5) + 2 * (1 - u) * u * (hy + 15) + u * u * (hy + 27)
-      ];
-      for (let i = 0; i < 6; i++) {
-        const [bx, by] = at(i / 5.5);
-        ellipse(g, bx + (i % 2 ? 0.7 : -0.7), by, 2.7 - i * 0.12, 2.9, i % 2 ? k.hair : k.hairDark);
-      }
-      const [ex, ey] = at(1);
-      rr(g, ex - 1.8, ey + 0.8, 3.6, 2.2, 1, k.band || k.hairDark);
-      poly(g, [[ex - 1.8, ey + 2.8], [ex + 1.8, ey + 2.8], [ex + 0.7, ey + 6.2], [ex - 0.9, ey + 5.6]], k.hair);
+      const bx = side * (hr + 1.6) + fx * 0.3,
+        by = hy - 2,
+        ex = side * (S + 1.5) + fx * 0.3,
+        ey = hy + 25;
+      path(
+        g,
+        p => {
+          p.moveTo(bx - side * 2.6, by);
+          p.bezierCurveTo(bx - side * 3.2, by + 10, ex - side * 2.2, ey - 8, ex - side * 1.6, ey);
+          p.quadraticCurveTo(ex, ey + 4.5, ex + side * 1.8, ey);
+          p.bezierCurveTo(ex + side * 2.6, ey - 8, bx + side * 4.2, by + 10, bx + side * 2.6, by);
+          p.closePath();
+        },
+        gradient(g, bx, by, 0, 30, k.hair, k.hairDark)
+      );
+      path(
+        g,
+        p => {
+          p.moveTo(bx + side * 0.4, by + 3);
+          p.bezierCurveTo(bx - side * 0.2, by + 12, ex - side * 0.6, ey - 12, ex - side * 0.2, ey - 4);
+        },
+        null,
+        '#ffffff2e',
+        1.1
+      );
+      // The tie at the top, and the tail's end flared a little below the tie-less tip.
+      rr(g, bx - 2.4, by - 0.6, 4.8, 2.6, 1.2, band, npcShade(band, 0.78), 0.5);
+      // The gathered hair above the tie, tucked against the side of the head.
+      ellipse(g, bx - side * 0.8, by - 2.4, 3.2, 2.4, k.hair);
     }
   } else if (style === 'slick') {
     // Dr. Benedetto: slicked straight back, a high shine, not one hair out of place.
