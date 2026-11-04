@@ -28526,7 +28526,8 @@ const DISCHARGE_WHO = {
   macy: ['{name}', 'macy', 0, '#a5e2c9'],
   friends: ['Presley, Norah & Taylor', 'cousin', 1, '#f6dd8c'],
   desk: ['The front desk', 'nurse', 4, '#f3a6b8'],
-  ralph: ['Ralph', '', 0, '#cdb3f0']
+  ralph: ['Ralph', '', 0, '#cdb3f0'],
+  ghost: ['Gallbladder (ret.)', 'grandma', 5, '#c4eaa8']
 };
 
 // The ward's machines, one last opinion each: [id, name, line, sound, short label].
@@ -28616,6 +28617,7 @@ let discharge = {
   lobby: null,
   input: '',
   shareRect: null,
+  ghost: null,
   shareCv: null,
   shareBlob: null,
   shareSaid: null,
@@ -28744,6 +28746,7 @@ function dischargeNumbers() {
       { label: 'WARD CLEARS', value: clears, note: 'Radiology sends its thanks.' }
     ];
   if (st.ralph) rows.push({ label: 'RALPH', text: 'EVICTED', note: 'One-star review on file.' });
+  rows.push({ label: 'GALLBLADDER', text: 'RETIRED', note: 'Retired with honors. Sends its love.' });
   rows.push(
     { label: 'ARCADE RUNS', value: dischargeCount(st.runs), note: 'The claw machine is jealous.' },
     { label: 'COINS EARNED', value: dischargeCount(st.coinsEarned), note: 'The gift shop will miss you.' },
@@ -29058,7 +29061,13 @@ function dischargeWho(who) {
   }
   if (key.startsWith('gremlin')) return { name: 'A gremlin', voice: '', pitch: 0, tag: '#cfe8a8', fill: '#f3ffe6' };
   const row = DISCHARGE_WHO[key] || ['Someone', '', 0, '#f3d38b'];
-  return { name: dischargeFill(row[0]), voice: row[1], pitch: row[2], tag: row[3], fill: key === 'friends' ? '#fff3c4' : '' };
+  return {
+    name: dischargeFill(row[0]),
+    voice: row[1],
+    pitch: row[2],
+    tag: row[3],
+    fill: key === 'friends' ? '#fff3c4' : key === 'ghost' ? '#f4fbff' : ''
+  };
 }
 
 // Lays out a bubble whose tail points at (ax, ay), above the speaker if there is room, beside if not.
@@ -30042,6 +30051,150 @@ function dischargeLobby(g, L, T) {
   dischargeLines(g, L, lines, T, geo);
 }
 
+// ---- The gallbladder's ghost ----
+// Retired the day before she went home, and not one bit bitter about it: a little green pear of a
+// gallbladder with a stubby duct, rosy cheeks and kind eyes, a soft white sheet for a tail and a tilted
+// halo, sitting in a cloud and waving down at her. Drawn around the cloud's middle at (x, y), at scale s;
+// DISCHARGE_GHOST_BOX is its extent in those units. o: alpha, look (-1 looks left and down, 1 right),
+// speak, still (no wave). Under reduced motion it neither bobs, waves nor twinkles.
+const DISCHARGE_GHOST_BOX = { l: -66, r: 64, t: -124, b: 22 };
+
+function dischargeGhostBob(t) {
+  return reduced ? 0 : Math.sin(t * 1.9) * 3.2;
+}
+
+function dischargeGhostCloud(g, puffs, col, edge) {
+  for (const [x, y, rx, ry] of puffs) ellipse(g, x, y + 1.6, rx + 0.8, ry + 0.8, edge);
+  for (const [x, y, rx, ry] of puffs) ellipse(g, x, y, rx, ry, col);
+}
+
+function dischargeGhost(g, x, y, s, t, o = {}) {
+  const a = clamp(o.alpha ?? 1, 0, 1);
+  if (a <= 0.01 || !(s > 0)) return;
+  const still = reduced || o.still,
+    bob = dischargeGhostBob(t),
+    cy = -64 + bob,
+    look = clamp(o.look ?? -1, -1, 1),
+    green = '#a9db8f',
+    deep = '#5f9f61',
+    ink = '#2c4a33',
+    sway = still ? 0 : Math.sin(t * 2.3) * 2.2,
+    wave = still ? -0.25 : Math.sin(t * 6.5) * 0.5;
+  g.save();
+  g.translate(x, y);
+  g.scale(s, s);
+  g.globalAlpha = dischargeAlpha(g) * a;
+  glow(g, 0, -56, 74, '#fffbea55');
+  // The cloud behind it.
+  dischargeGhostCloud(g, [[-40, -14, 22, 14], [-12, -22, 26, 18], [20, -20, 24, 16], [44, -10, 18, 12]], '#ffffff', '#dfeaf2');
+  // Translucent from here: the sheet, the duct, the sac, the arms, the face.
+  g.save();
+  g.globalAlpha = dischargeAlpha(g) * 0.86;
+  path(
+    g,
+    p => {
+      p.moveTo(-21, cy + 6);
+      p.bezierCurveTo(-25, cy + 24, -23, cy + 38, -27 + sway, cy + 50);
+      p.quadraticCurveTo(-20 + sway, cy + 43, -13 + sway, cy + 50);
+      p.quadraticCurveTo(-6 + sway, cy + 43, 0 + sway, cy + 51);
+      p.quadraticCurveTo(7 + sway, cy + 43, 13 + sway, cy + 50);
+      p.quadraticCurveTo(20 + sway, cy + 43, 27 + sway, cy + 48);
+      p.bezierCurveTo(24, cy + 36, 25, cy + 24, 21, cy + 6);
+      p.closePath();
+    },
+    '#f1f8fc',
+    '#b7cedb',
+    1.4
+  );
+  line(g, [[0, cy - 28], [2, cy - 37], [10, cy - 41]], deep, 9.6);
+  line(g, [[0, cy - 28], [2, cy - 37], [10, cy - 41]], green, 6.4);
+  // The waving arm (toward her) and the one resting on the cloud.
+  const ex = -33,
+    ey = cy - 6,
+    hx = ex - 4 * Math.cos(wave) + 13 * Math.sin(wave),
+    hy = ey - 13 * Math.cos(wave) - 4 * Math.sin(wave);
+  line(g, [[-20, cy + 2], [ex, ey], [hx, hy]], deep, 8.4);
+  line(g, [[-20, cy + 2], [ex, ey], [hx, hy]], green, 5.4);
+  line(g, [[21, cy + 6], [28, cy + 22]], deep, 8.4);
+  line(g, [[21, cy + 6], [28, cy + 22]], green, 5.4);
+  path(
+    g,
+    p => {
+      p.moveTo(-6, cy - 30);
+      p.bezierCurveTo(-12, cy - 18, -28, cy - 8, -27, cy + 8);
+      p.bezierCurveTo(-26, cy + 26, -12, cy + 32, 0, cy + 32);
+      p.bezierCurveTo(12, cy + 32, 26, cy + 26, 27, cy + 8);
+      p.bezierCurveTo(28, cy - 8, 12, cy - 18, 6, cy - 30);
+      p.closePath();
+    },
+    gradient(g, 0, cy - 30, 0, 62, '#c4eaa8', '#8cc77c'),
+    deep,
+    1.6
+  );
+  ellipse(g, -14, cy - 6, 3.2, 7, '#ffffff99');
+  for (const [px, py] of [[hx, hy], [28, cy + 23]]) {
+    ellipse(g, px, py, 5.4, 5.4, deep);
+    ellipse(g, px, py, 4.2, 4.2, green);
+  }
+  ellipse(g, hx + (wave > 0 ? 3.2 : -3.2), hy - 3, 1.8, 2.6, green);
+  // Kind eyes looking down at her, rosy cheeks, a smile (or a word).
+  for (const ex2 of [-9, 9]) {
+    ellipse(g, ex2, cy + 1, 4.6, 5.4, '#ffffff');
+    ellipse(g, ex2 + look * 1.3, cy + 2.3, 2.8, 3.3, '#24352b');
+    ellipse(g, ex2 + look * 1.3 - 0.9, cy + 1, 1, 1.1, '#ffffff');
+  }
+  line(g, [[-13, cy - 7], [-6, cy - 7.6]], deep, 1.3);
+  line(g, [[6, cy - 7.6], [13, cy - 7]], deep, 1.3);
+  ellipse(g, -16, cy + 9, 4.6, 2.8, '#f39aa8cc');
+  ellipse(g, 16, cy + 9, 4.6, 2.8, '#f39aa8cc');
+  if (o.speak && !reduced) ellipse(g, 0, cy + 11, 3, 1.4 + Math.abs(Math.sin(t * 13)) * 1.8, ink);
+  else
+    path(
+      g,
+      p => {
+        p.moveTo(-5.5, cy + 9);
+        p.quadraticCurveTo(0, cy + 15, 5.5, cy + 9);
+      },
+      null,
+      ink,
+      1.8
+    );
+  g.restore();
+  // The halo, tipped at a jaunty angle, and the front of the cloud it sits in.
+  path(g, p => p.ellipse(1, cy - 49, 15, 4.2, -0.22, 0, Math.PI * 2), null, '#f2c43f', 3.4);
+  path(g, p => p.ellipse(1, cy - 49, 15, 4.2, -0.22, 0, Math.PI * 2), null, '#fff4b8', 1.2);
+  dischargeGhostCloud(g, [[-46, 0, 20, 13], [-20, -4, 26, 17], [10, -2, 28, 18], [40, 2, 22, 13], [58, 6, 9, 7], [-60, 6, 9, 7]], '#ffffff', '#d3e2ec');
+  ellipse(g, -22, -10, 12, 5, '#ffffffdd');
+  if (!reduced)
+    for (const [sx, sy, ph] of [[52, -84, 0], [-54, -64, 2.1]]) {
+      const tw = 0.5 + 0.5 * Math.sin(t * 3 + ph);
+      if (tw > 0.08) spark(g, sx, sy + bob * 0.5, '#fff1c3', 0.25 + 0.35 * tw);
+    }
+  g.restore();
+}
+
+// The ghost's extent on screen, kept for the tests (and anyone checking it stays clear of her).
+function dischargeGhostRect(x, y, s, t) {
+  const B = DISCHARGE_GHOST_BOX;
+  return { x: x + B.l * s, y: y + B.t * s, w: (B.r - B.l) * s, h: (B.b - B.t) * s, bob: dischargeGhostBob(t) };
+}
+
+// Where the ghost sits in the sky of an outdoor beat, in screen space: the top-right corner, under the
+// beat dots. Returns the cloud's middle, the scale, and where a bubble should point.
+function dischargeGhostSpot(L) {
+  const B = DISCHARGE_GHOST_BOX,
+    gh = clamp(Math.min(L.w * (L.portrait ? 0.32 : 0.2), L.h * 0.3), L.fs(64), L.fs(150)),
+    s = gh / (B.b - B.t),
+    x = L.w - L.m - B.r * s,
+    y = L.top + L.fs(6) - B.t * s;
+  return {
+    x,
+    y,
+    s,
+    anchor: L.portrait ? [x - 6 * s, y + B.b * s, 'below'] : [x + B.l * s * 0.55, y - 60 * s]
+  };
+}
+
 // ---- Beat 11: the doors ----
 function dischargeOutside(g, x, y, w, h, T) {
   g.fillStyle = gradient(g, 0, y, 0, h * 0.62, '#7cc3dc', '#e8f1d2');
@@ -30093,6 +30246,21 @@ function dischargeDoors(g, L, T) {
     poly(g, [[cx - 160, fy], [cx + 160, fy], [cx + 260, S.y1], [cx - 260, S.y1]], '#fff6d6');
     g.restore();
   }
+  // Up in the sky through the open doors, right where she is headed, once she is on her feet: the
+  // gallbladder, retired, waving. In front of the daylight so the glow does not wash it out.
+  const gx = cx + 86,
+    gy = 232,
+    gs = 1.15,
+    ghostIn = dischargeSpan(T, 4.2, 4.9);
+  if (ghostIn > 0) {
+    g.save();
+    g.beginPath();
+    g.rect(cx - 166, 78, 332, fy - 78);
+    g.clip();
+    dischargeGhost(g, gx, gy, gs, T, { alpha: ghostIn, look: -1, speak: dischargeSpeaking(lines, T, 'ghost') });
+    g.restore();
+  }
+  geo.ghost = [gx - 20 * gs, gy + DISCHARGE_GHOST_BOX.t * gs + 4];
   rr(g, cx - 120, fy + 6, 240, 30, 6, '#3e5a63');
   dischargeText(g, 'THANK YOU', cx, fy + 27, 13, '#cfe0da', 'center', 900);
   // The chair rolls up; she stands up out of it and walks out on her own.
@@ -30130,6 +30298,7 @@ function dischargeDoors(g, L, T) {
   }
   g.restore();
   for (const k of Object.keys(geo)) geo[k] = [S.ox + geo[k][0] * S.k, S.oy + geo[k][1] * S.k];
+  if (ghostIn > 0) discharge.ghost = { ...dischargeGhostRect(S.ox + gx * S.k, S.oy + gy * S.k, gs * S.k, T), macy: geo.macy };
   const white = dischargeSpan(T, 7.9, 9);
   if (white > 0) {
     g.save();
@@ -30137,7 +30306,7 @@ function dischargeDoors(g, L, T) {
     rect(g, 0, 0, L.w, L.h, '#fffaf0');
     g.restore();
   }
-  dischargeLines(g, L, lines, T, geo);
+  dischargeLines(g, L, lines, T, geo, { linger: 0.6 });
 }
 
 // ---- Beat 12: the car ----
@@ -30283,6 +30452,11 @@ function dischargeCar(g, L, T) {
   g.restore();
   g.restore();
   for (const kk of Object.keys(geo)) geo[kk] = [S.ox + geo[kk][0] * S.k, S.oy + geo[kk][1] * S.k];
+  // The gallbladder's ghost, in the top corner of the sky, seeing her off.
+  const spot = dischargeGhostSpot(L);
+  dischargeGhost(g, spot.x, spot.y, spot.s, T, { look: -1, speak: dischargeSpeaking(lines, T, 'ghost') });
+  geo.ghost = spot.anchor;
+  discharge.ghost = { ...dischargeGhostRect(spot.x, spot.y, spot.s, T), macy: geo.macy };
   dischargeLines(g, L, lines, T, geo);
 }
 
@@ -30326,6 +30500,30 @@ function dischargeCard(g, L, T) {
     const fh = Math.min(py - L.m, 140 * u);
     dischargeMacy(g, cx - 50 * u, py - u * 6, fh / 96, { dir: 1, act: { kind: 'pump', t: T % 1.3 }, bottle: true });
     dischargePerson(g, 'rowdy', cx + 60 * u, py - u * 6, { s: fh / dischargeHeight('rowdy'), pose: 'cheer', prop: 'flag', dir: -1, t: T });
+  }
+  // A small cameo from the gallbladder's ghost, wherever there is sky to spare: over Rowdy beside the
+  // card, or in the top corner above it. Never on the card, never crowding the two of them.
+  {
+    const B = DISCHARGE_GHOST_BOX,
+      ratio = (B.b - B.t) / (B.r - B.l),
+      top = L.m * 0.6;
+    let gh = 0,
+      gx = 0;
+    if (side) {
+      const colW = W - px - pw,
+        rowdyTop = py + ph * 0.92 - Math.min(ph * 0.75, (W - pw) * 0.4) - 14 * u;
+      gh = Math.min(rowdyTop - top, colW * 0.75 * ratio, 120 * u);
+      gx = px + pw + colW / 2;
+    } else {
+      const left = py > 150 * u ? cx + 60 * u + Math.min(py - L.m, 140 * u) * 0.6 : cx + 20 * u;
+      gh = Math.min(py - top - 8 * u, (W - L.m - left) * ratio, 110 * u);
+      gx = W - L.m - (gh / ratio) * (B.r / (B.r - B.l));
+    }
+    if (gh >= 44 * f0) {
+      const s = gh / (B.b - B.t);
+      dischargeGhost(g, gx, top - B.t * s, s, T, { alpha: dischargeSpan(T, 0.5, 1.4), look: -1 });
+      discharge.ghost = dischargeGhostRect(gx, top - B.t * s, s, T);
+    }
   }
   rr(g, px + 6, py + 8, pw, ph, 22 * u, '#00000044');
   rr(g, px, py, pw, ph, 22 * u, '#16313f', '#b5e8c566', 2);
@@ -30545,13 +30743,16 @@ const DISCHARGE_BEAT_LINES = {
   doors: [
     [1, 'stephanie', 'Wheelchair to the door. Hospital rule.'],
     [3.9, 'macy', 'Feet from here. My rule.'],
-    [6.2, 'stephanie', "Go get 'em, number {num}."]
+    [4.9, 'ghost', 'Go on without me, kid. I was only holding you back.'],
+    [7, 'stephanie', "Go get 'em, number {num}."]
   ],
   car: [
     [0.6, 'dad', 'Your chariot. Built it myself. Scaled it up a little.'],
     [2.7, 'macy', "Dad. It's still on the stand."],
     [4.3, 'dad', 'It came with the stand.'],
-    [7.4, 'rowdy', 'GO RAMS! GO HOME! GO {NAME}!']
+    [5.6, 'ghost', 'Save me a seat. Kidding. Eat the fries.'],
+    [7.4, 'rowdy', 'GO RAMS! GO HOME! GO {NAME}!'],
+    [9.6, 'ghost', 'Proud of you. Always was.']
   ]
 };
 
@@ -31145,6 +31346,7 @@ function drawDischarge(g, vw, vh) {
     const k = discharge.shake / 0.35;
     g.translate(Math.sin(discharge.clock * 90) * 6 * k, Math.cos(discharge.clock * 77) * 4 * k);
   }
+  discharge.ghost = null;
   try {
     beat.draw(g, L, T, D);
   } catch (err) {
