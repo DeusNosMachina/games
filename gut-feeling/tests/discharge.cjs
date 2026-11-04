@@ -352,7 +352,8 @@ const BLENDS = new Set(['source-over', 'source-atop', 'destination-out', 'multip
 const COLOR = /^(#[0-9a-f]{3,4}|#[0-9a-f]{6}|#[0-9a-f]{8}|rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(,\s*[\d.]+\s*)?\)|transparent)$/i;
 const gradients = new WeakSet();
 let depth = 0,
-  calls = 0;
+  calls = 0,
+  texts = [];
 function strictFail(msg) {
   throw new Error('strict canvas: ' + msg);
 }
@@ -383,6 +384,7 @@ box.dischargeStrict = new Proxy(
         if ((k === 'fill' || k === 'clip') && a.length && !['nonzero', 'evenodd'].includes(a[0])) strictFail(`${k}(${a[0]})`);
         if (k === 'drawImage' && (!a[0] || typeof a[0] !== 'object')) strictFail('drawImage without an image');
         if (k === 'setLineDash' && !(Array.isArray(a[0]) && a[0].every(Number.isFinite))) strictFail('bad line dash');
+        if (k === 'fillText') texts.push(String(a[0]));
         if (k === 'measureText') return { width: String(a[0]).length * 7 };
         if (k === 'createLinearGradient' || k === 'createRadialGradient') {
           if (k === 'createRadialGradient' && (a[2] < 0 || a[5] < 0)) strictFail('radial gradient with a negative radius');
@@ -456,6 +458,65 @@ run('Math.random = dtKeep; dischargeStop()');
 assert.ok(calls > 100000, `the strict canvas saw the drawing (${calls} calls)`);
 console.log(`PASS: ${beats.length} beats x ${SIZES.length} sizes, ${frames} frames, the fade, the pause and the share card draw on a strict canvas.`);
 
+// ---- The gallbladder's ghost: waving from a cloud over the doors and the car, three lines, one receipt row ----
+const GHOST_LINES = ['Go on without me, kid. I was only holding you back.', 'Save me a seat. Kidding. Eat the fries.', 'Proud of you. Always was.'];
+assert.deepEqual(
+  json("['doors', 'car'].flatMap(id => DISCHARGE_BEAT_LINES[id].filter(l => l[1] === 'ghost').map(l => l[2]))"),
+  GHOST_LINES,
+  'the ghost says its three lines, doors then car'
+);
+for (const id of ['doors', 'car']) {
+  const ts = json(`DISCHARGE_BEAT_LINES.${id}.map(l => l[0])`),
+    dur = beats.find(b => b.id === id).dur;
+  assert.ok(ts.every((t, i) => !i || t > ts[i - 1]) && ts[ts.length - 1] <= dur - 2, `${id}: lines in order, the last with time to read`);
+}
+assert.ok(GHOST_LINES.every(l => !l.includes('!') && !l.includes('—')), 'the ghost is warm, not shouty');
+assert.equal(run("dischargeWho('ghost').name"), 'Gallbladder (ret.)', 'its name tag');
+assert.equal(row('GALLBLADDER').text, 'RETIRED', 'the receipt has a gallbladder row');
+assert.ok(row('GALLBLADDER').note.includes('Retired with honors'), 'retired with honors');
+const doorsI = beats.findIndex(b => b.id === 'doors'),
+  carI = beats.findIndex(b => b.id === 'car');
+run(`dischargeStart(); var dtGhosts = 0, dtGhostReal = dischargeGhost;
+dischargeGhost = function () { dtGhosts++; return dtGhostReal.apply(null, arguments); };`);
+const GHOST_SIZES = [...SIZES, [390, 844], [844, 390], [1280, 720]];
+const ghostAt = (i, t, w, h) => {
+  texts = [];
+  run(`dtGhosts = 0; discharge.beat = ${i}; discharge.T = ${t}; discharge.t = ${t}; drawDischarge(dischargeStrict, ${w}, ${h})`);
+  balanced(`ghost in beat ${i} at ${t} (${w} x ${h})`);
+  return { n: run('dtGhosts'), box: json('discharge.ghost'), cap: json(`dischargeLayout(dischargeStrict, ${w}, ${h}, DISCHARGE_BEATS[${i}]).cap`) };
+};
+let ghostFrames = 0;
+for (const [w, h] of GHOST_SIZES) {
+  assert.equal(ghostAt(doorsI, 3.5, w, h).n, 0, `doors (${w} x ${h}): no ghost until she is on her feet`);
+  for (const [i, t] of [[doorsI, 5.2], [doorsI, 6.4], [doorsI, 7.6], [carI, 0.5], [carI, 6], [carI, 8], [carI, 10.6]]) {
+    const { n, box: gb, cap } = ghostAt(i, t, w, h),
+      where = `${beats[i].id} at ${t} (${w} x ${h})`;
+    assert.equal(n, 1, `${where}: the ghost draws`);
+    assert.ok(gb.x >= -1 && gb.y >= -1 && gb.x + gb.w <= w + 1, `${where}: on screen`);
+    assert.ok(!cap || gb.y + gb.h <= cap.y, `${where}: clear of the caption`);
+    assert.ok(gb.y + gb.h <= gb.macy[1] + 2, `${where}: up in the sky, above her`);
+    ghostFrames++;
+  }
+}
+assert.equal(run('discharge.errors'), 0, `the ghost drew without a throw (${run('discharge.lastError')})`);
+// Its lines show up in order as the two beats play.
+const heard = [];
+for (const [i, D] of [[doorsI, beats[doorsI].dur], [carI, beats[carI].dur]])
+  for (let t = 0; t < D; t += 0.25) {
+    ghostAt(i, t, 1000, 625);
+    const seen = texts.join(' ');
+    GHOST_LINES.forEach((l, k) => {
+      if (!heard.includes(k) && seen.includes(l.split(' ').slice(0, 3).join(' '))) heard.push(k);
+    });
+  }
+assert.deepEqual(heard, [0, 1, 2], 'the ghost lines appear on screen, in order');
+// A cameo on the final card, where there is room for it.
+const cameo = SIZES.filter(([w, h]) => ghostAt(last, 3, w, h).n > 0);
+assert.ok(cameo.length > 0, `a cameo on the final card (${cameo.map(s => s.join('x')).join(', ')})`);
+assert.notEqual(run('dischargeGhostBob(1.3)'), 0, 'it bobs');
+run('dischargeGhost = dtGhostReal; dischargeStop()');
+console.log(`PASS: the gallbladder's ghost waves in ${ghostFrames} outdoor frames across ${GHOST_SIZES.length} sizes, says its lines in order, retires on the receipt and cameos on the card.`);
+
 // ---- Reduced motion: shorter holds, no shake, sparse confetti ----
 {
   const code = `const { run, assert } = require(${JSON.stringify(path.join(__dirname, 'harness.cjs'))});
@@ -466,18 +527,23 @@ let shook = 0, t = 0;
 while (run('dischargeActive()') && t < 400) { run('updateDischarge(0.25)'); if (run('discharge.shake') > 0) shook++; t += 0.25; }
 run('dischargeStart(); dischargeGo(5); for (var i = 0; i < 40; i++) updateDischarge(0.1)');
 const fx = run('discharge.fx.length');
+const bobs = [0.3, 1.1, 2.9, 7.7].map(x => run('dischargeGhostBob(' + x + ')'));
+run('discharge.beat = DISCHARGE_BEATS.findIndex(b => b.id === "car"); var dtBoxes = [6, 6.4, 6.9].map(function (x) { discharge.T = x; drawDischarge(c, 1000, 625); return JSON.stringify(discharge.ghost); })');
+const still = new Set(run('dtBoxes')).size === 1 && run('dtBoxes[0]') !== 'null';
 run('dischargeStop()');
-console.log(JSON.stringify({ t, shook, total: run('dischargeTotal()'), scale: run('DISCHARGE_REDUCED'), fx, errors: run('discharge.errors') }));`;
+console.log(JSON.stringify({ t, shook, total: run('dischargeTotal()'), scale: run('DISCHARGE_REDUCED'), fx, errors: run('discharge.errors'), bobs, still }));`;
   const r = spawnSync(process.execPath, ['-e', code], { env: { ...process.env, GF_REDUCED_MOTION: '1', GF_PRELUDE: '' }, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr || r.stdout);
   const out = JSON.parse(r.stdout.trim().split('\n').pop());
   assert.ok(out.total < total * 0.8, `reduced motion is shorter (${out.total.toFixed(1)} s vs ${total.toFixed(1)} s)`);
   assert.ok(Math.abs(out.t - (out.total + run('DISCHARGE_OUT'))) < 0.5, `and runs that long (${out.t} s)`);
   assert.equal(out.shook, 0, 'nothing shakes');
+  assert.deepEqual(out.bobs, [0, 0, 0, 0], 'the ghost does not bob');
+  assert.ok(out.still, 'the ghost holds still on its cloud');
   assert.equal(out.errors, 0);
   run('goRoom(6); dischargeStart(); dischargeGo(5); for (var i = 0; i < 40; i++) updateDischarge(0.1)');
   const fxNormal = run('discharge.fx.length');
   run('dischargeStop()');
   assert.ok(out.fx < fxNormal, `sparser confetti (${out.fx} vs ${fxNormal})`);
 }
-console.log('PASS: under prefers-reduced-motion the send-off is shorter, never shakes and keeps the confetti sparse.');
+console.log('PASS: under prefers-reduced-motion the send-off is shorter, never shakes, keeps the confetti sparse and the ghost still.');
