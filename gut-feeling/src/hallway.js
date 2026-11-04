@@ -5503,19 +5503,10 @@ function npcBackHair(g, k, hy, hr, hry, t, view = 'side') {
     );
   else if (k.hairStyle === 'bob') rr(g, -hr - 2.6, hy - 6, hr * 2 + 5, hry + 9, 7, k.hairDark);
   else if (k.hairStyle === 'crop') {
-    // The clipped-up tuft behind the crown, a little sway in it: from the front it peeks over the top
-    // of the head, from the side it sits behind the flick.
-    const cx = view === 'front' ? 0 : -hr - 1;
-    path(
-      g,
-      p => {
-        p.moveTo(cx - 3.5, top + 2);
-        p.quadraticCurveTo(cx - 2 + sway * 0.3, top - 3.5, cx + 0.5 + sway * 0.4, top - 3);
-        p.quadraticCurveTo(cx + 3, top - 2.5, cx + 3.5, top + 2);
-        p.closePath();
-      },
-      k.hairDark
-    );
+    // From the front the clipped-up tufts peek over the top of the head; from the side a little base
+    // of hair behind the clip.
+    if (view === 'front') for (const [x, y, r] of [[-3.2, -1.5, 2.2], [0, -3, 2.4], [3.2, -1.5, 2.2]]) ellipse(g, x + sway * 0.2, top + y, r, r * 1.3, k.hairDark);
+    else ellipse(g, -hr - 0.5, top + 3.5, 3, 3.6, k.hairDark);
   }
   else if (k.hairStyle === 'curly' || k.hairStyle === 'net') ellipse(g, 0.5, hy - 2, hr + 4, hry + 3, k.hairDark);
 }
@@ -5759,20 +5750,20 @@ function npcHair(g, k, hy, hr, hry, fx, view = 'side') {
       },
       fill
     );
-    // The lift: from the side, the hair at the nape sweeps up and back into a short flick that ends
-    // about level with the crown. From the front it is only the tuft behind the head (npcBackHair).
+    // The lift: the back gathered into a purple claw clip at the back of the crown, the ends fanning
+    // up and back in three short tufts, not quite a ponytail. From the front only the tufts show over
+    // the top of the head (npcBackHair).
     if (view !== 'front') {
-      path(
-        g,
-        p => {
-          p.moveTo(-hr + 3, hy - 1);
-          p.quadraticCurveTo(-hr - 3.5, hy - 6, -hr - 5, top - 2.5);
-          p.quadraticCurveTo(-hr - 2, top + 1.5, -hr + 0.5, top + 4);
-          p.closePath();
-        },
-        k.hair
-      );
-      ellipse(g, -hr - 1.2, hy - 3.4, 1.6, 1.1, k.hairDark);
+      const bx = -hr + 1.2,
+        by = top + 2.5;
+      for (const [ang, len, col] of [[-0.55, 7, k.hair], [-1.05, 7.5, k.hairDark], [-1.5, 6.5, k.hair]]) {
+        g.save();
+        g.translate(bx, by);
+        g.rotate(Math.PI - ang);
+        ellipse(g, len * 0.5, 0, len * 0.55, 2.1, col);
+        g.restore();
+      }
+      rr(g, bx - 2.4, by - 1.6, 4.8, 3.2, 1.2, '#7a3fb5', '#4f2680', 0.5);
     }
     path(
       g,
